@@ -1,0 +1,563 @@
+{
+  "_note": "밸런스 수치 초안. 기획 단계에서 정한 값과 임시값이 섞여 있다. status가 'draft'인 값은 캘리브레이션으로 조정하고, 'verify'인 값은 현실 규정 확인이 필요하다(CLAUDE.md §8).",
+
+  "ratingScale": { "min": 1, "max": 100, "leagueAverage": 50, "starterAverage": 60 },
+
+  "ratingTables": {
+    "status": "draft",
+    "_note": "능력치 → 비율 앵커(docs/04). 사이값은 선형 보간. 능력치 50 = 리그 평균. 캘리브레이션(M4) 대상.",
+    "batterContactToK": { "20": 0.31, "50": 0.198, "80": 0.121, "95": 0.082 },
+    "batterEyeToK": { "20": 0.232, "50": 0.198, "80": 0.169, "95": 0.155 },
+    "batterEyeToBB": { "20": 0.039, "50": 0.084, "80": 0.137, "95": 0.171 },
+    "batterPowerToHR": { "20": 0.0075, "50": 0.0235, "80": 0.049, "95": 0.068 },
+    "batterPowerToFlyShare": { "20": 0.30, "50": 0.38, "80": 0.45, "95": 0.50 },
+    "batterContactToBabip": { "20": 0.280, "50": 0.315, "80": 0.345, "95": 0.365 },
+    "batterSpeedToBabip": { "20": -0.014, "50": 0.0, "80": 0.016, "95": 0.026 },
+    "batterSpeedToExtraBase": { "20": -0.20, "50": 0.0, "80": 0.22, "95": 0.35 },
+    "batterSpeedToDoublePlay": { "20": 0.40, "50": 0.32, "80": 0.22, "95": 0.16 },
+    "pitcherStuffToK": { "20": 0.111, "50": 0.198, "80": 0.280, "95": 0.329 },
+    "pitcherControlToBB": { "20": 0.156, "50": 0.084, "80": 0.050, "95": 0.034 },
+    "pitcherControlToHbp": { "20": 0.022, "50": 0.011, "80": 0.006, "95": 0.004 },
+    "pitcherControlToWildPitch": { "20": 0.020, "50": 0.010, "80": 0.005, "95": 0.003 },
+    "pitcherStuffToHR": { "20": 0.037, "50": 0.0235, "80": 0.015, "95": 0.0105 },
+    "pitcherGroundballToGbShare": { "20": 0.33, "50": 0.44, "80": 0.55, "95": 0.62 },
+    "pitcherStuffToBabip": { "20": 0.340, "50": 0.315, "80": 0.290, "95": 0.275 },
+    "pitcherStaminaToPitchLimit": { "20": 40, "50": 85, "80": 105, "95": 115 },
+    "defenseToBabip": { "20": 0.024, "50": 0.0, "80": -0.020, "95": -0.030 },
+    "defenseToErrorRate": { "20": 0.032, "50": 0.015, "80": 0.008, "95": 0.005 },
+    "catcherDefenseToStealSuccess": { "20": 0.78, "50": 0.68, "80": 0.56, "95": 0.48 },
+    "speedToStealAttempt": { "20": 0.008, "50": 0.050, "80": 0.130, "95": 0.190 },
+    "speedToStealSuccess": { "20": 0.52, "50": 0.66, "80": 0.78, "95": 0.84 }
+  },
+
+  "leagueAverages": {
+    "status": "draft",
+    "_note": "Log5 의 기준값 L (docs/04). 능력치 50 끼리 붙었을 때 나오는 비율과 같아야 한다.",
+    "kRate": 0.198,
+    "bbRate": 0.084,
+    "hbpRate": 0.011,
+    "hrPerBattedBall": 0.0235,
+    "babip": 0.315,
+    "gbShare": 0.44,
+    "flyShare": 0.38,
+    "stealSuccess": 0.66
+  },
+
+  "battedBall": {
+    "status": "draft",
+    "_note": "타구 종류별 안타 확률(홈런 제외)과 안타 종류 배분(docs/04 ④⑤).",
+    "hitChance": { "ground": 0.271, "fly": 0.147, "line": 0.810 },
+    "lineShare": { "min": 0.13, "max": 0.24, "base": 0.18 },
+    "hitTypeShares": {
+      "ground": { "single": 0.96, "double": 0.035, "triple": 0.005 },
+      "fly": { "single": 0.46, "double": 0.47, "triple": 0.07 },
+      "line": { "single": 0.78, "double": 0.20, "triple": 0.02 }
+    },
+    "fieldersChoiceChance": 0.06,
+    "sacFlyChance": 0.45,
+    "extraBaseFromPower": 0.25
+  },
+
+  "gameFlow": {
+    "status": "draft",
+    "_note": "M2 임시 투수 운용. M3 에서 사전 지시 규칙표(DirectiveSheet)가 대신한다.",
+    "starterRunsAllowedLimit": 6,
+    "starterPitchLimitShare": 1.0,
+    "relieverPitchLimit": 35,
+    "closerLeadMax": 3,
+    "pitchCountFatigueStart": 0.8,
+    "pitchCountFatiguePerPitch": 0.25,
+    "pitchesPerOutcome": { "strikeout": 4.8, "walk": 5.7, "inPlay": 3.3, "hitByPitch": 3.2 },
+    "pitchCountSpread": 1.1,
+    "pitchesPerEyePoint": 0.012
+  },
+
+  "platoon": {
+    "status": "draft",
+    "_note": "좌우 상성(docs/02). 같은 손 매치업이면 타자 불리, 반대 손이면 유리. 선수별 플래툰 민감도(숨김)가 배율이 된다. 민감도 50 이면 배율 1.0.",
+    "batterRatingSwing": 4.0,
+    "pitcherRatingSwing": 2.0,
+    "sensitivityPivot": 50.0
+  },
+
+  "conditionEffects": {
+    "status": "draft",
+    "_note": "폼·피로가 능력치에 주는 영향. 피로는 M4 에서 실제로 쌓인다.",
+    "fatigueRatingPenaltyAt100": 8.0
+  },
+
+  "rareEvents": {
+    "status": "draft",
+    "_note": "낫아웃 출루와 타격방해. 드물지만 박스스코어 주자 보존 등식에 포함되는 출루 방법이다(docs/05).",
+    "droppedThirdStrike": 0.012,
+    "catcherInterference": 0.0006
+  },
+
+  "baseRunningExtra": {
+    "status": "draft",
+    "_note": "추가 진루 시도에 따르는 주루사와 태그업 (docs/05).",
+    "outAttemptingExtraBase": 0.045,
+    "tagUpFromThird": 0.45,
+    "groundOutScoresFromThird": 0.45,
+    "groundOutAdvancesFromSecond": 0.50,
+    "speedEffectOnAdvance": 0.30,
+    "wildPitchAdvance": 1.0
+  },
+
+  "leagueTargets": {
+    "status": "draft",
+    "battingAverage": [0.260, 0.275],
+    "kRate": [0.18, 0.20],
+    "bbRate": [0.09, 0.10],
+    "runsPerTeamGame": [4.6, 5.0],
+    "teamHomeRunsPerSeason": [100, 140],
+    "bestTeamWinPct": [0.600, 0.650],
+    "worstTeamWinPct": [0.350, 0.400]
+  },
+
+  "pitchCountPerPA": { "status": "draft", "strikeout": 4.8, "walk": 5.7, "inPlay": 3.3 },
+
+  "baseRunning": {
+    "status": "draft",
+    "_note": "주루 50 기준 추가 진루 확률",
+    "singleRunnerOnSecondScores": 0.60,
+    "singleRunnerOnFirstToThird": 0.28,
+    "doubleRunnerOnFirstScores": 0.40
+  },
+  "errorRateOnBallsInPlay": { "status": "draft", "value": 0.015 },
+
+  "form": {
+    "status": "draft",
+    "_note": "폼은 숨은 값(0~100)의 랜덤 워크 + 평균 회귀. 변동 폭은 선수의 기복(숨김 수치)에 비례한다 (docs/08).",
+    "maxRatingEffect": 5,
+    "levels": ["급상승", "상승", "보통", "하락", "슬럼프"],
+    "levelThresholds": [64, 56, 44, 36],
+    "randomWalkSd": 7.0,
+    "volatilityScale": 0.02,
+    "regressionToMean": 0.18,
+    "min": 15,
+    "max": 85,
+    "demotionRecovery": 0.6,
+    "restRecovery": 0.15
+  },
+
+  "injury": {
+    "status": "draft",
+    "_note": "부상 확률 = 기본 × 피로 보정 × 내구도 보정 × 나이 보정 × 팀 닥터 보정 (docs/08).",
+    "baseChancePerGame": 0.0022,
+    "pitcherExtraMultiplier": 1.25,
+    "fatigueMultiplierAt100": 2.4,
+    "durabilityMultiplier": { "20": 1.7, "50": 1.0, "80": 0.65, "95": 0.5 },
+    "ageMultiplierFromAge": 30,
+    "ageMultiplierPerYear": 0.07,
+    "relapseMultiplier": 1.8,
+    "relapseWeeks": 3,
+    "batterParts": {
+      "햄스트링": { "share": 0.30, "attributes": ["speed"] },
+      "손목": { "share": 0.22, "attributes": ["contact", "power"] },
+      "허리": { "share": 0.20, "attributes": ["power", "defense"] },
+      "어깨": { "share": 0.14, "attributes": ["defense"] },
+      "무릎": { "share": 0.14, "attributes": ["speed", "defense"] }
+    },
+    "pitcherParts": {
+      "팔꿈치": { "share": 0.34, "attributes": ["stuff", "control"] },
+      "어깨": { "share": 0.30, "attributes": ["stuff", "stamina"] },
+      "허리": { "share": 0.18, "attributes": ["control", "stamina"] },
+      "햄스트링": { "share": 0.10, "attributes": ["stamina"] },
+      "손가락": { "share": 0.08, "attributes": ["control"] }
+    },
+    "severityShare": { "minor": 0.60, "moderate": 0.28, "major": 0.10, "seasonEnding": 0.02 },
+    "durationWeeks": { "minor": [1, 2], "moderate": [3, 6], "major": [9, 17], "seasonEnding": [18, 44] },
+    "_note_seasonEnding": "시즌 아웃은 남은 시즌 전부. 투수 팔꿈치 수술급은 다음 시즌까지 넘어간다(docs/08).",
+    "permanentLoss": {
+      "major": { "chance": 0.5, "range": [1, 4] },
+      "seasonEnding": { "chance": 1.0, "range": [3, 8], "lowersPotential": true }
+    },
+    "rehabWeeksInFutures": 1
+  },
+
+  "growth": {
+    "status": "draft",
+    "_note": "성장은 (잠재력 − 현재)의 일정 비율만큼 좁히는 방식이다 (docs/09). 연간 성장량의 40%는 시즌 중 월 1회씩, 60%는 시즌 후에 반영한다.",
+    "monthlyGrowthCount": 6,
+    "switchHitterPenalty": 0.92,
+    "peakVariation": 1.0,
+    "playingTimeThresholds": {
+      "_note": "출장 경험 보정을 정할 때 쓰는 기준 (docs/09). 타자는 타석, 투수는 아웃 카운트.",
+      "firstTeamStarterPa": 300,
+      "firstTeamStarterOuts": 200,
+      "firstTeamBenchPa": 60,
+      "firstTeamBenchOuts": 45,
+      "futuresStarterPa": 150,
+      "futuresStarterOuts": 90
+    },
+    "inSeasonShare": 0.40,
+    "inSeasonMaxAge": 25,
+    "annualGapClosure": [0.20, 0.35],
+    "growthTypeShare": { "early": 0.25, "normal": 0.55, "late": 0.20 },
+    "peakAges": { "early": [24, 28], "normal": [27, 31], "late": [29, 33] },
+    "experienceMultiplier": {
+      "firstTeamStarter": 1.2, "futuresStarter": 1.0, "firstTeamBench": 0.7, "injured": 0.5,
+      "sangmu": 1.0, "activeDuty": 0.0
+    },
+    "coachFocus": { "focused": 1.3, "others": 0.9 },
+    "managerSpecialtyBonus": 0.10,
+    "futuresManagerBonus": 0.10,
+    "activeDutyDecline": 1.5
+  },
+
+
+  "awakening": {
+    "status": "draft",
+    "_note": "각성과 급노쇠 (docs/09). 리그 전체에서 시즌당 몇 명 나오는 정도로 드물게 둔다.",
+    "chance": 0.015,
+    "maxAge": 25,
+    "lateBloomerMultiplier": 2.2,
+    "potentialGain": [5, 10],
+    "collapse": {
+      "fromAge": 33,
+      "chance": 0.055,
+      "extraDeclineMultiplier": 2.4
+    }
+  },
+
+  "retirement": {
+    "status": "draft",
+    "_note": "시즌 후 은퇴 판정 (docs/09). 나이·능력치·계약 여부로 확률을 매긴다.",
+    "fromAge": 32,
+    "chancePerYearOver": 0.055,
+    "lowRatingThreshold": 48,
+    "lowRatingChance": 0.30,
+    "noContractChance": 0.18,
+    "forcedAge": 44,
+    "minimumAgeForLowRating": 29,
+    "coachCandidateShare": 0.25,
+    "coachCandidateMinRating": 58
+  },
+
+  "rookieIntake": {
+    "status": "draft",
+    "_note": "임시 신인 유입 (M5). 은퇴로 빠진 자리를 채워 선수단 규모를 유지한다. M6 에서 실제 드래프트로 대체한다.",
+    "targetRosterSize": 58,
+    "maxPerTeamPerSeason": 12,
+    "collegeShare": 0.35,
+    "_note_potential": "신인 잠재력 [평균, 표준편차]. 이 값이 리그의 장기 평형 수준을 정한다 — 낮으면 30시즌에 걸쳐 리그 전체가 서서히 약해진다.",
+    "potential": [60, 9.5]
+  },
+
+  "positionNeed": { "status": "draft", "critical": [1.3, 1.5], "noBackup": 1.1, "adequate": 1.0, "surplus": 0.8 },
+
+  "softCap": {
+    "status": "verify",
+    "cap": 120,
+    "penalties": [
+      { "consecutive": 1, "rateOfExcess": 0.5, "draftPickDrop": false },
+      { "consecutive": 2, "rateOfExcess": 1.0, "draftPickDrop": true },
+      { "consecutive": 3, "rateOfExcess": 1.5, "draftPickDrop": true }
+    ]
+  },
+
+  "gameRules": {
+    "regularSeason": { "maxInnings": 11, "tiesAllowed": true },
+    "postseason": { "maxInnings": 15, "tiesAllowed": true, "tieAddsExtraGame": true },
+    "wildcard": { "higherSeedStartsWithWins": 1, "higherSeedHostsAll": true, "higherSeedAdvancesOnTie": true },
+    "series": { "semiPlayoff": 5, "playoff": 5, "koreanSeries": 7 }
+  },
+
+  "roster": {
+    "status": "verify",
+    "firstTeamRegistered": 28,
+    "reRegisterBlockWeeks": 1,
+    "foreignPlayers": 3
+  },
+
+  "draft": { "status": "verify", "rounds": 11, "poolSize": 100, "orderEachRound": "reverseStandings", "tradeablePickYears": 2, "noConsecutiveFirstRoundTrade": true },
+
+  "scouting": {
+    "status": "draft",
+    "focusSlotsByLevel": { "1": 3, "2": 5, "3": 8, "4": 11, "5": 15 }
+  },
+
+  "military": { "status": "verify", "enlistDeadlineAge": 28, "serviceMonths": 18 },
+
+  "managerDirectiveAdoption": { "status": "draft", "value": 0.5 },
+
+  "managerAI": {
+    "status": "draft",
+    "_note": "감독 성향 1~100 을 규칙표 수치로 옮기는 표(docs/06). [성향 1일 때, 성향 100일 때] 값이며 사이는 선형 보간.",
+    "starterPitchLimit": [88, 118],
+    "starterRunsLimit": [4, 7],
+    "starterFatigueLimit": [70, 90],
+    "thirdTimeThroughPatienceBelow": 40,
+    "bullpenMaxConsecutiveDays": [2, 3],
+    "bullpenMaxPitches7Days": [80, 145],
+    "highLeverageCount": [2, 4],
+    "platoonLineupBonus": [0.0, 14.0],
+    "youthLineupBonus": [0.0, 8.0],
+    "veteranLineupBonus": [0.0, 7.0],
+    "pinchHitFromInning": [9, 6],
+    "pinchHitMaxDeficit": [2, 5],
+    "pinchRunFromInning": [9, 7],
+    "defensiveSubFromInning": [9, 7],
+    "defensiveSubMinLead": [1, 3],
+    "defensiveSubDefenseGap": [15, 5],
+    "pinchHitRatingGap": [12, 4],
+    "restFatigueThreshold": [85, 65],
+    "catcherRestEveryDays": 7,
+    "minimumRestDays": 4
+  },
+
+  "tactics": {
+    "status": "draft",
+    "_note": "작전 성향 슬라이더 1~5 → 실제 확률 (docs/06 ⑥). 번트·도루·고의사구.",
+    "buntAttemptBySlider": { "1": 0.02, "3": 0.14, "5": 0.34 },
+    "buntSuccessRate": 0.78,
+    "buntFailureIsForceOut": 0.45,
+    "buntMaxBatterPower": 58,
+    "buntFromInning": 5,
+    "buntMaxMargin": 2,
+    "stealMultiplierBySlider": { "1": 0.35, "3": 1.0, "5": 2.1 },
+    "intentionalWalkBySlider": { "1": 0.01, "3": 0.05, "5": 0.14 },
+    "intentionalWalkFromInning": 7,
+    "intentionalWalkMaxMargin": 2,
+    "intentionalWalkBatterRating": 66
+  },
+
+  "weeklyPolicy": {
+    "status": "draft",
+    "_note": "주간 방침(docs/06). 총력전은 제한을 풀고 선수 보호는 조인다. 규칙표 수치에 곱한다.",
+    "normal": { "pitchLimit": 1.0, "consecutiveDays": 0, "restThreshold": 0, "highLeverageExtra": 0 },
+    "allOut": { "pitchLimit": 1.12, "consecutiveDays": 1, "restThreshold": 10, "highLeverageExtra": 2 },
+    "protect": { "pitchLimit": 0.88, "consecutiveDays": -1, "restThreshold": -12, "highLeverageExtra": 0 }
+  },
+
+
+
+  "fatigue": {
+    "status": "draft",
+    "_note": "피로도 0~100 (docs/08). 투수는 투구수로, 야수는 출장으로 쌓인다. 쌓이는 속도가 크게 달라서 회복 속도도 따로 둔다. 기준: 100구 선발은 4일 쉬면 거의 회복, 20구 불펜은 하루면 회복, 포수는 2~3주에 한 번 쉬게 된다.",
+    "pitcher": {
+      "perPitch": 0.75,
+      "backToBackExtra": 9,
+      "thirdConsecutiveExtra": 20,
+      "dailyRecovery": 19,
+      "restDayRecovery": 24
+    },
+    "batter": {
+      "perGame": 7,
+      "catcherMultiplier": 1.8,
+      "dailyRecovery": 6,
+      "restDayRecovery": 16
+    },
+    "recoveryStaminaBonus": { "20": 0.85, "50": 1.0, "80": 1.15, "95": 1.25 },
+    "recoveryAgeFrom": 31,
+    "recoveryAgePenaltyPerYear": 0.03,
+    "allStarBreakRecovery": 55,
+    "conditioningCoachBonus": 0.18
+  },
+
+  "season": {
+    "_note": "정규시즌 캘린더 (docs/07). 주차는 1부터 센다.",
+    "regularSeasonWeeks": 24,
+    "allStarBreakAfterWeek": 12,
+    "tradeDeadlineWeek": 17,
+    "draftWeek": 21,
+    "gamesPerWeek": 6,
+    "offseasonWeeks": 16
+  },
+
+  "futuresLeague": {
+    "status": "draft",
+    "_note": "2군은 경기를 시뮬레이션하지 않고 능력치 기반 추정 성적만 만든다 (docs/07).",
+    "gamesPerWeek": 5,
+    "plateAppearancesPerGame": 4.2,
+    "starterInningsPerWeek": 5.0,
+    "relieverInningsPerWeek": 2.5,
+    "playShare": 0.75,
+    "randomSpread": 0.22,
+    "levelPenalty": 6
+  },
+
+  "autoAdvance": {
+    "status": "draft",
+    "_note": "자동 진행 중 멈추는 조건 (docs/07). 유저가 켜고 끌 수 있는 항목이다.",
+    "losingStreak": 5,
+    "winningStreak": 7,
+    "injuryWeeksThreshold": 3
+  },
+
+  "owner": { "status": "draft", "fireBelowTrust": 20 },
+
+  "medicalStaffEffectRange": { "status": "draft", "min": 0.10, "max": 0.20 },
+
+  "leagueEnvironmentEvents": {
+    "status": "draft",
+    "noChangeChance": 0.5,
+    "ballLiveliness": { "homeRunDelta": [0.05, 0.12] },
+    "strikeZone": { "kBbDeltaPoints": [0.01, 0.02] }
+  },
+
+  "difficulty": {
+    "easy":   { "tradeMargin": "low",    "scoutingAccuracy": "bonus",   "ownerPatience": "high",   "injuryRate": "low" },
+    "normal": { "tradeMargin": "normal", "scoutingAccuracy": "base",    "ownerPatience": "normal", "injuryRate": "base" },
+    "hard":   { "tradeMargin": "high",   "scoutingAccuracy": "penalty", "ownerPatience": "low",    "injuryRate": "base" }
+  },
+
+  "_note_m1": "아래는 M1(리그 생성)에서 추가한 섹션이다. status=verify 는 현실 규정 미확인 임시값(CLAUDE.md §8), draft 는 캘리브레이션 대상이다.",
+
+  "minimumSalary": {
+    "status": "verify",
+    "_note": "TODO(verify): 최저 연봉 미확인. 임시값 3000만원.",
+    "value": 0.3
+  },
+
+  "freeAgency": {
+    "status": "verify",
+    "_note": "TODO(verify): FA 자격 연수·1시즌 인정 기준·등급 기준·보상 규정 모두 미확인. 임시값. 등급은 리그 전체 연봉 순위로 나눈다.",
+    "qualifyingSeasons": { "highSchool": 8, "college": 7, "reQualify": 4 },
+    "seasonCreditRegisteredWeeks": 12,
+    "gradeBySalaryRank": { "aTopRank": 30, "bTopRank": 60 },
+    "compensation": {
+      "A": { "protectedPlayers": 20, "salaryRateWithPlayer": 2.0, "salaryRateOnly": 3.0 },
+      "B": { "protectedPlayers": 25, "salaryRateWithPlayer": 1.0, "salaryRateOnly": 2.0 },
+      "C": { "salaryRateOnly": 1.5 }
+    },
+    "maxContractYears": 6
+  },
+
+  "foreignPlayers": {
+    "status": "verify",
+    "_note": "TODO(verify): 보유·출전 인원, 신규 계약 상한, 시즌 중 교체 횟수·마감일 미확인. 임시값. 금액 단위 억원.",
+    "maxPerTeam": 3,
+    "maxSameType": 2,
+    "activeInGame": 2,
+    "newContractMaxTotal": 13.0,
+    "reSignUncapped": true,
+    "inSeasonReplacements": 2,
+    "replacementDeadlineWeek": 19,
+    "poolSizePerSeason": 40
+  },
+
+  "internationalTournament": {
+    "status": "verify",
+    "_note": "TODO(verify): 병역 특례 기준, 대표팀 연령 제한·와일드카드 인원 미확인. 임시값. ageLimit 0 은 제한 없음.",
+    "asianGames": { "everyYears": 4, "firstSeason": 2026, "exemptionOn": "gold", "ageLimit": 25, "wildcards": 3, "maxPerTeam": 3, "weeksMissed": 2 },
+    "olympics": { "exemptionOn": "medal", "ageLimit": 0, "wildcards": 0, "maxPerTeam": 3, "weeksMissed": 2 }
+  },
+
+  "schedule": {
+    "_note": "docs/01 확정 사항. 상대별 16경기 = 3연전 4회 + 2연전 2회, 화~일 6경기 × 24주.",
+    "weeks": 24,
+    "gamesPerWeek": 6,
+    "gamesPerTeam": 144,
+    "threeGameSeriesPerOpponent": 4,
+    "twoGameSeriesPerOpponent": 2,
+    "twoGameWeeksAtSeasonEnd": 6
+  },
+
+  "playerOverallWeights": {
+    "status": "draft",
+    "_note": "능력치 → 선수 종합(1~100). 전력 표시와 AI 평가의 기준. M2 이후 실제 기여도로 재조정한다.",
+    "batter": { "contact": 0.28, "power": 0.28, "eye": 0.18, "speed": 0.11, "defense": 0.15 },
+    "pitcher": { "stuff": 0.40, "control": 0.30, "groundball": 0.15, "stamina": 0.15 }
+  },
+
+  "teamStrength": {
+    "status": "draft",
+    "_note": "팀 전력 세 갈래(docs/01). 가중치는 합이 1이 되도록 정규화해서 쓴다. ratingToStrength 는 선수 능력치 평균(주전 60 기준)을 팀 전력 표시 스케일(40~90)로 늘리는 변환이다. tolerance 는 생성 목표 허용 오차. compositeWeights 는 data/teams.json 과 같아야 한다.",
+    "compositeWeights": { "lineup": 0.45, "rotation": 0.35, "bullpen": 0.20 },
+    "ratingToStrength": { "pivot": 52.0, "slope": 2.0 },
+    "lineupWeights": [1.15, 1.15, 1.10, 1.10, 1.05, 0.95, 0.90, 0.85, 0.75],
+    "rotationWeights": [1.30, 1.15, 1.00, 0.85, 0.70],
+    "bullpenWeights": [1.40, 1.20, 1.10, 1.00, 0.90, 0.75, 0.65],
+    "targetTolerance": 2.0
+  },
+
+  "aging": {
+    "status": "draft",
+    "_note": "전성기 이후 연간 하락. 능력치별 배율은 docs/09 의 곡선 차이를 수치화한 것이다.",
+    "baseDeclinePerYear": 1.6,
+    "extraDeclinePerYearOver": { "age": 34, "amount": 0.5 },
+    "attributeMultiplier": {
+      "contact": 1.0, "power": 0.6, "eye": 0.25, "speed": 1.7, "defense": 1.4,
+      "stuff": 1.3, "control": 0.35, "groundball": 0.6, "stamina": 1.0
+    }
+  },
+
+  "attributeGrowthSpeed": {
+    "status": "draft",
+    "_note": "성장기에 능력치별로 다른 속도로 오른다. 1.0 이 기준.",
+    "contact": 1.0, "power": 1.25, "eye": 1.1, "speed": 0.55, "defense": 0.8,
+    "stuff": 1.0, "control": 1.2, "groundball": 0.9, "stamina": 0.9
+  },
+
+  "salary": {
+    "status": "draft",
+    "_note": "억원. 종합 능력치 → 기준 연봉 앵커. 팀 연봉 총액(teams.json payroll)에 맞춰 팀 단위로 비례 조정한다.",
+    "byOverall": { "40": 0.35, "50": 0.7, "60": 1.8, "70": 4.5, "80": 9.0, "90": 15.0 },
+    "serviceMultiplier": { "rookie": 0.35, "arbitration": 0.75, "veteran": 1.0, "freeAgent": 1.6 },
+    "rookieSeasons": 3,
+    "arbitrationSeasons": 7,
+    "badContractShare": 0.18,
+    "badContractMultiplier": [1.4, 2.2],
+    "contractYears": { "freeAgent": [2, 4], "veteran": [1, 2], "young": [1, 1] },
+    "signingBonusShareOfSalary": [0.0, 0.8],
+    "foreignSalary": [3.0, 12.0]
+  },
+
+  "leagueGeneration": {
+    "status": "draft",
+    "_note": "초기 리그 생성 파라미터(docs/03). [평균, 표준편차] 또는 [최소, 최대] 형태다.",
+    "rosterSize": { "firstTeam": 28, "futures": 30 },
+    "firstTeamPitchers": [13, 14],
+    "futuresPitcherShare": 0.45,
+    "ageRange": [19, 40],
+    "firstTeamStarterAge": [26, 32],
+    "collegeShare": 0.35,
+    "debutAge": { "highSchool": 19, "college": 23, "foreign": 26 },
+    "debutRatioOfPotential": { "highSchool": [0.45, 0.60], "college": [0.60, 0.72], "foreign": [0.88, 0.96] },
+    "potentialByRole": {
+      "_note": "역할별 잠재력 [평균, 표준편차]. 팀 목표 전력에 맞춰 평행 이동한다.",
+      "lineupStarter": [74, 8.5], "lineupBench": [62, 6],
+      "rotationStarter": [72, 8.5], "bullpenCore": [68, 7], "bullpenDepth": [60, 6],
+      "futures": [58, 9]
+    },
+    "archetypeShare": {
+      "batter": { "contactHitter": 0.22, "slugger": 0.20, "onBase": 0.18, "speedster": 0.18, "defensive": 0.22 },
+      "pitcher": { "flamethrower": 0.28, "controlArtist": 0.28, "groundballer": 0.24, "inningsEater": 0.20 }
+    },
+    "archetypeSpread": 9,
+    "positionSpread": 7,
+    "hiddenTraits": {
+      "durability": [60, 15], "volatility": [50, 12], "volatilityYouthBonus": 8,
+      "platoonSplit": [35, 16], "platoonLeftyBonus": 8, "adaptability": [55, 20]
+    },
+    "handedness": { "batterLeftShare": 0.33, "batterSwitchShare": 0.07, "pitcherLeftShare": 0.28 },
+    "topSpeedKmh": { "base": 131.0, "perStuffPoint": 0.24, "flamethrowerBonus": 4.0, "spread": 2.0 },
+    "militaryService": { "completedFromAge": 28, "unfulfilledUntilAge": 23, "servingShare": 0.12, "sangmuShare": 0.45 },
+    "teamRetryLimit": 60
+  },
+
+  "initialTeamState": {
+    "status": "draft",
+    "_note": "시즌 시작 시 구단 상태. 팬심·구단주 신뢰도는 M9 에서 실제로 움직인다.",
+    "fanSupport": 55,
+    "ownerTrust": 60,
+    "parentCompanyHealth": [60, 12],
+    "parentCompanySupportFromFunds": 1.0
+  },
+
+  "staffGeneration": {
+    "status": "draft",
+    "_note": "감독·코치·메디컬·AI 단장 생성(docs/06, 09, 13). 연봉 단위 억원.",
+    "managerPoolUnemployed": 7,
+    "managerAge": [45, 66],
+    "managerTendency": [50, 15],
+    "managerSalary": [2.0, 7.0],
+    "managerContractYears": [1, 3],
+    "coachGrade": [3, 1],
+    "coachSalary": { "1": 0.8, "2": 1.2, "3": 1.8, "4": 2.6, "5": 3.5 },
+    "medicalGrade": [3, 1],
+    "gmReputation": [50, 12]
+  }
+}

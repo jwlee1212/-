@@ -1,0 +1,100 @@
+{
+  "_note": "10개 구단 초기값. 금액 단위는 억원. ratings/payroll/funds는 생성 목표치이며, 실제 표시값은 생성된 선수 데이터로 계산한다. parentCompany가 null인 구단은 모기업명 미정(유저 확인 필요).",
+  "season": 2026,
+  "salaryCap": 120,
+  "compositeWeights": { "lineup": 0.45, "rotation": 0.35, "bullpen": 0.20 },
+  "teams": [
+    {
+      "id": "DSK", "name": "대성 나이츠", "city": "서울", "parentCompany": "대성", "nickname": "나이츠",
+      "tier": "strong", "keyword": "황혼의 왕조",
+      "targets": { "lineup": 82, "rotation": 78, "bullpen": 75, "overall": 79, "prospectGrade": "C" },
+      "payroll": 116, "operatingFunds": 25, "draftPick2026": 10,
+      "parkFactor": 1.00, "fanVolatility": 1.0, "marketSize": "large",
+      "ownerGoal": "한국시리즈 진출",
+      "generation": { "starterAvgAgeMin": 31, "earlyGrowthBias": 0.15, "longContractsHeavy": true, "prospectDepth": "thin" }
+    },
+    {
+      "id": "ICS", "name": "인천 시걸스", "city": "인천", "parentCompany": null, "nickname": "시걸스",
+      "tier": "strong", "keyword": "투수 왕국",
+      "targets": { "lineup": 70, "rotation": 85, "bullpen": 80, "overall": 77, "prospectGrade": "B" },
+      "payroll": 101, "operatingFunds": 20, "draftPick2026": 9,
+      "parkFactor": 1.00, "fanVolatility": 1.0, "marketSize": "medium",
+      "ownerGoal": "플레이오프 진출",
+      "generation": { "pitcherTargetDelta": 8, "hitterTargetDelta": -5, "keyPitchersFaInYears": 1, "keyPitchersCount": 2 }
+    },
+    {
+      "id": "HGP", "name": "한강 팬텀스", "city": "서울", "parentCompany": "한강", "nickname": "팬텀스",
+      "tier": "mid", "keyword": "돈으로 산 팀",
+      "targets": { "lineup": 76, "rotation": 68, "bullpen": 62, "overall": 70, "prospectGrade": "D" },
+      "payroll": 118, "operatingFunds": 45, "draftPick2026": 7,
+      "parkFactor": 1.00, "fanVolatility": 1.0, "marketSize": "large",
+      "ownerGoal": "포스트시즌 진출",
+      "faAggression": 1.2,
+      "generation": { "overpaidVeteranFaHitters": 4, "bullpenTargetDelta": -8, "farmPotential": "low" }
+    },
+    {
+      "id": "BST", "name": "부산 타이드", "city": "부산", "parentCompany": null, "nickname": "타이드",
+      "tier": "mid", "keyword": "뜨거운 타선, 흔들리는 마운드",
+      "targets": { "lineup": 77, "rotation": 62, "bullpen": 64, "overall": 69, "prospectGrade": "C" },
+      "payroll": 95, "operatingFunds": 18, "draftPick2026": 8,
+      "parkFactor": 1.00, "fanVolatility": 1.5, "marketSize": "large",
+      "ownerGoal": "포스트시즌 진출",
+      "generation": { "hitterPowerBias": 0.2, "rotationTargetDelta": -8 }
+    },
+    {
+      "id": "SWR", "name": "수원 로얄스", "city": "수원", "parentCompany": null, "nickname": "로얄스",
+      "tier": "mid", "keyword": "평균의 함정", "recommendedForTutorial": true,
+      "targets": { "lineup": 67, "rotation": 69, "bullpen": 68, "overall": 68, "prospectGrade": "C" },
+      "payroll": 88, "operatingFunds": 20, "draftPick2026": 5,
+      "parkFactor": 1.00, "fanVolatility": 1.0, "marketSize": "medium",
+      "ownerGoal": "포스트시즌 진출",
+      "generation": { "balanced": true }
+    },
+    {
+      "id": "CWM", "name": "창원 머신스", "city": "창원", "parentCompany": null, "nickname": "머신스",
+      "tier": "mid", "keyword": "데이터 야구",
+      "targets": { "lineup": 68, "rotation": 70, "bullpen": 66, "overall": 68, "prospectGrade": "B" },
+      "payroll": 84, "operatingFunds": 22, "draftPick2026": 6,
+      "parkFactor": 1.00, "fanVolatility": 1.0, "marketSize": "small",
+      "ownerGoal": "승률 5할 이상",
+      "foreignScoutingBonus": { "accuracy": "high", "ratingBonus": 5 },
+      "generation": { "lowSalaryShare": 0.6 }
+    },
+    {
+      "id": "DGB", "name": "대구 블레이즈", "city": "대구", "parentCompany": null, "nickname": "블레이즈",
+      "tier": "mid", "keyword": "세대교체 진행 중",
+      "targets": { "lineup": 66, "rotation": 66, "bullpen": 72, "overall": 67, "prospectGrade": "B" },
+      "payroll": 90, "operatingFunds": 15, "draftPick2026": 4,
+      "parkFactor": 1.10, "fanVolatility": 1.0, "marketSize": "medium",
+      "ownerGoal": "승률 5할 이상, 25세 이하 주전 2명 이상",
+      "generation": { "under25Share": 0.45, "unenlistedProspects": "many", "bullpenTargetDelta": 5 }
+    },
+    {
+      "id": "GJS", "name": "광주 스톰", "city": "광주", "parentCompany": null, "nickname": "스톰",
+      "tier": "weak", "keyword": "재건 3년차",
+      "targets": { "lineup": 58, "rotation": 61, "bullpen": 55, "overall": 58, "prospectGrade": "A" },
+      "payroll": 55, "operatingFunds": 20, "draftPick2026": 2,
+      "parkFactor": 1.00, "fanVolatility": 1.0, "marketSize": "medium",
+      "ownerGoal": "승률 .450 이상, 유망주 2명 이상 1군 정착",
+      "generation": { "farmPotential": "high", "aGradeProspects": 4 }
+    },
+    {
+      "id": "MRC", "name": "미래 코메츠", "city": "서울", "parentCompany": "미래", "nickname": "코메츠",
+      "tier": "weak", "keyword": "새 주인, 빈 금고", "difficulty": "hardest",
+      "targets": { "lineup": 59, "rotation": 55, "bullpen": 58, "overall": 57, "prospectGrade": "C" },
+      "payroll": 70, "operatingFunds": 6, "draftPick2026": 3,
+      "parkFactor": 1.00, "fanVolatility": 1.0, "marketSize": "large",
+      "ownerGoal": "적자 30% 축소",
+      "generation": { "cheapVeteransAge35Plus": "many", "potentialOverall": "low" }
+    },
+    {
+      "id": "DJR", "name": "대전 로켓츠", "city": "대전", "parentCompany": null, "nickname": "로켓츠",
+      "tier": "weak", "keyword": "긴 암흑기",
+      "targets": { "lineup": 55, "rotation": 58, "bullpen": 57, "overall": 56, "prospectGrade": "B" },
+      "payroll": 62, "operatingFunds": 30, "draftPick2026": 1,
+      "parkFactor": 1.00, "fanVolatility": 1.0, "marketSize": "medium",
+      "ownerGoal": "탈꼴찌, 1순위 지명자 1군 데뷔",
+      "generation": { "allTargetsLow": true, "prospectQuality": "upper-mid" }
+    }
+  ]
+}
