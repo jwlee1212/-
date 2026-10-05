@@ -8,6 +8,7 @@ import baseballgm.model.Pitcher
 import baseballgm.model.PitcherRole
 import baseballgm.model.Player
 import baseballgm.model.RosterLevel
+import baseballgm.model.TeamId
 import baseballgm.season.Offseason
 import baseballgm.season.OffseasonReport
 import kotlin.random.Random
@@ -23,6 +24,8 @@ data class SeasonSummary(
     val worstWinPct: Double,
     val offseason: OffseasonReport,
     val validationFailures: Int,
+    /** 스토브리그를 마친 다음 시즌 리그 (역사·세이브 크기 확인용) */
+    val nextLeague: League? = null,
 ) {
     fun line(): String =
         "${season} | 선수 ${playerCount} | 주전평균 ${"%.1f".format(starterAverage)} | 90+ ${eliteRatings} | " +
@@ -42,13 +45,34 @@ class MultiSeasonRunner(private val balance: BalanceConfig, private val starting
 
     fun run(seasons: Int, seed: Long, onSeason: ((SeasonSummary) -> Unit)? = null): List<SeasonSummary> {
         var league = startingLeague
+        var scoutingLevels: Map<TeamId, Int> = emptyMap()
         val summaries = mutableListOf<SeasonSummary>()
         val offseason = Offseason(balance, strength)
 
         repeat(seasons) { index ->
-            val result = SeasonRunner(balance, league).playSeason(seed + index)
+            val runner = SeasonRunner(balance, league)
+            val result = runner.playSeason(seed + index, state = runner.newSeason(scoutingLevels))
             val rookies = RookieFactory(balance, strength, league)
-            val (nextLeague, report) = offseason.run(result.state, Random(seed + index * OFFSEASON_STRIDE), rookies)
+            val prospects = ProspectFactory(
+                balance = balance,
+                strength = strength,
+                seed = seed + index * PROSPECT_STRIDE,
+                startingIdNumber = nextPlayerIdNumber(league.players, league.draftPool.prospects),
+            )
+            val (nextLeague, report) = offseason.run(
+                state = result.state,
+                random = Random(seed + index * OFFSEASON_STRIDE),
+                rookieSupplier = rookies,
+                prospectSupplier = prospects,
+                foreignSupplier = ForeignFactory(
+                    balance = balance,
+                    strength = strength,
+                    seed = seed + index * FOREIGN_STRIDE,
+                    startingIdNumber = nextPlayerIdNumber(league.players, league.draftPool.prospects) +
+                        league.draftPool.prospects.size,
+                ),
+            )
+            scoutingLevels = report.scoutingLevels
             val ranked = result.state.standings.ranked()
 
             val summary = SeasonSummary(
@@ -61,6 +85,7 @@ class MultiSeasonRunner(private val balance: BalanceConfig, private val starting
                 worstWinPct = ranked.last().winPct,
                 offseason = report,
                 validationFailures = result.validationProblems.size,
+                nextLeague = nextLeague,
             )
             summaries += summary
             onSeason?.invoke(summary)
@@ -86,5 +111,7 @@ class MultiSeasonRunner(private val balance: BalanceConfig, private val starting
         const val ROTATION = 5
         const val ELITE = 90
         const val OFFSEASON_STRIDE = 7919L
+        const val PROSPECT_STRIDE = 104729L
+        const val FOREIGN_STRIDE = 15485863L
     }
 }

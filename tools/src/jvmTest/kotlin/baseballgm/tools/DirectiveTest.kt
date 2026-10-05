@@ -210,27 +210,46 @@ class DirectiveTest {
 
     @Test
     fun `대타 조건을 풀면 대타가 나오고 막으면 안 나온다`() {
-        val eager = sheetOf(DirectivePreset.STANDARD.tendencies(), homeId).let { sheet ->
-            sheet.copy(
-                substitution = sheet.substitution.copy(
-                    pinchHitFromInning = 1,
-                    pinchHitMaxDeficit = 99,
-                    pinchHitRatingGap = 0,
-                    pinchHitOnlyInScoringPosition = false,
-                    pinchHitPlatoonOnly = false,
-                ),
-            )
-        }
-        val never = sheetOf(DirectivePreset.STANDARD.tendencies(), awayId).let { sheet ->
-            sheet.copy(substitution = sheet.substitution.copy(pinchHitFromInning = 99))
-        }
+        fun eagerSheet(teamId: baseballgm.model.TeamId) =
+            sheetOf(DirectivePreset.STANDARD.tendencies(), teamId).let { sheet ->
+                sheet.copy(
+                    substitution = sheet.substitution.copy(
+                        pinchHitFromInning = 1,
+                        pinchHitMaxDeficit = 99,
+                        pinchHitRatingGap = 0,
+                        pinchHitOnlyInScoringPosition = false,
+                        pinchHitPlatoonOnly = false,
+                    ),
+                )
+            }
 
-        val withPinch = runner.playWithSheets(homeId, awayId, eager, never, seed = 21L)
-        val pinchHits = withPinch.events.filterIsInstance<PlayerSubstituted>()
-            .filter { it.kind == SubstitutionKind.PINCH_HITTER }
-        assertTrue(pinchHits.any { it.teamId == homeId }, "대타 조건을 다 풀었는데 대타가 없다")
-        assertTrue(pinchHits.none { it.teamId == awayId }, "대타를 막았는데 나왔다")
-        BoxScoreValidator.validateOrThrow(withPinch.box)
+        fun neverSheet(teamId: baseballgm.model.TeamId) =
+            sheetOf(DirectivePreset.STANDARD.tendencies(), teamId).let { sheet ->
+                sheet.copy(substitution = sheet.substitution.copy(pinchHitFromInning = 99))
+            }
+
+        // 대타는 "벤치에 더 좋은 타자가 있고 상황이 맞을 때"만 나온다. 한 경기·한 팀만 보면
+        // 벤치 구성과 시드에 휘둘리므로 여러 조합을 돌려 본다
+        val games = league.teams.take(4).flatMap { home ->
+            val away = league.teams.first { it.id != home.id }
+            (21L..25L).map { seed ->
+                home.id to runner.playWithSheets(
+                    homeId = home.id,
+                    awayId = away.id,
+                    homeSheet = eagerSheet(home.id),
+                    awaySheet = neverSheet(away.id),
+                    seed = seed,
+                )
+            }
+        }
+        val pinchHits = games.flatMap { (homeTeam, game) ->
+            game.events.filterIsInstance<PlayerSubstituted>()
+                .filter { it.kind == SubstitutionKind.PINCH_HITTER }
+                .map { homeTeam to it }
+        }
+        assertTrue(pinchHits.any { (homeTeam, sub) -> sub.teamId == homeTeam }, "대타 조건을 다 풀었는데 대타가 없다")
+        assertTrue(pinchHits.none { (homeTeam, sub) -> sub.teamId != homeTeam }, "대타를 막았는데 나왔다")
+        games.forEach { (_, game) -> BoxScoreValidator.validateOrThrow(game.box) }
     }
 
     @Test

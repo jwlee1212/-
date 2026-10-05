@@ -26,6 +26,8 @@ data class Injury(
  *
  * @param fatigue 피로도 0~100
  * @param form 폼 0~100. 50 이 보통이며 표시는 5단계로 변환한다
+ * @param adaptationPenalty 적응 감점 (docs/12). 외국인 선수가 KBO 에 적응하지 못한 만큼 능력치에서 깎인다.
+ *   숨김 수치인 적응력에서 나오지만 **감점 자체는 기록으로 드러나는 값**이라 컨디션에 둔다
  */
 @Serializable
 data class Condition(
@@ -34,6 +36,7 @@ data class Condition(
     val injury: Injury? = null,
     /** 복귀 후 재발 위험이 남은 주 수 (docs/08) */
     val relapseRiskWeeks: Int = 0,
+    val adaptationPenalty: Double = 0.0,
 ) {
     val isInjured: Boolean get() = injury != null
 

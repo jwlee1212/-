@@ -2,6 +2,9 @@ package baseballgm.tools
 
 import baseballgm.io.BalanceConfig
 import baseballgm.league.League
+import baseballgm.model.TeamId
+import baseballgm.season.Postseason
+import baseballgm.season.PostseasonResult
 import baseballgm.season.SeasonCalendar
 import baseballgm.season.SeasonState
 import baseballgm.season.WeekLoop
@@ -12,6 +15,8 @@ import kotlin.random.Random
 data class SeasonResult(
     val state: SeasonState,
     val reports: List<WeekReport>,
+    /** 포스트시즌 결과 (docs/14). 치르지 않았으면 null */
+    val postseason: PostseasonResult? = null,
 ) {
     val validationProblems: List<String> get() = reports.flatMap { it.validationProblems }
 }
@@ -24,13 +29,16 @@ data class SeasonResult(
  */
 class SeasonRunner(private val balance: BalanceConfig, private val league: League) {
 
-    fun newSeason(): SeasonState = SeasonState(league, SeasonCalendar.from(balance))
+    fun newSeason(scoutingLevels: Map<TeamId, Int> = emptyMap()): SeasonState =
+        SeasonState.of(league, SeasonCalendar.from(balance), balance, scoutingLevels)
 
     fun playSeason(
         seed: Long,
         validate: Boolean = true,
         state: SeasonState = newSeason(),
         onWeek: ((WeekReport) -> Unit)? = null,
+        /** 정규시즌이 끝나면 포스트시즌까지 치른다 (docs/14) */
+        playPostseason: Boolean = true,
     ): SeasonResult {
         val loop = WeekLoop(balance, league)
         val random = Random(seed)
@@ -40,6 +48,7 @@ class SeasonRunner(private val balance: BalanceConfig, private val league: Leagu
             reports += report
             onWeek?.invoke(report)
         }
-        return SeasonResult(state, reports)
+        val postseason = if (playPostseason) Postseason(balance, league).run(state, random).result else null
+        return SeasonResult(state, reports, postseason)
     }
 }

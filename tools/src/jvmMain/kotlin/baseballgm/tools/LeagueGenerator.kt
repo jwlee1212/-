@@ -2,6 +2,8 @@ package baseballgm.tools
 
 import baseballgm.io.BalanceConfig
 import baseballgm.league.League
+import baseballgm.market.DraftPool
+import baseballgm.market.DraftRights
 import baseballgm.league.ScheduleRules
 import baseballgm.league.StrengthCalculator
 import baseballgm.league.TeamStrength
@@ -58,6 +60,8 @@ class LeagueGenerator(
         val teamSeeds = templates.teams.map { root.nextLong() }
         val staffSeed = root.nextLong()
         val scheduleSeed = root.nextLong()
+        val prospectSeed = root.nextLong()
+        val foreignSeed = root.nextLong()
 
         val params = GenerationParams(balance)
         val strength = StrengthCalculator(balance)
@@ -124,8 +128,29 @@ class LeagueGenerator(
                 coachIds = staff.coaches.filter { it.teamId == teamId }.map { it.id },
                 medicalStaffIds = staff.medicalStaff.filter { it.teamId == teamId }.map { it.id },
                 generalManagerId = staff.generalManagers.firstOrNull { it.teamId == teamId }?.id,
+                rival = template.rival?.let(::TeamId),
             )
         }
+
+        // 드래프트 풀은 개막 시점에 공개된다 (docs/10). 리그 선수와 id 가 겹치지 않게 뒤에서 이어 붙인다
+        val draftSection = balance.section("draft")
+        val prospects = ProspectFactory(
+            balance = balance,
+            strength = strength,
+            seed = prospectSeed,
+            startingIdNumber = nextPlayerIdNumber(players),
+        ).create(season, draftSection.int("poolSize"), Random(prospectSeed))
+
+        // 외국인 시장도 개막 시점에 공개된다 (docs/12). 첫해 풀은 시드로 고정된다
+        val foreignPool = baseballgm.market.ForeignPool(
+            season = season,
+            candidates = ForeignFactory(
+                balance = balance,
+                strength = strength,
+                seed = foreignSeed,
+                startingIdNumber = nextPlayerIdNumber(players) + prospects.size,
+            ).create(season, balance.int("foreignPlayers.poolSizePerSeason"), Random(foreignSeed)),
+        )
 
         val league = League(
             season = season,
@@ -138,6 +163,14 @@ class LeagueGenerator(
             medicalStaff = staff.medicalStaff,
             generalManagers = staff.generalManagers,
             schedule = schedule,
+            draftPool = DraftPool(season, prospects),
+            foreignPool = foreignPool,
+            draftRights = DraftRights.initial(
+                season = season,
+                teams = teams.map { it.id },
+                rounds = draftSection.int("rounds"),
+                years = draftSection.int("tradeablePickYears"),
+            ),
         )
         return GeneratedLeague(league, reports)
     }

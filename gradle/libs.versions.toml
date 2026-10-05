@@ -3,8 +3,13 @@ kotlin = "2.4.20"
 compose = "1.12.0"
 kotlinxSerialization = "1.11.0"
 jvmToolchain = "21"
+# 뒤로가기 이벤트 (Android 뒤로·iOS 스와이프·데스크톱 Esc). Compose 1.12 가 쓰는 버전과 맞춘다
+navigationEvent = "1.1.0"
 
 [libraries]
+# 화면 미리보기(@Preview) 주석. 데스크톱 미리보기·PNG 렌더러가 쓴다
+compose-ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose" }
+navigationevent-compose = { module = "org.jetbrains.androidx.navigationevent:navigationevent-compose", version.ref = "navigationEvent" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 [plugins]

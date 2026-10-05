@@ -143,15 +143,17 @@ class LeagueGenerationTest {
     fun `현재 능력치는 잠재력을 넘지 않는다`() {
         val league = generate().league
         // 숨김 수치는 엔진 밖에서 읽을 수 없으므로(불변 원칙 4) 스카우트 화면으로 확인한다
+        val scale = baseballgm.scouting.PotentialScale.from(balance)
         league.players.forEach { player ->
             val view = baseballgm.scouting.ScoutingView.of(
                 player,
                 baseballgm.scouting.ScoutingAccuracy.OWN_TEAM,
                 league.season,
+                scale,
             )
             val best = player.ratingsMap().values.max()
             assertTrue(best <= 99, "${player.name} 능력치가 범위를 벗어났다")
-            assertTrue(view.potentialHigh.minimum >= 0)
+            assertTrue(scale.minimumOf(view.potentialHigh) >= 0)
         }
     }
 
