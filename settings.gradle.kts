@@ -21,5 +21,4 @@ dependencyResolutionManagement {
 
 include(":engine")
 include(":tools")
-include(":cli")
 include(":app")

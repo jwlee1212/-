@@ -1397,5 +1397,45 @@
       "appearances": { "threshold": 55 },
       "teamPostseason": { "_note": "우리 팀 지난 시즌 순위가 포스트시즌 안이면 chanceIfMadeLast", "chanceIfMadeLast": 0.6, "chanceIfMissedLast": 0.3 }
     }
+  },
+
+  "battingPrototype": {
+    "status": "draft",
+    "_note": "타격 손맛 프로토타입 (2026-10-05). 시간 단위는 ms, 거리는 m, 존 좌표는 스트라이크존 가로·세로 반폭 = 1. 능력치 0/100 쌍(At0/At100)은 사이를 선형 보간한다. 튜닝 안내는 docs/dev-log.md '타격 프로토타입' 절.",
+    "pitches": {
+      "fastball": { "label": "직구", "weight": 0.6, "flightMs": 520, "flightJitterMs": 30, "breakX": 0.08, "breakY": 0.1 },
+      "breaking": { "label": "변화구", "weight": 0.4, "flightMs": 660, "flightJitterMs": 40, "breakX": 0.7, "breakY": 0.6 }
+    },
+    "presentation": {
+      "_note": "화면 연출·소리. 판정에는 영향 없음. 튜닝 안내는 docs/dev-log.md '타격감' 절",
+      "windupMs": 700, "pitchIntervalMs": 900, "resultHoldMs": 1400, "hitFlightMs": 900,
+      "swingMs": 150, "hitStopMs": 70, "flashMs": 140, "burstMs": 260,
+      "shakeMs": 280, "shakeSolidPx": 7, "shakeWeakPx": 2, "shakeHomeRunPx": 16,
+      "confettiMs": 1800,
+      "sfxVolume": 0.9
+    },
+    "breakStartFraction": 0.55,
+    "zone": { "strikeChance": 0.6, "ballOffsetMin": 1.2, "ballOffsetMax": 1.7 },
+    "eye": { "revealFractionAt0": 0.85, "revealFractionAt100": 0.3 },
+    "timing": {
+      "inputLatencyMs": 0,
+      "solidWindowMsAt0": 15, "solidWindowMsAt100": 45,
+      "weakWindowMsAt0": 40, "weakWindowMsAt100": 80,
+      "foulWindowMsAt0": 70, "foulWindowMsAt100": 120,
+      "outOfZoneWindowFactor": 0.5,
+      "takeGraceMs": 150
+    },
+    "spray": { "solidMaxAngleDeg": 30, "weakMaxAngleDeg": 44, "foulAngleDeg": 60 },
+    "distance": { "solidBaseM": 60, "solidPowerBonusM": 70, "solidQualityShare": 0.4, "solidJitterM": 10, "weakMinM": 10, "weakMaxM": 45, "fenceM": 115 },
+    "outcomes": {
+      "solidFlyChanceAt0": 0.3, "solidFlyChanceAt100": 0.6,
+      "lineHitChance": 0.7,
+      "shortFlyHitChance": 0.15,
+      "doubleMinM": 85,
+      "deepFlyOutChance": 0.35,
+      "tripleMinAngleDeg": 20, "tripleChance": 0.2,
+      "weakGroundChance": 0.65,
+      "weakHitChance": 0.15
+    }
   }
 }

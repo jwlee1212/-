@@ -1,0 +1,26 @@
+; Godot 프로젝트 설정. 에디터가 다시 저장하면서 항목을 덧붙일 수 있다.
+
+config_version=5
+
+[application]
+
+config/name="타격 프로토타입"
+run/main_scene="res://scenes/batting.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[display]
+
+window/size/viewport_width=390
+window/size/viewport_height=844
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[gui]
+
+theme/custom_font="res://fonts/pretendard_regular.otf"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

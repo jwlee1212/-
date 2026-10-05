@@ -47,12 +47,9 @@ kotlin {
         }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
-            // 화면 미리보기 (app/src/jvmMain/.../preview)
-            implementation(libs.compose.ui.tooling.preview)
         }
         jvmTest.dependencies {
             implementation(kotlin("test"))
-            // 화면을 실제로 눌러 보는 테스트 (필터 유지 등)
             @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
             implementation(compose.uiTest)
         }
@@ -92,24 +89,4 @@ compose.desktop {
             packageVersion = "1.0.0"
         }
     }
-}
-
-// ---------- 화면 스크린샷 ----------
-//
-// 미리보기 목록(preview/ScreenCatalog.kt)의 화면을 360dp 라이트/다크 PNG 로 굽는다.
-//   ./gradlew :app:renderScreens -Pphase=before|after [-Pscreens=roster,home] [-Pset=restraint]
-// 결과: docs/screenshots/<set>/<phase>/, after 일 때 before 와 나란히 붙인 compare/
-tasks.register<JavaExec>("renderScreens") {
-    group = "verification"
-    description = "화면 미리보기를 PNG 로 굽는다"
-    val main = kotlin.jvm().compilations.getByName("main")
-    dependsOn(main.compileAllTaskName)
-    classpath = files(main.output.allOutputs, main.runtimeDependencyFiles)
-    mainClass.set("baseballgm.app.preview.RenderScreensKt")
-    workingDir = rootDir
-    args(
-        (project.findProperty("phase") as String?) ?: "after",
-        (project.findProperty("screens") as String?) ?: "",
-        (project.findProperty("set") as String?) ?: "restraint",
-    )
 }
