@@ -79,6 +79,7 @@ data class MedicalStaff(
  * @param reputation 평판 0~100. 기대 대비 성과로 오르내린다
  * @param tradeAggression 거래 성향 1~100 (M7 트레이드 AI 가 쓴다)
  * @param isHuman 유저가 맡은 자리인지
+ * @param style 트레이드 협상 성격 (2026-10-05). 없으면 단장 id 로 고정해서 정한다 ([tradeStyle])
  */
 @Serializable
 data class GeneralManager(
@@ -89,6 +90,22 @@ data class GeneralManager(
     val tradeAggression: Int,
     val teamId: TeamId? = null,
     val isHuman: Boolean = false,
+    val style: GmStyle? = null,
 ) {
     fun ageIn(season: Int): Int = season - birthYear
+
+    /** 트레이드 협상 성격. 데이터에 없으면 id 에서 결정적으로 (같은 단장 → 같은 성격) */
+    fun tradeStyle(): GmStyle = style ?: GmStyle.entries[(id.value.hashCode() and Int.MAX_VALUE) % GmStyle.entries.size]
+}
+
+/**
+ * AI 단장의 트레이드 협상 성격 (2026-10-05 유저 요청 "상대 단장 성격 차이"). 공개 정보 — 업계에 알려진 평판이다.
+ * 가치 배율·요구 이익 폭은 balance.json `trade.gmStyles.<key>`
+ */
+@Serializable
+enum class GmStyle(val key: String, val label: String, val description: String) {
+    BALANCED("balanced", "무난형", "가치만 맞으면 받아요."),
+    REBUILDER("rebuilder", "리빌딩 집착형", "유망주·지명권을 후하게 쳐 주고, 베테랑은 박하게 봐요."),
+    WIN_NOW("winNow", "즉시 전력형", "지금 잘하는 베테랑을 원하고, 유망주·지명권은 덜 쳐 줘요."),
+    HARD_BARGAINER("hardBargainer", "깐깐한 협상가", "이익을 크게 남겨야 받아요. 거절이 쌓이면 금방 등을 돌려요."),
 }

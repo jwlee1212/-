@@ -237,19 +237,149 @@
 
   "rookieIntake": {
     "status": "draft",
-    "_note": "임시 신인 유입 (M5). 은퇴로 빠진 자리를 채워 선수단 규모를 유지한다. M6 에서 실제 드래프트로 대체한다.",
-    "targetRosterSize": 58,
+    "_note": "신인 유입 안전망 (M5 → M6). 신인은 드래프트로 들어오고(draft), 이 값들은 선수단이 최소 인원 아래로 떨어질 때만 쓰인다. 인원 목표는 rosterLimits 로 옮겼다.",
     "maxPerTeamPerSeason": 12,
     "collegeShare": 0.35,
     "_note_potential": "신인 잠재력 [평균, 표준편차]. 이 값이 리그의 장기 평형 수준을 정한다 — 낮으면 30시즌에 걸쳐 리그 전체가 서서히 약해진다.",
     "potential": [60, 9.5]
   },
 
+  "sabermetrics": {
+    "status": "draft",
+    "_note": "2·3단계 지표 (docs/04). 선형 가중치는 야구 통계의 관례값이고, 대체 수준·승당 득점은 이 게임의 득점 환경에 맞춰 캘리브레이션한 값이다(`cli war`). 리그 상수(wOBA 평균·FIP 상수)는 시즌 기록에서 계산한다.",
+    "wobaWeights": {
+      "walk": 0.69, "hitByPitch": 0.72, "single": 0.89, "double": 1.27, "triple": 1.62, "homeRun": 2.10
+    },
+    "_note_runsPerWin": "승 하나의 값(득점). 득점 환경이 높을수록 커진다. 9이닝당 리그 실점 × 계수 (4.7실점 환경에서 약 9.9).",
+    "runsPerWinFactor": 2.1,
+    "stolenBaseRuns": 0.20,
+    "caughtStealingRuns": -0.40,
+    "_note_defense": "수비 기여는 '수비 능력치 × 포지션 난이도'로 단순 추정한다 (docs/04 3단계).",
+    "defenseRunsPerPoint": 0.09,
+    "defenseNeutralRating": 60,
+    "positionalRunsScale": 11.0,
+    "_note_replacement": "대체 선수 수준. 타자는 600타석당, 투수는 9이닝당 리그 평균보다 이만큼 못한 선수를 기준으로 한다.",
+    "replacementRunsPer600Pa": 18.0,
+    "replacementRunsPer9": { "starter": 0.95, "reliever": 0.50 },
+    "qualifiedPaPerGame": 3.1,
+    "qualifiedOutsPerGame": 3
+  },
+
+  "valuation": {
+    "status": "draft",
+    "_note": "선수 가치 평가 (docs/11). 가치 = Σ(향후 N년 기대 WAR × 연도 가중치 × 억원/WAR − 연봉) × 포지션 필요도. AI 는 스카우트 오차가 섞인 능력치로 평가한다(docs/02 구현 규칙 3).",
+    "horizonYears": 5,
+    "_note_salaryPerWar": "1 WAR 의 시장 가격(억원). 리그 연봉 총액 ÷ 리그 전체 WAR 에서 출발한 값이다.",
+    "salaryPerWar": 3.0,
+    "_note_warByOverall": "`cli warcurve` 로 뽑은 '종합 능력치 → 평균 WAR' (출장 기회 포함). 75 이상은 표본이 적어 외삽했다.",
+    "warByOverall": {
+      "batter": { "40": 0.0, "45": 0.0, "50": 0.05, "55": 0.7, "60": 1.8, "65": 2.6, "70": 3.8, "75": 5.0, "80": 6.2 },
+      "starter": { "40": 0.0, "45": 0.05, "50": 0.4, "55": 1.2, "60": 1.6, "65": 2.2, "70": 3.7, "75": 4.9, "80": 6.0 },
+      "reliever": { "40": 0.0, "45": 0.0, "50": 0.05, "55": 0.2, "60": 0.5, "65": 0.9, "70": 1.15, "75": 1.5, "80": 1.8 }
+    },
+    "_note_yearWeights": "구단 모드별 연도 가중치. 우승 도전은 올해를, 리빌딩은 3~5년 뒤를 크게 본다.",
+    "yearWeights": {
+      "contend": [1.00, 0.70, 0.45, 0.25, 0.12],
+      "neutral": [1.00, 0.85, 0.68, 0.52, 0.38],
+      "rebuild": [0.45, 0.75, 1.00, 0.95, 0.80]
+    },
+    "prospectPotentialWeight": 0.45,
+    "youngPlayerAge": 25,
+    "trade": {
+      "_note": "트레이드 가치 (2026-10-04 개편, 유저 요청 '나이·잠재력·능력치로 선수 가치를 매기고 팀 상황으로 가중치'). 기본 가치 = Σ 해마다 (기대 WAR 시장가 × 스타 프리미엄 × 보유 여부 − 연봉 × 연봉 가중치) × 연도 가중치. 팀 상황 = 구단 모드 연도 가중치 · 포지션 필요도 · 연봉 부담 가중치. 임시값 — 플레이 후 조정",
+      "_note_star": "WAR 이 starWarFrom 을 넘는 만큼 1 WAR 값이 starPremium 씩 오른다 (5 WAR → ×1.45). 평범한 선수 여럿으로 스타 하나를 못 사게",
+      "starPremium": 0.15,
+      "starWarFrom": 2.0,
+      "_note_control": "FA까지 보유 기간이 끝난 뒤의 해는 이만큼만 센다 (재계약 가능성). 비FA 선수는 1년 계약이라도 FA까지 보유한다",
+      "afterControlWeight": 0.25,
+      "_note_growth": "지금 실력을 넘는 성장분 WAR 은 이만큼만 믿는다. 없으면 20세 64/91 유망주가 MVP급 주전보다 1.5배 비쌌다",
+      "growthCertainty": 0.5,
+      "baseSalaryWeight": 0.6,
+      "_note_salaryWeight": "연봉 총액 ÷ 소프트캡 (%) → 연봉 1억을 가치에서 얼마나 빼나. 캡 여유가 큰 팀은 연봉을 가볍게, 캡을 넘긴 팀은 무겁게 본다",
+      "salaryWeightByPayroll": { "60": 0.4, "90": 0.6, "100": 0.9, "115": 1.3 }
+    }
+  },
+
+  "teamMode": {
+    "status": "draft",
+    "_note": "구단 모드 (docs/11). 시즌 시작과 트레이드 마감 전에 순위·선수단 나이로 다시 정한다.",
+    "contendRank": 4,
+    "rebuildRank": 8,
+    "rebuildAverageAge": 27.0,
+    "minGamesForRank": 30
+  },
+
+  "trade": {
+    "status": "draft",
+    "_note": "트레이드 (docs/11). AI 수락 조건: 받는 가치 ≥ 주는 가치 × (1 + 수익 요구치). 꼼수 방지 장치가 핵심이다.",
+    "profitMargin": { "easy": 0.08, "normal": 0.18, "hard": 0.30 },
+    "_note_fatigue": "같은 구단에 거절당한 제안을 반복하면 일정 기간 협상을 거부한다 (수락 기준선 탐색 방지).",
+    "rejectionsBeforeRefusal": 3,
+    "refusalWeeks": 3,
+    "_note_buyback": "트레이드로 받은 선수를 원 소속팀에 곧바로 되파는 것 금지.",
+    "buybackBlockSeasons": 1,
+    "maxPlayersPerSide": 4,
+    "cashLimit": 10.0,
+    "salaryRetention": {
+      "_note": "연봉 보조 (2026-10-05 유저 요청). 보내는 선수의 연봉 중 maxRate 까지 계약 끝까지 대신 낸다. 가치는 금액 × 남은 연수 × valueRate (현금처럼)",
+      "maxRate": 0.5,
+      "valueRate": 1.0
+    },
+    "gmStyles": {
+      "_note": "AI 단장 협상 성격 (2026-10-05 유저 요청 '상대 단장 성격 차이'). 판정하는 팀이 보는 가치에 곱한다: 어린 선수(valuation.youngPlayerAge 이하) prospectMultiplier · 베테랑(offers.veteranAge 이상) veteranMultiplier · 지명권 pickMultiplier. 요구 이익 폭 × marginMultiplier. 거절 몇 번에 등을 돌리나 = rejectionsBeforeRefusal + rejectionsDelta. 단장 성격은 data/league_2026.json generalManagers.style (없으면 단장 id 로 고정)",
+      "balanced": { "prospectMultiplier": 1.0, "veteranMultiplier": 1.0, "pickMultiplier": 1.0, "marginMultiplier": 1.0, "rejectionsDelta": 0 },
+      "rebuilder": { "prospectMultiplier": 1.25, "veteranMultiplier": 0.85, "pickMultiplier": 1.25, "marginMultiplier": 1.0, "rejectionsDelta": 0 },
+      "winNow": { "prospectMultiplier": 0.8, "veteranMultiplier": 1.15, "pickMultiplier": 0.8, "marginMultiplier": 0.9, "rejectionsDelta": 1 },
+      "hardBargainer": { "prospectMultiplier": 1.0, "veteranMultiplier": 1.0, "pickMultiplier": 1.0, "marginMultiplier": 1.6, "rejectionsDelta": -1 }
+    },
+    "counter": {
+      "_note": "AI 역제안 (2026-10-05). 핵심 선수 대신 같은 자리 비핵심 선수로 바꾸고, 모자라면 유저 쪽 남는 선수·지명권을 얹는다. 유저가 받는 가치 ÷ 주는 가치가 userFloor (깐깐한 협상가는 hardUserFloor) 아래로 떨어지는 요구는 하지 않는다",
+      "userFloor": 0.7,
+      "hardUserFloor": 0.6
+    },
+    "rumors": {
+      "_note": "트레이드 소문 (2026-10-05 유저 요청 '루머와 정보전'). 매주 chance 로 한 건. 진짜 소문 = AI 가 실제로 노리는 우리 선수 / 리빌딩 구단이 내놓을 베테랑. falseRate 만큼은 헛소문. 출처가 '믿을 만한 소식통'으로 붙을 확률: 진짜 reliableIfTrue, 헛소문 reliableIfFalse",
+      "chance": 0.5,
+      "falseRate": 0.3,
+      "reliableIfTrue": 0.75,
+      "reliableIfFalse": 0.3
+    },
+    "aiTradesPerSeason": [2, 5],
+    "minValueToConsider": 0.5,
+    "_note_rosterSpot": "받는 선수 1명마다 가치에서 빼는 엔트리 자리 값(억원). 잡선수 여럿을 얹어 값을 맞추는 거래를 막는다 (2026-10-04)",
+    "rosterSpotCost": 2.0,
+    "offers": {
+      "_note": "AI 가 먼저 거는 제안 (2026-10-04, 유저 피드백 '트레이드 제안이 현실성 없다'). 동기가 있을 때만 건다 — 보강(주전 구멍을 메울 상대 1군 선수) / 정리(리빌딩 구단이 베테랑을 팔고 유망주·지명권). 예전엔 아무 구단이나 골라 2군끼리 맞바꾸는 제안이 나왔다. 임시값 — 플레이 후 조정",
+      "_note_chance": "유저에게 제안이 오는 주간 확률. 마감 deadlineWindowWeeks 주 전부터는 deadlineChance (마감 직전에 몰린다)",
+      "chance": 0.2,
+      "deadlineChance": 0.5,
+      "deadlineWindowWeeks": 3,
+      "needThreshold": 1.1,
+      "_note_target": "이 가치(억원) 아래 선수는 제안의 중심이 되지 않는다 (의미 없는 맞교환 방지)",
+      "minTargetValue": 6.0,
+      "targetsPerTeam": 3,
+      "_note_assets": "값을 맞출 때 쓰는 것: 핵심 protectedCore 명과 내보내면 구멍이 나는 자리는 빼고, 받는 쪽 눈에 값진 선수 assetPool 명 + maxPickRound 라운드까지의 지명권. 한 제안에 선수 maxPayerPlayers 명·지명권 maxPayerPicks 장까지",
+      "protectedCore": 3,
+      "assetPool": 10,
+      "maxPickRound": 5,
+      "maxPayerPlayers": 3,
+      "maxPayerPicks": 2,
+      "_note_minAsset": "값을 맞출 때 얹는 선수는 받는 쪽 눈에 이 가치(억원) 이상이어야 한다",
+      "minAssetValue": 4.0,
+      "_note_fairness": "보강 제안은 유저 스카우트 시선으로 받는 가치 ≥ 주는 가치 × fairness 까지 채운다. 정리 제안은 유저 쪽이 sellTolerance 아래로 손해 보면 걸지 않는다",
+      "fairness": 1.0,
+      "sellTolerance": 0.9,
+      "veteranAge": 30
+    }
+  },
+
   "positionNeed": { "status": "draft", "critical": [1.3, 1.5], "noBackup": 1.1, "adequate": 1.0, "surplus": 0.8 },
 
   "softCap": {
     "status": "verify",
+    "_note": "TODO(verify): 경쟁균형세 금액과 초과 제재 비율 미확인 (CLAUDE.md §8). 판정은 시즌 종료 시 연봉 총액으로 한다. draftPickDropPlaces 는 기획에 없는 임시값이다 — 기획은 '1라운드 순번 하락'이지만 이 게임은 라운드마다 같은 순번을 쓰므로 전체 순번을 뒤로 민다.",
     "cap": 120,
+    "draftPickDropPlaces": 5,
     "penalties": [
       { "consecutive": 1, "rateOfExcess": 0.5, "draftPickDrop": false },
       { "consecutive": 2, "rateOfExcess": 1.0, "draftPickDrop": true },
@@ -264,21 +394,170 @@
     "series": { "semiPlayoff": 5, "playoff": 5, "koreanSeries": 7 }
   },
 
+  "postseason": {
+    "_note": "포스트시즌 진행 (2026-10-03 한 경기씩 진행). 시리즈 사이 쉬는 날은 임시 결정 — 현실 일정은 해마다 다르다.",
+    "spots": 5,
+    "restDaysBetweenSeries": 1
+  },
+
   "roster": {
     "status": "verify",
     "firstTeamRegistered": 28,
     "reRegisterBlockWeeks": 1,
-    "foreignPlayers": 3
+    "userAutoBestMargin": 2.0,
+    "userPickProtectWeeks": 3,
+    "_userPickProtectWeeks": "단장이 직접 올린 선수(로스터 화면·돌발 이벤트에서 직접 고른 콜업)는 올린 주 뒤 이 주수 동안 자동 베스트 맞추기가 내리지 않는다 (2026-10-03 유저 결정, 임시값). 비서 처리 콜업은 보호하지 않는다",
+    "_userAutoBestMargin": "유저 구단 베스트 엔트리 자동 맞추기 (2026-10-03 유저 요청): 2군 선수 종합이 같은 투수/야수 1군 최약체보다 이만큼 넘게 높아야 맞바꾼다. 비슷한 선수끼리 매주 오르내리지 않게 하는 여유",
+    "foreignPlayers": 3,
+    "positionLimits": {
+      "_note": "AI 구단 1군 구성 가이드 [최소, 최대] (임시 결정). 주 포지션 기준, 투수는 선발(SP)/불펜(RP·마무리). 최소는 '뛸 수 있는' 선수 기준. **유저 구단에는 적용하지 않는다** (2026-10-01 유저 요청 — 유동적인 운영을 막는다). 유저 구단은 시즌 시작 때 물려받은 1군만 한 번 정리한다",
+      "groups": { "pitchers": [12, 14], "batters": [14, 16] },
+      "positions": {
+        "SP": [5, 7],
+        "RP": [6, 9],
+        "C": [2, 3],
+        "1B": [1, 3],
+        "2B": [1, 3],
+        "3B": [1, 3],
+        "SS": [1, 3],
+        "LF": [1, 3],
+        "CF": [1, 3],
+        "RF": [1, 3],
+        "DH": [0, 2]
+      }
+    }
   },
 
-  "draft": { "status": "verify", "rounds": 11, "poolSize": 100, "orderEachRound": "reverseStandings", "tradeablePickYears": 2, "noConsecutiveFirstRoundTrade": true },
+  "draft": {
+    "status": "verify",
+    "_note": "TODO(verify): 라운드 수와 라운드별 순번 방식, 계약금 규모 미확인 (CLAUDE.md §8). 임시 11라운드, 매 라운드 전년도 역순. poolSize 는 기획의 '약 100명'보다 크다 — 11라운드 × 10팀 = 110지명이라 미지명 육성선수 자리가 남지 않기 때문이다.",
+    "rounds": 11,
+    "poolSize": 140,
+    "orderEachRound": "reverseStandings",
+    "tradeablePickYears": 2,
+    "noConsecutiveFirstRoundTrade": true,
+    "collegeShare": 0.42,
+    "highSchoolAge": [18, 19],
+    "collegeAge": [22, 23],
+    "_note_potential": "고졸은 잠재력 편차가 크고(도박) 대졸은 작다(안전). 이 값이 리그의 장기 평형 수준을 정한다.",
+    "potential": { "highSchool": [52, 12.5], "college": [53, 7.5] },
+    "_note_generational": "역대급 재능 (유저 요청 2026-10-04: 3~4년에 한 명). 해마다 chance 확률로 고졸 한 명의 잠재력을 potential 범위에서 뽑는다 (전원 S 등급 84 이상). 범위는 '90+ 능력치 최근 5시즌 평균 6~8개' 목표로 30시즌 × 8시드 측정해 골랐다: 88~94 → 9.5(4시드), 86~90 → 8.0, 85~88 → 7.3, 84~87 → 8.2, 역대급 없음 → 4.5(4시드). 시드마다 2~12 로 흔들려 후보끼리 차이는 우연 폭 안이다. 임시 결정",
+    "generational": { "chance": 0.3, "potential": [85, 88] },
+    "pitcherShare": 0.45,
+    "starterShare": 0.5,
+    "signingBonus": { "firstPick": 3.5, "lastPick": 0.05, "curve": 2.3 },
+    "valueWeights": { "current": 0.35, "potential": 0.65 },
+    "_note_aiBias": "구단마다 고정된 지명 편향 (docs/10). 고졸 선호·투수 선호·즉시전력 선호 [최소, 최대] 안에서 구단 id 로 고정된다.",
+    "aiBias": { "highSchool": [0.88, 1.12], "pitcher": [0.90, 1.10], "readiness": [0.15, 0.55] },
+    "_note_starterPremium": "선발투수 가중치 (유저 요청 2026-10-04: KBO 는 선발 자원이 귀하다). 모든 구단(AI·우리 추천·모의 드래프트)이 선발 후보 가치에 곱한다. 임시 결정",
+    "starterPremium": 1.2,
+    "developmentPlayer": { "maxPerTeam": 2, "signChance": 0.45 }
+  },
+
+  "draftAdvisor": {
+    "status": "draft",
+    "_note": "스카우트팀 지명 추천 (유저 요청 2026-10-03, docs/10). readinessByPolicy = 추천 기준별 현재 능력 가중치(나머지는 잠재력). 남아 있을 확률은 모의 드래프트 simulations 회로 낸다: 다른 구단도 우리 리포트처럼 본다고 두고, 구단마다 취향(draft.aiBias 범위)과 급한 포지션(positionNeed 넘침~결핍 범위)을 무작위로 정한 뒤 판단 흔들림(consensusNoise, 능력치 표준편차)을 얹는다. consensusNoise 2.0 은 30회 실측 보정값. 선발 가중치 1.2 반영 후 (2026-10-04): 예측 20~40% → 실제 30%, 40~60% → 44%, 60~80% → 44%(과신), 80~100% → 87%. 확률이 minAvailability 미만인 선수는 추천하지 않는다. 임시 결정",
+    "readinessByPolicy": { "READY": 0.7, "BALANCED": 0.4, "POTENTIAL": 0.15 },
+    "consensusNoise": 2.0,
+    "simulations": 300,
+    "minAvailability": 0.25,
+    "_note_calibration": "모의 드래프트 확률(키, %) → 실측 확률(값). 2026-10-04 30회 드래프트·990건 측정: 예측 31% → 실제 31%, 49% → 40%, 71% → 43%, 90% → 81%. 모의 드래프트가 중상위 구간을 과신해서(다른 구단의 실제 시선을 모르는 한계) 실측에 맞춰 한 번 더 고친다. 100% 는 '지금 우리 차례'라 그대로",
+    "availabilityCalibration": { "0": 0.0, "31": 0.31, "49": 0.40, "71": 0.43, "90": 0.81, "100": 1.0 },
+    "candidatesPerSlot": 3,
+    "_note_report": "스카우트 정기 리포트 (2026-10-04): reportEveryWeeks 주마다 + 드래프트 주차 시작에 최종 리포트. 지난 보고보다 평가가 reportMoverMin 이상 변한 선수 중 (4주 관찰로 평가 중심이 움직이는 폭은 최대 약 1.3점이라 1.0) reportMovers 명씩 오름·내림에 싣는다",
+    "reportEveryWeeks": 4,
+    "reportMoverMin": 1.0,
+    "reportMovers": 3,
+    "reasons": { "needAtLeast": 1.15, "potentialAtLeast": 70, "currentAtLeast": 50, "uncertainHalfWidth": 12 }
+  },
+
+  "draftPickValue": {
+    "status": "draft",
+    "_note": "순번별 기대 가치 (docs/10). `./gradlew :cli:runCli --args=\"pickvalue 20 3\"` 로 60시즌·6,600지명을 시뮬레이션해 뽑았다. 값은 '지명 5시즌 뒤 종합 능력치 중 리그 평균 초과분' 평균이며 1순위를 1.0 으로 정규화했다(1순위 원값 14.6). WAR 은 M7 에서 생기므로 그때 다시 뽑는다. 사이값은 선형 보간.",
+    "_note_2026_10_03": "유저 피드백 '지명권 가치가 너무 낮다'로 재조정. 실측(4시즌): 지명 순번별 입단 직후 신인의 트레이드 가치는 11순위 아래로 옛 표와 비슷했다(예: 21~30순위 3.6억 vs 지명권 3.2억). 즉 AI 계산 안에선 맞았지만, 신인을 '5년 안 WAR'로만 봐서 현실 구단이 상위 지명권에 주는 기대 프리미엄(싼 연봉으로 오래 쓰는 유망주, 고를 권리)이 빠져 있었다. 그래서 1~2라운드 위주로 올리고(1순위 18→30억, 1라운드 평균 약 12.7→19.5억), 5라운드 아래는 실측 근처로 둔다 — 하위 라운드를 비싸게 팔아 선수를 사는 꼼수를 막으려고. 옛 표: 1:1.0, 3:0.92, 6:0.60, 11:0.31, 21:0.18, 31:0.13, 41:0.09, 61:0.03, 81:0.02, 101:0.01 (× 18억)",
+    "_note_2026_10_03b": "같은 날 2차: 위 재조정(1순위 30억)이 '너무 높다'는 피드백으로 옛 값과 그 값의 중간으로 내렸다 (1순위 24억, 곡선도 두 표의 평균). 1차 값: 1:1.0, 3:0.85, 6:0.55, 11:0.30, 21:0.15, 31:0.09, 41:0.06, 61:0.025, 81:0.012, 101:0.006 (× 30억)",
+    "byPick": { "1": 1.0, "3": 0.885, "6": 0.575, "11": 0.305, "21": 0.165, "31": 0.11, "41": 0.075, "61": 0.0275, "81": 0.016, "101": 0.008 },
+    "futurePickDiscount": 0.85,
+    "unknownSlotAssumption": "currentStandings",
+    "_note_surplus": "가치표를 트레이드 저울(억원)로 옮기는 값. 전체 1순위 지명권의 잉여 가치다.",
+    "firstPickSurplus": 24.0,
+    "_note_mode": "구단 모드별 지명권 선호 (docs/11). 우승 도전은 지명권을 싸게, 리빌딩은 비싸게 본다.",
+    "modeMultiplier": { "contend": 0.7, "neutral": 1.0, "rebuild": 1.35 }
+  },
+
+  "rosterLimits": {
+    "status": "draft",
+    "_note": "드래프트로 매년 11명이 들어오므로 방출이 없으면 선수단이 불어난다 (M6). 목표 인원을 넘는 만큼 스토브리그에 방출한다. 보호 기준에 걸리는 어린 유망주는 마지막에 방출한다.",
+    "targetRosterSize": 58,
+    "minRosterSize": 52,
+    "protectAgeUnder": 23,
+    "_note_protectPotentialGrade": "2026-10-04 잠재력 등급 재정의(S/A/B/C/D)로 옛 B(75 이상)와 같은 효과를 내도록 A(76 이상)로 옮겼다",
+    "protectPotentialGrade": "A",
+    "_note_released": "방출 선수 중 이 종합 능력치 이상만 FA 시장에 올라간다 (docs/11 '다른 팀이 영입 가능'). 나머지는 그대로 리그를 떠난다 — 매년 90명이 시장에 쏟아지면 FA 가 의미를 잃는다.",
+    "releasedToMarketOverall": 48.0
+  },
 
   "scouting": {
     "status": "draft",
-    "focusSlotsByLevel": { "1": 3, "2": 5, "3": 8, "4": 11, "5": 15 }
+    "_note": "스카우트 투자 단계 1~5 (docs/10). 단계가 오르면 아마추어 기본 정확도(표시 범위 반폭)가 좁아진다. 집중 관찰 슬롯은 유저 요청(2026-09-27)으로 모든 단계 15개 고정. 비용은 스토브리그에 운용 자금에서 한 번 나간다.",
+    "defaultLevel": 3,
+    "focusSlotsByLevel": { "1": 15, "2": 15, "3": 15, "4": 15, "5": 15 },
+    "amateurHalfWidthByLevel": { "1": 18, "2": 16, "3": 13, "4": 11, "5": 9 },
+    "established": {
+      "_note": "준주전급 공개 기록 (2026-10-04 유저 요청 '준주전급까지는 능력치를 다 보여주자'). 올 시즌 또는 지난 시즌 1군에서 타자 minPa 타석 / 투수 minOuts 아웃 이상 뛴 선수는 현재 능력치가 정확히 보인다(잠재력·숨김 성질은 여전히 추정). 유저 화면에만 — AI 구단 평가는 그대로",
+      "minPa": 200,
+      "minOuts": 120
+    },
+    "annualCostByLevel": { "1": 0.5, "2": 1.2, "3": 2.2, "4": 3.6, "5": 5.5 },
+    "focus": {
+      "_note": "집중 관찰을 이어 갈수록 범위가 좁아진다. 주차는 관찰을 시작한 뒤 지난 주 수다.",
+      "narrowingPerWeek": 0.55,
+      "halfWidthFloor": 3,
+      "gradeSpreadWeeks": [6, 13],
+      "growthTypeReliableWeeks": 16,
+      "newsEveryWeeks": 3
+    },
+    "potentialGrades": {
+      "_note": "잠재력 등급 기준선 (잠재력 평균, 2026-10-04 유저 정의: S 리그 정상급 / A 팀 에이스 / B 주전 / C 준주전 / D 백업). 기준값 = 그 역할의 실제 능력치(2026 리그 측정) + 전성기 선수가 잠재력에 못 미치는 평균 차이 약 6. S: 1군 상위 3% 74 → 78+6 / A: 팀 상위 2명 평균 73 → 76 / B: 주전 하위 25% 58 → 64 / C: 준주전 아래쪽 48 → 54. edgeHalfBand 는 양 끝 구간(D·S)의 가운데 값을 잡는 반폭. 바꾸면 rosterLimits.protectPotentialGrade 도 같이 볼 것",
+      "C": 54,
+      "B": 64,
+      "A": 76,
+      "S": 84,
+      "edgeHalfBand": 4.0
+    },
+    "coreProspect": {
+      "_note": "팀내 핵심 유망주 표시 (유저 요청 2026-10-04). 구단마다 maxAge 세 이하 선수를 '보는 구단의 스카우트 시선으로 본 잠재력' 순으로 위에서 perTeam 명. 그 시선의 잠재력이 minGrade 등급 미만이면 순위 안이어도 표시하지 않는다. 표시일 뿐 게임 결과에는 영향이 없다. 임시 결정",
+      "maxAge": 24,
+      "perTeam": 3,
+      "minGrade": "B"
+    },
+    "knownProspect": {
+      "_note": "이름난 고교 유망주 (2026-10-03 도입, 2026-10-04 유저 요청으로 '해마다 3~4명'). 풀이 만들어질 때 고졸을 '잠재력 + 선수별 고정 흔들림(±rankNoise)'으로 줄 세워 위에서 perClass 범위만큼 정한다. 예전 방식(잠재력 74~86 확률)은 고졸 잠재력 분포상 첫해 이후 0~1명인 해가 많았다. 알려진 선수는 모든 구단이 집중 관찰을 headStartWeeks 주 한 것처럼 보고 시작한다. 임시 결정",
+      "perClass": [3, 4],
+      "rankNoise": 4.0,
+      "headStartWeeks": 12
+    },
+    "aiEvaluationNoise": 0.55,
+    "teamStrength": {
+      "_note": "로스터 화면 리그 전력 비교(2026-10-01). 타 팀 전력 범위 반폭 = 선수 반폭의 제곱합 제곱근 × spreadFactor × 전력 기울기. 1 이면 표준편차 하나만큼. 클수록 범위가 넓어진다. 임시 결정",
+      "spreadFactor": 1.0
+    }
   },
 
-  "military": { "status": "verify", "enlistDeadlineAge": 28, "serviceMonths": 18 },
+  "military": {
+    "status": "verify",
+    "_note": "TODO(verify): 입대 기한 나이와 복무 기간 미확인. 임시값. 상무 합격은 능력치가 높을수록 쉽다 (docs/12).",
+    "enlistDeadlineAge": 28,
+    "serviceMonths": 18,
+    "sangmu": {
+      "_note": "종합 능력치 → 상무 합격 확률. 정원이 있어 잘하는 선수가 유리하다.",
+      "chanceByOverall": { "40": 0.10, "50": 0.25, "60": 0.55, "70": 0.85, "80": 0.95 },
+      "slotsPerSeason": 12
+    },
+    "warningAges": [26, 27],
+    "earlyEnlistOverall": 48.0,
+    "earlyEnlistChance": 0.35
+  },
 
   "managerDirectiveAdoption": { "status": "draft", "value": 0.5 },
 
@@ -386,15 +665,139 @@
     "injuryWeeksThreshold": 3
   },
 
-  "owner": { "status": "draft", "fireBelowTrust": 20 },
+  "finance": {
+    "status": "draft",
+    "_note": "단장이 결정하는 돈만 추적한다 (docs/13). 구장 운영비 같은 고정비는 제외. 단위 억원. 자체 수입만으로는 적자가 나고 모기업이 메우는 구조라, 연봉 총액을 키우면 적자가 커진다.",
+    "attendance": {
+      "_note": "관중 수입 = 연고 시장 기본액 × 관중률. 관중률은 성적·팬심으로 움직이고 포스트시즌 진출이 보너스다.",
+      "baseByMarket": { "large": 70.0, "medium": 55.0, "small": 44.0 },
+      "winPctWeight": 0.50,
+      "fanSupportWeight": 0.40,
+      "postseasonBonus": 0.12,
+      "minShare": 0.45,
+      "maxShare": 1.30
+    },
+    "broadcast": 25.0,
+    "sponsorship": {
+      "base": 16.0,
+      "minShare": 0.30,
+      "maxShare": 1.60,
+      "fanSupportWeight": 0.6,
+      "starBonus": 1.2,
+      "starOverall": 75
+    },
+    "postseasonRevenue": { "wildcard": 3.0, "semiPlayoff": 6.0, "playoff": 10.0, "koreanSeries": 18.0, "champion": 8.0 },
+    "parentSupport": {
+      "_note": "모기업 지원 = 연간 기본액 × 구단주 신뢰도 보정 × 모기업 경기 보정.",
+      "trustWeight": 0.35,
+      "healthWeight": 0.35,
+      "noParentBase": 20.0
+    },
+    "allowedDeficitByMarket": { "large": 45.0, "medium": 35.0, "small": 28.0 },
+    "staffSalaryNote": "감독·코치·메디컬 연봉은 스태프 계약에서 합산한다",
+    "_outlookNote": "연봉 계획(재정 전망) 화면이 보여 주는 시즌 수. 이번 시즌 포함. 재계약은 지금 연봉 유지, 수입은 평년(5할·PS 없음)으로 가정한다 (management/FinancialOutlook).",
+    "outlookYears": 4
+  },
+
+  "fanSentiment": {
+    "status": "draft",
+    "_note": "팬심 0~100 (docs/13). 승패로 천천히 움직이고 사건으로 크게 흔들린다. 구단별 변화 폭(fanVolatility)이 곱해진다.",
+    "_note_weekly": "주간 변화는 아주 작게 둔다. 24주 동안 쌓이므로 이 값이 크면 시즌 말에 전 구단이 0 이나 100 으로 몰린다.",
+    "weeklyWinWeight": 0.35,
+    "streakBonus": 0.15,
+    "weeklyRegression": 0.04,
+    "seasonWinPctWeight": 14.0,
+    "postseasonBonus": { "reached": 5, "koreanSeries": 8, "champion": 14 },
+    "bottomPenalty": 6,
+    "regressionToMean": 0.10,
+    "events": {
+      "bigFreeAgentSigned": 5,
+      "franchiseStarTraded": -12,
+      "franchiseStarReleased": -14,
+      "starFreeAgentLost": -8,
+      "rookieStarEmerged": 4,
+      "legendRetired": 3,
+      "managerChurn": -4, "rivalSeriesWin": 2, "rivalSeriesLoss": -2
+    },
+    "franchiseStarOverall": 72,
+    "bigFreeAgentSalary": 8.0,
+    "min": 5,
+    "max": 98
+  },
+
+  "owner": {
+    "status": "draft",
+    "_note": "구단주 신뢰도 0~100 (docs/13). 시즌 목표 달성·적자 준수·팬심 변화로 평가한다. 난이도에 따라 인내심이 달라진다 (docs/14).",
+    "fireBelowTrust": 20,
+    "start": 60,
+    "goalReward": { "exceeded": 14, "met": 8, "missed": -12, "farMissed": -20 },
+    "deficitPenaltyPerUnit": 0.25,
+    "deficitPenaltyCap": 14,
+    "surplusReward": 4,
+    "fanChangeWeight": 0.35,
+    "consecutiveMissPenalty": -10,
+    "warningBelow": 35,
+    "approvalRequiredBelow": 40,
+    "approvalSalary": 6.0,
+    "patience": { "easy": 1.4, "normal": 1.0, "hard": 0.75 }
+  },
+
+  "parentCompany": {
+    "status": "draft",
+    "_note": "모기업 경기 (docs/13). 호황/보통/불황이 지원금을 바꾸고, 불황이 이어지면 시즌 중 예산 삭감 통보가 온다.",
+    "cycleShare": { "boom": 0.25, "normal": 0.5, "slump": 0.25 },
+    "supportMultiplier": { "boom": 1.25, "normal": 1.0, "slump": 0.75 },
+    "healthDelta": { "boom": 6, "normal": 0, "slump": -8 },
+    "slumpCutWarningAfter": 2,
+    "midSeasonCutShare": 0.15,
+    "ownerChangeChance": 0.02,
+    "newOwnerHealth": [45, 85]
+  },
+
+  "staffMarket": {
+    "status": "draft",
+    "_note": "스토브리그 스태프 시장 (docs/13). 좋은 스태프는 AI 와 경쟁한다. 등급별 효과는 10~20% 로 작게 유지해 '무조건 최고 스태프'가 정답이 되지 않게 한다.",
+    "poolSize": { "coach": 10, "medical": 8, "manager": 3 },
+    "salaryByGrade": { "1": 0.8, "2": 1.2, "3": 1.8, "4": 2.6, "5": 3.6 },
+    "contractYears": [1, 3],
+    "aiHireChance": 0.55,
+    "competitionPremium": [1.0, 1.35],
+    "firingCostShare": 0.6
+  },
+
+  "career": {
+    "status": "draft",
+    "_note": "단장 커리어 (docs/13). 평판은 기대 대비 성과로 움직인다 — 약팀에서 5강에 가는 것이 강팀 우승보다 크게 오른다.",
+    "startReputation": 50,
+    "_note_expectation": "팀 전력 → 기대 승수. 실제 시뮬레이션의 전력-승률 관계(전력 79 ≈ 0.65, 57 ≈ 0.37)에서 뽑은 기울기다. 기대치가 실제와 맞아야 '약팀에서 5강 > 강팀에서 우승'이 성립한다 — 기대치를 뭉개면 강팀을 고르는 것이 최적이 된다.",
+    "expectationFromStrength": { "pivot": 68.0, "slope": 1.83 },
+    "reputationGain": { "perWinAboveExpectation": 0.55, "championship": 12, "koreanSeries": 8, "postseason": 4 },
+    "_note_underperformance": "기대에 못 미친 쪽은 덜 깎는다. 대칭으로 두면 강팀을 맡은 단장의 평판이 계단식으로 내려가 커리어가 한 번에 무너진다.",
+    "underperformanceShare": 0.6,
+    "_note_underdog": "약팀의 포스트시즌 성과에 웃돈을 준다. 기대 승수 항이 이미 대부분을 하므로 폭은 작게 둔다.",
+    "underdogWeight": 0.04,
+    "underdogRange": [0.6, 1.8],
+    "reputationLoss": { "fired": -10, "commentaryYear": -3 },
+    "_note_sabbatical": "해설위원으로 지내는 해에도 평판이 바닥까지 떨어지지는 않는다 — 안 그러면 한 번 해임된 뒤 영원히 복귀하지 못한다 (docs/13 '1년 해설위원 후 재제안').",
+    "sabbaticalReputationFloor": 30,
+    "offerReputation": { "strongTeam": 70, "midTeam": 55, "weakTeam": 22 },
+    "offerCount": [1, 3],
+    "commentaryIfNoOffer": true,
+    "min": 5,
+    "max": 99
+  },
+
+
 
   "medicalStaffEffectRange": { "status": "draft", "min": 0.10, "max": 0.20 },
 
   "leagueEnvironmentEvents": {
     "status": "draft",
+    "_note": "리그 환경 변동 (docs/04). 스토브리그 시작 때 발표하고, 발표 내용과 실제 효과 사이에 작은 오차를 둔다.",
     "noChangeChance": 0.5,
     "ballLiveliness": { "homeRunDelta": [0.05, 0.12] },
-    "strikeZone": { "kBbDeltaPoints": [0.01, 0.02] }
+    "strikeZone": { "kBbDeltaPoints": [0.01, 0.02] },
+    "announcementError": 0.35
   },
 
   "difficulty": {
@@ -425,6 +828,42 @@
     "maxContractYears": 6
   },
 
+  "faMarket": {
+    "status": "draft",
+    "_note": "FA 협상 진행 방식 (docs/11). 규정(자격·등급·보상)은 freeAgency 섹션에 있고, 여기는 게임 밸런스 값이다.",
+    "biddingRounds": 6,
+    "_note_asking": "희망 조건은 시장가(기대 WAR × 억원/WAR)에서 출발해 관심 구단 수에 비례해 오른다.",
+    "askingPremium": 1.15,
+    "competitionRaisePerTeam": 0.07,
+    "_note_bid": "경쟁 입찰 (2026-10-03): 1순위에서 밀린 AI 구단은 1순위 연봉보다 이 비율만큼 더 부른다(±30% 흔들림). 상한(가치 평가)을 넘으면 철수하고 다시 붙지 않는다.",
+    "bidIncrement": 0.06,
+    "_note_margin": "AI 상한 = 기대 WAR × 억원/WAR × 포지션 필요도 × aiValueMargin × 모드 배율. 1 보다 작을수록 AI 가 남는 장사만 한다. 2026-10-03 0.85(코드 상수) → 설정값으로 옮기며 경쟁 입찰이 붙도록 올림.",
+    "aiValueMargin": 1.0,
+    "_note_ceiling": "AI 구단은 연봉 총액이 샐러리캡(softCap.cap)의 이 비율을 넘는 영입을 하지 않는다. 계약금은 운용 자금 × aiBudgetShareOfFunds 안에서만 (docs/01: 연봉=연봉 총액 여유, 계약금=운용 자금).",
+    "aiPayrollCeilingOfCap": 0.9,
+    "_note_floor": "FA 최저 연봉 (2026-10-04, 유저 피드백 \"경쟁 없이 마지막 라운드까지 가면 말도 안 되는 헐값 계약\"). 최저 = max(최저 연봉, 직전 시즌 1군 WAR × 억원/WAR × 이 비율). 연봉 + 계약금(연 환산)이 이보다 낮은 조건은 마지막 라운드에도 받지 않는다. 미계약 1년 헐값 계약도 이 아래로는 안 간다.",
+    "salaryFloorRateOfWar": 0.8,
+    "askingDropPerRound": 0.06,
+    "maxYearsByAge": { "26": 6, "30": 4, "33": 2, "36": 1 },
+    "_note_decision": "선수가 제안을 고르는 기준. 30대는 기간을, 20대는 연봉을 중시한다 (docs/11).",
+    "weights": {
+      "young": { "money": 0.45, "years": 0.15, "winning": 0.15, "loyalty": 0.15, "playingTime": 0.10 },
+      "old":   { "money": 0.30, "years": 0.30, "winning": 0.15, "loyalty": 0.15, "playingTime": 0.10 }
+    },
+    "oldFromAge": 31,
+    "signThreshold": 0.92,
+    "signChancePerRound": [0.15, 0.3, 0.5, 0.7, 0.85, 1.0],
+    "leftoverSalaryRate": 0.55,
+    "aiBudgetShareOfFunds": 0.5,
+    "_note_mode": "구단 모드별 지출 의지. 리빌딩 팀은 베테랑 FA 에 돈을 쓰지 않는다.",
+    "modeSpending": { "contend": 1.0, "neutral": 0.85, "rebuild": 0.55 },
+    "rebuildMaxAge": 27,
+    "_note_cap": "연봉 총액이 소프트캡을 넘게 되는 영입은 그만큼 값을 깎아서 본다 (제재금을 미리 계산하는 셈).",
+    "overCapPenalty": 0.75,
+    "_note_rumor": "에이전트가 전하는 타 구단 제시액에는 과장이 섞인다 (docs/11).",
+    "rumorExaggeration": [0.95, 1.25]
+  },
+
   "foreignPlayers": {
     "status": "verify",
     "_note": "TODO(verify): 보유·출전 인원, 신규 계약 상한, 시즌 중 교체 횟수·마감일 미확인. 임시값. 금액 단위 억원.",
@@ -435,14 +874,58 @@
     "reSignUncapped": true,
     "inSeasonReplacements": 2,
     "replacementDeadlineWeek": 19,
-    "poolSizePerSeason": 40
+    "poolSizePerSeason": 40,
+
+    "_note_adaptation": "적응력(숨김)이 낮으면 능력치가 좋아도 성적이 안 나온다 (docs/12). 첫 시즌에 감점이 크고 시즌이 갈수록 줄지만 완전히 사라지지는 않는다 — 그래서 '교체할까 기다릴까'가 시즌 초 고민거리가 된다.",
+    "adaptation": {
+      "maxRatingPenalty": 14.0,
+      "firstSeasonRecovery": 0.40,
+      "weeksToSettle": 12,
+      "secondSeasonShare": 0.30,
+      "settledFromSeason": 3
+    },
+
+    "_note_market": "외국인 시장. 출신 리그마다 환산 계수가 다르고, 환산 기록에는 오차가 섞인다 (docs/12).",
+    "market": {
+      "originLeagues": {
+        "tripleA":  { "label": "미국 트리플A", "share": 0.42, "conversion": 0.88, "salary": [3.0, 9.0] },
+        "japan":    { "label": "일본",        "share": 0.16, "conversion": 0.94, "salary": [5.0, 13.0] },
+        "taiwan":   { "label": "대만",        "share": 0.12, "conversion": 1.02, "salary": [2.5, 7.0] },
+        "latin":    { "label": "중남미",      "share": 0.30, "conversion": 0.90, "salary": [2.5, 8.0] }
+      },
+      "conversionError": 0.08,
+      "pitcherShare": 0.5,
+      "reSignRaise": [1.05, 1.35],
+      "aiSignChance": 0.75
+    },
+
+    "_note_outflow": "크게 성공한 외국인은 스토브리그에 일본 구단 제안을 받는다 (docs/12). 재계약하려면 큰 폭 인상이 필요하고, 못 맞추면 떠난다.",
+    "outflow": {
+      "warThreshold": 3.5,
+      "offerMultiplier": [1.6, 2.4],
+      "chance": 0.55
+    }
   },
 
   "internationalTournament": {
     "status": "verify",
     "_note": "TODO(verify): 병역 특례 기준, 대표팀 연령 제한·와일드카드 인원 미확인. 임시값. ageLimit 0 은 제한 없음.",
-    "asianGames": { "everyYears": 4, "firstSeason": 2026, "exemptionOn": "gold", "ageLimit": 25, "wildcards": 3, "maxPerTeam": 3, "weeksMissed": 2 },
-    "olympics": { "exemptionOn": "medal", "ageLimit": 0, "wildcards": 0, "maxPerTeam": 3, "weeksMissed": 2 }
+    "asianGames": {
+      "label": "아시안게임", "everyYears": 4, "firstSeason": 2026, "exemptionOn": "gold",
+      "ageLimit": 25, "wildcards": 3, "maxPerTeam": 3, "weeksMissed": 2,
+      "squadSize": 24, "startWeek": 16, "rivals": ["일본", "대만", "중국"]
+    },
+    "olympics": {
+      "label": "올림픽", "everyYears": 4, "firstSeason": 2028, "exemptionOn": "medal",
+      "ageLimit": 0, "wildcards": 0, "maxPerTeam": 3, "weeksMissed": 2,
+      "squadSize": 24, "startWeek": 14, "rivals": ["미국", "일본", "도미니카", "대만"]
+    },
+    "_note_result": "대표팀 전력(상위 선수 평균)으로 우승 확률을 계산한다. 기준 전력에서 멀어질수록 확률이 급히 움직인다.",
+    "strengthPivot": 70.0,
+    "strengthSlope": 0.055,
+    "goldChanceRange": [0.10, 0.70],
+    "silverShareOfRest": 0.45,
+    "bronzeShareOfRest": 0.40
   },
 
   "schedule": {
@@ -502,6 +985,8 @@
     "badContractMultiplier": [1.4, 2.2],
     "contractYears": { "freeAgent": [2, 4], "veteran": [1, 2], "young": [1, 1] },
     "signingBonusShareOfSalary": [0.0, 0.8],
+    "_note_reNegotiation": "비FA 선수의 스토브리그 연봉 재계약 (docs/11). 전 시즌 WAR 기준 시장가로 천천히 끌어간다.",
+    "reNegotiation": { "smoothing": 0.5, "maxRaise": 2.5, "maxCut": 0.65 },
     "foreignSalary": [3.0, 12.0]
   },
 
@@ -520,7 +1005,9 @@
       "_note": "역할별 잠재력 [평균, 표준편차]. 팀 목표 전력에 맞춰 평행 이동한다.",
       "lineupStarter": [74, 8.5], "lineupBench": [62, 6],
       "rotationStarter": [72, 8.5], "bullpenCore": [68, 7], "bullpenDepth": [60, 6],
-      "futures": [58, 9]
+      "futures": [58, 9],
+      "_note_foreign": "외국인 시장 후보 (docs/12). AI 가 40명 중 상위 30명을 데려가므로, 이 값이 높으면 매년 리그가 강해진다 — 계약되는 선수의 수준이 리그 초기 외국인과 비슷해지도록 맞췄다.",
+      "foreign": [63, 7.5]
     },
     "archetypeShare": {
       "batter": { "contactHitter": 0.22, "slugger": 0.20, "onBase": 0.18, "speedster": 0.18, "defensive": 0.22 },
@@ -543,6 +1030,8 @@
     "_note": "시즌 시작 시 구단 상태. 팬심·구단주 신뢰도는 M9 에서 실제로 움직인다.",
     "fanSupport": 55,
     "ownerTrust": 60,
+    "_note_income": "TODO: 제대로 된 재정은 M9. 지금은 모기업 지원금(없으면 기본 수입)이 매년 운용 자금에 들어온다.",
+    "baseAnnualIncome": 20.0,
     "parentCompanyHealth": [60, 12],
     "parentCompanySupportFromFunds": 1.0
   },
@@ -559,5 +1048,354 @@
     "coachSalary": { "1": 0.8, "2": 1.2, "3": 1.8, "4": 2.6, "5": 3.5 },
     "medicalGrade": [3, 1],
     "gmReputation": [50, 12]
+  },
+  "narrative": {
+    "status": "draft",
+    "_note": "서사 요소 (docs/13 칭호·메아리·유대·라이벌, docs/16 뉴스·팬 SNS). 게임 결과에는 영향을 주지 않고 보여 주는 쪽의 기준값이다. 라이벌 팬심 효과만 fanSentiment.events 에 있다.",
+    "news": {
+      "_note": "주간 뉴스 기사 수와 기사가 되는 기준. 연승·연패는 이 이상이면 기사가 된다",
+      "maxPerWeek": 9,
+      "streakHeadline": 4,
+      "blowoutMargin": 8,
+      "weeklyHomeRunHeadline": 3,
+      "leaderHeadline": true,
+      "maxMilestonesPerWeek": 3,
+      "_note_more": "2026-09-27 추가: 기록 달성·호투·부상·가을야구 경쟁·감독 거취 기사 기준",
+      "milestoneHomeRuns": [10, 20, 30, 40, 50],
+      "milestoneWins": [10, 15, 20],
+      "milestoneSaves": [20, 30, 40],
+      "milestoneHits": [100, 150, 200],
+      "strikeoutGame": 11,
+      "injuryHeadlineWeeks": 4,
+      "injuryHeadlineOverall": 65,
+      "raceFromWeek": 12,
+      "raceGap": 2.0,
+      "managerHeatStreak": 7,
+      "slumpHeadlinePa": 20,
+      "slumpHeadlineOps": 0.450
+    },
+    "fanPosts": {
+      "_note": "우리 팀 팬 SNS 글. 기분은 팬심과 이번 주 승률로 정한다 (팬심 높고 이기면 좋은 글이 많다)",
+      "perWeek": 6,
+      "fanWeight": 0.5,
+      "weekWeight": 0.5,
+      "positiveAbove": 0.6,
+      "negativeBelow": 0.4,
+      "_note_players": "이번 주 영웅·역적을 고르는 기준 (타석 수, OPS). 불펜 방화는 한 주 실점 기준",
+      "heroMinPa": 10,
+      "goatMinPa": 12,
+      "goatMaxOps": 0.500,
+      "bullpenMeltdownRuns": 5,
+      "likesBase": 40,
+      "likesSpread": 900
+    },
+    "echo": {
+      "_note": "과거 결정의 메아리 — 주당 비서가 꺼내는 최대 건수",
+      "maxPerWeek": 2,
+      "multiHomeRunWeek": 2
+    },
+    "bonds": {
+      "_note": "같은 단장 밑에서 함께한 시즌 수 → 유대 단계 (동료 / 믿음 / 프랜차이즈)",
+      "levels": [3, 5, 8]
+    },
+    "titles": {
+      "_note": "단장 칭호 조건",
+      "postseasonRegular": 3,
+      "dynasty": 3,
+      "journeyman": 3,
+      "oneClub": 8,
+      "veteran": 10,
+      "rebuildRankJump": 5,
+      "reputationStar": 80
+    }
+  },
+
+  "awards": {
+    "status": "draft",
+    "_note": "시즌 시상 (2026-10-01). 규정 타석 = 경기 수 × 3.1, 규정 이닝 = 경기 수 × 1 (KBO 관행). 신인왕은 입단 5년 이내 + 이전 1군 60타석·30이닝 이하 (KBO 관행 — 확인 필요). 골든글러브는 포지션별 WAR 1위, 최소 출장은 규정의 비율. MVP 는 WAR 1위 (기자 투표 대신)",
+    "qualifiedPaPerGame": 3.1,
+    "qualifiedInningsPerGame": 1.0,
+    "rookieWithinSeasons": 5,
+    "rookieMaxPriorPa": 60,
+    "rookieMaxPriorInnings": 30,
+    "goldenGlovePaShare": 0.6,
+    "goldenGlovePitcherInningsShare": 0.5,
+    "outfieldGoldenGloves": 3
+  },
+
+  "offseasonDecisions": {
+    "status": "draft",
+    "_note": "스토브리그 단장 결정 (2026-10-01). 연봉을 깎아서 제시하면 연봉은 아끼지만 선수가 서운해서 개막 폼이 떨어진다. 유저 구단은 목표 인원보다 rosterSlack 만큼 더 둘 수 있다 (AI 는 목표 인원)",
+    "lowballRatio": 0.85,
+    "lowballForm": -8,
+    "acceptForm": 2,
+    "rosterSlack": 7
+  },
+
+  "incidents": {
+    "status": "draft",
+    "_note": "돌발 이벤트 (docs/07·16 주중 개입, 2026-09-27). 유저 구단에만 생긴다. 판정 난수는 주차·요일 시드로 따로 만들어 경기 결과를 흔들지 않는다. 효과 수치는 전부 여기서 읽는다.",
+    "maxPerWeek": 2,
+    "_note_core": "주전 = 1군 야수 능력 상위 N명 + 투수 상위 N명. 주전에게 생긴 일만 돌발 이벤트가 된다",
+    "coreBatters": 9,
+    "corePitchers": 6,
+    "injury": {
+      "_note": "경미한 부상은 '참고 뛸까' 를, 그보다 크면 '누구를 올릴까' 를 묻는다",
+      "playThroughFormPenalty": 8,
+      "playThroughRelapseWeeks": 5
+    },
+    "injuryReturn": {
+      "_note": "주전 부상 복귀 (2026-10-05). 재활을 마친 주전을 주 시작에 바로 올릴지, 2군에서 한 주 더 조율할지 묻는다. 조율하면 재발 위험 기간이 이만큼 준다",
+      "tuneRelapseCutWeeks": 3
+    },
+    "losingStreak": {
+      "_note": "연패가 trigger 에 닿는 날 멈춘다. 이후 every 연패마다 다시 묻는다",
+      "trigger": 4,
+      "every": 3,
+      "meetingForm": 6,
+      "practiceForm": 10,
+      "practiceFatigue": 12
+    },
+    "fatigue": { "threshold": 75, "chance": 0.6, "cooldownWeeks": 6 },
+    "hotProspect": {
+      "batterOps": 0.900,
+      "batterPa": 40,
+      "pitcherEra": 2.50,
+      "pitcherOuts": 60,
+      "chance": 0.5
+    },
+    "playingTime": {
+      "_note": "2군에 있는 고액·베테랑 선수의 출장 요구 (2026-10-04 선수 메시지로 개편: '면담으로 달랜다'(폼 −calmFormPenalty) → 'N주 안에 올리겠다고 약속한다'(morale.promise))",
+      "minSalary": 3.0,
+      "minAge": 29,
+      "chance": 0.25,
+      "refuseFormPenalty": 12,
+      "refuseFan": -1
+    },
+    "rivalWeek": { "minGames": 2, "chance": 0.5, "allOutFan": 1, "cooldownWeeks": 6 },
+    "media": {
+      "_note": "기자 질문. 끝내기 패·대패·연승·라이벌전 다음 날 chance 로 생긴다. 답변 셋의 효과 (팬심·선수단 폼·구단주 신뢰)",
+      "chance": 0.35,
+      "cooldownWeeks": 3,
+      "blowoutMargin": 8,
+      "winStreak": 5,
+      "humbleFan": 2,
+      "confidentFan": 1,
+      "confidentForm": 3,
+      "confidentOwner": -1,
+      "deflectFan": -1,
+      "deflectOwner": 1
+    },
+    "controversy": {
+      "_note": "1군 선수 SNS 논란. 주당 확률",
+      "chancePerWeek": 0.04,
+      "suspendFan": 2,
+      "apologyFan": 1,
+      "apologyForm": -4,
+      "defendFan": -4,
+      "defendForm": 4
+    },
+    "managerHeat": {
+      "_note": "긴 연패 뒤 감독 거취 질문",
+      "losingStreak": 7,
+      "backForm": 4,
+      "backOwner": -3,
+      "warnForm": 2,
+      "warnFan": 2,
+      "silentFan": -1
+    },
+    "tradeOffer": {
+      "_note": "AI 가 건 트레이드 제안은 이 주 수가 지나면 철회된다",
+      "validWeeks": 1,
+      "_note_fairness": "비서 한마디: 우리 시선의 받는 가치 ÷ 주는 가치가 goodDealRatio 이상이면 '꽤 남는다', fairDealRatio 이상이면 '거의 공정', 아래면 '조금 손해' (2026-10-04)",
+      "goodDealRatio": 1.15,
+      "fairDealRatio": 0.95
+    },
+    "opportunity": {
+      "_note": "기회형 이벤트 (2026-10-03, 재미 개선 3번). 위기형 선택 이벤트(피로·2군 폭격·출장 요구·라이벌 주간)가 없는 주의 주 시작에 한 건. 넘기는 게 늘 안전한 기본값. 임시값 — 플레이 후 조정",
+      "chance": 0.5,
+      "maxPerSeason": 12,
+      "kindCooldownWeeks": 4,
+      "tradeInquiry": {
+        "_note": "우리 1군 베테랑을 원하는 문의. 상대가 내놓는 유망주는 트레이드 AI 가 받아들일 묶음 중 가장 값진 것",
+        "minAge": 29,
+        "minOverall": 58,
+        "prospectMaxAge": 24,
+        "candidates": 8,
+        "playerCandidates": 3
+      },
+      "releasedVeteran": {
+        "_note": "다른 팀 2군 베테랑을 연봉 승계로 데려온다. 우리 같은 자리 1군 최하위보다 overallMargin 이상 좋아야 후보",
+        "minAge": 30,
+        "maxSalary": 6.0,
+        "overallMargin": 3
+      },
+      "prospectTrial": {
+        "_note": "우리 2군 유망주를 1군에서 써 본다. 잠재력과 현재 능력 차이가 큰 능력치 boostAttributes 개를 ratingBoost 만큼 (잠재력을 넘지 않게) 올린다",
+        "maxAge": 23,
+        "minPotential": 70,
+        "ratingBoost": 2,
+        "boostAttributes": 2
+      },
+      "extension": {
+        "_note": "이번 시즌 끝 FA 가 되는 우리 주전. 요구 연봉 = max(현재 연봉 × raiseFloor, FA 시장가 × premium). 연장하면 지금부터 그 연봉. premium 1.1 → 0.9 (2026-10-04: 다년계약이 FA 보다 비싸면 할 이유가 없다 — 비FA 다년계약 FA 직전 할인 10% 와 맞춤)",
+        "minOverall": 60,
+        "maxAge": 33,
+        "premium": 0.9,
+        "raiseFloor": 1.05,
+        "recommendMaxAge": 31,
+        "yearsByAge": { "28": 4, "31": 3, "33": 2 }
+      }
+    }
+  },
+
+  "contractExtension": {
+    "status": "draft",
+    "_note": "비FA 다년계약 (docs/11, 2026-10-03 · 2026-10-04 할인 구조로 개정). 시장가는 FA 첫 희망 연봉과 같은 식. 할인 = min(maxDiscount, baseDiscount + discountPerSeason × FA까지 시즌). 요구 연봉 = max(지금 연봉 × raiseFloor, 시장가 × (1 − 할인)) × (1 + shortYearPremium × 선호 연수보다 짧은 햇수), 단 시장가 × (1 − minDiscount) 를 넘지 않는다 → 언제나 FA 보다 싸다. 예전 값: FA 직전 nearFaPremium 1.1(할증), discountPerSeason 0.08, maxDiscount 0.3. 선수마다 숨은 양보 폭(flexRange, 시즌·선수별 고정)이 있고, 거절이 maxTalks 번 쌓이면 그 시즌엔 협상 결렬.",
+    "minYears": 2,
+    "maxAge": 35,
+    "maxRemainingYears": 2,
+    "raiseFloor": 1.05,
+    "baseDiscount": 0.1,
+    "minDiscount": 0.05,
+    "discountPerSeason": 0.06,
+    "maxDiscount": 0.35,
+    "shortYearPremium": 0.04,
+    "flexRange": [0.0, 0.1],
+    "maxTalks": 3
+  },
+
+  "decisionReview": {
+    "status": "draft",
+    "_note": "결정 성적표 (2026-10-02, 재미 개선 2번). 돌발 이벤트에 답한 뒤 무엇이 바뀌었는지 화면이 판정하는 기준. 게임 결과에는 영향이 없고 '통했어요/아쉬워요' 표시에만 쓴다. 표본이 작으면 판정하지 않는다(지켜보는 중).",
+    "minGames": 3,
+    "minPlateAppearances": 10,
+    "minOuts": 9,
+    "goodWinPct": 0.55,
+    "badWinPct": 0.4,
+    "goodOps": 0.8,
+    "badOps": 0.6,
+    "goodEra": 3.5,
+    "badEra": 5.5,
+    "fatigueRecovered": 20,
+    "fanDelta": 2,
+    "formDelta": 2,
+    "reviewWeeks": 3
+  },
+
+  "tradeGauge": {
+    "status": "draft",
+    "_note": "트레이드 교환대의 상대 반응 게이지 (2026-10-03 화면 개편). 상대가 받는 값 / 요구하는 값 비율을 칸으로 바꾼다. 화면 표시용 — 수락 판정 자체는 trade 섹션이 정한다",
+    "cells": 5,
+    "closeRatio": 0.85,
+    "farRatio": 0.5
+  },
+
+  "morale": {
+    "status": "draft",
+    "_note": "선수 만족도 (docs/13 '선수 성향과 만족도', 2026-10-04 FM 모티브). 유저 구단 선수만 굴린다. 만족도 = 목표값(50 + 요인 합) 쪽으로 매주 weeklyRate 만큼 끌려간다. 성향 배율 = 0.5 + 성향/100 (50 이면 1.0). 전부 임시값 — 플레이 후 조정",
+    "levels": [80, 62, 40, 25],
+    "levelLabels": ["매우 만족", "만족", "보통", "불만", "매우 불만"],
+    "weeklyRate": 0.3,
+    "_note_instant": "기억이 생기면 그 값의 이만큼이 바로 만족도에 반영된다 (나머지는 목표값을 통해 천천히)",
+    "instantShare": 0.5,
+    "playingTime": {
+      "_note": "1군 = firstTeam, 주전(돌발 이벤트의 주전 기준) = core. 2군인데 같은 자리 1군 최하위 이상 실력 = blocked, 2군 고액 = paidBench, 그 밖의 2군 = futures. youngAge 이하 2군은 0. 음수에 야망 배율",
+      "firstTeam": 3, "core": 7, "blocked": -14, "paidBench": -8, "paidBenchSalary": 3.0, "futures": -4, "youngAge": 23
+    },
+    "performance": {
+      "_note": "개인 성적 (FM '잘 풀린다/안 풀린다'). 1군 기록만: 타자 (OPS ÷ 리그 OPS − 1) × perRatio, 투수 (리그 평균자책 ÷ 평균자책 − 1) × perRatio, ±max 에서 자른다. minPa 타석 / minOuts 아웃 전에는 0",
+      "perRatio": 40, "max": 8, "minPa": 50, "minOuts": 45
+    },
+    "teamResult": { "_note": "(승률 − .500) × perPoint, 야망 배율. minGames 경기 전에는 0", "perPoint": 50, "minGames": 10 },
+    "salary": {
+      "_note": "minService 시즌 이상 뛴 선수: 연봉 ÷ (기대 WAR × 억원/WAR) 가 underpaidRatio 미만이고 기대 WAR 가 minWar 이상이면 underpaid, wellPaidRatio 이상이면 wellPaid",
+      "minService": 3, "minWar": 1.5, "underpaidRatio": 0.5, "underpaid": -8, "wellPaidRatio": 1.0, "wellPaid": 3
+    },
+    "bond": { "_note": "함께한 시간(유대, narrative.bonds) = 시즌 수 × perSeason (상한 max), 충성심 배율", "perSeason": 1.5, "max": 12 },
+    "form": { "_note": "폼이 매일 돌아가는 중심 = 50 + (만족도 − 50) × shiftPerPoint. 만족도가 50 아래일 때는 × (1.5 − 프로의식/100)", "shiftPerPoint": 0.16 },
+    "contract": {
+      "_note": "연장·비FA 다년계약 요구액 × (1 − (만족도−50)/50 × moraleSwing − (충성심−50)/50 × loyaltySwing). 그래도 FA 시장가 상한은 그대로. 만족도 refuseBelow 미만이면 협상 거부",
+      "moraleSwing": 0.10, "loyaltySwing": 0.05, "refuseBelow": 20
+    },
+    "fa": { "_note": "FA 의 원소속 구단 애정 점수 = 기본 + (1 − 기본) × 충성심 배율 × 만족도 배율. 만족도 배율 = 1 + (만족도−50)/50 × moraleSwing. 원소속이 유저 구단인 FA 에만 건다 (AI 구단 FA 는 예전 그대로 — 장기 밸런스 보호)", "moraleSwing": 1.0 },
+    "memories": {
+      "_note": "단장의 결정이 남기는 기억: value (만족도 점수), weeks (이만큼 지나면 사라지고, 그동안 선형으로 옅어진다). 같은 종류(코드의 MemorySlot)는 쌓이지 않고 덮어쓴다",
+      "defended": { "value": 10, "weeks": 24 },
+      "apologized": { "value": -2, "weeks": 8 },
+      "suspended": { "value": -10, "weeks": 20 },
+      "playThrough": { "value": 4, "weeks": 10 },
+      "calledUp": { "value": 8, "weeks": 12 },
+      "keptDown": { "value": -6, "weeks": 8 },
+      "userPromoted": { "value": 5, "weeks": 8 },
+      "userDemoted": { "value": -6, "weeks": 8 },
+      "extended": { "value": 10, "weeks": 30 },
+      "extensionDeferred": { "value": -5, "weeks": 12 },
+      "keptFromTrade": { "value": 5, "weeks": 16 },
+      "promiseMade": { "value": 5, "weeks": 6 },
+      "promiseKept": { "value": 8, "weeks": 20 },
+      "promiseBroken": { "value": -18, "weeks": 40 },
+      "tradeListed": { "value": 8, "weeks": 12 },
+      "tradeRefused": { "value": -12, "weeks": 20 },
+      "salaryNoted": { "value": 3, "weeks": 10 },
+      "salaryRefused": { "value": -8, "weeks": 16 },
+      "refusedPlayingTime": { "value": -12, "weeks": 16 },
+      "mentorAccepted": { "value": 6, "weeks": 20 },
+      "mentorDeclined": { "value": -2, "weeks": 6 },
+      "mentored": { "value": 4, "weeks": 12 }
+    },
+    "promise": { "_note": "출장 약속 기한(주). 계약 약속은 정규시즌 끝까지", "playingTimeWeeks": 4 },
+    "tradeRequest": {
+      "_note": "만족도 below 미만이 weeks 주 이어지고 야망 minAmbition 이상이면 주 시작에 chance 로 이적 요청 (위기형 선택 이벤트와 같은 줄)",
+      "below": 30, "weeks": 3, "minAmbition": 40, "chance": 0.5, "cooldownWeeks": 10
+    },
+    "salaryComplaint": {
+      "_note": "minWeek 주차부터, 올해 1군 WAR minWar 이상인데 연봉이 기대 WAR 시장가의 ratio 미만인 우리 선수(minService 시즌 이상, 다년계약 협상 가능)",
+      "minWeek": 8, "minService": 3, "minWar": 1.5, "ratio": 0.5, "cooldownWeeks": 26
+    },
+    "mentor": {
+      "_note": "만족도 minMorale 이상, 충성심 minLoyalty 이상, minAge 세 이상 베테랑이 같은 쪽(투수/야수) prospectMaxAge 세 이하 유망주를 맡겠다고. 받으면 유망주 능력치 boostAttributes 개 +ratingBoost (잠재력은 넘지 않는다)",
+      "minMorale": 65, "minLoyalty": 60, "minAge": 31, "prospectMaxAge": 23, "ratingBoost": 1, "boostAttributes": 2, "cooldownWeeks": 26
+    },
+    "playerMessages": {
+      "_note": "선수 메시지(연봉 불만·멘토링)는 위기형 선택 이벤트도 기회형 이벤트도 없는 주의 주 시작에 chance 로 한 건 (시즌 maxPerSeason 건). 불만 메시지는 프로의식이 낮을수록 잘 온다 (× (1.5 − 프로의식/100))",
+      "chance": 0.5, "maxPerSeason": 6
+    }
+  },
+
+  "faNegotiation": {
+    "status": "draft",
+    "_note": "FA 협상 테이블 (docs/11, 2026-10-04 유저 요청 'FM식 협상'). 에이전트가 항목별 요구 조건을 내밀고 제안에 그 자리에서 답한다. 혼합형: 선수가 만족하고 경쟁 구단보다 좋으면 바로 도장, 아니면 제안이 남아 라운드 경쟁. 전부 임시값",
+    "patience": 4,
+    "_note_patience": "라운드마다 다시 차는 에이전트 인내심. 모자란 제안 1칸, 목표 점수의 insultRatio 미만 제안 2칸. 바닥나면 그 라운드엔 협상 불가",
+    "insultRatio": 0.8,
+    "_note_flex": "선수마다(시즌·선수 고정) 서명 기준을 이만큼 낮게 본다 — 요구 조건보다 조금 싸게 불러도 될 수 있다",
+    "flexRange": [0.0, 0.04],
+    "_note_demand": "요구 조건의 계약금 비중 (연 환산 돈 중)",
+    "demandBonusShare": 0.25,
+    "_note_option": "옵션 조항 (2026-10-04 다양화 — WAR 기준 삭제). 조항마다 기준(threshold)을 달성한 시즌에 그 금액을 운용 자금에서 지급(재정 결산 지출 '옵션'). 조항 합은 연봉의 maxOptionRate 까지",
+    "maxOptionRate": 0.5,
+    "options": {
+      "_note": "선수가 매기는 값 = 금액 × 달성 가능성 × riskRate. 가능성 = 지난 시즌 1군 기록 ÷ 기준(%, 평균자책은 기준 ÷ 기록)을 chanceByRatioPercent 곡선에. 지난 시즌 1군 기록이 없으면 chanceNoRecord. 타율은 minPaForRate 타석, 평균자책은 minOutsForRate 아웃 이상이어야 판정",
+      "riskRate": 0.8,
+      "chanceByRatioPercent": { "40": 0.02, "70": 0.15, "90": 0.4, "100": 0.55, "115": 0.75, "140": 0.92, "200": 0.97 },
+      "chanceNoRecord": 0.1,
+      "minPaForRate": 300,
+      "minOutsForRate": 300,
+      "_note_pace": "지난 시즌 1군 기록이 없으면(첫 시즌 등) 올 시즌 기록을 한 시즌으로 환산한 페이스로 가능성을 본다. 팀이 minGamesForPace 경기 이상 치렀을 때만 (시즌 중 다년계약)",
+      "minGamesForPace": 30,
+      "plateAppearances": { "threshold": 400 },
+      "battingAverage": { "threshold": 0.3 },
+      "homeRuns": { "threshold": 20 },
+      "rbi": { "threshold": 80 },
+      "stolenBases": { "threshold": 20 },
+      "innings": { "threshold": 150 },
+      "wins": { "threshold": 10 },
+      "era": { "threshold": 3.5 },
+      "saves": { "threshold": 20 },
+      "holds": { "threshold": 20 },
+      "appearances": { "threshold": 55 },
+      "teamPostseason": { "_note": "우리 팀 지난 시즌 순위가 포스트시즌 안이면 chanceIfMadeLast", "chanceIfMadeLast": 0.6, "chanceIfMissedLast": 0.3 }
+    }
   }
 }

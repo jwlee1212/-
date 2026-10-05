@@ -21,7 +21,17 @@ class SeasonProgressionTest {
 
     private fun playAndAdvance(seed: Long): Pair<baseballgm.league.League, baseballgm.season.OffseasonReport> {
         val result = SeasonRunner(balance, league).playSeason(seed)
-        return Offseason(balance, strength).run(result.state, Random(seed), RookieFactory(balance, strength, league))
+        return Offseason(balance, strength).run(
+            state = result.state,
+            random = Random(seed),
+            rookieSupplier = RookieFactory(balance, strength, league),
+            prospectSupplier = ProspectFactory(
+                balance = balance,
+                strength = strength,
+                seed = seed,
+                startingIdNumber = nextPlayerIdNumber(league.players, league.draftPool.prospects),
+            ),
+        )
     }
 
     @Test
@@ -31,7 +41,8 @@ class SeasonProgressionTest {
         assertEquals(league.season + 1, next.schedule.season)
         assertEquals(league.teams.size, next.teams.size)
         assertTrue(report.retired.isNotEmpty(), "은퇴한 선수가 없다")
-        assertTrue(report.rookies.isNotEmpty(), "신인이 없다")
+        assertTrue(report.drafted.isNotEmpty(), "드래프트 입단 선수가 없다")
+        assertEquals(league.draftPool.season + 1, next.draftPool.season, "다음 시즌 드래프트 풀이 없다")
     }
 
     @Test
@@ -40,11 +51,18 @@ class SeasonProgressionTest {
         val remaining = next.players.map { it.id }.toSet()
         assertTrue(report.retired.none { it in remaining }, "은퇴한 선수가 아직 리그에 있다")
         assertTrue(report.rookies.all { it in remaining })
+        assertTrue(report.drafted.all { it in remaining }, "지명 선수가 입단하지 않았다")
+        // 방출 선수는 리그를 떠나거나 FA 시장을 거쳐 **다른 팀**으로 간다 (docs/11)
+        report.released.forEach { id ->
+            val player = next.players.firstOrNull { it.id == id } ?: return@forEach
+            val before = league.player(id).teamId
+            assertTrue(player.teamId != before, "${player.name} 이 방출됐는데 원래 팀에 남아 있다")
+        }
         // 팀마다 선수단 규모가 유지된다
         next.teams.forEach { team ->
             val size = next.playersOf(team.id).size
             assertTrue(
-                abs(size - balance.int("rookieIntake.targetRosterSize")) <= 4,
+                abs(size - balance.int("rosterLimits.targetRosterSize")) <= 4,
                 "${team.id} 선수 ${size}명",
             )
         }
@@ -54,7 +72,7 @@ class SeasonProgressionTest {
     @Test
     fun `신인은 어리고 2군에서 시작한다`() {
         val (next, report) = playAndAdvance(103L)
-        report.rookies.forEach { id ->
+        (report.rookies + report.drafted).forEach { id ->
             val rookie = next.player(id)
             assertTrue(rookie.ageIn(next.season) in 18..24, "${rookie.name} ${rookie.ageIn(next.season)}세")
             assertEquals(RosterLevel.FUTURES, rookie.rosterLevel)
@@ -92,9 +110,9 @@ class SeasonProgressionTest {
         val result = SeasonRunner(balance, league).playSeason(106L)
         val before = league.players.associateBy { it.id }
         val (next, _) = Offseason(balance, strength).run(
-            result.state,
-            Random(106L),
-            RookieFactory(balance, strength, league),
+            state = result.state,
+            random = Random(106L),
+            rookieSupplier = RookieFactory(balance, strength, league),
         )
         val young = next.players.filter { it.ageIn(next.season) in 20..23 && before.containsKey(it.id) }
         val old = next.players.filter { it.ageIn(next.season) >= 35 && before.containsKey(it.id) }
@@ -116,13 +134,24 @@ class SeasonProgressionTest {
         val summaries = MultiSeasonRunner(balance, league).run(seasons = 5, seed = 2077L)
         assertEquals(5, summaries.size)
         assertTrue(summaries.all { it.validationFailures == 0 }, "검증 실패가 있다")
+        var previous = league.players.size
         summaries.forEach { summary ->
             assertTrue(
                 abs(summary.starterAverage - balance.double("ratingScale.starterAverage")) <= 4.0,
                 "${summary.season} 주전 평균 ${summary.starterAverage}",
             )
             assertTrue(summary.playerCount in 540..620, "${summary.season} 선수 ${summary.playerCount}명")
-            assertEquals(summary.offseason.retired.size, summary.offseason.rookies.size, "유입과 유출이 다르다")
+            assertTrue(summary.offseason.drafted.isNotEmpty(), "${summary.season} 드래프트 입단이 없다")
+            assertTrue(summary.offseason.freeAgents.isNotEmpty(), "${summary.season} FA 가 한 명도 안 나왔다")
+            // 유입(드래프트·육성·보충)이 유출(은퇴·방출)과 균형을 이뤄 선수 수가 유지돼야 한다.
+            // 방출 선수 일부는 FA 시장을 거쳐 리그에 남으므로 정확히 같지는 않다
+            val inflow = with(summary.offseason) { drafted.size + developmentSignings.size + rookies.size }
+            val outflow = with(summary.offseason) { retired.size + released.size }
+            assertTrue(
+                summary.playerCount <= previous + inflow - outflow + summary.offseason.released.size,
+                "${summary.season} 선수 수가 맞지 않는다 (${summary.playerCount})",
+            )
+            previous = summary.playerCount
         }
         // 나이 분포가 한쪽으로 쏠리지 않는다
         assertTrue(summaries.last().averageAge in 24.0..30.0, "평균 나이 ${summaries.last().averageAge}")

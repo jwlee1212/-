@@ -82,6 +82,34 @@ data class BattingLine(
         doublePlays = doublePlays + other.doublePlays,
     )
 
+    /** 두 시점 사이의 기록 (지금 − 그때). 결정 성적표가 "결정한 뒤로 몇 타석 몇 안타"를 셀 때 쓴다 */
+    operator fun minus(other: BattingLine): BattingLine = BattingLine(
+        plateAppearances = plateAppearances - other.plateAppearances,
+        atBats = atBats - other.atBats,
+        hits = hits - other.hits,
+        doubles = doubles - other.doubles,
+        triples = triples - other.triples,
+        homeRuns = homeRuns - other.homeRuns,
+        runs = runs - other.runs,
+        rbi = rbi - other.rbi,
+        walks = walks - other.walks,
+        intentionalWalks = intentionalWalks - other.intentionalWalks,
+        hitByPitch = hitByPitch - other.hitByPitch,
+        strikeouts = strikeouts - other.strikeouts,
+        sacFlies = sacFlies - other.sacFlies,
+        sacBunts = sacBunts - other.sacBunts,
+        catcherInterference = catcherInterference - other.catcherInterference,
+        reachedOnError = reachedOnError - other.reachedOnError,
+        fieldersChoice = fieldersChoice - other.fieldersChoice,
+        strikeoutReached = strikeoutReached - other.strikeoutReached,
+        stolenBases = stolenBases - other.stolenBases,
+        caughtStealing = caughtStealing - other.caughtStealing,
+        groundOuts = groundOuts - other.groundOuts,
+        flyOuts = flyOuts - other.flyOuts,
+        lineOuts = lineOuts - other.lineOuts,
+        doublePlays = doublePlays - other.doublePlays,
+    )
+
     companion object {
         val EMPTY: BattingLine = BattingLine()
     }
@@ -142,6 +170,26 @@ data class PitchingLine(
         holds = holds + other.holds,
         gamesStarted = gamesStarted + other.gamesStarted,
         games = games + other.games,
+    )
+
+    /** 두 시점 사이의 기록 (지금 − 그때). 결정 성적표가 "결정한 뒤로 몇 타석 몇 안타"를 셀 때 쓴다 */
+    operator fun minus(other: PitchingLine): PitchingLine = PitchingLine(
+        outs = outs - other.outs,
+        battersFaced = battersFaced - other.battersFaced,
+        hits = hits - other.hits,
+        homeRuns = homeRuns - other.homeRuns,
+        walks = walks - other.walks,
+        hitByPitch = hitByPitch - other.hitByPitch,
+        strikeouts = strikeouts - other.strikeouts,
+        runs = runs - other.runs,
+        earnedRuns = earnedRuns - other.earnedRuns,
+        pitches = pitches - other.pitches,
+        wins = wins - other.wins,
+        losses = losses - other.losses,
+        saves = saves - other.saves,
+        holds = holds - other.holds,
+        gamesStarted = gamesStarted - other.gamesStarted,
+        games = games - other.games,
     )
 
     companion object {

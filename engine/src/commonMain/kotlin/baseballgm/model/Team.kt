@@ -45,4 +45,6 @@ data class Team(
     val coachIds: List<StaffId>,
     val medicalStaffIds: List<StaffId>,
     val generalManagerId: StaffId?,
+    /** 라이벌 구단 (docs/13 서사). 라이벌전 결과가 팬심·뉴스·비서 브리핑에 나온다 */
+    val rival: TeamId? = null,
 )

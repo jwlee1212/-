@@ -19,12 +19,18 @@ fun longTermReport(summaries: List<SeasonSummary>, balance: BalanceConfig): Stri
 
     val starterOk = abs(last.starterAverage - target) <= tolerance
     val rosterOk = abs(last.playerCount - first.playerCount) <= ROSTER_TOLERANCE
-    val eliteOk = last.eliteRatings in 1..ELITE_LIMIT
+    // 90+ 는 리그 전체에서 손에 꼽을 정도라 한 시즌만 보면 0과 10 사이를 널뛴다.
+    // "안정"은 마지막 몇 시즌 평균으로 본다
+    val recentElite = summaries.takeLast(RECENT_SEASONS).map { it.eliteRatings }
+    val eliteAverage = recentElite.average()
+    val eliteOk = eliteAverage >= 1.0 && eliteAverage <= ELITE_LIMIT
     val ageOk = last.averageAge in AGE_RANGE
     val validationOk = summaries.all { it.validationFailures == 0 }
-    val retired = summaries.sumOf { it.offseason.retired.size }
-    val rookies = summaries.sumOf { it.offseason.rookies.size }
-    val flowOk = abs(retired - rookies) <= (retired * FLOW_TOLERANCE).toInt() + FLOW_SLACK
+    val outflow = summaries.sumOf { it.offseason.retired.size + it.offseason.released.size }
+    val inflow = summaries.sumOf {
+        it.offseason.drafted.size + it.offseason.developmentSignings.size + it.offseason.rookies.size
+    }
+    val flowOk = abs(outflow - inflow) <= (outflow * FLOW_TOLERANCE).toInt() + FLOW_SLACK
 
     fun mark(ok: Boolean) = if (ok) "OK " else "!! "
 
@@ -35,14 +41,18 @@ fun longTermReport(summaries: List<SeasonSummary>, balance: BalanceConfig): Stri
                 "목표 ${"%.0f".format(target)}±${tolerance.toInt()} (시작 ${"%.1f".format(first.starterAverage)})",
         )
         appendLine(
-            "${mark(eliteOk)}90+ 능력치 수      ${last.eliteRatings}개  " +
-                "(시작 ${first.eliteRatings}개, 최대 ${summaries.maxOf { it.eliteRatings }}개)",
+            "${mark(eliteOk)}90+ 능력치 수      최근 ${recentElite.size}시즌 평균 ${"%.1f".format(eliteAverage)}개  " +
+                "(시작 ${first.eliteRatings}개, 최대 ${summaries.maxOf { it.eliteRatings }}개, 마지막 ${last.eliteRatings}개)",
         )
         appendLine(
             "${mark(rosterOk)}선수 수           ${last.playerCount}명  (시작 ${first.playerCount}명)",
         )
         appendLine(
-            "${mark(flowOk)}유입·유출 균형     은퇴 ${retired}명 vs 신인 ${rookies}명",
+            "${mark(flowOk)}유입·유출 균형     유입 ${inflow}명(드래프트 ${summaries.sumOf { it.offseason.drafted.size }} · " +
+                "육성 ${summaries.sumOf { it.offseason.developmentSignings.size }} · " +
+                "보충 ${summaries.sumOf { it.offseason.rookies.size }}) vs " +
+                "유출 ${outflow}명(은퇴 ${summaries.sumOf { it.offseason.retired.size }} · " +
+                "방출 ${summaries.sumOf { it.offseason.released.size }})",
         )
         appendLine(
             "${mark(ageOk)}평균 나이         ${"%.1f".format(last.averageAge)}세  (시작 ${"%.1f".format(first.averageAge)}세)",
@@ -63,6 +73,7 @@ fun longTermReport(summaries: List<SeasonSummary>, balance: BalanceConfig): Stri
 private const val STARTER_TOLERANCE = 3.0
 private const val ROSTER_TOLERANCE = 30
 private const val ELITE_LIMIT = 60
+private const val RECENT_SEASONS = 5
 private val AGE_RANGE = 22.0..31.0
 private const val FLOW_TOLERANCE = 0.15
 private const val FLOW_SLACK = 20

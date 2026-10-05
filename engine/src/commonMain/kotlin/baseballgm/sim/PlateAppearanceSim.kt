@@ -304,7 +304,7 @@ class PlateAppearanceSim(
 
     private fun effectiveBatter(batter: Batter, sameHand: Boolean): EffectiveRatings {
         val platoon = platoonShift(batter.hidden.platoonSplit, platoonBatterSwing, sameHand)
-        val condition = conditionShift(batter.condition.form, batter.condition.fatigue)
+        val condition = conditionShift(batter.condition)
         return EffectiveRatings(
             batter.ratingsMap().mapValues { (attribute, value) ->
                 val shift = when (attribute) {
@@ -319,7 +319,7 @@ class PlateAppearanceSim(
     private fun effectivePitcher(pitcher: Pitcher, sameHand: Boolean, pitchesThrown: Int): EffectiveRatings {
         // 투수 입장에서는 같은 손 매치업이 유리하다
         val platoon = platoonShift(pitcher.hidden.platoonSplit, platoonPitcherSwing, !sameHand)
-        val condition = conditionShift(pitcher.condition.form, pitcher.condition.fatigue)
+        val condition = conditionShift(pitcher.condition)
         val inGame = inGameFatiguePenalty(pitcher, pitchesThrown)
         return EffectiveRatings(
             pitcher.ratingsMap().mapValues { (attribute, value) ->
@@ -338,13 +338,18 @@ class PlateAppearanceSim(
         return if (disadvantage) -swing * scale else swing * scale
     }
 
-    private fun conditionShift(form: Int, fatigue: Int): Double {
-        val formShift = (form - 50) / 50.0 * formMaxEffect
-        val fatiguePenalty = fatigue / 100.0 * fatiguePenaltyAt100
-        return formShift - fatiguePenalty
+    /**
+     * 폼·피로·적응이 능력치에 주는 보정.
+     *
+     * 적응 감점(docs/12)은 외국인 선수만 0 이 아니다. 능력치가 좋아도 성적이 안 나오는 이유가
+     * 여기에 있고, 감점이 줄어드는 속도는 숨김 수치인 적응력이 정한다.
+     */
+    private fun conditionShift(condition: baseballgm.model.Condition): Double {
+        val formShift = (condition.form - 50) / 50.0 * formMaxEffect
+        val fatiguePenalty = condition.fatigue / 100.0 * fatiguePenaltyAt100
+        return formShift - fatiguePenalty - condition.adaptationPenalty
     }
 
     private fun effectiveStamina(pitcher: Pitcher): Double =
-        (pitcher.ratings.stamina + conditionShift(pitcher.condition.form, pitcher.condition.fatigue))
-            .coerceIn(1.0, 100.0)
+        (pitcher.ratings.stamina + conditionShift(pitcher.condition)).coerceIn(1.0, 100.0)
 }

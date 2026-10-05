@@ -8,6 +8,7 @@ import baseballgm.model.PitcherRole
 import baseballgm.model.Player
 import baseballgm.model.RosterLevel
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 /** 팀 전력 세 갈래와 종합 (docs/01). 전부 1~100 스케일. */
 data class TeamStrength(
@@ -25,6 +26,27 @@ data class TeamStrength(
 
     private fun Double.roundTo1(): Double = (this * 10).roundToInt() / 10.0
 }
+
+/** 전력 값 하나의 범위. [low] == [high] 면 정확히 아는 값이다. */
+data class StrengthRange(val low: Double, val high: Double) {
+    val isExact: Boolean get() = low == high
+    val center: Double get() = (low + high) / 2.0
+
+    companion object {
+        fun around(center: Double, halfWidth: Double) = StrengthRange(center - halfWidth, center + halfWidth)
+    }
+}
+
+/** 팀 전력을 범위로 본 것 (타 팀은 스카우트 관측값이라 범위, 우리 팀은 정확한 값) */
+data class TeamStrengthRange(
+    val lineup: StrengthRange,
+    val rotation: StrengthRange,
+    val bullpen: StrengthRange,
+    val overall: StrengthRange,
+)
+
+/** 선수 종합의 추정값. 중심 ± 반폭 (능력치 스케일) */
+data class OverallEstimate(val center: Double, val halfWidth: Double)
 
 /**
  * 능력치 → 선수 종합 → 팀 전력 계산기.
@@ -107,6 +129,51 @@ class StrengthCalculator(balance: BalanceConfig) {
         val overall = lineup * compositeLineup + rotation * compositeRotation + bullpen * compositeBullpen
         return TeamStrength(lineup, rotation, bullpen, overall)
     }
+
+    /**
+     * 선수 종합 **추정값**으로 팀 전력 범위를 낸다 (로스터 화면의 리그 전력 비교).
+     *
+     * 중심은 [of] 와 같은 방식(추정 중심 상위 N명 순번 가중 평균)으로 구한다.
+     * 반폭은 선수 반폭을 그대로 더하지 않고 **제곱합의 제곱근**으로 묶는다 — 스카우트 오차는 선수마다
+     * 따로 생겨서(고정 씨앗이 선수마다 다르다) 여러 명을 합치면 일부가 서로 상쇄되기 때문이다.
+     * 그대로 더하면 반폭이 선수 하나와 같아져(능력치 ±5 → 전력 ±10) 리그 순위가 "2~8위"처럼 쓸모없어진다.
+     * [spreadFactor] 는 그 상쇄를 얼마나 믿을지다 (1 = 표준편차 하나, 클수록 보수적).
+     */
+    fun estimate(
+        batters: List<OverallEstimate>,
+        starters: List<OverallEstimate>,
+        relievers: List<OverallEstimate>,
+        spreadFactor: Double,
+    ): TeamStrengthRange {
+        val lineup = groupEstimate(batters, lineupWeights, spreadFactor)
+        val rotation = groupEstimate(starters, rotationWeights, spreadFactor)
+        val bullpen = groupEstimate(relievers, bullpenWeights, spreadFactor)
+        val center = lineup.center * compositeLineup + rotation.center * compositeRotation + bullpen.center * compositeBullpen
+        // 세 갈래 오차도 서로 다른 선수에게서 오므로 같은 방식으로 묶는다
+        val halfWidth = sqrt(
+            square((lineup.high - lineup.center) * compositeLineup) +
+                square((rotation.high - rotation.center) * compositeRotation) +
+                square((bullpen.high - bullpen.center) * compositeBullpen),
+        )
+        return TeamStrengthRange(lineup, rotation, bullpen, StrengthRange.around(center, halfWidth))
+    }
+
+    private fun groupEstimate(estimates: List<OverallEstimate>, weights: List<Double>, spreadFactor: Double): StrengthRange {
+        if (estimates.isEmpty()) return StrengthRange.around(toStrengthScale(0.0), 0.0)
+        val sorted = estimates.sortedByDescending { it.center }
+        var center = 0.0
+        var variance = 0.0
+        for (index in weights.indices) {
+            // 인원이 모자라면 [weightedAverage] 처럼 최하위 선수로 채운다
+            val estimate = sorted.getOrNull(index) ?: sorted.last()
+            center += estimate.center * weights[index]
+            variance += square(estimate.halfWidth * weights[index])
+        }
+        val halfWidth = sqrt(variance) * spreadFactor * strengthSlope
+        return StrengthRange.around(toStrengthScale(center), halfWidth)
+    }
+
+    private fun square(value: Double): Double = value * value
 
     private fun weightedAverage(sorted: List<Player>, weights: List<Double>): Double {
         if (sorted.isEmpty()) return 0.0

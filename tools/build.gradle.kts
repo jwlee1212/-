@@ -9,9 +9,16 @@ kotlin {
 
     jvm()
 
+    // 선수 생성기(신인·유망주·외국인)는 앱이 폰에서도 써야 해서 공용 코드로 둔다.
+    // 파일 읽기·콘솔 보고서처럼 JVM 에서만 도는 것은 jvmMain 에 남긴다.
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+    wasmJs { browser() }
+    iosArm64()
+    iosSimulatorArm64()
+
     sourceSets {
-        jvmMain.dependencies {
-            implementation(project(":engine"))
+        commonMain.dependencies {
+            api(project(":engine"))
             implementation(libs.kotlinx.serialization.json)
         }
         jvmTest.dependencies {

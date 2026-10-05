@@ -28,11 +28,14 @@ class FormModel(balance: BalanceConfig) {
     private val levels = section.stringList("levels")
     private val thresholds = section.intList("levelThresholds")
 
-    /** 하루가 지난 뒤의 폼. */
-    fun next(player: Player, random: Random): Int {
+    /**
+     * 하루가 지난 뒤의 폼.
+     * @param center 돌아가는 중심. 보통 50 — 유저 구단 선수는 만족도가 옮긴다 (docs/13, `MoraleService.formCenter`)
+     */
+    fun next(player: Player, random: Random, center: Double = MIDDLE.toDouble()): Int {
         val volatility = player.hidden.volatility
         val sd = walkSd * (1.0 + (volatility - MIDDLE) * volatilityScale)
-        val drift = (MIDDLE - player.condition.form) * regression
+        val drift = (center - player.condition.form) * regression
         val next = player.condition.form + drift + random.nextGaussian(0.0, sd)
         return next.roundToInt().coerceIn(minForm, maxForm)
     }

@@ -30,6 +30,22 @@ sealed class Player {
     /** 등록명. 외국인 선수는 한글 등록명이 따로 있다. */
     abstract val registeredName: String
 
+    /**
+     * 등번호 (2026-10-02). 0 이면 아직 없다 — 리그 파일·예전 세이브에는 없어서, 시즌 상태가 만들어질 때
+     * [UniformNumbers] 가 채운다. 공개 정보라 숨김 수치가 아니다. 시뮬레이션에는 쓰지 않는다.
+     */
+    abstract val uniformNumber: Int
+
+    abstract fun withUniformNumber(number: Int): Player
+
+    /**
+     * 이름난 아마추어 유망주인가 (2026-10-04). 대회·언론 노출이 많아 어느 구단이든 자료를 꽤 갖고 있다는 **공개 평판**이라
+     * 숨김 수치가 아니다. 드래프트 풀이 만들어질 때 엔진(`ScoutingBudget.markKnownProspects`)이 정한다.
+     */
+    abstract val knownProspect: Boolean
+
+    abstract fun withKnownProspect(known: Boolean): Player
+
     fun ageIn(season: Int): Int = season - birthYear
 
     val isForeign: Boolean get() = origin == Origin.FOREIGN
@@ -58,11 +74,16 @@ data class Batter(
     override val condition: Condition = Condition.HEALTHY,
     override val hidden: HiddenTraits,
     override val registeredName: String = name,
+    override val uniformNumber: Int = 0,
+    override val knownProspect: Boolean = false,
     val primaryPosition: Position,
     /** 포지션별 수비 적성 1~100. 주포지션이 가장 높다. */
     val defenseFitness: Map<Position, Int>,
     val ratings: BatterRatings,
 ) : Player() {
+    override fun withUniformNumber(number: Int): Player = copy(uniformNumber = number)
+
+    override fun withKnownProspect(known: Boolean): Player = copy(knownProspect = known)
     override fun rating(attribute: Attribute): Int = ratings[attribute]
     override fun ratingsMap(): Map<Attribute, Int> = ratings.toMap()
 }
@@ -85,11 +106,16 @@ data class Pitcher(
     override val condition: Condition = Condition.HEALTHY,
     override val hidden: HiddenTraits,
     override val registeredName: String = name,
+    override val uniformNumber: Int = 0,
+    override val knownProspect: Boolean = false,
     val role: PitcherRole,
     val ratings: PitcherRatings,
     /** 최고 구속(km/h). 표시값이며 시뮬레이션에 직접 쓰지 않는다 (docs/02). */
     val topSpeedKmh: Int,
 ) : Player() {
+    override fun withUniformNumber(number: Int): Player = copy(uniformNumber = number)
+
+    override fun withKnownProspect(known: Boolean): Player = copy(knownProspect = known)
     override fun rating(attribute: Attribute): Int = ratings[attribute]
     override fun ratingsMap(): Map<Attribute, Int> = ratings.toMap()
 }

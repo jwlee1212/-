@@ -44,6 +44,15 @@ class PitcherUsage {
             pitchesLast7Days = pitcherIds.associateWith { pitchesLast7Days(it, today) },
         )
 
+    /** 세이브: 투수 → [날짜, 투구수] 목록 */
+    internal fun export(): Map<PlayerId, List<List<Int>>> =
+        appearances.mapValues { (_, list) -> list.map { listOf(it.day, it.pitches) } }
+
+    internal fun import(saved: Map<PlayerId, List<List<Int>>>) {
+        appearances.clear()
+        saved.forEach { (id, list) -> appearances[id] = list.map { Appearance(it[0], it[1]) }.toMutableList() }
+    }
+
     private companion object {
         const val WINDOW = 7
     }
