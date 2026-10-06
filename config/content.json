@@ -1,0 +1,287 @@
+{
+  "_note": "게임 콘텐츠(학교·이름·돌발 이벤트). 모두 가상이다 — 실제 학교·인물과 무관하다. 숫자 밸런스는 balance.json 에 둔다",
+  "mySchool": {
+    "name": "새싹고",
+    "short": "새싹"
+  },
+  "opponents": [
+    {
+      "name": "번개고",
+      "short": "번개",
+      "strength": 40,
+      "pitcher": "balanced"
+    },
+    {
+      "name": "구름고",
+      "short": "구름",
+      "strength": 48,
+      "pitcher": "finesse"
+    },
+    {
+      "name": "바다별고",
+      "short": "바다별",
+      "strength": 52,
+      "pitcher": "power"
+    },
+    {
+      "name": "단비고",
+      "short": "단비",
+      "strength": 45,
+      "pitcher": "balanced"
+    },
+    {
+      "name": "솔바람고",
+      "short": "솔바람",
+      "strength": 55,
+      "pitcher": "finesse"
+    },
+    {
+      "name": "불꽃고",
+      "short": "불꽃",
+      "strength": 60,
+      "pitcher": "power"
+    }
+  ],
+  "surnames": [
+    "김",
+    "이",
+    "박",
+    "최",
+    "정",
+    "강",
+    "조",
+    "윤",
+    "장",
+    "임",
+    "한",
+    "오",
+    "서",
+    "신",
+    "권",
+    "황",
+    "안",
+    "송",
+    "전",
+    "홍"
+  ],
+  "givenNames": [
+    "도윤",
+    "하준",
+    "시우",
+    "지호",
+    "준서",
+    "은호",
+    "유찬",
+    "건우",
+    "민재",
+    "현우",
+    "태오",
+    "서진",
+    "이안",
+    "로운",
+    "선율",
+    "재민",
+    "우진",
+    "지환",
+    "승현",
+    "한결"
+  ],
+  "events": [
+    {
+      "id": "envelope",
+      "week": [
+        1,
+        4
+      ],
+      "once": true,
+      "speaker": "엄마",
+      "text": "감독님께 인사 좀 드려야 하지 않겠니? 봉투 하나 준비했어.",
+      "choices": [
+        {
+          "label": "말린다",
+          "result": "엄마는 아쉬워했지만, 마음은 편하다.",
+          "effects": {
+            "condition": 5
+          }
+        },
+        {
+          "label": "모른 척한다",
+          "result": "다음 경기부터 타순이 3번으로 올라갔다. 왠지 찜찜하다.",
+          "effects": {
+            "lineupSlot": 3,
+            "flag": "envelope"
+          }
+        }
+      ]
+    },
+    {
+      "id": "envelope_rumor",
+      "week": [
+        3,
+        6
+      ],
+      "once": true,
+      "requires": [
+        "envelope"
+      ],
+      "speaker": "주장",
+      "text": "야… 너희 엄마가 감독님한테 봉투 줬다는 소문 돌던데. 진짜야?",
+      "choices": [
+        {
+          "label": "솔직히 말한다",
+          "result": "분위기가 싸해졌지만, 거짓말은 하지 않았다.",
+          "effects": {
+            "condition": -10,
+            "scoutInterest": -3
+          }
+        },
+        {
+          "label": "잡아뗀다",
+          "result": "소문은 잠잠해졌다… 일단은.",
+          "effects": {
+            "condition": -5,
+            "scoutInterest": -6,
+            "lineupSlot": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": "rumor",
+      "week": [
+        2,
+        6
+      ],
+      "once": true,
+      "speaker": "단톡방",
+      "text": "\"새싹고 그 1학년, 후배들한테 막 대한다던데?\" 근거 없는 찌라시가 돈다.",
+      "choices": [
+        {
+          "label": "직접 해명한다",
+          "result": "오해는 풀렸지만 신경 쓰느라 지쳤다.",
+          "effects": {
+            "condition": -8
+          }
+        },
+        {
+          "label": "실력으로 보여준다",
+          "result": "말 대신 배트를 잡았다.",
+          "effects": {
+            "contact": 1,
+            "condition": -4
+          }
+        }
+      ]
+    },
+    {
+      "id": "leadoff",
+      "week": [
+        2,
+        5
+      ],
+      "once": true,
+      "speaker": "감독",
+      "text": "다음 경기 1번 한번 쳐 볼래? 공을 많이 봐야 하는 자리야.",
+      "choices": [
+        {
+          "label": "해보겠습니다!",
+          "result": "1번 타자가 됐다.",
+          "effects": {
+            "lineupSlot": 1,
+            "eye": 1
+          }
+        },
+        {
+          "label": "지금 자리가 좋아요",
+          "result": "감독은 고개를 끄덕였다.",
+          "effects": {
+            "condition": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "rival",
+      "week": [
+        3,
+        6
+      ],
+      "once": true,
+      "speaker": "동료",
+      "text": "다음 상대 에이스, 이번에 150 던졌대. 프로 스카우트들도 걔 보러 온다더라.",
+      "choices": [
+        {
+          "label": "영상을 밤새 본다",
+          "result": "공 궤적이 눈에 익었다. 조금 피곤하다.",
+          "effects": {
+            "eye": 2,
+            "condition": -10
+          }
+        },
+        {
+          "label": "푹 잔다",
+          "result": "몸이 가볍다.",
+          "effects": {
+            "condition": 15
+          }
+        }
+      ]
+    },
+    {
+      "id": "scout_visit",
+      "week": [
+        2,
+        6
+      ],
+      "once": true,
+      "minScout": 15,
+      "speaker": "감독",
+      "text": "오늘 관중석에 프로 스카우트가 왔다. 너 보러 온 것 같던데?",
+      "choices": [
+        {
+          "label": "평소처럼",
+          "result": "긴장하지 않기로 했다.",
+          "effects": {
+            "condition": 5
+          }
+        },
+        {
+          "label": "보여주고 싶다",
+          "result": "의욕이 넘친다. 힘이 들어간다.",
+          "effects": {
+            "power": 1,
+            "condition": -5,
+            "scoutInterest": 2
+          }
+        }
+      ]
+    }
+  ],
+  "coachLines": {
+    "_note": "이벤트가 없는 주에 결과 화면에 나오는 감독 한마디. 결과(win/draw/loss)와 내 활약(hot = 2안타 이상, cold = 무안타)으로 고른다",
+    "win_hot": [
+      "오늘 방망이 좋더라. 이 감 잊지 마.",
+      "네 덕에 이겼다. 오늘은 푹 쉬어."
+    ],
+    "win_cold": [
+      "팀이 이겼으니 됐다. 다음엔 네 차례야.",
+      "안 맞는 날도 있어. 이긴 게 중요해."
+    ],
+    "loss_hot": [
+      "너 혼자 잘해선 못 이겨. 그래도 잘했다.",
+      "졌지만 네 타격은 살아 있었어."
+    ],
+    "loss_cold": [
+      "오늘은 다 같이 안 풀렸다. 다시 하자.",
+      "고개 들어. 다음 주가 있잖아."
+    ],
+    "draw_hot": [
+      "아깝다! 네가 한 방 더 쳤으면…",
+      "비겼지만 네 타격은 좋았어."
+    ],
+    "draw_cold": [
+      "비긴 것도 결과다. 다음엔 끝내자.",
+      "무승부. 다음 주엔 확실히 가자."
+    ]
+  }
+}

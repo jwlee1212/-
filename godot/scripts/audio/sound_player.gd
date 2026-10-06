@@ -23,11 +23,12 @@ func _ready() -> void:
 		_next[sfx] = 0
 
 
-## volume 0~1
-func play(sfx: SoundSynth.Sfx, volume: float = 1.0) -> void:
+## volume 0~1, pitch_scale 은 재생 속도 (1 = 원음)
+func play(sfx: SoundSynth.Sfx, volume: float = 1.0, pitch_scale: float = 1.0) -> void:
 	var pool: Array[AudioStreamPlayer] = _players[sfx]
 	var index: int = _next[sfx]
 	_next[sfx] = (index + 1) % pool.size()
 	var p := pool[index]
 	p.volume_db = linear_to_db(maxf(volume, 0.0001))
+	p.pitch_scale = pitch_scale
 	p.play()

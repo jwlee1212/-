@@ -2,21 +2,26 @@ class_name Pitch
 extends RefCounted
 ## 공 하나.
 ##
-## 좌표는 스트라이크존 기준: 가운데가 (0, 0), 존 가장자리가 ±1, y 는 아래가 +.
-## 공은 존 가운데를 향해 곧게 오다가 break_start 이후 휘어서 마지막에 target 에 도착한다.
-## 그래서 막판에 휘는 변화구는 일찍 판단하기 어렵다.
+## 좌표는 스트라이크존 기준: 가운데가 (0, 0), 존 가장자리가 ±1, y 는 아래가 +, x 는 +가 바깥쪽(타자에게서 먼 쪽).
+## 공은 휘기 전 직선으로 오다가 break_start 이후 휘어서 마지막에 target 에 도착한다.
+## 그래서 막판에 휘는 공은 일찍 판단하기 어렵다.
 
-## 구종. 프로토타입은 두 가지만
-enum Type { FASTBALL, BREAKING }
-
-var type: Type
+## 구종 id (balance.json pitches 의 키: "fastball", "slider", "changeup" …)
+var type: String
 var label: String
 var flight_ms: float
+## 실제로 도착하는 곳
 var target := Vector2.ZERO
+## 포수가 미트를 댄 곳 = 투수가 노린 곳. 제구가 흔들리면 target 과 달라진다
+var intended := Vector2.ZERO
 var break_vec := Vector2.ZERO
 var break_start: float
 ## 비행 진행률이 이 값을 넘으면 구종이 화면에 드러난다 (선구안)
 var reveal_fraction: float
+## 볼배합 의도 (화면 설명·테스트용)
+var is_chase := false
+var is_putaway := false
+var is_mistake := false
 
 
 func is_strike() -> bool:
@@ -37,37 +42,10 @@ func is_revealed_at(progress: float) -> bool:
 	return progress >= reveal_fraction
 
 
-## 투구 생성. 구종·속도·코스를 시드 난수로 정한다
-static func generate(config: BattingConfig, skills: BatterSkills, rng: RandomNumberGenerator) -> Pitch:
-	var p := Pitch.new()
-	p.type = _pick_type(config, rng)
-	var spec: BattingConfig.PitchSpec = config.pitches[p.type]
-	p.label = spec.label
-	p.target = _pick_target(config, rng)
-	var side := 1.0 if rng.randf() < 0.5 else -1.0
-	p.flight_ms = spec.flight_ms + spec.flight_jitter_ms * rng.randf_range(-1.0, 1.0)
-	p.break_vec = Vector2(spec.break_x * side, spec.break_y)
-	p.break_start = config.break_start_fraction
-	p.reveal_fraction = config.reveal_fraction(skills.eye)
-	return p
-
-
-static func _pick_type(config: BattingConfig, rng: RandomNumberGenerator) -> Type:
-	var total := 0.0
-	for spec: BattingConfig.PitchSpec in config.pitches.values():
-		total += spec.weight
-	var roll := rng.randf() * total
-	for type: Type in config.pitches.keys():
-		roll -= (config.pitches[type] as BattingConfig.PitchSpec).weight
-		if roll < 0.0:
-			return type
-	return config.pitches.keys().back()
-
-
-## 스트라이크면 존 안쪽, 볼이면 한 축만 존 밖으로 벗어난 코스
-static func _pick_target(config: BattingConfig, rng: RandomNumberGenerator) -> Vector2:
-	if rng.randf() < config.strike_chance:
-		return Vector2(rng.randf_range(-0.9, 0.9), rng.randf_range(-0.9, 0.9))
-	var off := rng.randf_range(config.ball_offset_min, config.ball_offset_max) * (1.0 if rng.randf() < 0.5 else -1.0)
-	var inside := rng.randf_range(-1.0, 1.0)
-	return Vector2(off, inside) if rng.randf() < 0.5 else Vector2(inside, off)
+## 존 3×3 칸 번호 (0~8, 왼쪽 위부터). 존 밖이면 -1 — 노려치기 판정에 쓴다
+static func cell_of(pos: Vector2) -> int:
+	if absf(pos.x) > 1.0 or absf(pos.y) > 1.0:
+		return -1
+	var col := clampi(int(floor((pos.x + 1.0) / 2.0 * 3.0)), 0, 2)
+	var row := clampi(int(floor((pos.y + 1.0) / 2.0 * 3.0)), 0, 2)
+	return row * 3 + col

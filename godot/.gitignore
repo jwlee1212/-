@@ -1,4 +1,4 @@
 .godot/
 /build/
-# 내보내기 직전에 config/balance.json 에서 복사한다 (scripts/godot-web.sh)
-/data/balance.json
+# 내보내기 직전에 config/ 에서 복사한다 (scripts/godot-web.sh)
+/data/*.json

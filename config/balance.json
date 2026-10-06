@@ -1,62 +1,158 @@
 {
   "_note": "밸런스·손맛 수치. 코드에 숫자를 하드코딩하지 않고 전부 여기서 읽는다 (CLAUDE.md 원칙 3). 옛 Kotlin 엔진의 리그 시뮬레이션 수치는 git 태그 pre-godot 의 같은 파일에 있다.",
-  "battingPrototype": {
+  "batting": {
     "status": "draft",
-    "_note": "타격 손맛 프로토타입 (2026-10-05). 시간 단위는 ms, 거리는 m, 존 좌표는 스트라이크존 가로·세로 반폭 = 1. 능력치 0/100 쌍(At0/At100)은 사이를 선형 보간한다. 튜닝 안내는 docs/dev-log.md '타격 프로토타입' 절.",
+    "_note": "타격 수치 (G1). 시간 ms, 거리 m, 존 좌표는 스트라이크존 가로·세로 반폭 = 1 (y 는 아래가 +, x 는 +가 타자에게서 먼 쪽 = 바깥쪽). 능력치 0/100 쌍(At0/At100)은 사이를 선형 보간. 튜닝 안내는 docs/dev-log.md.",
     "pitches": {
+      "_note": "구종. breakX/breakY 는 막판에 휘는 양(+x 바깥쪽, +y 아래). chaseSpots 는 유인구를 던질 때 노리는 방향(high/low/away/inside).",
       "fastball": {
         "label": "직구",
-        "weight": 0.6,
-        "flightMs": 520,
-        "flightJitterMs": 30,
-        "breakX": 0.08,
-        "breakY": 0.1
+        "flightMs": 323,
+        "flightJitterMs": 30.0,
+        "breakX": -0.08,
+        "breakY": -0.05,
+        "chaseSpots": [
+          "high",
+          "inside"
+        ]
       },
-      "breaking": {
-        "label": "변화구",
-        "weight": 0.4,
-        "flightMs": 660,
-        "flightJitterMs": 40,
-        "breakX": 0.7,
-        "breakY": 0.6
+      "slider": {
+        "label": "슬라이더",
+        "flightMs": 372,
+        "flightJitterMs": 30.0,
+        "breakX": 0.75,
+        "breakY": 0.3,
+        "chaseSpots": [
+          "away",
+          "low"
+        ]
+      },
+      "changeup": {
+        "label": "체인지업",
+        "flightMs": 421,
+        "flightJitterMs": 35.0,
+        "breakX": -0.2,
+        "breakY": 0.65,
+        "chaseSpots": [
+          "low"
+        ]
       }
     },
-    "presentation": {
-      "_note": "화면 연출·소리. 판정에는 영향 없음. 튜닝 안내는 docs/dev-log.md '타격감' 절",
-      "windupMs": 700,
-      "pitchIntervalMs": 900,
-      "resultHoldMs": 1400,
-      "hitFlightMs": 900,
-      "swingMs": 150,
-      "hitStopMs": 70,
-      "flashMs": 140,
-      "burstMs": 260,
-      "shakeMs": 280,
-      "shakeSolidPx": 7,
-      "shakeWeakPx": 2,
-      "shakeHomeRunPx": 16,
-      "confettiMs": 1800,
-      "sfxVolume": 0.9
+    "speedDisplay": {
+      "_note": "화면에 보여 줄 구속. 게임은 타이밍 구분을 위해 구종 간 속도 차를 실제보다 크게 벌려 두었고, 전체 속도도 손맛에 맞춰 바뀌므로 직구 비행 시간에 대한 비율로 환산한다: km/h = refKmh + (1 - 비행시간 / 직구 비행시간) × kmhPerRatio",
+      "refKmh": 145,
+      "kmhPerRatio": 55
     },
     "breakStartFraction": 0.55,
-    "zone": {
-      "strikeChance": 0.6,
-      "ballOffsetMin": 1.2,
-      "ballOffsetMax": 1.7
+    "pitchers": {
+      "_note": "투수 성향. speedMs 는 모든 구종 비행 시간에 더하는 값(음수 = 빠름). mix 는 볼배합 가중치에 곱하는 배율. control 0~1 이 높을수록 미트에 정확히, mistakeChance 는 한가운데 실투 확률",
+      "balanced": {
+        "name": "표준형",
+        "speedMs": 0,
+        "mix": {
+          "fastball": 1.0,
+          "slider": 1.0,
+          "changeup": 1.0
+        },
+        "putaway": {
+          "pitch": "slider",
+          "spot": "away"
+        },
+        "control": 0.75,
+        "mistakeChance": 0.06
+      },
+      "power": {
+        "name": "강속구형",
+        "speedMs": -22,
+        "mix": {
+          "fastball": 1.6,
+          "slider": 1.0,
+          "changeup": 0.4
+        },
+        "putaway": {
+          "pitch": "fastball",
+          "spot": "high"
+        },
+        "control": 0.6,
+        "mistakeChance": 0.08
+      },
+      "finesse": {
+        "name": "기교파",
+        "speedMs": 15,
+        "mix": {
+          "fastball": 0.7,
+          "slider": 1.2,
+          "changeup": 1.5
+        },
+        "putaway": {
+          "pitch": "changeup",
+          "spot": "low"
+        },
+        "control": 0.88,
+        "mistakeChance": 0.04
+      }
+    },
+    "pitchCalling": {
+      "_note": "볼카운트별 볼배합. ahead = 스트라이크 > 볼(투수 유리), behind = 볼 > 스트라이크. strikeRadius 는 스트라이크로 던질 때 노리는 범위(작을수록 한가운데). 볼 중 chaseShare 만큼은 존 바로 밖 유인구, 나머지는 크게 빠지는 공",
+      "ahead": {
+        "strikeChance": 0.38,
+        "strikeRadius": 0.95,
+        "chaseShare": 0.85,
+        "mix": {
+          "fastball": 0.4,
+          "slider": 0.35,
+          "changeup": 0.25
+        }
+      },
+      "even": {
+        "strikeChance": 0.48,
+        "strikeRadius": 0.85,
+        "chaseShare": 0.6,
+        "mix": {
+          "fastball": 0.5,
+          "slider": 0.3,
+          "changeup": 0.2
+        }
+      },
+      "behind": {
+        "strikeChance": 0.62,
+        "strikeRadius": 0.6,
+        "chaseShare": 0.3,
+        "mix": {
+          "fastball": 0.7,
+          "slider": 0.2,
+          "changeup": 0.1
+        }
+      },
+      "twoStrikePutawayChance": 0.45,
+      "chaseOffsetMin": 1.05,
+      "chaseOffsetMax": 1.4,
+      "wildOffsetMin": 1.3,
+      "wildOffsetMax": 1.8,
+      "scatterAtControl0": 0.6,
+      "mistakeRadius": 0.3
+    },
+    "aim": {
+      "_note": "노려치기: 투구 전 존 3×3 칸 하나를 탭. 그 칸에 오면 판정 폭 × hitWindowFactor·타구 속도 + hitEvBonusKmh, 다른 데로 오면 판정 폭 × missWindowFactor",
+      "enabled": true,
+      "hitWindowFactor": 1.35,
+      "missWindowFactor": 0.8,
+      "catcherHint": true,
+      "hitEvBonusKmh": 4
     },
     "eye": {
       "revealFractionAt0": 0.85,
-      "revealFractionAt100": 0.3
+      "revealFractionAt100": 0.4
     },
     "timing": {
       "inputLatencyMs": 0,
-      "solidWindowMsAt0": 15,
-      "solidWindowMsAt100": 45,
-      "weakWindowMsAt0": 40,
-      "weakWindowMsAt100": 80,
-      "foulWindowMsAt0": 70,
-      "foulWindowMsAt100": 120,
-      "outOfZoneWindowFactor": 0.5,
+      "solidWindowMsAt0": 32.5,
+      "solidWindowMsAt100": 54.1,
+      "weakWindowMsAt0": 64.9,
+      "weakWindowMsAt100": 97.4,
+      "foulWindowMsAt0": 111.8,
+      "foulWindowMsAt100": 151.4,
+      "outOfZoneWindowFactor": 0.45,
       "takeGraceMs": 150
     },
     "spray": {
@@ -64,26 +160,261 @@
       "weakMaxAngleDeg": 44,
       "foulAngleDeg": 60
     },
-    "distance": {
-      "solidBaseM": 60,
-      "solidPowerBonusM": 70,
-      "solidQualityShare": 0.4,
-      "solidJitterM": 10,
-      "weakMinM": 10,
-      "weakMaxM": 45,
-      "fenceM": 115
+    "presentation": {
+      "_note": "화면 연출·소리. 판정에는 영향 없음. crackPitchSpread: 타이밍이 완벽할수록 타격음이 이만큼 높고 맑아진다. 정타 뒤: 히트스톱 → launchMs 동안 투구 화면에서 공이 튀어 나감 → 타구 중계 화면(실제 시간 × broadcastSpeed 배속) → 플레이가 끝나고 afterPlayHoldMs 뒤 결과. selectMs: 투수가 세트 자세로 기다리며 유저가 스윙 종류를 고르는 시간 (스윙 버튼을 누르면 바로 던진다)",
+      "windupMs": 700,
+      "pitchIntervalMs": 900,
+      "resultHoldMs": 1400,
+      "hitFlightMs": 900,
+      "swingMs": 150,
+      "hitStopMs": 100,
+      "flashMs": 140,
+      "burstMs": 260,
+      "shakeMs": 280,
+      "shakeSolidPx": 12.7,
+      "shakeWeakPx": 3.6,
+      "shakeHomeRunPx": 29.1,
+      "confettiMs": 1800,
+      "sfxVolume": 0.9,
+      "crackPitchSpread": 0.08,
+      "launchMs": 280,
+      "broadcastSpeed": 1.5,
+      "afterPlayHoldMs": 500,
+      "selectMs": 1800
     },
-    "outcomes": {
-      "solidFlyChanceAt0": 0.3,
-      "solidFlyChanceAt100": 0.6,
-      "lineHitChance": 0.7,
-      "shortFlyHitChance": 0.15,
-      "doubleMinM": 85,
-      "deepFlyOutChance": 0.35,
-      "tripleMinAngleDeg": 20,
-      "tripleChance": 0.2,
-      "weakGroundChance": 0.65,
-      "weakHitChance": 0.15
+    "swingTypes": {
+      "_note": "스윙 종류 (더쇼 방식). windowMul = 판정 폭 배율, evMul = 타구 속도 배율, launchShiftDeg = 발사각 평균 이동. 번트는 battedBall.bunt 의 따로 정한 타구를 낸다",
+      "normal": {
+        "label": "밸런스",
+        "windowMul": 1.0,
+        "evMul": 1.0,
+        "launchShiftDeg": 0
+      },
+      "contact": {
+        "label": "컨택",
+        "windowMul": 1.3,
+        "evMul": 0.92,
+        "launchShiftDeg": -3
+      },
+      "power": {
+        "label": "파워",
+        "windowMul": 0.72,
+        "evMul": 1.07,
+        "launchShiftDeg": 5
+      },
+      "bunt": {
+        "label": "번트",
+        "windowMul": 2.0,
+        "evMul": 1.0,
+        "launchShiftDeg": 0
+      }
+    },
+    "battedBall": {
+      "_note": "타구 물리. 정타 타구 속도는 파워로 보간(At0~At100) × (1 - qualityShare + qualityShare × 타이밍 정확도) ± 흔들림. 발사각은 정규분포, 낮은 공일수록 낮게. 공기 저항 dragK, 역회전 양력 liftK (속도 제곱에 비례). 빗맞은 타구는 땅볼로 깎이거나(topChance) 뜬공으로 솟는다",
+      "evKmhAt0": 128.0,
+      "evKmhAt100": 168.0,
+      "evQualityShare": 0.15,
+      "evJitterKmh": 13.0,
+      "weakEvKmhMin": 65,
+      "weakEvKmhMax": 100.0,
+      "launchMeanDeg": 12.0,
+      "launchSdDeg": 18.0,
+      "launchPerPitchHeightDeg": -6,
+      "weakTopChance": 0.6,
+      "weakTopLaunchMinDeg": -25,
+      "weakTopLaunchMaxDeg": 4,
+      "weakUnderLaunchMinDeg": 40.0,
+      "weakUnderLaunchMaxDeg": 70.0,
+      "contactHeightM": 1.0,
+      "gravity": 9.81,
+      "dragK": 0.0055,
+      "liftK": 0.0016,
+      "bounceSpeedRetention": 0.45,
+      "groundDecelMps2": 2.5,
+      "bunt": {
+        "evKmhMin": 15,
+        "evKmhMax": 38,
+        "launchMinDeg": -20,
+        "launchMaxDeg": 4,
+        "popupLaunchMinDeg": 35,
+        "popupLaunchMaxDeg": 65,
+        "sprayMaxDeg": 32
+      }
     }
+  },
+  "career": {
+    "status": "draft",
+    "_note": "커리어(주간 루프) 수치. 능력치는 0~99, 컨디션 0~100, 스카우트 관심도 0~100",
+    "seasonWeeks": 6,
+    "start": {
+      "contact": 42,
+      "power": 38,
+      "eye": 40,
+      "condition": 80,
+      "scoutInterest": 5,
+      "lineupSlot": 7,
+      "speed": 55
+    },
+    "training": {
+      "_note": "훈련 하나를 고르면 해당 능력치가 gain 만큼 오르고 컨디션이 condition 만큼 변한다. 휴식은 컨디션만 회복",
+      "contact": {
+        "label": "타격 훈련",
+        "stat": "contact",
+        "gain": 3,
+        "condition": -8
+      },
+      "power": {
+        "label": "웨이트",
+        "stat": "power",
+        "gain": 3,
+        "condition": -10
+      },
+      "eye": {
+        "label": "선구안 훈련",
+        "stat": "eye",
+        "gain": 3,
+        "condition": -6
+      },
+      "rest": {
+        "label": "휴식",
+        "stat": "",
+        "gain": 0,
+        "condition": 22
+      }
+    },
+    "conditionEffect": {
+      "_note": "컨디션이 판정에 주는 영향: 유효 능력치 = 능력치 + (컨디션 - pivot) × perPoint",
+      "pivot": 70,
+      "perPoint": 0.2
+    },
+    "gameGrowth": {
+      "_note": "경기 결과에 따른 성장",
+      "perHitContact": 1,
+      "perExtraBasePower": 1,
+      "perHomeRunPower": 2,
+      "perWalkEye": 1,
+      "conditionPerGame": -6
+    },
+    "scout": {
+      "_note": "스카우트 관심도 변화",
+      "perHit": 2,
+      "perHomeRun": 5,
+      "perWin": 1,
+      "perStrikeout": -1
+    },
+    "statMax": 99,
+    "eventChance": 0.75,
+    "seed": 2026
+  },
+  "game": {
+    "status": "draft",
+    "_note": "한 경기 자동 진행 수치. 타석 결과 확률표는 리그 평균 타자 vs 평균 투수 기준이고, 팀 전력 차로 안타 확률에 배율을 곱한다",
+    "innings": 9,
+    "autoStepMs": 650,
+    "fastStepMs": 120,
+    "outcomeWeights": {
+      "STRIKEOUT": 0.18,
+      "WALK": 0.09,
+      "SINGLE": 0.16,
+      "DOUBLE": 0.045,
+      "TRIPLE": 0.008,
+      "HOME_RUN": 0.012,
+      "GROUND_OUT": 0.27,
+      "FLY_OUT": 0.2,
+      "LINE_OUT": 0.035
+    },
+    "strengthHitMulPerPoint": 0.012,
+    "running": {
+      "_note": "주루 근사. 단타 때 2루 주자가 홈인할 확률, 2루타 때 1루 주자가 홈인할 확률, 땅볼 병살 확률(무사·1사, 1루 주자), 뜬공 희생플라이 확률(무사·1사, 3루 주자)",
+      "singleScoresFromSecond": 0.6,
+      "doubleScoresFromFirst": 0.4,
+      "doublePlayChance": 0.35,
+      "sacFlyChance": 0.55
+    },
+    "myTeamStrength": 45
+  },
+  "fielding": {
+    "status": "draft",
+    "_note": "수비수·구장. 위치는 [홈에서 본 각도(도, +는 1루 쪽), 홈에서 거리(m)]. 수비수는 반응 시간 뒤 가속해서(accelMps2, 최고 maxSpeedMps) 달려가 공이 잡을 수 있는 높이(reachHeightM) 아래로 내려왔을 때 그 자리에 있으면 잡는다. 땅볼은 잡은 뒤 1루 송구가 타자보다 빠르면 아웃. 외야로 빠진 공은 줍고 던지는 시간 vs 타자 주루 시간으로 2·3루타. 멀리 뛰어가서 잡을수록 송구 준비가 늦어진다: 송구 준비 = transferS + rangeTransferPenaltyS × min(1, 뛴 거리 / rangeForPenaltyM)",
+    "positions": {
+      "P": [
+        0,
+        18.4
+      ],
+      "C": [
+        0,
+        -1
+      ],
+      "1B": [
+        38,
+        28
+      ],
+      "2B": [
+        13,
+        42
+      ],
+      "SS": [
+        -13,
+        42
+      ],
+      "3B": [
+        -38,
+        28
+      ],
+      "LF": [
+        -28,
+        82
+      ],
+      "CF": [
+        0,
+        92
+      ],
+      "RF": [
+        28,
+        82
+      ]
+    },
+    "infield": [
+      "P",
+      "C",
+      "1B",
+      "2B",
+      "SS",
+      "3B"
+    ],
+    "reactionS": {
+      "_note": "첫발 반응 시간. 투수는 투구 동작을 마친 뒤라 늦다. 위치 이름으로 따로 정할 수 있고, 없으면 infield/outfield 값",
+      "P": 0.6,
+      "C": 0.5,
+      "infield": 0.35,
+      "outfield": 0.5
+    },
+    "reachHeightM": 2.4,
+    "catchRadiusM": 1.5,
+    "transferS": 0.9,
+    "throwMps": 31,
+    "pickupS": 1.2,
+    "batterStartS": 0.8,
+    "batterRunMpsAt0": 7.0,
+    "batterRunMpsAt100": 8.6,
+    "roundBaseS": 0.4,
+    "extraBaseMarginS": 0.0,
+    "baseDistanceM": 27.43,
+    "park": {
+      "lineFenceM": 98,
+      "centerFenceM": 120,
+      "fenceHeightM": 3.0
+    },
+    "rangeTransferPenaltyS": 0.45,
+    "rangeForPenaltyM": 10,
+    "accelMps2": {
+      "infield": 6.0,
+      "outfield": 4.5
+    },
+    "maxSpeedMps": {
+      "infield": 7.0,
+      "outfield": 8.0
+    },
+    "outfieldThrowMps": 27
   }
 }

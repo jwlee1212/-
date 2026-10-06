@@ -15,12 +15,15 @@ class Result:
 	var batted_ball: SwingJudge.BattedBall
 	var pitches: int
 	var contact: SwingJudge.Contact  # 인플레이가 아니면 null
+	## 번트 타구였는가 (주자가 있으면 경기가 희생번트로 바꾼다)
+	var bunt := false
 
 	func _init(o: SwingJudge.Outcome, b: SwingJudge.BattedBall, n: int, c: SwingJudge.Contact) -> void:
 		outcome = o
 		batted_ball = b
 		pitches = n
 		contact = c
+		bunt = c != null and c.bunt
 
 	## 리그 시뮬레이션에 넘길 기록. 이름은 옛 Kotlin 엔진 PaOutcome·BattedBallType 과 같다.
 	## 실제 경기 연결(주루·타점)은 아직 하지 않는다
@@ -32,6 +35,10 @@ class Result:
 		}
 
 
+## 노려치기 결과
+enum Aim { NONE, HIT, MISS }
+
+
 ## 공 하나를 처리한 결과. timing_diff_ms 는 스윙했을 때만 의미 있다 (탭 시각 − 도착 시각, 음수면 빠름)
 class PitchOutcome:
 	var call: Call
@@ -39,6 +46,7 @@ class PitchOutcome:
 	var timing_diff_ms: float
 	var contact: SwingJudge.Contact  # 스윙 안 했으면 null
 	var result: Result  # 이 공으로 타석이 끝났으면 그 결과, 아니면 null
+	var aim := Aim.NONE  # 노려치기를 걸고 스윙했을 때 그 칸에 왔는가
 
 	func _init(p_call: Call, p_swung: bool, diff: float, c: SwingJudge.Contact, r: Result) -> void:
 		call = p_call
@@ -50,6 +58,12 @@ class PitchOutcome:
 
 ## 능력치. 바꾸면 다음 공부터 반영된다 (프로토타입 슬라이더용)
 var skills: BatterSkills
+## 상대 투수. 바꾸면 다음 공부터 반영된다
+var pitcher: BattingConfig.PitcherProfile
+## 노려치기로 찍어 둔 존 칸 (0~8, 없으면 -1). 바꾸면 다음 스윙부터 반영된다
+var aim_cell := -1
+## 스윙 종류 ("normal" | "contact" | "power" | "bunt"). 바꾸면 다음 스윙부터 반영된다
+var swing_type := "normal"
 var balls := 0
 var strikes := 0
 var pitch_count := 0
@@ -58,13 +72,16 @@ var result: Result = null
 
 var _config: BattingConfig
 var _judge: SwingJudge
+var _caller: PitchCaller
 var _rng: RandomNumberGenerator
 
 
-func _init(config: BattingConfig, p_skills: BatterSkills, seed_value: int) -> void:
+func _init(config: BattingConfig, p_skills: BatterSkills, p_pitcher: BattingConfig.PitcherProfile, seed_value: int) -> void:
 	_config = config
 	_judge = SwingJudge.new(config)
+	_caller = PitchCaller.new(config)
 	skills = p_skills
+	pitcher = p_pitcher
 	_rng = RandomNumberGenerator.new()
 	_rng.seed = seed_value
 
@@ -76,7 +93,7 @@ func is_over() -> bool:
 func next_pitch() -> Pitch:
 	assert(not is_over(), "끝난 타석이다")
 	assert(current == null, "이전 공을 아직 처리하지 않았다")
-	current = Pitch.generate(_config, skills, _rng)
+	current = _caller.next(pitcher, balls, strikes, skills, _rng)
 	return current
 
 
@@ -84,16 +101,36 @@ func next_pitch() -> Pitch:
 func swing(tap_ms: float) -> PitchOutcome:
 	var pitch := _take_current()
 	var diff := tap_ms - _config.input_latency_ms - pitch.flight_ms
-	var c := _judge.contact(pitch, skills, diff, _rng)
+	# 노려치기: 찍어 둔 칸에 오면 판정 폭이 넓어지고 정타 거리가 늘어난다. 다른 데로 오면 좁아진다
+	var aim := Aim.NONE
+	var aim_factor := 1.0
+	var bonus_kmh := 0.0
+	if _config.aim_enabled and aim_cell >= 0 and swing_type != "bunt":
+		if Pitch.cell_of(pitch.target) == aim_cell:
+			aim = Aim.HIT
+			aim_factor = _config.aim_hit_window_factor
+			bonus_kmh = _config.aim_hit_ev_bonus
+		else:
+			aim = Aim.MISS
+			aim_factor = _config.aim_miss_window_factor
+	var c := _judge.contact(pitch, skills, diff, _rng, aim_factor, bonus_kmh, swing_type)
+	var o: PitchOutcome
 	match c.quality:
 		SwingJudge.Quality.MISS:
-			return _strike(Call.SWINGING_STRIKE, true, diff, c)
+			o = _strike(Call.SWINGING_STRIKE, true, diff, c)
 		SwingJudge.Quality.FOUL:
-			if strikes < 2:
-				strikes += 1
-			return PitchOutcome.new(Call.FOUL, true, diff, c, null)
-	var outcome := _judge.outcome_of(c, _rng)
-	return _finish(PitchOutcome.new(Call.IN_PLAY, true, diff, c, Result.new(outcome, c.batted_ball, pitch_count, c)))
+			if swing_type == "bunt" and strikes >= 2:
+				# 2스트라이크 번트 파울은 삼진 (야구 규칙)
+				o = _strike(Call.FOUL, true, diff, c)
+			else:
+				if strikes < 2:
+					strikes += 1
+				o = PitchOutcome.new(Call.FOUL, true, diff, c, null)
+		_:
+			var outcome := _judge.outcome_of(c, skills)
+			o = _finish(PitchOutcome.new(Call.IN_PLAY, true, diff, c, Result.new(outcome, c.batted_ball, pitch_count, c)))
+	o.aim = aim
+	return o
 
 
 ## 치지 않음

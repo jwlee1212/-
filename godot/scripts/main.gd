@@ -1,146 +1,188 @@
 extends Control
-## 타격 프로토타입 화면 — "내 선수의 타석 하나를 직접 조작하는 게 재밌는가" 검증용.
+## 앱 루트: 수치·콘텐츠를 읽고 화면을 바꿔 끼운다.
 ##
-## 위: 능력치 슬라이더·카운트·기록 / 아래: BattingView (타구 분포도 + 투구 화면, 탭 = 스윙).
-## 화면은 코드로 만든다 (장면 파일을 손으로 고치지 않아도 되게).
+## 화면 흐름: 타이틀 → 선수 만들기 → [홈(훈련) → 경기 → 결과·이벤트] × 시즌 주차 → 시즌 결산
+## 타이틀의 "타격 연습"은 능력치 슬라이더가 있는 연습 화면 (손맛 튜닝용).
+## 개발 빌드면 어느 화면에서나 왼쪽 아래 "⚙ 손맛" 패널을 쓸 수 있다 (CLAUDE.md §3-7).
 
-var _session: BattingSession
-var _sound: SoundPlayer
-var _view: BattingView
-var _sliders := {}  # "contact" | "power" | "eye" -> HSlider
-var _value_labels := {}
-var _count_label: Label
-var _timing_label: Label
-var _tally_label: Label
+var batting_config: BattingConfig
+var presentation: Presentation
+var career_config: CareerConfig
+var sound: SoundPlayer
+var career: CareerState
+
+var _source: BalanceSource
+var _screen_root: Control
+var _current: Control
+var _tuning: Tuning
+var _panel: TuningPanel
+var _rotate_hint: Control
 var _fps_label: Label
 
 
 func _ready() -> void:
-	var balance := BalanceLoader.load_balance()
-	_session = BattingSession.new(BattingConfig.from_balance(balance), Presentation.from_balance(balance))
-	_sound = SoundPlayer.new()
-	add_child(_sound)
-	_session.sound_requested.connect(_sound.play)
 	theme = _make_theme()
-	_build()
+	var bg := ColorRect.new()
+	bg.color = Tokens.BACKGROUND
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(UiKit.fill_parent(bg))
+	_screen_root = UiKit.fill_parent(Control.new())
+	add_child(_screen_root)
+	_source = BalanceSource.new()
+	add_child(_source)
+	sound = SoundPlayer.new()
+	add_child(sound)
+	await _load_configs()
+	if OS.is_debug_build():
+		_add_tuning_panel()
+		_add_fps()
+	_add_rotate_hint()
+	show_title()
 
 
 func _process(_delta: float) -> void:
-	_session.tick()
-	_refresh_labels()
+	# 세로로 들고 있으면 가로로 돌리라는 안내
+	if _rotate_hint != null:
+		_rotate_hint.visible = size.x < size.y
+	if _fps_label != null:
+		_fps_label.text = "%d FPS" % Engine.get_frames_per_second()
 
 
-func _build() -> void:
-	var bg := ColorRect.new()
-	bg.color = Tokens.BACKGROUND
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
+# ---------- 화면 전환 ----------
 
-	var column := VBoxContainer.new()
-	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	column.add_theme_constant_override("separation", 0)
-	add_child(column)
+func show_screen(screen: Control) -> void:
+	if _current != null:
+		_current.queue_free()
+	_current = screen
+	_screen_root.add_child(UiKit.fill_parent(screen))
 
-	var panel := MarginContainer.new()
-	for side in ["left", "right"]:
-		panel.add_theme_constant_override("margin_" + side, Tokens.SPACE_MD)
-	panel.add_theme_constant_override("margin_top", Tokens.SPACE_SM)
-	panel.add_theme_constant_override("margin_bottom", Tokens.SPACE_XS)
-	column.add_child(panel)
-	var rows := VBoxContainer.new()
-	rows.add_theme_constant_override("separation", 2)
-	panel.add_child(rows)
-	_add_slider(rows, "contact", "컨택", "판정 폭")
-	_add_slider(rows, "power", "파워", "타구 거리")
-	_add_slider(rows, "eye", "선구안", "구종 보이는 시점")
 
-	var count_row := HBoxContainer.new()
-	_count_label = _label("", Tokens.FONT_LABEL, Tokens.INK, Tokens.FONT_BOLD)
-	_count_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_timing_label = _label("", Tokens.FONT_CAPTION, Tokens.INK_SOFT)
-	count_row.add_child(_count_label)
-	count_row.add_child(_timing_label)
-	rows.add_child(count_row)
-	_tally_label = _label("", Tokens.FONT_CAPTION, Tokens.INK_SOFT)
-	rows.add_child(_tally_label)
+func show_title() -> void:
+	show_screen(TitleScreen.new(self))
 
-	_view = BattingView.new()
-	_view.session = _session
-	_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_view.tapped.connect(_session.tap)
-	column.add_child(_view)
 
-	# FPS (오른쪽 아래 구석)
-	_fps_label = _label("", Tokens.FONT_CAPTION, Tokens.CHALK)
-	var fps_bg := PanelContainer.new()
+func show_create() -> void:
+	show_screen(CreateScreen.new(self))
+
+
+func start_career(player_name: String) -> void:
+	career = CareerState.new(career_config, player_name)
+	show_home()
+
+
+func show_home() -> void:
+	show_screen(HomeScreen.new(self))
+
+
+func show_game() -> void:
+	show_screen(GameScreen.new(self))
+
+
+func show_result(game: GameRunner) -> void:
+	show_screen(ResultScreen.new(self, game))
+
+
+func show_season() -> void:
+	show_screen(SeasonScreen.new(self))
+
+
+func show_practice() -> void:
+	show_screen(PracticeScreen.new(self))
+
+
+## 새 타격 세션 (설정은 앱이 들고 있는 것을 같이 쓴다 → 손맛 패널 조절이 바로 반영)
+func new_batting_session() -> BattingSession:
+	var s := BattingSession.new(batting_config, presentation)
+	s.sound_requested.connect(sound.play)
+	return s
+
+
+# ---------- 수치 ----------
+
+func _load_configs() -> void:
+	var balance: Dictionary = await _source.fetch("balance.json")
+	var content: Dictionary = await _source.fetch("content.json")
+	batting_config = BattingConfig.from_balance(balance)
+	presentation = Presentation.from_balance(balance)
+	career_config = CareerConfig.from(balance, content)
+	if career != null:
+		career.cfg = career_config
+
+
+func _add_tuning_panel() -> void:
+	_panel = TuningPanel.new()
+	add_child(_panel)
+	_reset_tuning()
+	_panel.changed.connect(func(id: String, v: float) -> void:
+		_tuning.set_value(id, v, batting_config, presentation))
+	_panel.reset_requested.connect(func() -> void:
+		_tuning.reset(batting_config, presentation)
+		_panel.show_values(_tuning.values)
+		_panel.set_status("처음 값으로 되돌림"))
+	_panel.save_requested.connect(_save_tuning)
+	_panel.reload_requested.connect(_reload)
+
+
+func _reset_tuning() -> void:
+	_tuning = Tuning.new(batting_config, presentation)
+	_panel.show_values(_tuning.values)
+	_panel.set_status("수치 출처: %s" % _source.last_origin)
+
+
+func _save_tuning() -> void:
+	var patch := _tuning.to_patch(batting_config, presentation)
+	if patch.is_empty():
+		_panel.set_status("바뀐 값이 없어요")
+		return
+	_panel.set_status("저장 중…")
+	var error: String = await _source.save(patch)
+	if error == "":
+		await _reload()
+		_panel.set_status("저장했어요 (%d개 항목) → config/balance.json" % patch.size())
+	else:
+		_panel.set_status("저장 실패: " + error)
+
+
+## 수치를 다시 읽는다. 진행 중인 화면이 있으면 새 설정으로 바꿔 끼운다
+func _reload() -> void:
+	await _load_configs()
+	_reset_tuning()
+	if _current != null and _current.has_method("on_config_reloaded"):
+		_current.on_config_reloaded()
+
+
+# ---------- 공통 겹침 ----------
+
+func _add_fps() -> void:
+	_fps_label = UiKit.label("", Tokens.FONT_CAPTION, Tokens.CHALK)
+	var bg := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Tokens.SCRIM
 	style.set_corner_radius_all(Tokens.SPACE_XS)
 	style.content_margin_left = Tokens.SPACE_XS
 	style.content_margin_right = Tokens.SPACE_XS
-	fps_bg.add_theme_stylebox_override("panel", style)
-	fps_bg.add_child(_fps_label)
-	fps_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(fps_bg)
-	fps_bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, Tokens.SPACE_XS)
-	# 글자가 늘어나면 왼쪽·위로 자라게 (오른쪽 끝에서 잘리지 않게)
-	fps_bg.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	fps_bg.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	bg.add_theme_stylebox_override("panel", style)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg.add_child(_fps_label)
+	add_child(bg)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, Tokens.SPACE_XS)
+	bg.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	bg.grow_vertical = Control.GROW_DIRECTION_BEGIN
 
 
-func _add_slider(parent: Container, key: String, title: String, effect: String) -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", Tokens.SPACE_SM)
-	var names := VBoxContainer.new()
-	names.custom_minimum_size.x = 104
-	names.add_theme_constant_override("separation", 0)
-	var value_label := _label("%s 50" % title, Tokens.FONT_LABEL, Tokens.INK, Tokens.FONT_BOLD)
-	names.add_child(value_label)
-	names.add_child(_label(effect, Tokens.FONT_CAPTION, Tokens.INK_SOFT))
-	row.add_child(names)
-	var slider := HSlider.new()
-	slider.min_value = 0
-	slider.max_value = 100
-	slider.step = 1
-	slider.value = 50
-	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	slider.value_changed.connect(func(v: float) -> void:
-		value_label.text = "%s %d" % [title, int(v)]
-		_on_skills_changed())
-	row.add_child(slider)
-	parent.add_child(row)
-	_sliders[key] = slider
+func _add_rotate_hint() -> void:
+	var cover := ColorRect.new()
+	cover.color = Tokens.INK
+	_rotate_hint = UiKit.fill_parent(cover)
+	var text := UiKit.title("폰을 가로로 돌려 주세요", Tokens.FONT_TITLE, Tokens.SURFACE)
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	cover.add_child(UiKit.fill_parent(text))
+	add_child(_rotate_hint)
+	_rotate_hint.visible = false
 
 
-## 슬라이더를 움직이면 다음 공부터 반영된다
-func _on_skills_changed() -> void:
-	_session.update_skills(BatterSkills.new(int(_sliders["contact"].value), int(_sliders["power"].value), int(_sliders["eye"].value)))
-
-
-func _refresh_labels() -> void:
-	# 볼넷·삼진으로 끝나면 4볼·3스트라이크가 되므로 표시 칸(3·2)에 맞춰 자른다
-	var b := mini(_session.at_bat.balls, 3)
-	var s := mini(_session.at_bat.strikes, 2)
-	_count_label.text = "B %s%s  S %s%s" % ["●".repeat(b), "○".repeat(3 - b), "●".repeat(s), "○".repeat(2 - s)]
-	_timing_label.text = "공이 오면 화면을 탭!" if is_nan(_session.last_timing_ms) else "직전 스윙 " + BattingSession.timing_text(_session.last_timing_ms)
-	var t := _session.tally
-	_tally_label.text = "%d타석 %d타수 %d안타 (%s) · 홈런 %d · 삼진 %d · 볼넷 %d · 시드 #%d" % [
-		t.plate_appearances, t.at_bats, t.hits, t.average(), t.home_runs, t.strikeouts, t.walks, _session.seed_value]
-	_fps_label.text = "%d FPS" % Engine.get_frames_per_second()
-
-
-func _label(text: String, font_size: int, color: Color, font: Font = Tokens.FONT_REGULAR) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_override("font", font)
-	l.add_theme_font_size_override("font_size", font_size)
-	l.add_theme_color_override("font_color", color)
-	return l
-
-
-## 슬라이더 모양 (Godot 기본 테마는 어두운 회색이라 토큰 색으로 바꾼다)
+## Godot 기본 테마는 어두운 회색이라 슬라이더·버튼을 토큰 색으로 바꾼다
 func _make_theme() -> Theme:
 	var t := Theme.new()
 	t.default_font = Tokens.FONT_REGULAR
@@ -155,4 +197,30 @@ func _make_theme() -> Theme:
 	t.set_stylebox("slider", "HSlider", track)
 	t.set_stylebox("grabber_area", "HSlider", filled)
 	t.set_stylebox("grabber_area_highlight", "HSlider", filled)
+	var button := StyleBoxFlat.new()
+	button.bg_color = Tokens.PRIMARY
+	button.set_corner_radius_all(Tokens.RADIUS_CARD)
+	button.content_margin_left = Tokens.SPACE_MD
+	button.content_margin_right = Tokens.SPACE_MD
+	button.content_margin_top = Tokens.SPACE_XS
+	button.content_margin_bottom = Tokens.SPACE_XS
+	var pressed := button.duplicate() as StyleBoxFlat
+	pressed.bg_color = Tokens.PRIMARY.darkened(0.2)
+	for state in ["normal", "hover", "focus"]:
+		t.set_stylebox(state, "Button", button)
+	t.set_stylebox("pressed", "Button", pressed)
+	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		t.set_color(state, "Button", Tokens.SURFACE)
+	t.set_font("font", "Button", Tokens.FONT_BOLD)
+	t.set_font_size("font_size", "Button", Tokens.FONT_CAPTION)
+	var edit := StyleBoxFlat.new()
+	edit.bg_color = Tokens.SURFACE
+	edit.border_color = Tokens.PRIMARY
+	edit.set_border_width_all(2)
+	edit.set_corner_radius_all(Tokens.SPACE_SM)
+	edit.set_content_margin_all(Tokens.SPACE_SM)
+	t.set_stylebox("normal", "LineEdit", edit)
+	t.set_stylebox("focus", "LineEdit", edit)
+	t.set_color("font_color", "LineEdit", Tokens.INK)
+	t.set_font_size("font_size", "LineEdit", Tokens.FONT_TITLE)
 	return t

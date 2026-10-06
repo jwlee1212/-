@@ -18,6 +18,16 @@ var shake_weak_px: float
 var shake_home_run_px: float
 var confetti_ms: float
 var sfx_volume: float
+## 타이밍이 완벽할수록 타격음이 이만큼 높아진다 (재생 속도 비율)
+var crack_pitch_spread: float
+## 정타 뒤 투구 화면에서 공이 튀어 나가는 시간 (그다음 중계 화면)
+var launch_ms: float
+## 중계 화면 재생 배속 (1 = 실제 시간)
+var broadcast_speed: float
+## 플레이가 끝나고 결과를 띄우기까지
+var after_play_hold_ms: float
+## 투구 전, 투수가 세트 자세로 기다리며 스윙 종류를 고르는 시간
+var select_ms: float
 
 
 static func from_balance(balance: Dictionary) -> Presentation:
@@ -37,4 +47,9 @@ static func from_balance(balance: Dictionary) -> Presentation:
 	p.shake_home_run_px = BattingConfig.num(s, "shakeHomeRunPx")
 	p.confetti_ms = BattingConfig.num(s, "confettiMs")
 	p.sfx_volume = BattingConfig.num(s, "sfxVolume")
+	p.crack_pitch_spread = BattingConfig.num(s, "crackPitchSpread")
+	p.launch_ms = BattingConfig.num(s, "launchMs")
+	p.broadcast_speed = BattingConfig.num(s, "broadcastSpeed")
+	p.after_play_hold_ms = BattingConfig.num(s, "afterPlayHoldMs")
+	p.select_ms = BattingConfig.num(s, "selectMs")
 	return p
