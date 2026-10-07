@@ -58,6 +58,10 @@ var week_social := ""
 var week_services := {}
 ## 지난 경기 뒤 들어온 돈 [[이유, 원]] (결과 화면·상점 지갑 표시)
 var last_income: Array = []
+## 이번 주 경기를 마쳤나 (경기 뒤 이야기·다음 주만 남았다). 불러온 뒤 같은 경기를 다시 하지 않게 한다
+var game_done := false
+## 이번 겨울 훈련 결과 {능력치: 오른 칸} (비어 있으면 아직). 시즌 결산에서 두 번 하지 않게 한다
+var winter_gains := {}
 ## 이번 주 고른 훈련 id (레슨이 같은 능력치를 키운다)
 var _week_training_id := ""
 
@@ -219,6 +223,8 @@ func at_bat_seed(game: GameRunner) -> int:
 
 ## 경기가 끝난 뒤: 기록·성장·폼·부상·스카우트 관심도·라이벌·유망주 풀·순위표/대회 진행. 돌려주는 값: 변화 설명 목록
 func finish_game(game: GameRunner) -> Array[String]:
+	assert(not game_done, "이번 주 경기는 이미 끝났다")
+	game_done = true
 	var line := game.my_line
 	var g := cfg.growth
 	var notes: Array[String] = []
@@ -574,6 +580,7 @@ func coach_line(game: GameRunner) -> String:
 
 
 func advance_week() -> void:
+	game_done = false
 	week += 1
 	total_week += 1
 	week_training = ""
@@ -584,12 +591,13 @@ func advance_week() -> void:
 
 # ---------- 시즌 끝 ----------
 
-## 겨울 훈련 성장 (시즌이 끝날 때 한 번). 돌려주는 값: {능력치: 오른 칸}
+## 겨울 훈련 성장 (시즌이 끝날 때 한 번 — 다시 부르면 처음 결과를 그대로 돌려준다). 돌려주는 값: {능력치: 오른 칸}
 func winter_training() -> Dictionary:
-	var out := {}
+	if not winter_gains.is_empty():
+		return winter_gains
 	for s in PlayerData.STATS:
-		out[s] = Growth.apply(cfg, player, s, float(cfg.growth["winterGain"]))
-	return out
+		winter_gains[s] = Growth.apply(cfg, player, s, float(cfg.growth["winterGain"]))
+	return winter_gains
 
 
 ## 다음 시즌: 학년이 오르고 기록·순위는 새로, 학교들은 졸업·전력 변화, 라이벌·유망주도 한 해 자란다.
@@ -607,6 +615,8 @@ func start_next_season() -> void:
 			player.lineup_slot = int(pair[1])
 			break
 	season_no += 1
+	game_done = false
+	winter_gains = {}
 	player.grade = mini(player.grade + 1, 3)
 	player.season = PlayerData.SeasonStats.new()
 	player.mark_season_start()

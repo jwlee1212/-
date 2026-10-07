@@ -21,6 +21,11 @@ func _ready() -> void:
 	var school: String = _app.career_config.my_school["name"]
 	col.add_child(UiKit.title("%s 야구부 입단" % school))
 	col.add_child(UiKit.label("약체 야구부에 들어온 1학년. 포지션은 외야수(타자).", Tokens.FONT_BODY, Tokens.INK_SOFT))
+	var current: CareerState = _app.career
+	if current != null:
+		var warn := UiKit.label("입학하면 저장된 커리어(%s)는 지워진다" % SaveGame.summary(current), Tokens.FONT_CAPTION, Tokens.BAD, Tokens.FONT_BOLD)
+		warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(warn)
 	_name_edit = LineEdit.new()
 	_name_edit.placeholder_text = "이름"
 	_name_edit.max_length = 6

@@ -3,7 +3,8 @@ extends Control
 ## 커리어 허브 (이번 주). 레이아웃은 유저가 준 시안(2026-10-07)을 따르고 색은 밝은 톤 토큰 그대로.
 ## 위: 로고 · 탭(홈 · 선수 · 훈련 · 인물 · 스카우트 · 기록) · 학년/주차
 ## 홈 탭: 다음 경기 | 종합 능력치 + 시즌 기록 | 스카우트 리포트 + 받은 소식, 아래: 컨디션 · 폼 · 평판 · 행동 / 다음 주
-## 주 시작 이야기(EventBook timing start)가 있으면 화면 가운데 겹쳐 먼저 보여 준다
+## 주 시작 이야기(EventBook timing start)가 있으면 화면 가운데 겹쳐 먼저 보여 준다.
+## 경기를 마친 주(불러온 커리어)면 남은 경기 뒤 이야기를 보여 주고 [다음 주]로 넘어간다. 그릴 때마다 저장한다
 
 const TABS := ["홈", "선수", "훈련", "인물", "상점", "스카우트", "기록"]
 ## 지금 있는 탭
@@ -43,7 +44,7 @@ func _ready() -> void:
 
 ## 주 시작 이야기가 남았으면 대화 화면을 위에 띄운다 (끝나면 다음 것, 다 끝나면 허브를 다시 그린다)
 func _next_story() -> void:
-	var events: Array = _app.career.events("start")
+	var events: Array = _app.career.events("after" if _app.career.game_done else "start")
 	if events.is_empty():
 		return
 	var view := DialogueView.new(_app.career, events[0])
@@ -140,6 +141,7 @@ func _rebuild() -> void:
 			_page_host.add_child(_home_page())
 	_style_tabs()
 	_rebuild_bottom()
+	_app.save_career()
 
 
 func _home_page() -> Control:
@@ -170,7 +172,9 @@ func _match_card() -> Control:
 	var kind := "주말리그" if career.is_league() else "전국대회"
 	var opp_head := career.opponent()
 	var rival_tag := " · 라이벌 학교" if opp_head.id == career.rival.school_id and career.people.is_met("rival") else ""
-	col.add_child(UiKit.kicker("NEXT MATCH · %d주차 · %s%s" % [career.week, "홈" if career.is_home() else "원정", rival_tag]))
+	# 이번 주 경기를 마쳤으면 (불러온 커리어) 다음 주 경기를 보여 준다. 홈·원정은 주마다 번갈아
+	var week := career.week + (1 if career.game_done else 0)
+	col.add_child(UiKit.kicker("NEXT MATCH · %d주차 · %s%s" % [week, "홈" if week % 2 == 0 else "원정", rival_tag]))
 	col.add_child(UiKit.title("%s %s" % [career.phase_name(), career.round_text()], Tokens.FONT_TITLE))
 	col.add_child(UiKit.spacer())
 	var opp := career.opponent()
@@ -214,6 +218,8 @@ func _rank_text(school_name: String, kind: String) -> String:
 ## 경기 준비 버튼: 이번 주 훈련을 아직 안 골랐으면 훈련 탭으로, 골랐으면 경기로
 func _go_button() -> Button:
 	var p := _app.career.player as PlayerData
+	if _app.career.game_done:
+		return _wide_button("다음 주  ›", _app.next_week)
 	if not _trained():
 		return _wide_button("훈련 고르고 경기 준비  ›", func() -> void: _show_tab("훈련"))
 	return _wide_button("경기 보기 (결장)  ›" if p.is_injured() else "경기 준비  ›", _app.show_game)
@@ -389,8 +395,8 @@ func _rebuild_bottom() -> void:
 	var gap := Control.new()
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_bottom.add_child(gap)
-	var next := UiKit.button("다음 주", func() -> void: pass, Tokens.ACCENT)
-	next.disabled = true
+	var next := UiKit.button("다음 주", _app.next_week, Tokens.ACCENT)
+	next.disabled = not _app.career.game_done
 	next.tooltip_text = "경기를 마치면 다음 주로 넘어간다"
 	next.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_bottom.add_child(next)
