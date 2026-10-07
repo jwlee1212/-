@@ -20,6 +20,8 @@ var story: Dictionary
 var rival: Dictionary
 var scouting: Dictionary
 var league_avg: Dictionary
+## 기록실 (분할 기록 기준)
+var records: Dictionary
 ## 돈 (용돈·칭찬 용돈·상금·교류 비용), 상점 (gear·services), 연애
 var economy: Dictionary
 var shop: Dictionary
@@ -72,6 +74,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.rival = car["rival"]
 	c.scouting = car["scouting"]
 	c.league_avg = car["leagueAvg"]
+	c.records = car["records"]
 	c.economy = car["economy"]
 	c.shop = car["shop"]
 	c.romance = car["romance"]

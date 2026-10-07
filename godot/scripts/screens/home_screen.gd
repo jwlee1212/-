@@ -696,51 +696,9 @@ func _scout_page() -> Control:
 
 # ---------- 기록 탭 ----------
 
-## 시즌별 기록 | 지난 이야기 (최근 것부터)
+## 기록실과 같은 화면 (요약 · 시즌 · 경기 · 대회 · 분할 · 이야기)
 func _records_page() -> Control:
-	var career: CareerState = _app.career
-	var row := UiKit.hbox(Tokens.SPACE_SM)
-	var left := _card()
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var lc := UiKit.vbox(Tokens.SPACE_XS)
-	left.add_child(lc)
-	lc.add_child(UiKit.kicker("SEASONS"))
-	var grid := GridContainer.new()
-	grid.columns = 7
-	grid.add_theme_constant_override("h_separation", Tokens.SPACE_MD)
-	for h in ["", "경기", "타율", "홈런", "타점", "OPS", "팀"]:
-		grid.add_child(UiKit.label(h, Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD))
-	var rows := career.history.duplicate()
-	rows.append({"grade": career.player.grade, "line": career.player.season, "record": "%d승 %d패 %d무" % [career.wins(), career.losses(), career.results.count(0)], "now": true})
-	for h: Dictionary in rows:
-		var l: PlayerData.SeasonStats = h["line"]
-		var now: bool = h.get("now", false)
-		var color := Tokens.PRIMARY if now else Tokens.INK
-		for v in ["%d학년%s" % [h["grade"], " (지금)" if now else ""], str(l.games), l.average(), str(l.home_runs), str(l.rbi), l.ops(), h["record"]]:
-			grid.add_child(UiKit.label(v, Tokens.FONT_CAPTION, color, Tokens.FONT_BOLD if now else Tokens.FONT_REGULAR))
-	lc.add_child(grid)
-	row.add_child(left)
-
-	var right := _card()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.size_flags_stretch_ratio = 1.3
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	right.add_child(scroll)
-	var rc := UiKit.vbox(Tokens.SPACE_XS)
-	rc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(rc)
-	rc.add_child(UiKit.kicker("STORY · %d" % career.book.log.size()))
-	if career.book.log.is_empty():
-		rc.add_child(UiKit.label("아직 이야기가 없다", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
-	for i in range(career.book.log.size() - 1, -1, -1):
-		var e: Dictionary = career.book.log[i]
-		var line := UiKit.label("%d학년 %d주 · %s — %s" % [e["grade"], e["week"], e["title"], e["choice"]], Tokens.FONT_CAPTION,
-			Tokens.ACCENT if e["story"] else Tokens.INK, Tokens.FONT_BOLD)
-		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		rc.add_child(line)
-	row.add_child(right)
-	return row
+	return RecordsView.new(_app.career, _app.batting_config.pitchers)
 
 
 # ---------- 공통 ----------

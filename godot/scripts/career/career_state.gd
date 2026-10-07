@@ -48,6 +48,8 @@ var last := {}
 var news: Array[String] = []
 ## 지난 시즌들 요약 [{"grade", "line": SeasonStats, "phases": [...], "record": "11승 6패", "rank"}]
 var history: Array = []
+## 기록실 (경기별·대회별·분할 기록)
+var records: CareerRecords
 ## 고교 졸업 진로 ("" 아직, "draft", "college")
 var path := ""
 ## 이번 주 교류 (인물 탭 선물·만나기, 한 주에 한 번): "" 아직, 아니면 결과 문구
@@ -81,6 +83,7 @@ func _init(p_cfg: CareerConfig, player_name: String, p_batting: BattingConfig) -
 	player.reputation = int(cfg.story["reputationStart"])
 	player.money = int(cfg.economy["startMoney"])
 	book = EventBook.new(cfg)
+	records = CareerRecords.new(cfg)
 	scouting.record(prospect_rank(), player.overall())
 	_start_phase()
 
@@ -245,13 +248,46 @@ func finish_game(game: GameRunner) -> Array[String]:
 	var teams_before := scouting.interested_teams(cfg, player.scout_interest).size()
 	rival.play_week(cfg, batting, game, _rng("rival"))
 	scouting.weekly()
+	records.add_game(_game_entry(game, result), game.my_pas)
 	var phase_end := _advance_phase(game, result, notes)
+	if phase_end in ["leagueEnd", "champion", "eliminated"]:
+		records.close_phase(phase_log[-1]["text"])
 	_pay(game, phase_end, notes)
 	last = {"result": ["loss", "draw", "win"][result + 1], "hits": line.hits, "home_runs": line.home_runs,
 		"phase_end": phase_end, "national": national, "opponent_id": game.opponent.id, "season_over": is_season_over()}
 	scouting.record(prospect_rank(), player.overall())
 	_build_news(teams_before)
 	return notes
+
+
+## 기록실에 넣을 경기 한 줄 (단계가 넘어가기 전에 만든다 — 대회 이름·라운드가 이 경기 것이어야 한다)
+func _game_entry(game: GameRunner, result: int) -> CareerRecords.GameEntry:
+	var e := CareerRecords.GameEntry.new()
+	e.season_no = season_no
+	e.grade = player.grade
+	e.week = week
+	e.phase_name = phase_name()
+	e.round = round_text()
+	e.national = is_national()
+	e.opponent = game.opponent.name
+	e.home = game.my_side == GameState.HOME
+	e.my_score = game.state.score[game.my_side]
+	e.opp_score = game.state.score[1 - game.my_side]
+	e.result = result
+	e.playing = game.me_playing
+	if game.me_playing:
+		e.line.merge(game.my_line)
+		e.line.games = 1
+	return e
+
+
+## 고교 통산 기록 (지난 시즌들 + 이번 시즌)
+func career_line() -> PlayerData.SeasonStats:
+	var total := PlayerData.SeasonStats.new()
+	for h: Dictionary in history:
+		total.merge(h["line"])
+	total.merge(player.season)
+	return total
 
 
 ## 경기 뒤 수입: 용돈(엄마 관계) + 칭찬 용돈(안타·홈런) + 상금(주말리그 1위·전국대회 우승)
@@ -559,7 +595,7 @@ func winter_training() -> Dictionary:
 ## 다음 시즌: 학년이 오르고 기록·순위는 새로, 학교들은 졸업·전력 변화, 라이벌·유망주도 한 해 자란다.
 ## 타순은 감독 신뢰로 새로 정한다 (career.story.lineupByTrust)
 func start_next_season() -> void:
-	history.append({"grade": player.grade, "line": player.season, "phases": phase_log.duplicate(),
+	history.append({"season_no": season_no, "grade": player.grade, "line": player.season, "phases": phase_log.duplicate(),
 		"record": "%d승 %d패 %d무" % [wins(), losses(), results.count(0)], "rank": prospect_rank()})
 	rival.new_season(cfg)
 	scouting.winter(cfg)

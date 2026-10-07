@@ -47,7 +47,7 @@ func _ready() -> void:
 		["이어하기", _app.show_home if career != null else Callable(), resume],
 		["새 커리어", _app.show_create, ""],
 		["타격 연습", _app.show_practice, ""],
-		["기록실", Callable(), "준비 중"],
+		["기록실", _app.show_records if career != null else Callable(), "커리어를 시작하면 열려요"],
 		["설정", Callable(), "준비 중"],
 	]
 	# 강조는 할 수 있는 첫 항목 (커리어가 있으면 이어하기, 없으면 새 커리어)

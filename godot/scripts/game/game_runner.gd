@@ -17,6 +17,9 @@ var box: BoxScore
 var pitcher_index := [0, 0]
 ## 이번 경기 내 기록 (커리어가 성장·기록에 쓴다)
 var my_line := PlayerData.SeasonStats.new()
+## 이번 경기 내 타석들 (기록실 분할 기록용): [{"outcome", "rbi", "sac_fly", "pitcher": 투구 성향 id,
+##   "balls", "strikes": 결정구 때 카운트(모르면 -1), "batted": SwingJudge.BattedBall, "spray", "ev"}]
+var my_pas: Array[Dictionary] = []
 ## 문자 중계 (최근 것이 끝)
 var log: Array[String] = []
 ## 마지막 자동 타석 (하이라이트용)
@@ -103,8 +106,13 @@ func step() -> Dictionary:
 func apply_my_result(result: AtBat.Result) -> String:
 	var half := state.half_text()
 	var ball: BattedBallSim.Result = result.contact.ball if result.contact != null else null
+	var pitcher_profile := current_pitcher().profile
 	var r := _apply(result.outcome, ball, result.pitches, result.bunt, result.play)
 	my_line.add(r.outcome, r.rbi, r.sac_fly)
+	my_pas.append({"outcome": r.outcome, "rbi": r.rbi, "sac_fly": r.sac_fly, "pitcher": pitcher_profile,
+		"balls": result.balls, "strikes": result.strikes,
+		"batted": ball.batted_ball if ball != null else SwingJudge.BattedBall.NONE,
+		"spray": ball.spray_deg if ball != null else 0.0, "ev": ball.ev_kmh if ball != null else 0.0})
 	var text := "[%s] ★ %s — %s%s" % [half, _player.name, outcome_label(r.outcome), _runs_text(r)]
 	log.append(text)
 	_after_pa(r)

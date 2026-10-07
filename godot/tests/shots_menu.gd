@@ -59,10 +59,26 @@ func _ready() -> void:
 	career.player.money = 320000
 	career.people.meet("manager")
 	career.people.by_id["manager"].relation = 62
-	for tab in ["인물", "상점", "스카우트", "기록"]:
+	for tab in ["인물", "상점", "스카우트"]:
 		_app._current._show_tab(tab)
 		await _frames(10)
-		await _shot("menu-hub-" + {"인물": "people", "상점": "shop", "스카우트": "scout", "기록": "records"}[tab])
+		await _shot("menu-hub-" + {"인물": "people", "상점": "shop", "스카우트": "scout"}[tab])
+	# 기록 탭: 작은 탭마다
+	_app._current._show_tab("기록")
+	await _frames(10)
+	var rv: RecordsView = _app._current.find_children("*", "RecordsView", true, false)[0]
+	for t: String in RecordsView.TABS:
+		rv.show_tab(t)
+		await _frames(10)
+		await _shot("menu-records-" + {"요약": "summary", "시즌": "seasons", "경기": "games", "대회": "phases", "분할": "splits", "이야기": "story"}[t])
+	# 로비 기록실 (분할 기록 탭)
+	_app.show_records()
+	await _frames(10)
+	(_app._current as RecordsScreen).view.show_tab("분할")
+	await _frames(10)
+	await _shot("menu-lobby-records")
+	_app.show_home()
+	await _frames(10)
 	career.socialize("manager", "hangout")
 	_app._current._show_tab("인물")
 	await _frames(10)
@@ -113,7 +129,15 @@ func _auto_week(career: CareerState) -> void:
 	while not game.state.over:
 		if game.step().type == "my_turn":
 			var pa := AutoPa.simulate(career.cfg.auto_pa, career.batting, game.current_batter().skills, game.current_pitcher(), rng)
-			game.apply_my_result(AtBat.Result.new(pa.outcome, SwingJudge.BattedBall.NONE, pa.pitches, null))
+			# 기록실 분할 기록이 차도록 타구와 카운트도 붙인다
+			var c: SwingJudge.Contact = null
+			if pa.ball != null:
+				c = SwingJudge.Contact.new(SwingJudge.Quality.SOLID, pa.ball.spray_deg, pa.ball.distance_m, pa.ball.batted_ball)
+				c.ball = pa.ball
+			var res := AtBat.Result.new(pa.outcome, SwingJudge.BattedBall.NONE, pa.pitches, c)
+			res.balls = rng.randi_range(0, 3)
+			res.strikes = rng.randi_range(0, 2)
+			game.apply_my_result(res)
 	career.finish_game(game)
 	for e: Dictionary in career.events("after").duplicate():
 		career.resolve_event(e, _ok(career, e))

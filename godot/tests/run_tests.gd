@@ -100,6 +100,9 @@ func _init() -> void:
 		"test_relay_play",
 		"test_one_training_per_week",
 		"test_launch_angle_never_backwards",
+		"test_final_count_recorded",
+		"test_season_stats_details",
+		"test_records_game_log_and_splits",
 	]:
 		_current = test
 		var before := _failures
@@ -1684,3 +1687,127 @@ func test_one_training_per_week() -> void:
 	check(second == first and career.player.contact == after_first, "같은 주 두 번째 훈련은 무시 (%d → %d → %d)" % [before, after_first, career.player.contact])
 	career.advance_week()
 	check(career.week_training == "", "다음 주엔 다시 훈련")
+
+
+func test_final_count_recorded() -> void:
+	# 볼만 보면 볼넷: 넷째 볼을 던질 때 카운트는 3볼. 스트라이크만 보면 삼진: 2스트라이크
+	var walks := 0
+	var ks := 0
+	for seed_value in 30:
+		var ab := AtBat.new(_config, _average, _balanced, seed_value)
+		while not ab.is_over():
+			ab.next_pitch()
+			ab.take()
+		var r := ab.result
+		check(r.balls >= 0 and r.balls <= 3 and r.strikes >= 0 and r.strikes <= 2, "결정구 카운트 %d-%d" % [r.balls, r.strikes])
+		if r.outcome == SwingJudge.Outcome.WALK:
+			walks += 1
+			check(r.balls == 3, "볼넷은 3볼에서")
+		else:
+			ks += 1
+			check(r.strikes == 2, "루킹 삼진은 2스트라이크에서")
+	check(walks > 0 and ks > 0, "볼넷 %d, 삼진 %d" % [walks, ks])
+	check(CareerRecords.count_key(0, 0) == "first" and CareerRecords.count_key(3, 1) == "ahead"
+		and CareerRecords.count_key(1, 1) == "even" and CareerRecords.count_key(3, 2) == "two_strikes" and CareerRecords.count_key(-1, 0) == "")
+	check(CareerRecords.direction_key(-30.0, 15.0) == "pull" and CareerRecords.direction_key(5.0, 15.0) == "center"
+		and CareerRecords.direction_key(20.0, 15.0) == "oppo", "음수 = 3루 쪽 = 당겨친 타구")
+
+
+func test_season_stats_details() -> void:
+	var s := PlayerData.SeasonStats.new()
+	s.add(SwingJudge.Outcome.SINGLE, 0)
+	s.add(SwingJudge.Outcome.HOME_RUN, 1)
+	s.add(SwingJudge.Outcome.WALK, 0)
+	s.add(SwingJudge.Outcome.FLY_OUT, 1, true)
+	s.add(SwingJudge.Outcome.SAC_BUNT, 0)
+	s.add(SwingJudge.Outcome.STRIKEOUT, 0)
+	check(s.pa == 6 and s.ab == 3 and s.sac_flies == 1 and s.sac_bunts == 1, "타석 6 = 타수 3 + 볼넷 + 희생플라이 + 희생번트")
+	# 출루율 = (2 + 1) / (3 + 1 + 1) = .600, 장타율 = 5 / 3
+	check(s.obp_text() == ".600" and s.slg_text() == "1.667" and s.average() == ".667", "%s %s %s" % [s.obp_text(), s.slg_text(), s.average()])
+	var t := PlayerData.SeasonStats.new()
+	t.merge(s)
+	t.add_ball(150.0)
+	t.add_ball(130.0)
+	check(t.sac_flies == 1 and t.sac_bunts == 1 and absf(t.avg_ev() - 140.0) < 0.01, "합칠 때 희생타·타구 속도도")
+	check(PlayerData.SeasonStats.new().obp_text() == "-" and PlayerData.SeasonStats.new().avg_ev() < 0)
+
+
+## 내 타석에 타구(물리)와 카운트까지 붙여 한 주 진행
+func _records_week(career: CareerState) -> void:
+	career.train("rest" if career.player.condition < 50 else "contact")
+	var game := career.new_game()
+	var rng := _rng(career.week * 17 + career.season_no)
+	while not game.state.over:
+		if game.step().type == "my_turn":
+			var pa := AutoPa.simulate(career.cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng)
+			var c: SwingJudge.Contact = null
+			if pa.ball != null:
+				c = SwingJudge.Contact.new(SwingJudge.Quality.SOLID, pa.ball.spray_deg, pa.ball.distance_m, pa.ball.batted_ball)
+				c.ball = pa.ball
+			var res := AtBat.Result.new(pa.outcome, SwingJudge.BattedBall.NONE, pa.pitches, c)
+			res.balls = rng.randi_range(0, 3)
+			res.strikes = rng.randi_range(0, 2)
+			game.apply_my_result(res)
+	career.finish_game(game)
+	career.advance_week()
+
+
+func test_records_game_log_and_splits() -> void:
+	var career := CareerState.new(_career_cfg(), "테스트", _config)
+	var weeks := 0
+	while not career.is_season_over() and weeks < 40:
+		_records_week(career)
+		weeks += 1
+	var rec := career.records
+	var season := career.player.season
+	check(rec.games.size() == weeks, "경기마다 한 줄 (%d / %d)" % [rec.games.size(), weeks])
+	# 경기 줄을 더하면 시즌 기록과 같다
+	var sum := PlayerData.SeasonStats.new()
+	for g: CareerRecords.GameEntry in rec.games:
+		sum.merge(g.line)
+		check(g.playing or g.line.pa == 0, "결장 경기는 기록이 없다")
+	check(sum.games == season.games and sum.pa == season.pa and sum.hits == season.hits and sum.rbi == season.rbi
+		and sum.home_runs == season.home_runs and sum.walks == season.walks, "경기 합 = 시즌 (%d타석 / %d타석)" % [sum.pa, season.pa])
+	check(rec.game_log(0)[0] == rec.games[-1], "최근 경기부터")
+	# 대회별: 단계 4개, 모두 끝났고 결과가 시즌 단계 기록과 같다, 내 성적 합 = 시즌
+	check(rec.phases.size() == 4, "대회 4개 (%d)" % rec.phases.size())
+	var phase_sum := PlayerData.SeasonStats.new()
+	var team_games := 0
+	for i in rec.phases.size():
+		var ph: CareerRecords.PhaseEntry = rec.phases[i]
+		phase_sum.merge(ph.line)
+		team_games += ph.team_games
+		check(ph.result == career.phase_log[i]["text"] and ph.name == career.phase_log[i]["name"], "대회 결과 %s" % ph.result)
+	check(phase_sum.pa == season.pa and phase_sum.hits == season.hits and team_games == weeks, "대회 합 = 시즌")
+	# 분할: 투수 성향·카운트 칸 합 = 시즌 타석, 타구 종류·방향 합은 같고 타구 속도가 있다
+	for cat: Array in [["pitcher", _config.pitchers.keys()], ["count", CareerRecords.COUNT_KEYS]]:
+		var pa := 0
+		for row: Array in rec.split_rows(0, cat[0], cat[1]):
+			pa += (row[1] as PlayerData.SeasonStats).pa
+		check(pa == season.pa, "%s 분할 타석 합 %d = 시즌 %d" % [cat[0], pa, season.pa])
+	var bip := [0, 0]
+	var hits := 0
+	for i in 2:
+		var cat: Array = [["batted", CareerRecords.BATTED_KEYS], ["direction", CareerRecords.DIRECTION_KEYS]][i]
+		for row: Array in rec.split_rows(career.season_no, cat[0], cat[1]):
+			var l: PlayerData.SeasonStats = row[1]
+			bip[i] += l.balls_in_play
+			if i == 0:
+				hits += l.hits
+				check(l.balls_in_play == 0 or (l.avg_ev() > 40.0 and l.avg_ev() < 200.0), "평균 타구 속도 %.0f" % l.avg_ev())
+	check(bip[0] > 0 and bip[0] == bip[1], "타구 종류 합 = 방향 합 (%d, %d)" % [bip[0], bip[1]])
+	check(hits == season.hits, "안타는 모두 인플레이 타구 (%d / %d)" % [hits, season.hits])
+	# 최고 기록
+	var b := rec.bests()
+	check(b["hits"] != null and int(b["streak"]) >= 1 and int(b["streak"]) >= int(b["current_streak"]), "최고 기록")
+	# 다음 시즌: 통산 = 지난 시즌 + 이번 시즌, 시즌별 분할은 따로
+	career.winter_training()
+	career.start_next_season()
+	_records_week(career)
+	var total := career.career_line()
+	check(total.pa == season.pa + career.player.season.pa and total.games == season.games + career.player.season.games, "통산 합계")
+	var pa2 := 0
+	for row: Array in rec.split_rows(career.season_no, "pitcher", _config.pitchers.keys()):
+		pa2 += (row[1] as PlayerData.SeasonStats).pa
+	check(pa2 == career.player.season.pa, "시즌별 분할은 그 시즌만")
+	check(rec.phases[-1].result == "" and rec.phases[-1].grade == 2, "새 시즌 첫 대회는 진행 중")

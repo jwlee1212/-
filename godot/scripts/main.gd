@@ -86,6 +86,10 @@ func show_season() -> void:
 	show_screen(SeasonScreen.new(self))
 
 
+func show_records() -> void:
+	show_screen(RecordsScreen.new(self))
+
+
 func show_practice() -> void:
 	show_screen(PracticeScreen.new(self))
 

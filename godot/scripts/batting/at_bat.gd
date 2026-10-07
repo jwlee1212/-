@@ -19,6 +19,9 @@ class Result:
 	var bunt := false
 	## 맞은 공의 플레이 (주자·송구·판정). 인플레이가 아니면 null
 	var play: PlaySimulator.PlayResult = null
+	## 타석을 끝낸 공을 던질 때의 카운트 (기록실 카운트별 기록). 모르면 -1
+	var balls := -1
+	var strikes := -1
 
 	func _init(o: SwingJudge.Outcome, b: SwingJudge.BattedBall, n: int, c: SwingJudge.Contact) -> void:
 		outcome = o
@@ -78,6 +81,9 @@ var _config: BattingConfig
 var _judge: SwingJudge
 var _caller: PitchCaller
 var _rng: RandomNumberGenerator
+## 지금 처리 중인 공을 던질 때의 카운트
+var _pitch_balls := 0
+var _pitch_strikes := 0
 
 
 func _init(config: BattingConfig, p_skills: BatterSkills, p_pitcher: BattingConfig.PitcherProfile, seed_value: int) -> void:
@@ -159,6 +165,9 @@ func _strike(call: Call, swung: bool, diff: float, c: SwingJudge.Contact) -> Pit
 
 func _finish(o: PitchOutcome) -> PitchOutcome:
 	result = o.result
+	if result != null:
+		result.balls = _pitch_balls
+		result.strikes = _pitch_strikes
 	return o
 
 
@@ -179,4 +188,6 @@ func _take_current() -> Pitch:
 	var pitch := current
 	current = null
 	pitch_count += 1
+	_pitch_balls = balls
+	_pitch_strikes = strikes
 	return pitch
