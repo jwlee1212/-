@@ -18,18 +18,25 @@ class SeasonStats:
 	var rbi := 0
 	var walks := 0
 	var strikeouts := 0
+	var sac_flies := 0
+	var sac_bunts := 0
+	## 인플레이 타구 수와 타구 속도 합 (기록실 분할 기록의 평균 타구 속도용. 타구 물리가 있는 내 타석만 센다)
+	var balls_in_play := 0
+	var ev_sum := 0.0
 
 	## sac_fly: 희생플라이였는가 (타수에 넣지 않는다)
 	func add(outcome: SwingJudge.Outcome, runs_batted_in: int, sac_fly: bool = false) -> void:
 		pa += 1
 		rbi += runs_batted_in
 		if sac_fly:
+			sac_flies += 1
 			return
 		match outcome:
 			SwingJudge.Outcome.WALK:
 				walks += 1
 				return
 			SwingJudge.Outcome.SAC_BUNT:
+				sac_bunts += 1
 				return  # 희생번트는 타수에 넣지 않는다
 			SwingJudge.Outcome.STRIKEOUT:
 				strikeouts += 1
@@ -55,6 +62,19 @@ class SeasonStats:
 		rbi += o.rbi
 		walks += o.walks
 		strikeouts += o.strikeouts
+		sac_flies += o.sac_flies
+		sac_bunts += o.sac_bunts
+		balls_in_play += o.balls_in_play
+		ev_sum += o.ev_sum
+
+	## 인플레이 타구 하나의 속도를 더한다
+	func add_ball(ev_kmh: float) -> void:
+		balls_in_play += 1
+		ev_sum += ev_kmh
+
+	## 평균 타구 속도 (km/h, 타구가 없으면 -1)
+	func avg_ev() -> float:
+		return ev_sum / balls_in_play if balls_in_play > 0 else -1.0
 
 	## 박스스코어 한 줄 → 기록 (한 경기)
 	static func from_box(b: BoxScore.BatterLine) -> SeasonStats:
@@ -69,6 +89,8 @@ class SeasonStats:
 		s.rbi = b.rbi
 		s.walks = b.bb
 		s.strikeouts = b.so
+		s.sac_flies = b.sf
+		s.sac_bunts = b.sh
 		return s
 
 	## "4타수 2안타 1홈런" 처럼 짧게
@@ -82,11 +104,17 @@ class SeasonStats:
 			parts.append("%d볼넷" % walks)
 		return " ".join(parts)
 
+	## 출루율 = (안타 + 볼넷) / (타수 + 볼넷 + 희생플라이). 몸에 맞는 공은 아직 없다
 	func obp() -> float:
-		return float(hits + walks) / float(ab + walks) if ab + walks > 0 else 0.0
+		var d := ab + walks + sac_flies
+		return float(hits + walks) / float(d) if d > 0 else 0.0
+
+	## 루타
+	func total_bases() -> int:
+		return hits + doubles + 2 * triples + 3 * home_runs
 
 	func slg() -> float:
-		return float(hits + doubles + 2 * triples + 3 * home_runs) / float(ab) if ab > 0 else 0.0
+		return float(total_bases()) / float(ab) if ab > 0 else 0.0
 
 	## OPS+ = 100 × (출루율/리그 출루율 + 장타율/리그 장타율 − 1). 타석이 없으면 -1
 	func ops_plus(league: Dictionary) -> int:
@@ -95,17 +123,26 @@ class SeasonStats:
 		return roundi(100.0 * (obp() / float(league["obp"]) + slg() / float(league["slg"]) - 1.0))
 
 	func average() -> String:
-		if ab == 0:
-			return "-"
-		var avg := roundi(hits * 1000.0 / ab)
-		return "1.000" if avg >= 1000 else ".%03d" % avg
+		return rate_text(float(hits) / ab) if ab > 0 else "-"
 
-	## OPS = 출루율 + 장타율 (몸에 맞는 공·희생플라이는 아직 따로 세지 않는다)
+	func obp_text() -> String:
+		return rate_text(obp()) if ab + walks + sac_flies > 0 else "-"
+
+	func slg_text() -> String:
+		return rate_text(slg()) if ab > 0 else "-"
+
+	## OPS = 출루율 + 장타율 (몸에 맞는 공은 아직 없다)
 	func ops() -> String:
-		if ab == 0:
-			return "-"
-		var v := roundi((obp() + slg()) * 1000.0)
-		return "%d.%03d" % [v / 1000, v % 1000] if v >= 1000 else ".%03d" % v
+		return rate_text(obp() + slg()) if ab > 0 else "-"
+
+	func ops_plus_text(league: Dictionary) -> String:
+		var v := ops_plus(league)
+		return str(v) if v >= 0 else "-"
+
+	## 비율 기록 글자: .312 / 1.045
+	static func rate_text(v: float) -> String:
+		var n := roundi(v * 1000.0)
+		return "%d.%03d" % [n / 1000, n % 1000] if n >= 1000 else ".%03d" % n
 
 
 var name := "신인"
