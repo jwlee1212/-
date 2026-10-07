@@ -74,7 +74,7 @@ func _draw() -> void:
 	# 정타 뒤에는 야구장 전체를 비추는 중계 화면으로 바뀐다
 	var ball := _broadcast_ball()
 	if ball != null:
-		BroadcastView.draw(self, Rect2(Vector2.ZERO, size), session.config.ball_physics, ball, session.broadcast_time(), session.last_result.contact.bunt)
+		BroadcastView.draw(self, Rect2(Vector2.ZERO, size), session.config.ball_physics, ball, session.broadcast_time(), session.last_result.contact.bunt, false, session.last_result.play)
 	else:
 		_draw_stadium()
 		_draw_field()

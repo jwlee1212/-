@@ -66,7 +66,7 @@ func show_create() -> void:
 
 
 func start_career(player_name: String) -> void:
-	career = CareerState.new(career_config, player_name)
+	career = CareerState.new(career_config, player_name, batting_config)
 	show_home()
 
 
@@ -107,6 +107,7 @@ func _load_configs() -> void:
 	career_config = CareerConfig.from(balance, content)
 	if career != null:
 		career.cfg = career_config
+		career.batting = batting_config
 
 
 func _add_tuning_panel() -> void:

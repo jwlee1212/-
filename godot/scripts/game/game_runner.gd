@@ -1,81 +1,113 @@
 class_name GameRunner
 extends RefCounted
 ## 한 경기 진행. 타석을 하나씩 처리한다: 내 차례면 "my_turn" 을 돌려주고(화면이 타석 화면을 띄운다),
-## 아니면 자동으로 결과를 정해 문자 중계 한 줄을 만든다.
+## 아니면 AutoPa(타자·투수 능력치 + 타구 물리)로 결과를 정해 문자 중계 한 줄을 만든다.
+## 양 팀 모두 9명 타순과 투수진이 있고, 박스스코어(타자·투수 기록)를 쌓는다. 투구 수가 차면 투수를 바꾼다.
 
 var state: GameState
 var cfg: CareerConfig
+var bc: BattingConfig
 var my_side: int
-var opponent: Dictionary
-## 이번 경기 내 기록
+var opponent: School
+## 내 선수가 이 경기에 나오는가 (부상이면 결장)
+var me_playing := true
+var teams: Array[Team] = []
+var box: BoxScore
+## 팀별 지금 던지는 투수 번호
+var pitcher_index := [0, 0]
+## 이번 경기 내 기록 (커리어가 성장·기록에 쓴다)
 var my_line := PlayerData.SeasonStats.new()
 ## 문자 중계 (최근 것이 끝)
 var log: Array[String] = []
+## 마지막 자동 타석 (하이라이트용)
+var last_auto: Dictionary = {}
+## 마지막 플레이 (주자 궤적·송구) — 하이라이트가 그린다
+var last_play: PlaySimulator.PlayResult = null
 
 var _player: PlayerData
 var _rng: RandomNumberGenerator
-var _lineups := [[], []]  # 팀별 타자 이름 9명 (내 자리는 내 이름)
 
 
-func _init(p_cfg: CareerConfig, player: PlayerData, p_opponent: Dictionary, home: bool, seed_value: int) -> void:
+## 두 학교의 고정 명단으로 경기를 만든다. playing = false 면 내 선수는 결장 (그 자리는 원래 명단 선수)
+func _init(p_cfg: CareerConfig, p_bc: BattingConfig, player: PlayerData, my_school: School, p_opponent: School, home: bool,
+		seed_value: int, playing: bool = true) -> void:
 	cfg = p_cfg
+	bc = p_bc
 	_player = player
 	opponent = p_opponent
+	me_playing = playing
 	my_side = GameState.HOME if home else GameState.AWAY
-	state = GameState.new(cfg.innings, cfg.running)
+	state = GameState.new(cfg.innings, cfg.running, bc.ball_physics)
 	_rng = RandomNumberGenerator.new()
 	_rng.seed = seed_value
-	for side in [GameState.AWAY, GameState.HOME]:
-		for i in 9:
-			_lineups[side].append(_random_name())
-	_lineups[my_side][player.lineup_slot - 1] = player.name
+	var mine := my_school.team.for_game(player if playing else null, player.skills_for_game(cfg))
+	var theirs := opponent.team.for_game(null, null)
+	teams.assign([mine, theirs] if my_side == GameState.AWAY else [theirs, mine])
+	box = BoxScore.new(teams[0].pitchers.size(), teams[1].pitchers.size())
 	log.append("%s vs %s — 경기 시작!" % [team_name(GameState.AWAY), team_name(GameState.HOME)])
 
 
 func team_name(side: int) -> String:
-	return cfg.my_school["name"] if side == my_side else opponent["name"]
+	return teams[side].name
 
 
 func team_short(side: int) -> String:
-	return cfg.my_school["short"] if side == my_side else opponent["short"]
+	return teams[side].short
 
 
 func is_my_turn() -> bool:
-	return not state.over and state.batting_side() == my_side and state.batter_index[my_side] == _player.lineup_slot - 1
+	return me_playing and not state.over and state.batting_side() == my_side and state.batter_index[my_side] == _player.lineup_slot - 1
+
+
+func current_batter() -> Team.Batter:
+	var side := state.batting_side()
+	return teams[side].lineup[state.batter_index[side]]
 
 
 func current_batter_name() -> String:
-	var side := state.batting_side()
-	return _lineups[side][state.batter_index[side]]
+	return current_batter().name
 
 
-## 다음 타석. 돌려주는 값: {"type": "my_turn" | "auto" | "over", "text": 중계 한 줄}
+## 지금 공을 던지는 (수비 팀) 투수
+func current_pitcher() -> Team.Pitcher:
+	var def := 1 - state.batting_side()
+	return teams[def].pitchers[pitcher_index[def]]
+
+
+## 다음 타석. 돌려주는 값: {"type": "my_turn" | "auto" | "over", "text": 중계 한 줄,
+##   "highlight": 하이라이트로 보여 줄 플레이(PlayResult, 없으면 null), "side": 공격한 팀}
 func step() -> Dictionary:
 	if state.over:
 		return {"type": "over"}
 	if is_my_turn():
 		return {"type": "my_turn"}
 	var side := state.batting_side()
-	var outcome := _auto_outcome(side)
-	var name := current_batter_name()
+	var idx: int = state.batter_index[side]
+	var batter := teams[side].lineup[idx]
+	var pitcher := current_pitcher()
+	var pa := AutoPa.simulate(cfg.auto_pa, bc, batter.skills, pitcher, _rng)
 	var half := state.half_text()
-	var r := state.apply(outcome, _rng)
-	var text := "[%s] %s %d번 %s — %s%s" % [half, team_short(side), (state.batter_index[side] + 8) % 9 + 1, name,
-		outcome_label(outcome), _runs_text(r)]
+	var r := _apply(pa.outcome, pa.ball, pa.pitches, false, null)
+	var text := "[%s] %s %d번 %s — %s%s" % [half, team_short(side), idx + 1, batter.name, outcome_label(r.outcome), _runs_text(r)]
 	log.append(text)
-	_after_half(r)
-	return {"type": "auto", "text": text}
+	_after_pa(r)
+	# 하이라이트: 점수가 난 안타·홈런
+	var highlight = null
+	if pa.ball != null and (r.outcome == SwingJudge.Outcome.HOME_RUN or r.runs > 0 or r.note == "병살"):
+		highlight = last_play
+	last_auto = {"text": text, "ball": pa.ball, "outcome": r.outcome}
+	return {"type": "auto", "text": text, "highlight": highlight, "side": side}
 
 
 ## 내 타석 결과를 경기에 반영한다
 func apply_my_result(result: AtBat.Result) -> String:
 	var half := state.half_text()
-	var r := state.apply(result.outcome, _rng, result.bunt)
-	var outcome: SwingJudge.Outcome = r.outcome
-	my_line.add(outcome, r.rbi)
-	var text := "[%s] ★ %s — %s%s" % [half, _player.name, outcome_label(outcome), _runs_text(r)]
+	var ball: BattedBallSim.Result = result.contact.ball if result.contact != null else null
+	var r := _apply(result.outcome, ball, result.pitches, result.bunt, result.play)
+	my_line.add(r.outcome, r.rbi, r.sac_fly)
+	var text := "[%s] ★ %s — %s%s" % [half, _player.name, outcome_label(r.outcome), _runs_text(r)]
 	log.append(text)
-	_after_half(r)
+	_after_pa(r)
 	return text
 
 
@@ -86,7 +118,64 @@ func my_result() -> int:
 	return signi(mine - theirs)
 
 
-func _after_half(r: Dictionary) -> void:
+## 타석 하나를 경기·박스스코어에 반영. play: 이미 진행한 플레이(내 타석 화면에서 본 것)가 있으면 그대로 쓴다
+func _apply(outcome: SwingJudge.Outcome, ball: BattedBallSim.Result, pitches: int, bunt: bool, play: PlaySimulator.PlayResult) -> Dictionary:
+	var side := state.batting_side()
+	var def := 1 - side
+	var idx: int = state.batter_index[side]
+	var r: Dictionary
+	last_play = null
+	if play == null and ball != null:
+		play = state.make_play(ball, idx, speed_of(side), _rng)
+	if play != null:
+		last_play = play
+		r = state.apply_play(play, bunt)
+	else:
+		r = state.apply(outcome, _rng, bunt, null, idx)
+	var bl: BoxScore.BatterLine = box.batters[side][idx]
+	bl.add(r.outcome, r.rbi, r.sac_fly)
+	for scorer: int in r.scorers:
+		box.batters[side][scorer].r += 1
+	var pl: BoxScore.PitcherLine = box.pitchers[def][pitcher_index[def]]
+	pl.bf += 1
+	pl.outs += r.outs
+	pl.r += r.runs
+	pl.pitches += pitches
+	match r.outcome:
+		SwingJudge.Outcome.WALK: pl.bb += 1
+		SwingJudge.Outcome.STRIKEOUT: pl.so += 1
+		SwingJudge.Outcome.HOME_RUN: pl.hr += 1
+	if SwingJudge.is_hit(r.outcome):
+		pl.h += 1
+		box.hits[side] += 1
+	_maybe_change_pitcher(def)
+	return r
+
+
+## 타순 번호 → 주력 (그 팀 타자)
+func speed_of(side: int) -> Callable:
+	var lineup := teams[side].lineup
+	return func(i: int) -> int: return lineup[i].skills.speed
+
+
+## 지금 공격 팀의 주자 상황 (내 타석 화면이 플레이를 미리 진행할 때 쓴다)
+func situation() -> Dictionary:
+	var side := state.batting_side()
+	return {"bases": state.bases.duplicate(), "outs": state.outs, "batter": state.batter_index[side], "speed_of": speed_of(side)}
+
+
+## 투구 수가 차거나 많이 맞으면 다음 투수
+func _maybe_change_pitcher(def: int) -> void:
+	var i: int = pitcher_index[def]
+	var p := teams[def].pitchers[i]
+	var pl: BoxScore.PitcherLine = box.pitchers[def][i]
+	var tired := pl.pitches >= p.max_pitches or (i == 0 and pl.r >= int(cfg.roster["pullAfterRuns"]))
+	if tired and i + 1 < teams[def].pitchers.size() and not state.over:
+		pitcher_index[def] = i + 1
+		log.append("— %s 투수 교체: %s → %s —" % [team_short(def), p.name, teams[def].pitchers[i + 1].name])
+
+
+func _after_pa(r: Dictionary) -> void:
 	if state.over:
 		log.append("경기 종료! %s %d : %d %s" % [team_short(GameState.AWAY), state.score[0], state.score[1], team_short(GameState.HOME)])
 	elif r.half_over:
@@ -100,29 +189,6 @@ func _runs_text(r: Dictionary) -> String:
 	if r.runs > 0:
 		parts.append("%d점!" % r.runs)
 	return "" if parts.is_empty() else " (" + ", ".join(parts) + ")"
-
-
-## 자동 타석: 기본 확률표에 팀 전력 차만큼 안타 배율을 곱한다
-func _auto_outcome(side: int) -> SwingJudge.Outcome:
-	var bat: float = cfg.my_team_strength if side == my_side else float(opponent["strength"])
-	var pitch: float = float(opponent["strength"]) if side == my_side else cfg.my_team_strength
-	var hit_mul := maxf(0.3, 1.0 + (bat - pitch) * cfg.strength_hit_mul_per_point)
-	var weights := {}
-	var total := 0.0
-	for o: int in cfg.outcome_weights:
-		var w: float = cfg.outcome_weights[o] * (hit_mul if SwingJudge.is_hit(o) else 1.0)
-		weights[o] = w
-		total += w
-	var roll := _rng.randf() * total
-	for o: int in weights:
-		roll -= weights[o]
-		if roll < 0.0:
-			return o
-	return SwingJudge.Outcome.GROUND_OUT
-
-
-func _random_name() -> String:
-	return cfg.surnames[_rng.randi_range(0, cfg.surnames.size() - 1)] + cfg.given_names[_rng.randi_range(0, cfg.given_names.size() - 1)]
 
 
 static func outcome_label(o: SwingJudge.Outcome) -> String:

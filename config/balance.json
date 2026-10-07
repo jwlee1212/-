@@ -7,7 +7,7 @@
       "_note": "구종. breakX/breakY 는 막판에 휘는 양(+x 바깥쪽, +y 아래). chaseSpots 는 유인구를 던질 때 노리는 방향(high/low/away/inside).",
       "fastball": {
         "label": "직구",
-        "flightMs": 323,
+        "flightMs": 388,
         "flightJitterMs": 30.0,
         "breakX": -0.08,
         "breakY": -0.05,
@@ -18,7 +18,7 @@
       },
       "slider": {
         "label": "슬라이더",
-        "flightMs": 372,
+        "flightMs": 446,
         "flightJitterMs": 30.0,
         "breakX": 0.75,
         "breakY": 0.3,
@@ -29,7 +29,7 @@
       },
       "changeup": {
         "label": "체인지업",
-        "flightMs": 421,
+        "flightMs": 505,
         "flightJitterMs": 35.0,
         "breakX": -0.2,
         "breakY": 0.65,
@@ -63,7 +63,7 @@
       },
       "power": {
         "name": "강속구형",
-        "speedMs": -22,
+        "speedMs": -26,
         "mix": {
           "fastball": 1.6,
           "slider": 1.0,
@@ -78,7 +78,7 @@
       },
       "finesse": {
         "name": "기교파",
-        "speedMs": 15,
+        "speedMs": 18,
         "mix": {
           "fastball": 0.7,
           "slider": 1.2,
@@ -210,7 +210,8 @@
       }
     },
     "battedBall": {
-      "_note": "타구 물리. 정타 타구 속도는 파워로 보간(At0~At100) × (1 - qualityShare + qualityShare × 타이밍 정확도) ± 흔들림. 발사각은 정규분포, 낮은 공일수록 낮게. 공기 저항 dragK, 역회전 양력 liftK (속도 제곱에 비례). 빗맞은 타구는 땅볼로 깎이거나(topChance) 뜬공으로 솟는다",
+      "_note": "타구 물리. 정타 타구 속도는 파워로 보간(At0~At100) × (1 - qualityShare + qualityShare × 타이밍 정확도) ± 흔들림. 발사각은 정규분포, 낮은 공일수록 낮게. 공기 저항 dragK, 역회전 양력 liftK (속도 제곱에 비례). 빗맞은 타구는 땅볼로 깎이거나(topChance) 뜬공으로 솟는다. 발사각은 maxLaunchDeg 를 넘지 않는다 (넘으면 공이 포수 뒤로 날아가 페어 안타가 되던 문제)",
+      "maxLaunchDeg": 85.0,
       "evKmhAt0": 128.0,
       "evKmhAt100": 168.0,
       "evQualityShare": 0.15,
@@ -244,8 +245,7 @@
   },
   "career": {
     "status": "draft",
-    "_note": "커리어(주간 루프) 수치. 능력치는 0~99, 컨디션 0~100, 스카우트 관심도 0~100",
-    "seasonWeeks": 6,
+    "_note": "커리어 수치 (G5). 능력치 0~99, 컨디션 0~100, 스카우트 관심도 0~100. 한 시즌 = 주말리그 전반기 → 전국대회 → 주말리그 후반기 → 전국대회 (대회 이름·학교는 content.json)",
     "start": {
       "contact": 42,
       "power": 38,
@@ -256,24 +256,30 @@
       "speed": 55
     },
     "training": {
-      "_note": "훈련 하나를 고르면 해당 능력치가 gain 만큼 오르고 컨디션이 condition 만큼 변한다. 휴식은 컨디션만 회복",
+      "_note": "훈련 하나를 고르면 해당 능력치가 성장(growth 규칙)하고 컨디션이 condition 만큼 변한다. gain 은 잠재력까지 여유가 충분할 때 한 번에 오르는 양",
       "contact": {
         "label": "타격 훈련",
         "stat": "contact",
-        "gain": 3,
+        "gain": 1.3,
         "condition": -8
       },
       "power": {
         "label": "웨이트",
         "stat": "power",
-        "gain": 3,
+        "gain": 1.3,
         "condition": -10
       },
       "eye": {
         "label": "선구안 훈련",
         "stat": "eye",
-        "gain": 3,
+        "gain": 1.3,
         "condition": -6
+      },
+      "speed": {
+        "label": "주루 훈련",
+        "stat": "speed",
+        "gain": 1.0,
+        "condition": -9
       },
       "rest": {
         "label": "휴식",
@@ -287,51 +293,257 @@
       "pivot": 70,
       "perPoint": 0.2
     },
-    "gameGrowth": {
-      "_note": "경기 결과에 따른 성장",
-      "perHitContact": 1,
-      "perExtraBasePower": 1,
-      "perHomeRunPower": 2,
-      "perWalkEye": 1,
-      "conditionPerGame": -6
-    },
     "scout": {
-      "_note": "스카우트 관심도 변화",
+      "_note": "스카우트 관심도 변화. 전국대회 경기는 nationalMultiplier 배. 새 시즌엔 seasonCarry 만큼만 남는다 (작년 활약은 반쯤 잊힌다 — 3학년 때 관심도가 100 에 붙지 않게)",
+      "seasonCarry": 0.5,
       "perHit": 2,
       "perHomeRun": 5,
       "perWin": 1,
-      "perStrikeout": -1
+      "perStrikeout": -1,
+      "nationalMultiplier": 2.0
     },
     "statMax": 99,
-    "eventChance": 0.75,
-    "seed": 2026
+    "eventChance": 0.4,
+    "seed": 2026,
+    "growth": {
+      "_note": "성장: 실제 오름 = gain × 성장률 × 학년 배율. 성장률 = clamp((잠재력 − 지금) / gapScale, minRate, 1). 잠재력은 능력치마다 숨겨진 값(정규분포). 잠재력을 넘지 못한다. 경기 성장은 안타·장타·볼넷마다 조금씩. 겨울 훈련은 시즌이 끝날 때 모든 능력치에 winterGain × 성장률 × 학년 배율",
+      "gapScale": 25,
+      "minRate": 0.08,
+      "gradeRate": [
+        1.2,
+        1.0,
+        0.85
+      ],
+      "potentialMean": 72,
+      "potentialSd": 9,
+      "potentialMin": 50,
+      "potentialMax": 95,
+      "perHitContact": 0.25,
+      "perExtraBasePower": 0.3,
+      "perHomeRunPower": 0.6,
+      "perWalkEye": 0.3,
+      "winterGain": 4.0,
+      "conditionPerGame": -6
+    },
+    "form": {
+      "_note": "폼(-max~+max): 경기마다 지난 폼의 decay 만큼 남고 + 정규분포 흔들림 + (안타 − 기대 안타) × perHitAboveExpected. 경기에서 능력치 + 폼 × skillPerPoint",
+      "decay": 0.6,
+      "weeklySd": 0.8,
+      "perHitAboveExpected": 0.5,
+      "expectedAvg": 0.28,
+      "max": 3.0,
+      "skillPerPoint": 1.5
+    },
+    "injury": {
+      "_note": "주마다 부상 확률 = base + max(0, threshold − 컨디션) × perPointBelow. 다치면 weeksMin~weeksMax 주 결장(훈련 대신 휴식)",
+      "base": 0.01,
+      "threshold": 45,
+      "perPointBelow": 0.006,
+      "weeksMin": 1,
+      "weeksMax": 3
+    },
+    "season": {
+      "_note": "한 시즌의 순서. league = 권역 주말리그(권역 학교와 한 번씩), tournament = 전국대회(16강 토너먼트, 지면 탈락). 다른 학교끼리의 경기는 전력 차로 승패만 정한다(drawChance 무승부)",
+      "phases": [
+        {
+          "kind": "league",
+          "name": "주말리그 전반기"
+        },
+        {
+          "kind": "tournament",
+          "index": 0
+        },
+        {
+          "kind": "league",
+          "name": "주말리그 후반기"
+        },
+        {
+          "kind": "tournament",
+          "index": 1
+        }
+      ],
+      "tournamentRounds": [
+        "16강",
+        "8강",
+        "준결승",
+        "결승"
+      ],
+      "winProbScale": 25,
+      "drawChance": 0.04
+    },
+    "teams": {
+      "_note": "학교 전력은 해마다 yearlyDriftSd 만큼 흔들리고, 졸업으로 타자 graduateBatters 명·투수 graduatePitchers 명이 새 얼굴로 바뀐다",
+      "yearlyDriftSd": 4,
+      "graduateBatters": 3,
+      "graduatePitchers": 2,
+      "myTeamStrength": 45
+    },
+    "story": {
+      "_note": "돌발 이벤트·스토리 (G6). 한 주에 이벤트는 maxEventsPerWeek 개까지(주 시작 + 경기 뒤 합). 스토리 이벤트·예약된 지연 결과가 먼저, 없으면 eventChance 확률로 무작위 이벤트 하나. 관계는 인물마다 0~100 (relationStart), 평판도 0~100. 새 시즌 타순은 감독 신뢰로: lineupByTrust 의 [신뢰 이상, 타순] 중 처음 맞는 것",
+      "maxEventsPerWeek": 2,
+      "relationStart": {"coach": 40, "mom": 70, "buddy": 50, "rival": 30, "scout": 30, "manager": 20, "neighbor": 20, "reporter": 20},
+      "reputationStart": 50,
+      "lineupByTrust": [[80, 3], [60, 5], [0, 7]],
+      "dialogueCharsPerSec": 45
+    },
+    "economy": {
+      "_note": "돈(원). 경기마다 용돈 = allowanceBase + (엄마 관계 − 50) × allowancePerMomPoint (최소 allowanceMin) + 칭찬 용돈(안타 perHit, 홈런 perHomeRun, 결장이면 없음). 주말리그 1위 leagueWinPrize, 전국대회 우승 championPrize (동문회 장학금). 인물 탭 교류는 한 주에 한 번: 선물(giftCost → 관계 +giftRel), 만나기(연애 후보만, hangoutCost → 호감 +hangoutRel, 컨디션 +hangoutCondition)",
+      "startMoney": 50000,
+      "allowanceBase": 20000,
+      "allowancePerMomPoint": 300,
+      "allowanceMin": 5000,
+      "perHit": 3000,
+      "perHomeRun": 10000,
+      "leagueWinPrize": 100000,
+      "championPrize": 300000,
+      "giftCost": 20000,
+      "giftRel": 5,
+      "hangoutCost": 30000,
+      "hangoutRel": 7,
+      "hangoutCondition": 5
+    },
+    "shop": {
+      "_note": "상점. gear = 한 번 사면 계속 (경기 능력치 보정, 같은 slot 은 tier 가 가장 높은 것 하나만), services = 한 주에 한 번씩. lesson 은 이번 주 훈련 능력치에 gain 만큼 한 번 더 성장(휴식 주엔 못 씀), care 는 컨디션 +condition·부상 −injuryWeeks주, meal 은 컨디션 +condition·폼 +form",
+      "gear": {
+        "gloves": {"label": "배팅 장갑", "price": 50000, "slot": "gloves", "tier": 1, "bonus": {"contact": 1}},
+        "goggles": {"label": "스포츠 고글", "price": 80000, "slot": "eyes", "tier": 1, "bonus": {"eye": 1}},
+        "spikes": {"label": "경량 스파이크", "price": 120000, "slot": "shoes", "tier": 1, "bonus": {"speed": 2}},
+        "maple_bat": {"label": "단풍나무 배트", "price": 180000, "slot": "bat", "tier": 1, "bonus": {"contact": 1, "power": 1}},
+        "pro_bat": {"label": "프로 모델 배트", "price": 450000, "slot": "bat", "tier": 2, "bonus": {"contact": 1, "power": 3}}
+      },
+      "services": {
+        "lesson": {"label": "개인 레슨", "price": 100000, "gain": 1.3},
+        "care": {"label": "스포츠 마사지", "price": 60000, "condition": 15, "injuryWeeks": 1},
+        "meal": {"label": "보양식", "price": 30000, "condition": 8, "form": 0.3}
+      }
+    },
+    "romance": {
+      "_note": "연애: 연애 후보(content.json people 의 romance)와 호감(관계 수치)을 쌓아 고백 이벤트로 사귄다(한 명만). 사귀는 동안 경기마다 호감 −weeklyDecay (만나기·이벤트로 채운다), 컨디션 +datingCondition. 호감이 낮으면 위기 이벤트",
+      "weeklyDecay": 2,
+      "datingCondition": 2
+    },
+    "rival": {
+      "_note": "라이벌: 라이벌 학교(content.json people.rival.school)의 lineupSlot 번 타자. 나와 같은 학년, 같은 성장 규칙(잠재력 potential). 매주 훈련 weeklyTrainingGain 만큼(능력치 돌아가며) + 경기 기록으로 자란다. 나와 안 붙는 주는 전력 pitcherStrength 투수 상대로 paPerGame 타석을 자동 진행한다 (안타 때 rbiPerHitChance 확률로 1타점, 홈런은 1타점)",
+      "start": {"contact": 54, "power": 58, "eye": 46, "speed": 60},
+      "potential": {"contact": 84, "power": 90, "eye": 78, "speed": 78},
+      "lineupSlot": 4,
+      "weeklyTrainingGain": 1.1,
+      "paPerGame": 4,
+      "pitcherStrength": 50,
+      "rbiPerHitChance": 0.3
+    },
+    "scouting": {
+      "_note": "스카우트 평가값 = 종합 능력치 + 스카우트 관심도 × perScout + (평판 − 50) × perReputation + (잠재력 평균 − 종합) × potentialSeen. 같은 학년 전국 유망주 poolSize 명(평가값 정규분포, 매주·겨울에 자람)과 라이벌 사이 내 순위 = 유망주 랭킹. 예상 지명 순번 = 랭킹 × picksPerRank (대졸·투수도 뽑히니까), 범위는 ± max(rangeMin, 순번 × rangeShare). 주목 구단 수 = 관심도 / scoutPerTeam. 잠재력 범위는 학년별 폭 potentialRangeByGrade, 가운데가 potentialErrorSd 만큼 어긋난다",
+      "perScout": 0.1,
+      "perReputation": 0.1,
+      "potentialSeen": 0.3,
+      "poolSize": 60,
+      "poolStartMean": 49,
+      "poolStartSd": 6,
+      "poolWeeklyGrowthMean": 0.22,
+      "poolWeeklyGrowthSd": 0.15,
+      "poolWinterGrowth": 2.5,
+      "picksPerRank": 2.5,
+      "rangeShare": 0.3,
+      "rangeMin": 2,
+      "picksPerRound": 10,
+      "rounds": 11,
+      "scoutPerTeam": 10,
+      "potentialRangeByGrade": [10, 7, 4],
+      "potentialErrorSd": 3,
+      "deltaWeeks": 4
+    },
+    "leagueAvg": {
+      "_note": "고교 타자 평균 (OPS+ = 100 × (출루율/obp + 장타율/slg − 1))",
+      "obp": 0.37,
+      "slg": 0.37
+    }
   },
   "game": {
     "status": "draft",
-    "_note": "한 경기 자동 진행 수치. 타석 결과 확률표는 리그 평균 타자 vs 평균 투수 기준이고, 팀 전력 차로 안타 확률에 배율을 곱한다",
+    "_note": "한 경기 자동 진행 수치 (G4). 다른 타자들의 타석은 타자·투수 능력치로 삼진·볼넷을 정하고(Log5), 맞은 공은 내 타석과 같은 타구 물리·수비(batting.battedBall·fielding)로 결과를 낸다",
     "innings": 9,
     "autoStepMs": 650,
     "fastStepMs": 120,
-    "outcomeWeights": {
-      "STRIKEOUT": 0.18,
-      "WALK": 0.09,
-      "SINGLE": 0.16,
-      "DOUBLE": 0.045,
-      "TRIPLE": 0.008,
-      "HOME_RUN": 0.012,
-      "GROUND_OUT": 0.27,
-      "FLY_OUT": 0.2,
-      "LINE_OUT": 0.035
-    },
-    "strengthHitMulPerPoint": 0.012,
     "running": {
-      "_note": "주루 근사. 단타 때 2루 주자가 홈인할 확률, 2루타 때 1루 주자가 홈인할 확률, 땅볼 병살 확률(무사·1사, 1루 주자), 뜬공 희생플라이 확률(무사·1사, 3루 주자)",
+      "_note": "주루 (주자 FSM, game/running). 주자는 리드(leadOffM) 상태에서 시작해 가속(accelMps2)·최고 속도(topSpeedAt0/At100)로 달린다. 베이스를 돌아 계속 뛸 땐 바깥으로 둥글게(roundingBulgeM) 돌고 속도가 roundingSpeedFactor 배, 멈출 베이스 앞에선 decelMps2 로 줄이고, 송구와 closePlayS 안쪽 승부면 slideStartM 앞에서 슬라이딩. 뜬공이면 무사·1사에서 다음 베이스의 halfwayMaxShare 지점까지 가서 기다렸다가, 잡히면 귀루(반응 returnReactionS)·3루 주자는 태그업, 떨어지면 진루. 2사면 맞는 순간 무조건 질주. 땅볼 태그 플레이는 타구 방향과 주자 진행 방향의 내적이 groundHoldDot 보다 크면(정면) 멈춘다. 한 베이스 더 갈지는 '내가 거기 닿는 시간 + 판단 오차(judgmentErrorSdS) < 예상 송구 도착'으로 정한다. 홈런은 trotFactor 속도로 돈다. 예전 확률(…Chance)·시간 비교 값(leadStartS 등)은 타구 물리 결과가 없는 경우의 예비값. 루상 주자는 투구 때 2차 리드로 이미 움직이고 있어 secondaryLeadSpeedMps 속도에서 출발한다. 못 잡는 뜬공·라이너는 주자가 땅에 닿기 hitReadLeadS 초 전에 읽고 뛴다(최소 hitReadMinS). 병살 첫 송구(2루 토스)는 송구 준비 대신 feedTransferS(+멀리 뛰었을 때 벌점)로 빠르게, 2루에서 받아 1루로 다시 던지는 피벗은 pivotS. 공을 잡은 수비수가 송구보다 직접 뛰어가는 게 빠르면 selfGatherS(공을 쥐고 출발) 뒤 직접 베이스를 밟는다. 홈에서 infieldDepthM 안쪽 뜬공·라이너는 주자가 베이스로 돌아가 붙는다. 외야 라이너는 제자리 멈춤. 하프웨이 거리는 '잡히면 송구보다 halfwaySafetyS 초 먼저 돌아올 수 있는 만큼'(최대 halfwayMaxShare). 한 베이스 더 판단 여유 sendMarginByOutsS[아웃 수] (음수 = 2사엔 과감), 외야 송구 도착은 |N(0, outfieldThrowSdS)| 만큼 늦는다. 타자 주자는 batterExtraMarginS, 3루 도전은 thirdBaseExtraMarginS 만큼 더 신중. 라운딩은 베이스 roundingStartM 앞에서 벌리기 시작, 한 베이스 더 판단은 decisionDistanceM 앞(앞 주자 미정이면 decisionLatestM 까지 대기). 땅볼이 infieldDepthM 을 지나면 주자에게 '빠졌다'",
+      "leadStartS": 0.55,
+      "tagUpS": 0.25,
+      "pivotS": 0.4,
+      "extraBaseMarginS": 0.15,
       "singleScoresFromSecond": 0.6,
       "doubleScoresFromFirst": 0.4,
       "doublePlayChance": 0.35,
-      "sacFlyChance": 0.55
+      "sacFlyChance": 0.55,
+      "runnerSpeedBonusMps": 0.8,
+      "twoOutJumpS": 0.3,
+      "tagS": 0.25,
+      "leadOffM": 4.5,
+      "roundingBulgeM": 3.0,
+      "accelMps2": 6.0,
+      "decelMps2": 6.5,
+      "topSpeedAt0": 7.2,
+      "topSpeedAt100": 9.0,
+      "roundingSpeedFactor": 0.95,
+      "slideStartM": 3.0,
+      "slideDecelMps2": 4.0,
+      "closePlayS": 0.6,
+      "overrunM": 4.0,
+      "trotFactor": 0.6,
+      "judgmentErrorSdS": 0.25,
+      "groundHoldDot": 0.35,
+      "returnReactionS": 0.3,
+      "secondaryLeadSpeedMps": 2.5,
+      "hitReadLeadS": 1.4,
+      "hitReadMinS": 0.6,
+      "feedTransferS": 0.65,
+      "selfGatherS": 0.15,
+      "infieldDepthM": 45,
+      "halfwayMaxShare": 0.5,
+      "halfwaySafetyS": 0.4,
+      "sendMarginByOutsS": [0.05, -0.1, -0.45],
+      "outfieldThrowSdS": 0.25,
+      "outfieldThrowSdRefM": 60,
+      "batterExtraMarginS": 0.2,
+      "thirdBaseExtraMarginS": 0.3,
+      "roundingStartM": 6.0,
+      "decisionDistanceM": 6.0,
+      "decisionLatestM": 1.5
     },
-    "myTeamStrength": 45
+    "autoPa": {
+      "_note": "Log5: 타자 성향과 투수 성향을 리그 평균 기준으로 합친다. 능력치 0/100 일 때 값(At0/At100) 사이를 보간. 인플레이 타구는 타구 속도·발사각·방향을 뽑아 타구 물리로 결과를 낸다. 능력치 50끼리 붙으면 리그 평균이 나오도록 At0·At100 의 가운데를 리그 평균에 맞춘다",
+      "leagueK": 0.19,
+      "leagueBB": 0.085,
+      "batterKAt0": 0.29,
+      "batterKAt100": 0.09,
+      "pitcherKAt0": 0.11,
+      "pitcherKAt100": 0.27,
+      "batterBBAt0": 0.045,
+      "batterBBAt100": 0.125,
+      "pitcherBBAt0": 0.125,
+      "pitcherBBAt100": 0.045,
+      "evMeanAt0": 126,
+      "evMeanAt100": 154,
+      "evPerPitcherStuff": -0.08,
+      "evSd": 14,
+      "launchMeanDeg": 15.0,
+      "launchSdDeg": 25.0,
+      "sprayMeanDeg": -5,
+      "spraySdDeg": 24,
+      "pitchesPerK": 4.8,
+      "pitchesPerBB": 5.7,
+      "pitchesPerBallInPlay": 3.4,
+      "pitchesJitter": 1.2
+    },
+    "roster": {
+      "_note": "팀 선수 만들기: 능력치 = 팀 전력 ± 정규분포(ratingSd). 선발은 투구 수가 starterPitches 를 넘거나 실점이 pullAfterRuns 이상이면 교체, 불펜은 relieverPitches 까지",
+      "ratingSd": 8,
+      "starterPitches": 95,
+      "starterPitchesJitter": 10,
+      "relieverPitches": 30,
+      "pullAfterRuns": 5,
+      "bullpenSize": 5
+    }
   },
   "fielding": {
     "status": "draft",
@@ -415,6 +627,15 @@
       "infield": 7.0,
       "outfield": 8.0
     },
-    "outfieldThrowMps": 27
+    "outfieldThrowMps": 25,
+    "outfieldStrongRangeM": 45,
+    "longThrowSlowSPerM": 0.03,
+    "relay": {
+      "_note": "중계 플레이. 외야수 바로 송구는 outfieldStrongRangeM 까지 outfieldThrowMps 로 곧게, 넘으면 m마다 longThrowSlowSPerM 초씩 느려진다(높이 띄우거나 원바운드). 거리가 minDistanceM 이상이면 중계 플레이도 따진다: 외야수가 min(거리 × legShare, outfieldStrongRangeM) 만큼 던져 중계맨(가장 먼저 그 자리에 서는 내야수)이 받고, transferS 뒤 throwMps 로 다시 던진다. 중계가 바로 송구보다 preferS 초 늦어도 중계를 고른다(짧은 송구가 정확하고, 중계맨이 공을 받는 순간 다시 판단해 송구 틈에 더 가려는 주자를 잡을 수 있어서). 송구 오차는 던진 거리에 비례(running.outfieldThrowSdS × 거리 / running.outfieldThrowSdRefM)",
+      "minDistanceM": 50,
+      "legShare": 0.6,
+      "transferS": 0.6,
+      "preferS": 0.1
+    }
   }
 }

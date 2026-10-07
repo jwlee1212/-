@@ -23,6 +23,14 @@ func _ready() -> void:
 
 	_app.start_career("김도윤")
 	await _wait_ms(200)
+	await _shot("3a-home-story")
+	# 주 시작 이야기(입부)를 고르고 넘긴다
+	while _app._current.story_view() != null:
+		var view: DialogueView = _app._current.story_view()
+		view.choose(0)
+		await _wait_ms(200)
+		view.finished.emit()
+		await _wait_ms(200)
 	await _shot("3-home")
 	_app._current._train("contact")
 	await _wait_ms(200)
@@ -31,9 +39,23 @@ func _ready() -> void:
 	_app.show_game()
 	var game_screen: Control = _app._current
 	await _wait_ms(100)
-	game_screen._fast = true
 	await _wait_ms(1500)
 	await _shot("5-game")
+	# 보통 속도로 두고 하이라이트가 나오면 찍는다 (최대 40초), 그다음 빠르게
+	await _until(func() -> bool:
+		if game_screen._session != null and game_screen._session.phase == BattingSession.Phase.OVER:
+			game_screen._session.tap()
+		elif game_screen._session != null and game_screen._session.phase == BattingSession.Phase.WAITING:
+			game_screen._session.ready_now()
+		elif game_screen._session != null and game_screen._session.phase == BattingSession.Phase.FLIGHT and not game_screen._session.swung:
+			game_screen._session.tap()
+		return game_screen._highlight != null or game_screen._game.state.over, 40000)
+	if game_screen._highlight != null:
+		await _wait_ms(1500)
+		await _shot("5b-highlight")
+		if game_screen._highlight != null:
+			game_screen._highlight.finished.emit()
+	game_screen._fast = true
 
 	var turn := 0
 	var started := Time.get_ticks_msec()
@@ -72,16 +94,31 @@ func _ready() -> void:
 	_app.show_result(game_screen._game)
 	await _wait_ms(300)
 	await _shot("10-result")
+	_app._current._show_box()
+	await _wait_ms(300)
+	await _shot("10b-box")
+	# 박스스코어 창(맨 뒤에 붙은 어두운 막)을 닫는다
+	var screen: Control = _app._current
+	screen.get_child(screen.get_child_count() - 1).queue_free()
+	await _wait_ms(200)
 	# 이벤트가 있으면 첫 선택지
 	var result_screen: Control = _app._current
-	for c in result_screen.find_children("*", "Button", true, false):
-		if (c as Button).text != "다음 주 ▶":
-			(c as Button).pressed.emit()
-			break
-	await _wait_ms(300)
+	if result_screen._story_button != null:
+		result_screen._show_event()
+		await _wait_ms(1500)
+		await _shot("11-dialogue")
+		var dv: DialogueView = result_screen.story_view()
+		for i in (dv._event.choices as Array).size():
+			if EventBook.choice_block(_app.career, dv._event.choices[i]) == "":
+				dv.choose(i)
+				break
+		await _wait_ms(1500)
 	await _shot("11-after-event")
 
-	_app.career.week = _app.career.cfg.season_weeks + 1
+	# 시즌 끝 화면: 남은 단계를 기록만 채워 넘긴다
+	var career: CareerState = _app.career
+	career.phase_log.append({"name": "새봄기 전국고교야구대회", "text": "8강 탈락"})
+	career.phase_index = career.phases().size()
 	_app.show_season()
 	await _wait_ms(300)
 	await _shot("12-season")

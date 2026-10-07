@@ -54,7 +54,7 @@ func _process(_delta: float) -> void:
 	if st != null:
 		_inning.text = st.half_text()
 		_score.text = "%s %d  :  %d %s" % [game.team_short(GameState.AWAY), st.score[0], st.score[1], game.team_short(GameState.HOME)]
-		_diamond.bases = st.bases
+		_diamond.bases = st.bases.map(func(b: int) -> bool: return b != GameState.EMPTY)
 	else:
 		_inning.text = "연습"
 		_score.text = "상대 " + session.pitcher.name

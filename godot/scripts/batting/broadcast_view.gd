@@ -1,7 +1,8 @@
 class_name BroadcastView
 extends RefCounted
 ## 타구 중계 화면: 홈플레이트 뒤 높은 곳에서 야구장 전체를 내려다본다.
-## 그리는 내용은 전부 BattedBallSim.Result 에서 온다 (공 경로·수비수 이동·송구) — 결과와 화면이 같은 계산이다.
+## 그리는 내용은 전부 BattedBallSim.Result(공 경로·수비수 이동)와 PlaySimulator.PlayResult(주자 궤적·송구·판정)에서 온다
+## — 결과와 화면이 같은 계산이다.
 ## BattingView._draw 안에서 그 캔버스로 그린다.
 
 ## 카메라 (m): 홈 뒤 CAM_BACK, 높이 CAM_HEIGHT, 바라보는 곳 = 가운데 방향 LOOK_AT
@@ -11,6 +12,9 @@ const LOOK_AT := 62.0
 ## 화면 맞춤: 홈플레이트와 가운데 담장이 놓일 세로 위치 (화면 높이 비율)
 const HOME_Y := 0.93
 const FENCE_Y := 0.2
+## 판정 말풍선이 떠 있는 시간, 아웃·득점한 주자가 사라지기까지 (초)
+const CALL_SHOW_S := 1.4
+const RUNNER_FADE_S := 0.6
 
 
 ## 원근 투영
@@ -55,7 +59,9 @@ class Cam:
 
 
 ## t: 공의 시각 (초, 실제 시간). us_fielding: 수비하는 쪽이 우리 팀인가 (유니폼 색)
-static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: BattedBallSim.Result, t: float, bunt: bool, us_fielding: bool = false) -> void:
+## play: 주자 플레이 결과 (있으면 모든 주자·송구·판정을 그 기록대로 그린다. 없으면 타자 주자만 옛 방식으로)
+static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: BattedBallSim.Result, t: float, bunt: bool,
+		us_fielding: bool = false, play: PlaySimulator.PlayResult = null) -> void:
 	var cam := Cam.new(rect, cfg.center_fence, cfg.line_fence, cfg.fence_height)
 	canvas.draw_rect(rect, Tokens.STANDS)
 	_draw_field(canvas, cam, cfg)
@@ -70,28 +76,42 @@ static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: 
 	var positions := BattedBallSim.fielder_positions(cfg, bunt)
 	var uniform := Tokens.UNIFORM_US if us_fielding else Tokens.UNIFORM_THEM
 	var bag := cfg.base_pos(1)
+	var cover := _cover_assignments(play)
 	for name: String in positions:
 		var at: Vector2 = positions[name]
 		if name == r.fielder:
 			var k := clampf((t - r.fielder_reaction) / maxf(r.fielder_arrive - r.fielder_reaction, 0.01), 0.0, 1.0)
 			at = r.fielder_from.lerp(r.fielder_to, k)
-			if r.self_putout and t > r.receiver_reaction:
+			if play != null:
+				# 공을 쥐고 직접 베이스를 밟으러 간다
+				at = _carry_pos(cfg, play, t, at)
+			elif r.self_putout and t > r.receiver_reaction:
 				# 1루수가 직접 잡아 베이스로 뛴다
 				var k2 := clampf((t - r.receiver_reaction) / maxf(r.receiver_arrive - r.receiver_reaction, 0.01), 0.0, 1.0)
 				at = r.fielder_to.lerp(bag, k2)
 		elif name == r.receiver and r.is_first_base_play():
 			var k := clampf((t - r.receiver_reaction) / maxf(r.receiver_arrive - r.receiver_reaction, 0.01), 0.0, 1.0)
 			at = r.receiver_from.lerp(bag, k)
+		elif cover.has(name):
+			# 송구 받을 베이스(또는 중계 자리)로 들어간다 (판정에 쓴 시각 그대로: react 에 출발해 ready 에 도착)
+			var c: Dictionary = cover[name]
+			var k := clampf((t - float(c.react)) / maxf(float(c.ready) - float(c.react), 0.01), 0.0, 1.0)
+			at = at.lerp(c.to, k)
 		elif name != "C":
 			var drift := clampf((t - 0.5) / 2.0, 0.0, 1.0) * 3.0
 			at = at.move_toward(Vector2(ball.x, ball.y), drift)
 		_draw_person(canvas, cam, at, uniform)
 
-	# 타자 주자: 계산에 쓴 실제 속도로 달린다
-	_draw_runner(canvas, cam, cfg, r, t)
+	# 주자: 플레이 기록이 있으면 모든 주자를 궤적대로, 없으면 타자 주자만 계산에 쓴 속도로
+	if play != null:
+		_draw_play_runners(canvas, cam, play, t, Tokens.UNIFORM_THEM if us_fielding else Tokens.UNIFORM_US)
+	else:
+		_draw_runner(canvas, cam, cfg, r, t)
 
 	# 공: 굴러가는 중 → 수비수 글러브 → 송구(놓은 시각부터 미트에 들어가는 시각까지) → 받는 사람 미트
-	if t >= duration and not r.home_run:
+	if play != null and t >= duration and not r.home_run:
+		ball = _play_ball(cfg, r, play, t)
+	elif t >= duration and not r.home_run:
 		var holder := r.fielder_to
 		if r.self_putout:
 			var k2 := clampf((t - r.receiver_reaction) / maxf(r.receiver_arrive - r.receiver_reaction, 0.01), 0.0, 1.0)
@@ -111,6 +131,9 @@ static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: 
 			canvas.draw_circle(cam.to_screen(q), maxf(cam.scale_at(q) * 0.35, 1.0), c, true, -1.0, true)
 	_draw_ball(canvas, cam, ball)
 
+	if play != null:
+		_draw_calls(canvas, cam, cfg, play, t)
+		return
 	# 1루 판정: 공과 타자 중 먼저 닿은 순간부터 "아웃!/세이프!" 와 차이
 	if r.is_first_base_play() and t >= minf(r.throw_arrive, r.runner_first):
 		var out := r.outcome == SwingJudge.Outcome.GROUND_OUT
@@ -127,6 +150,86 @@ static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: 
 		canvas.draw_style_box(pill, box)
 		canvas.draw_string(font, Vector2(box.position.x, at.y), text, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, Tokens.FONT_TITLE, Tokens.BAD if out else Tokens.GOOD)
 		canvas.draw_string(Tokens.FONT_REGULAR, Vector2(box.position.x, at.y + Tokens.FONT_CAPTION + Tokens.SPACE_XS), detail, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, Tokens.FONT_CAPTION, Tokens.INK_SOFT)
+
+
+## 판정 말풍선: 판정 시각부터 CALL_SHOW_S 동안 그 베이스 위에
+static func _draw_calls(canvas: CanvasItem, cam: Cam, cfg: BattedBallSim.Config, play: PlaySimulator.PlayResult, t: float) -> void:
+	for c: Dictionary in play.calls:
+		var since: float = t - float(c.t)
+		if since < 0.0 or since > CALL_SHOW_S:
+			continue
+		var b: int = c.base
+		var p := Vector2.ZERO if b <= 0 or b >= 4 else cfg.base_pos(b)
+		var text: String = c.text
+		var at := cam.ground(p) + Vector2(0, -cam.scale_at(Vector3(p.x, p.y, 0)) * 6.0)
+		var font := Tokens.FONT_BOLD
+		var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, Tokens.FONT_LABEL).x
+		var pill := StyleBoxFlat.new()
+		pill.bg_color = Tokens.SURFACE
+		pill.set_corner_radius_all(Tokens.RADIUS_CARD)
+		pill.anti_aliasing = true
+		var box := Rect2(at - Vector2(w / 2.0 + Tokens.SPACE_SM, Tokens.FONT_LABEL + Tokens.SPACE_XS), Vector2(w + Tokens.SPACE_SM * 2, Tokens.FONT_LABEL + Tokens.SPACE_SM * 2))
+		canvas.draw_style_box(pill, box)
+		canvas.draw_string(font, Vector2(box.position.x, at.y), text, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, Tokens.FONT_LABEL, Tokens.BAD if c.out else Tokens.GOOD)
+
+
+## 플레이의 모든 주자: 궤적(track)을 그 시각 그대로. 아웃·득점한 주자는 잠깐 뒤 사라진다
+static func _draw_play_runners(canvas: CanvasItem, cam: Cam, play: PlaySimulator.PlayResult, t: float, uniform: Color) -> void:
+	for runner in play.runners:
+		if runner.track.is_empty():
+			continue
+		var idx := clampi(int(t / BattedBallSim.DT), 0, runner.track.size() - 1)
+		if not runner.is_on_field() and not runner.history.is_empty():
+			var gone_t: float = runner.history[runner.history.size() - 1][0]
+			if t > gone_t + RUNNER_FADE_S:
+				continue
+		_draw_person(canvas, cam, runner.track[idx], uniform)
+
+
+## 송구 기록대로 공: 잡은 자리 → (송구 중이면 날아가는 공) → 받은 베이스
+static func _play_ball(cfg: BattedBallSim.Config, r: BattedBallSim.Result, play: PlaySimulator.PlayResult, t: float) -> Vector3:
+	var at := Vector3(r.fielder_to.x, r.fielder_to.y, 1.3)
+	for th: Dictionary in play.throws:
+		if t < float(th.release):
+			break
+		var from: Vector2 = th.from
+		var b: int = th.base
+		# 중계맨에게 가는 공은 중계 자리로
+		var to: Vector2 = th.to if th.get("cut", false) else (Vector2.ZERO if b >= 4 else cfg.base_pos(b))
+		var k := clampf((t - float(th.release)) / maxf(float(th.arrive) - float(th.release), 0.01), 0.0, 1.0)
+		if th.get("carry", false):
+			var p := from.lerp(to, k)
+			at = Vector3(p.x, p.y, 1.1)
+			continue
+		at = Vector3(from.x, from.y, 1.5).lerp(Vector3(to.x, to.y, 1.3), k)
+		at.z += sin(k * PI) * minf(3.0, from.distance_to(to) * 0.08)
+	return at
+
+
+## 직접 베이스를 밟으러 뛰는 수비수의 자리 (그런 플레이가 없으면 at 그대로)
+static func _carry_pos(cfg: BattedBallSim.Config, play: PlaySimulator.PlayResult, t: float, at: Vector2) -> Vector2:
+	for th: Dictionary in play.throws:
+		if not th.get("carry", false) or t < float(th.release):
+			continue
+		var b: int = th.base
+		var to := Vector2.ZERO if b >= 4 else cfg.base_pos(b)
+		var k := clampf((t - float(th.release)) / maxf(float(th.arrive) - float(th.release), 0.01), 0.0, 1.0)
+		at = (th.from as Vector2).lerp(to, k)
+	return at
+
+
+## 송구를 받으러 들어가는 수비수 (베이스 커버·중계맨). 판정이 송구 기록(cover)에 남긴 사람·시각 그대로.
+## 돌려주는 값: 이름 → {to, react, ready}. 1루 땅볼 플레이의 받는 사람은 따로 그린다
+static func _cover_assignments(play: PlaySimulator.PlayResult) -> Dictionary:
+	var out := {}
+	if play == null:
+		return out
+	for th: Dictionary in play.throws:
+		var c: Dictionary = th.get("cover", {})
+		if c.is_empty() or out.has(c.name):
+			continue
+		out[c.name] = c
+	return out
 
 
 static func _draw_ball(canvas: CanvasItem, cam: Cam, p: Vector3) -> void:

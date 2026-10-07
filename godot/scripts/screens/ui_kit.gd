@@ -138,3 +138,26 @@ static func glass_panel(radius: int = Tokens.RADIUS_HUD) -> PanelContainer:
 	p.add_theme_stylebox_override("panel", glass(radius))
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return p
+
+
+## 자간 넓은 영문·소제목 ("NEXT MATCH", "KOREAN BASEBALL CAREER")
+static func kicker(text: String, color: Color = Tokens.INK_SOFT, size: int = Tokens.FONT_CAPTION, tracking: int = Tokens.TRACKING_KICKER) -> Label:
+	var l := label(text, size, color, Tokens.FONT_BOLD)
+	l.add_theme_font_override("font", Tokens.spaced(Tokens.FONT_BOLD, tracking))
+	return l
+
+
+## 가로 구분선
+static func divider() -> ColorRect:
+	var r := ColorRect.new()
+	r.color = Tokens.DIVIDER
+	r.custom_minimum_size.y = 1
+	return r
+
+
+## 아래로 남는 자리를 채우는 빈칸
+static func spacer() -> Control:
+	var c := Control.new()
+	c.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return c

@@ -47,6 +47,13 @@ const LCD_TEXT := Color("7cffb2")
 ## 구종 색 (구종이 드러났을 때 공 테두리·이름). 목록에 없는 구종은 PRIMARY
 const PITCH_COLORS := {"fastball": PRIMARY, "slider": ACCENT, "changeup": GOOD}
 ## 공·타구 그림자, 겹쳐 그리는 반투명 바탕
+## 대화 화면: 배경 자리(그림이 없을 때), 일러스트 자리, 대사창, 지문 글자
+const DIALOGUE_BG := Color("c9d6ef")
+const DIALOGUE_BG_TEXT := Color(0.15, 0.2, 0.33, 0.35)
+const PORTRAIT_SLOT := Color(1, 1, 1, 0.45)
+const PORTRAIT_BORDER := Color("6b7690")
+const DIALOGUE_BOX := Color(1, 1, 1, 1)
+const NARRATION := Color("6b7690")
 const SHADOW := Color(0, 0, 0, 0.25)
 const SCRIM := Color(0, 0, 0, 0.6)
 const CONFETTI: Array[Color] = [PRIMARY, ACCENT, GOOD, WARN, BAD]
@@ -64,6 +71,23 @@ const FONT_BODY := 15
 const FONT_LABEL := 15
 const FONT_TITLE := 22
 const FONT_HERO := 34
+## 로비 로고, 큰 숫자 (OVERALL 등)
+const FONT_DISPLAY := 56
+const FONT_NUMBER := 38
+## 메뉴 화면: 영문 소제목 자간, 로고 기울기(글자 높이 대비 오른쪽으로 밀리는 비율), 구분선
+const TRACKING_KICKER := 3
+const TRACKING_WIDE := 7
+const SLANT := 0.22
+const DIVIDER := Color(INK_SOFT, 0.25)
 
 const FONT_REGULAR := preload("res://fonts/pretendard_regular.otf")
 const FONT_BOLD := preload("res://fonts/pretendard_bold.otf")
+
+
+## 자간을 넓힌 글꼴 (영문 소제목: "KOREAN BASEBALL CAREER")
+static func spaced(font: Font, px: int) -> FontVariation:
+	var v := FontVariation.new()
+	v.base_font = font
+	v.spacing_glyph = px
+	return v
+

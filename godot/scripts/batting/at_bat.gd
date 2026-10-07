@@ -17,6 +17,8 @@ class Result:
 	var contact: SwingJudge.Contact  # 인플레이가 아니면 null
 	## 번트 타구였는가 (주자가 있으면 경기가 희생번트로 바꾼다)
 	var bunt := false
+	## 맞은 공의 플레이 (주자·송구·판정). 인플레이가 아니면 null
+	var play: PlaySimulator.PlayResult = null
 
 	func _init(o: SwingJudge.Outcome, b: SwingJudge.BattedBall, n: int, c: SwingJudge.Contact) -> void:
 		outcome = o
@@ -64,6 +66,8 @@ var pitcher: BattingConfig.PitcherProfile
 var aim_cell := -1
 ## 스윙 종류 ("normal" | "contact" | "power" | "bunt"). 바꾸면 다음 스윙부터 반영된다
 var swing_type := "normal"
+## 경기 상황 (주자·아웃). 연습이면 주자 없음. {"bases": [1·2·3루 타순 번호 또는 -1], "outs", "batter", "speed_of"}
+var situation := {}
 var balls := 0
 var strikes := 0
 var pitch_count := 0
@@ -127,8 +131,12 @@ func swing(tap_ms: float) -> PitchOutcome:
 					strikes += 1
 				o = PitchOutcome.new(Call.FOUL, true, diff, c, null)
 		_:
-			var outcome := _judge.outcome_of(c, skills)
-			o = _finish(PitchOutcome.new(Call.IN_PLAY, true, diff, c, Result.new(outcome, c.batted_ball, pitch_count, c)))
+			_judge.outcome_of(c, skills)
+			# 주자·수비까지 진행해 최종 결과를 정한다 (화면도 이 플레이를 그린다)
+			var play := _run_play(c)
+			var res := Result.new(play.batter_outcome, c.batted_ball, pitch_count, c)
+			res.play = play
+			o = _finish(PitchOutcome.new(Call.IN_PLAY, true, diff, c, res))
 	o.aim = aim
 	return o
 
@@ -152,6 +160,18 @@ func _strike(call: Call, swung: bool, diff: float, c: SwingJudge.Contact) -> Pit
 func _finish(o: PitchOutcome) -> PitchOutcome:
 	result = o.result
 	return o
+
+
+func _run_play(c: SwingJudge.Contact) -> PlaySimulator.PlayResult:
+	var bases: Array = situation.get("bases", [-1, -1, -1])
+	var batter: int = situation.get("batter", 0)
+	var given: Callable = situation.get("speed_of", Callable())
+	var my_speed := skills.speed
+	var speed_of := func(i: int) -> int:
+		if i == batter:
+			return my_speed
+		return given.call(i) if given.is_valid() else 50
+	return PlaySimulator.new(_config.ball_physics, c.ball, batter, bases, speed_of, int(situation.get("outs", 0)), _rng).run()
 
 
 func _take_current() -> Pitch:

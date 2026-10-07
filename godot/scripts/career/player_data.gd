@@ -2,8 +2,8 @@ class_name PlayerData
 extends RefCounted
 ## 내 선수. 능력치 0~99, 컨디션 0~100, 스카우트 관심도 0~100.
 
-const STATS := ["contact", "power", "eye"]
-const STAT_LABELS := {"contact": "컨택", "power": "파워", "eye": "선구안"}
+const STATS := ["contact", "power", "eye", "speed"]
+const STAT_LABELS := {"contact": "컨택", "power": "파워", "eye": "선구안", "speed": "주력"}
 
 
 ## 시즌 누적 기록
@@ -19,9 +19,12 @@ class SeasonStats:
 	var walks := 0
 	var strikeouts := 0
 
-	func add(outcome: SwingJudge.Outcome, runs_batted_in: int) -> void:
+	## sac_fly: 희생플라이였는가 (타수에 넣지 않는다)
+	func add(outcome: SwingJudge.Outcome, runs_batted_in: int, sac_fly: bool = false) -> void:
 		pa += 1
 		rbi += runs_batted_in
+		if sac_fly:
+			return
 		match outcome:
 			SwingJudge.Outcome.WALK:
 				walks += 1
@@ -40,11 +43,69 @@ class SeasonStats:
 		if SwingJudge.is_hit(outcome):
 			hits += 1
 
+	## 다른 기록을 더한다 (경기 한 줄 → 시즌)
+	func merge(o: SeasonStats) -> void:
+		games += o.games
+		pa += o.pa
+		ab += o.ab
+		hits += o.hits
+		doubles += o.doubles
+		triples += o.triples
+		home_runs += o.home_runs
+		rbi += o.rbi
+		walks += o.walks
+		strikeouts += o.strikeouts
+
+	## 박스스코어 한 줄 → 기록 (한 경기)
+	static func from_box(b: BoxScore.BatterLine) -> SeasonStats:
+		var s := SeasonStats.new()
+		s.games = 1
+		s.pa = b.pa
+		s.ab = b.ab
+		s.hits = b.h
+		s.doubles = b.doubles
+		s.triples = b.triples
+		s.home_runs = b.hr
+		s.rbi = b.rbi
+		s.walks = b.bb
+		s.strikeouts = b.so
+		return s
+
+	## "4타수 2안타 1홈런" 처럼 짧게
+	func line_text() -> String:
+		var parts := ["%d타수 %d안타" % [ab, hits]]
+		if home_runs > 0:
+			parts.append("%d홈런" % home_runs)
+		if rbi > 0:
+			parts.append("%d타점" % rbi)
+		if walks > 0:
+			parts.append("%d볼넷" % walks)
+		return " ".join(parts)
+
+	func obp() -> float:
+		return float(hits + walks) / float(ab + walks) if ab + walks > 0 else 0.0
+
+	func slg() -> float:
+		return float(hits + doubles + 2 * triples + 3 * home_runs) / float(ab) if ab > 0 else 0.0
+
+	## OPS+ = 100 × (출루율/리그 출루율 + 장타율/리그 장타율 − 1). 타석이 없으면 -1
+	func ops_plus(league: Dictionary) -> int:
+		if ab == 0:
+			return -1
+		return roundi(100.0 * (obp() / float(league["obp"]) + slg() / float(league["slg"]) - 1.0))
+
 	func average() -> String:
 		if ab == 0:
 			return "-"
 		var avg := roundi(hits * 1000.0 / ab)
 		return "1.000" if avg >= 1000 else ".%03d" % avg
+
+	## OPS = 출루율 + 장타율 (몸에 맞는 공·희생플라이는 아직 따로 세지 않는다)
+	func ops() -> String:
+		if ab == 0:
+			return "-"
+		var v := roundi((obp() + slg()) * 1000.0)
+		return "%d.%03d" % [v / 1000, v % 1000] if v >= 1000 else ".%03d" % v
 
 
 var name := "신인"
@@ -56,11 +117,27 @@ var eye := 40
 var speed := 50
 var condition := 80
 var scout_interest := 5
+## 평판 (인성·언론 이미지, 0~100). 스카우트 평가에 들어간다
+var reputation := 50
+## 돈 (원)
+var money := 0
+## 산 장비 (상점 gear id -> true)
+var gear := {}
 ## 타순 (1~9)
 var lineup_slot := 7
 ## 이벤트가 남긴 표시 (나중에 결과가 돌아오는 이벤트용)
 var flags := {}
 var season := SeasonStats.new()
+## 숨겨진 잠재력 (능력치 → 최대치). 화면에는 "성장 여력" 말로만 보인다
+var potential := {}
+## 소수점 성장 누적 (능력치 → 0~1)
+var progress := {}
+## 폼 (−3 슬럼프 ~ +3 상승세)
+var form := 0.0
+## 남은 부상 주 수 (0 이면 건강)
+var injury_weeks := 0
+## 시즌 시작 때 능력치 (시즌 결산에서 성장 비교)
+var season_start := {}
 
 
 static func create(player_name: String, cfg: CareerConfig) -> PlayerData:
@@ -73,6 +150,30 @@ static func create(player_name: String, cfg: CareerConfig) -> PlayerData:
 	p.scout_interest = int(cfg.start["scoutInterest"])
 	p.lineup_slot = int(cfg.start["lineupSlot"])
 	return p
+
+
+## 잠재력 정하기 (커리어 시작 때 한 번)
+func roll_potentials(cfg: CareerConfig, rng: RandomNumberGenerator) -> void:
+	for s in STATS:
+		potential[s] = Growth.roll_potential(cfg, stat(s), rng)
+	mark_season_start()
+
+
+func mark_season_start() -> void:
+	for s in STATS:
+		season_start[s] = stat(s)
+
+
+func is_injured() -> bool:
+	return injury_weeks > 0
+
+
+## 종합 능력치 (네 능력치 평균, 반올림)
+func overall() -> int:
+	var sum := 0
+	for s in STATS:
+		sum += stat(s)
+	return roundi(float(sum) / STATS.size())
 
 
 func stat(id: String) -> int:
@@ -91,8 +192,50 @@ func add_scout(delta: int) -> void:
 	scout_interest = clampi(scout_interest + delta, 0, 100)
 
 
-## 경기에서 쓰는 능력치. 컨디션이 좋으면 조금 오르고 나쁘면 내려간다 — 판정 폭으로 손에 느껴진다
+func add_reputation(delta: int) -> void:
+	reputation = clampi(reputation + delta, 0, 100)
+
+
+## 잠재력 평균 (숨김 값 — 스카우트 평가·잠재력 범위 표시에만 쓴다)
+func potential_average() -> float:
+	var sum := 0.0
+	for s in STATS:
+		sum += float(potential.get(s, stat(s)))
+	return sum / STATS.size()
+
+
+## 경기에서 쓰는 능력치. 컨디션·폼이 좋으면 조금 오르고 나쁘면 내려간다 — 판정 폭으로 손에 느껴진다. 장비 보정도 더한다
 func skills_for_game(cfg: CareerConfig) -> BatterSkills:
-	var bonus := (condition - cfg.condition_pivot) * cfg.condition_per_point
+	var bonus := (condition - cfg.condition_pivot) * cfg.condition_per_point + form * float(cfg.form["skillPerPoint"])
+	var g := gear_bonus(cfg)
 	return BatterSkills.new(
-		clampi(roundi(contact + bonus), 1, 99), clampi(roundi(power + bonus), 1, 99), clampi(roundi(eye + bonus), 1, 99), speed)
+		clampi(roundi(contact + bonus + g.get("contact", 0)), 1, 99), clampi(roundi(power + bonus + g.get("power", 0)), 1, 99),
+		clampi(roundi(eye + bonus + g.get("eye", 0)), 1, 99), clampi(speed + int(g.get("speed", 0)), 1, 99))
+
+
+## 장비 보정 {능력치: +n}. 같은 자리(slot)는 등급(tier)이 가장 높은 것 하나만
+func gear_bonus(cfg: CareerConfig) -> Dictionary:
+	var best := {}  # slot -> 장비 정의
+	for id: String in gear:
+		var item: Dictionary = cfg.shop["gear"][id]
+		var slot: String = item["slot"]
+		if not best.has(slot) or int(item["tier"]) > int(best[slot]["tier"]):
+			best[slot] = item
+	var out := {}
+	for slot: String in best:
+		var b: Dictionary = best[slot]["bonus"]
+		for s: String in b:
+			out[s] = int(out.get(s, 0)) + int(b[s])
+	return out
+
+
+## "12.5만원", "8천원"
+static func money_text(won: int) -> String:
+	var sign := "-" if won < 0 else ""
+	var w := absi(won)
+	if w >= 10000:
+		var man := w / 10000.0
+		return sign + ("%d만원" % int(man) if w % 10000 == 0 else "%.1f만원" % man)
+	if w >= 1000:
+		return sign + "%d천원" % (w / 1000)
+	return sign + "%d원" % w

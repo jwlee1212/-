@@ -35,12 +35,19 @@ class Config:
 	var max_speed_infield: float
 	var max_speed_outfield: float
 	var reach_height: float
+	var max_launch: float
 	var catch_radius: float
 	var transfer_s: float
 	var range_penalty_s: float
 	var range_for_penalty: float
 	var throw_mps: float
 	var outfield_throw_mps: float
+	var outfield_strong_m: float
+	var long_throw_slow_s_per_m: float
+	var relay_min_m: float
+	var relay_leg_share: float
+	var relay_transfer_s: float
+	var relay_prefer_s: float
 	var pickup_s: float
 	var batter_start_s: float
 	var batter_run_at0: float
@@ -51,6 +58,8 @@ class Config:
 	var line_fence: float
 	var center_fence: float
 	var fence_height: float
+	## 주루 수치 (balance.json game.running) — 주자 FSM 이 쓴다
+	var running: Dictionary
 
 	static func from(balance: Dictionary) -> Config:
 		var b: Dictionary = balance["batting"]["battedBall"]
@@ -62,6 +71,7 @@ class Config:
 		c.lift_k = BattingConfig.num(b, "liftK")
 		c.bounce_retention = BattingConfig.num(b, "bounceSpeedRetention")
 		c.ground_decel = BattingConfig.num(b, "groundDecelMps2")
+		c.max_launch = BattingConfig.num(b, "maxLaunchDeg")
 		for name: String in f["positions"]:
 			var ad: Array = f["positions"][name]
 			c.positions[name] = BattedBallSim.polar(float(ad[0]), float(ad[1]))
@@ -82,6 +92,12 @@ class Config:
 		c.range_for_penalty = BattingConfig.num(f, "rangeForPenaltyM")
 		c.throw_mps = BattingConfig.num(f, "throwMps")
 		c.outfield_throw_mps = BattingConfig.num(f, "outfieldThrowMps")
+		c.outfield_strong_m = BattingConfig.num(f, "outfieldStrongRangeM")
+		c.long_throw_slow_s_per_m = BattingConfig.num(f, "longThrowSlowSPerM")
+		c.relay_min_m = BattingConfig.num(f, "relay.minDistanceM")
+		c.relay_leg_share = BattingConfig.num(f, "relay.legShare")
+		c.relay_transfer_s = BattingConfig.num(f, "relay.transferS")
+		c.relay_prefer_s = BattingConfig.num(f, "relay.preferS")
 		c.pickup_s = BattingConfig.num(f, "pickupS")
 		c.batter_start_s = BattingConfig.num(f, "batterStartS")
 		c.batter_run_at0 = BattingConfig.num(f, "batterRunMpsAt0")
@@ -92,6 +108,7 @@ class Config:
 		c.line_fence = BattingConfig.num(f, "park.lineFenceM")
 		c.center_fence = BattingConfig.num(f, "park.centerFenceM")
 		c.fence_height = BattingConfig.num(f, "park.fenceHeightM")
+		c.running = balance["game"]["running"]
 		return c
 
 	## 방향별 펜스 거리 (좌우 끝 → 가운데로 갈수록 멀어진다)
@@ -145,6 +162,8 @@ class Result:
 	var receiver_arrive := 0.0
 	## 1루수가 직접 잡아 그대로 베이스를 밟았는가
 	var self_putout := false
+	## 번트 수비 위치였나 (커버 계산이 같은 위치에서 출발하도록)
+	var bunt := false
 	## 타자 주자: 달리기 속도(m/s), 1루를 밟는 시각
 	var runner_mps := 7.5
 	var runner_start := 0.8
@@ -197,7 +216,10 @@ static func fielder_positions(cfg: Config, bunt: bool) -> Dictionary:
 
 static func simulate(cfg: Config, ev_kmh: float, launch_deg: float, spray_deg: float, runner_speed: int, bunt: bool = false) -> Result:
 	var r := Result.new()
+	# 수직 위를 넘는 발사각은 공이 뒤로 날아간다 (정규분포 끝자락) — 높은 뜬공으로 자른다
+	launch_deg = minf(launch_deg, cfg.max_launch)
 	r.ev_kmh = ev_kmh
+	r.bunt = bunt
 	r.launch_deg = launch_deg
 	r.spray_deg = spray_deg
 	r.batted_ball = _batted_type(launch_deg)
@@ -292,8 +314,8 @@ static func simulate(cfg: Config, ev_kmh: float, launch_deg: float, spray_deg: f
 		return r
 	# 외야로 빠진 공: 줍고 던지는 시간 vs 타자가 2·3루를 밟는 시간
 	var ready := t + cfg.pickup_s
-	var throw2 := ready + gp.distance_to(cfg.base_pos(2)) / cfg.outfield_throw_mps
-	var throw3 := ready + gp.distance_to(cfg.base_pos(3)) / cfg.outfield_throw_mps
+	var throw2 := ready + outfield_to_base_s(cfg, gp.distance_to(cfg.base_pos(2)))
+	var throw3 := ready + outfield_to_base_s(cfg, gp.distance_to(cfg.base_pos(3)))
 	r.throw_release = ready
 	if throw3 > r.runner_time(3) + cfg.extra_base_margin_s:
 		r.outcome = SwingJudge.Outcome.TRIPLE
@@ -371,6 +393,53 @@ static func _first_fielder(cfg: Config, positions: Dictionary, spot: Vector2, at
 ## 가속이 있어서 짧은 시간엔 몇 미터밖에 못 간다 — 강한 땅볼·라이너가 빠져나가는 이유
 static func _need_time(cfg: Config, name: String, from: Vector2, spot: Vector2) -> float:
 	return cfg.reaction(name) + _run_time(cfg, name, maxf(0.0, from.distance_to(spot) - cfg.catch_radius))
+
+
+## 베이스 b 를 커버하러 들어가는 수비수: 공을 잡은 사람을 빼고 가장 먼저 닿는 사람.
+## 돌려주는 값 {"name", "from", "react", "ready"} — react 에 출발해 ready 에 베이스에 선다 (타구 시각 기준).
+## 주루 판정(PlaySimulator)과 중계 화면이 같은 값을 쓴다
+static func base_cover(cfg: Config, r: Result, b: int, busy: Array = []) -> Dictionary:
+	return first_to(cfg, r, Vector2.ZERO if b >= 4 else cfg.base_pos(b), busy, false)
+
+
+## goal 에 가장 먼저 설 수 있는 수비수 (공을 잡은 사람과 busy 는 빼고, infield_only 면 내야수만).
+## 돌려주는 값 {"name", "from", "to", "react", "ready"}
+static func first_to(cfg: Config, r: Result, goal: Vector2, busy: Array, infield_only: bool) -> Dictionary:
+	var positions := fielder_positions(cfg, r.bunt)
+	var best := {}
+	for name: String in positions:
+		if name == r.fielder or name in busy or (infield_only and not (name in cfg.infield)):
+			continue
+		var from: Vector2 = positions[name]
+		var ready := cfg.reaction(name) + _run_time(cfg, name, from.distance_to(goal))
+		if best.is_empty() or ready < float(best.ready):
+			best = {"name": name, "from": from, "to": goal, "react": cfg.reaction(name), "ready": ready}
+	return best
+
+
+## 외야수가 d 미터를 바로 던지는 시간: 힘이 닿는 거리까지는 곧게, 넘으면 m마다 느려진다 (높이 띄우거나 원바운드)
+static func outfield_throw_s(cfg: Config, d: float) -> float:
+	return d / cfg.outfield_throw_mps + maxf(0.0, d - cfg.outfield_strong_m) * cfg.long_throw_slow_s_per_m
+
+
+## 중계 플레이에서 외야수가 던지는 거리 (그 자리에 중계맨이 선다)
+static func relay_leg_m(cfg: Config, d: float) -> float:
+	return minf(d * cfg.relay_leg_share, cfg.outfield_strong_m)
+
+
+## 외야수가 d 미터 떨어진 베이스로 공을 보내는 가장 빠른 시간 (바로 vs 중계, 중계맨은 제때 선다고 본다).
+## 주자 판단·타구 기록용 어림값 — 실제 플레이는 PlaySimulator 가 중계맨의 도착까지 따진다
+static func outfield_to_base_s(cfg: Config, d: float) -> float:
+	var direct := outfield_throw_s(cfg, d)
+	if d < cfg.relay_min_m:
+		return direct
+	var leg := relay_leg_m(cfg, d)
+	return minf(direct, outfield_throw_s(cfg, leg) + cfg.relay_transfer_s + (d - leg) / cfg.throw_mps)
+
+
+## 수비수가 멈춘 상태에서 d 미터를 달리는 시간 (주루 플레이에서 직접 베이스를 밟을지 정할 때)
+static func run_time(cfg: Config, name: String, d: float) -> float:
+	return _run_time(cfg, name, d)
 
 
 ## 멈춘 상태에서 d 미터를 가속해서 달리는 시간 (반응 시간 제외)

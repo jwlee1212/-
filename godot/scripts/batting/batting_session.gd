@@ -73,6 +73,8 @@ var presentation: Presentation
 var swing_type := "normal"
 ## 한 타석 모드: 타석이 끝나면 새 타석을 시작하지 않고 at_bat_finished 를 보낸다
 var single := false
+## 경기 상황 (주자·아웃). 내 타석을 만들 때마다 넘긴다. 연습이면 비어 있다 (주자 없음)
+var situation := {}
 var skills := BatterSkills.new(50, 50, 50)
 var pitcher: BattingConfig.PitcherProfile
 ## 노려치기로 찍어 둔 존 칸 (0~8, 없으면 -1). 타석이 바뀌어도 유지된다
@@ -122,13 +124,15 @@ func update_skills(new_skills: BatterSkills) -> void:
 
 
 ## 경기 속 내 타석 하나를 시작한다 (능력치·상대 투수·시드는 커리어가 정한다)
-func start_single(p_skills: BatterSkills, p_pitcher: BattingConfig.PitcherProfile, seed_value: int) -> void:
+func start_single(p_skills: BatterSkills, p_pitcher: BattingConfig.PitcherProfile, seed_value: int, p_situation: Dictionary = {}) -> void:
 	single = true
 	skills = p_skills
 	pitcher = p_pitcher
+	situation = p_situation
 	at_bat = AtBat.new(config, skills, pitcher, seed_value)
 	at_bat.aim_cell = aim_cell
 	at_bat.swing_type = swing_type
+	at_bat.situation = situation
 	pitch = null
 	callout = null
 	impact = null
@@ -171,7 +175,9 @@ func hit_play_end_ms() -> float:
 	var c := last_result.contact if last_result != null else null
 	if c == null or c.ball == null:
 		return presentation.hit_stop_ms + presentation.hit_flight_ms
-	return presentation.hit_stop_ms + presentation.launch_ms + c.ball.play_end() * 1000.0 / presentation.broadcast_speed
+	# 주자 플레이가 있으면 모든 주자가 멈출 때까지, 없으면 공·송구가 끝날 때까지
+	var end := last_result.play.duration if last_result.play != null else c.ball.play_end()
+	return presentation.hit_stop_ms + presentation.launch_ms + end * 1000.0 / presentation.broadcast_speed
 
 
 ## 중계 화면에서 지금 보여 줄 공의 시각 (초, 실제 시간). 아직 중계 전이면 음수
@@ -355,6 +361,7 @@ func _new_at_bat() -> AtBat:
 	var ab := AtBat.new(config, skills, pitcher, seed_value)
 	ab.aim_cell = aim_cell
 	ab.swing_type = swing_type
+	ab.situation = situation
 	return ab
 
 

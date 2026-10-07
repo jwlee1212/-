@@ -22,6 +22,7 @@ var _session: BattingSession
 var _view: BattingView
 var _banner_until := 0.0
 var _waiting_for_turn := false
+var _highlight: HighlightView
 
 
 func _init(app) -> void:
@@ -80,7 +81,7 @@ func _process(_delta: float) -> void:
 	if _session != null:
 		_session.tick()
 		return
-	if _game.state.over:
+	if _game.state.over or _highlight != null:
 		return
 	if _waiting_for_turn:
 		if _now() >= _banner_until:
@@ -98,6 +99,9 @@ func _process(_delta: float) -> void:
 			_waiting_for_turn = true
 		"auto":
 			_next_step_at = _now() + (_app.career_config.fast_step_ms if _fast else _app.career_config.auto_step_ms)
+			# 점수가 난 안타·홈런은 중계 화면 하이라이트로 (빠르게 모드면 건너뜀)
+			if step.highlight != null and not _fast:
+				_show_highlight(step.highlight, step.text, step.side != _game.my_side)
 	_refresh()
 
 
@@ -106,13 +110,25 @@ func _toggle_fast() -> void:
 	_fast_button.text = "보통 속도 ▶" if _fast else "빠르게 ▶▶"
 
 
+## us_fielding: 우리 팀이 수비였는가 (수비수 유니폼 색)
+func _show_highlight(play: PlaySimulator.PlayResult, text: String, us_fielding: bool) -> void:
+	_highlight = HighlightView.new(_app.batting_config.ball_physics, play, text.substr(text.find("]") + 2), _app.presentation.broadcast_speed, us_fielding)
+	add_child(UiKit.fill_parent(_highlight))
+	_highlight.finished.connect(func() -> void:
+		if _highlight != null:
+			_highlight.queue_free()
+			_highlight = null
+			_next_step_at = _now() + 300.0)
+
+
 # ---------- 내 타석 ----------
 
 func _open_batting() -> void:
 	_session = _app.new_batting_session()
-	var opp_pitcher: BattingConfig.PitcherProfile = _app.batting_config.pitchers[_game.opponent["pitcher"]]
+	# 지금 마운드에 있는 투수의 성향 (선발이 내려가면 불펜 투수)
+	var opp_pitcher: BattingConfig.PitcherProfile = _app.batting_config.pitchers[_game.current_pitcher().profile]
 	var player: PlayerData = _app.career.player
-	_session.start_single(player.skills_for_game(_app.career_config), opp_pitcher, _app.career.at_bat_seed(_game))
+	_session.start_single(player.skills_for_game(_app.career_config), opp_pitcher, _app.career.at_bat_seed(_game), _game.situation())
 	_session.at_bat_finished.connect(_on_at_bat_finished)
 	_batting = Control.new()
 	add_child(UiKit.fill_parent(_batting))
@@ -148,7 +164,7 @@ func _on_at_bat_finished(result: AtBat.Result) -> void:
 func _refresh() -> void:
 	var st := _game.state
 	_situation.text = "경기 종료" if st.over else "%s %s" % [st.half_text(), "%d사" % st.outs if st.outs > 0 else "무사"]
-	_bases.bases = st.bases.duplicate()
+	_bases.bases = st.bases.map(func(b: int) -> bool: return b != GameState.EMPTY)
 	_bases.outs = st.outs
 	_bases.queue_redraw()
 	if st.over:
@@ -175,7 +191,7 @@ func _refresh_scoreboard() -> void:
 	for i in st.innings:
 		_scoreboard.add_child(_cell(str(i + 1), Tokens.INK_SOFT))
 	_scoreboard.add_child(_cell("R", Tokens.INK_SOFT))
-	_scoreboard.add_child(_cell("", Tokens.INK_SOFT))
+	_scoreboard.add_child(_cell("H", Tokens.INK_SOFT))
 	for side in [GameState.AWAY, GameState.HOME]:
 		var mine: bool = side == _game.my_side
 		_scoreboard.add_child(UiKit.label(_game.team_short(side), Tokens.FONT_LABEL, Tokens.PRIMARY if mine else Tokens.INK, Tokens.FONT_BOLD))
@@ -185,7 +201,7 @@ func _refresh_scoreboard() -> void:
 				v = str(st.line[side][i])
 			_scoreboard.add_child(_cell(v, Tokens.INK))
 		_scoreboard.add_child(_cell(str(st.score[side]), Tokens.INK, true))
-		_scoreboard.add_child(_cell("", Tokens.INK))
+		_scoreboard.add_child(_cell(str(_game.box.hits[side]), Tokens.INK_SOFT))
 
 
 func _cell(text: String, color: Color, bold: bool = false) -> Label:
