@@ -2035,16 +2035,903 @@
           }
         }
       ]
+    },
+    {
+      "id": "g1_shoes",
+      "weight": 2,
+      "grade": [
+        1,
+        1
+      ],
+      "week": [
+        2,
+        10
+      ],
+      "speaker": "buddy",
+      "title": "밑창",
+      "text": "야, 너 운동화 밑창 덜렁거린다. 그걸로 베이스 돌다가 날아가겠다.",
+      "choices": [
+        {
+          "label": "스파이크 하나 장만한다",
+          "result": "새 스파이크가 땅을 꽉 문다. 지갑은 홀쭉해졌다.",
+          "cost": 50000,
+          "effects": {
+            "form": 0.5
+          }
+        },
+        {
+          "label": "테이프로 칭칭 감는다",
+          "result": "{buddyName}이(가) 테이프를 같이 감아 줬다. 발이 좀 불편하다.",
+          "effects": {
+            "rel": {
+              "buddy": 3
+            },
+            "condition": -4
+          }
+        }
+      ],
+      "place": "field"
+    },
+    {
+      "id": "g1_ballboy",
+      "weight": 2,
+      "grade": [
+        1,
+        1
+      ],
+      "week": [
+        2,
+        12
+      ],
+      "speaker": "coach",
+      "title": "볼보이",
+      "text": "이번 주말 선배들 경기, 1학년은 볼보이다. 공 줍는 것도 야구다.",
+      "choices": [
+        {
+          "label": "네! 벤치 옆에서 공 줍겠습니다",
+          "result": "하루 종일 뛰었다. 선배들 타석을 코앞에서 봤다.",
+          "effects": {
+            "rel": {
+              "coach": 5
+            },
+            "eye": 1,
+            "condition": -5
+          }
+        },
+        {
+          "label": "개인 훈련하면 안 될까요",
+          "result": "감독이 대답 대신 한숨을 쉬었다. 대신 스윙은 실컷 했다.",
+          "effects": {
+            "contact": 1,
+            "rel": {
+              "coach": -5
+            }
+          }
+        }
+      ],
+      "place": "dugout"
+    },
+    {
+      "id": "g1_fitness",
+      "weight": 2,
+      "grade": [
+        1,
+        1
+      ],
+      "week": [
+        3,
+        12
+      ],
+      "speaker": "coach",
+      "title": "체력 측정",
+      "text": "오늘 셔틀런 기록 잰다. 꼴찌는 운동장 다섯 바퀴 추가.",
+      "choices": [
+        {
+          "label": "처음부터 전력으로",
+          "result": "1학년 1등! 다리가 후들거린다.",
+          "effects": {
+            "speed": 1,
+            "condition": -8,
+            "rel": {
+              "coach": 2
+            }
+          }
+        },
+        {
+          "label": "중간만 하자",
+          "result": "딱 중간. 다섯 바퀴는 피했다.",
+          "effects": {
+            "condition": 3,
+            "rel": {
+              "coach": -3
+            }
+          }
+        }
+      ],
+      "place": "field"
+    },
+    {
+      "id": "g1_parents_meeting",
+      "grade": [
+        1,
+        2
+      ],
+      "week": [
+        2,
+        14
+      ],
+      "speaker": "mom",
+      "title": "학부모 모임",
+      "text": "야구부 학부모 모임에서 간식비 걷는대. 3만 원씩. 엄마가 낼까, 너 용돈에서 낼래?",
+      "choices": [
+        {
+          "label": "내 용돈에서 낼게요",
+          "result": "엄마가 \"다 컸네\" 하고 웃었다. 그 주 간식은 유난히 맛있었다.",
+          "cost": 30000,
+          "effects": {
+            "rel": {
+              "mom": 5,
+              "coach": 2
+            }
+          }
+        },
+        {
+          "label": "이번엔 엄마가 내 줘",
+          "result": "엄마가 내긴 했는데, 표정이 살짝 굳었다.",
+          "effects": {
+            "rel": {
+              "mom": -4
+            },
+            "condition": 3
+          }
+        }
+      ],
+      "place": "home"
+    },
+    {
+      "id": "g1_night_swing",
+      "grade": [
+        1,
+        1
+      ],
+      "week": [
+        4,
+        16
+      ],
+      "speaker": "buddy",
+      "title": "야간 스윙",
+      "text": "다들 갔다. 우리 둘이 300개만 더 휘두르고 갈까? 가로등 아래서.",
+      "choices": [
+        {
+          "label": "300개, 콜!",
+          "result": "손바닥에 물집이 잡혔다. 마지막 스윙은 소리가 달랐다.",
+          "effects": {
+            "power": 1,
+            "condition": -8,
+            "rel": {
+              "buddy": 3
+            }
+          }
+        },
+        {
+          "label": "내일 경기 있잖아, 자자",
+          "result": "\"재미없는 놈.\" 그래도 버스 정류장까지 같이 걸었다.",
+          "effects": {
+            "condition": 6,
+            "rel": {
+              "buddy": -2
+            }
+          }
+        }
+      ],
+      "place": "field"
+    },
+    {
+      "id": "g1_school_trip",
+      "weight": 2,
+      "grade": [
+        1,
+        1
+      ],
+      "week": [
+        6,
+        14
+      ],
+      "speaker": "mom",
+      "title": "수학여행",
+      "text": "다음 주 수학여행이라며? 야구부는 훈련한다던데, 너는 어떻게 할 거야?",
+      "choices": [
+        {
+          "label": "간다! 평생 한 번이잖아",
+          "result": "바다도 보고 베개 싸움도 했다. 돌아오니 몸이 좀 굳었다.",
+          "cost": 50000,
+          "effects": {
+            "condition": 12,
+            "rel": {
+              "mom": 3
+            },
+            "form": -0.3
+          }
+        },
+        {
+          "label": "남아서 훈련한다",
+          "result": "텅 빈 학교에서 감독과 둘이 펑고를 받았다.",
+          "effects": {
+            "contact": 1,
+            "rel": {
+              "coach": 3,
+              "mom": -3
+            },
+            "condition": -3
+          }
+        }
+      ],
+      "place": "home"
+    },
+    {
+      "id": "g1_ramen",
+      "grade": [
+        1,
+        2
+      ],
+      "repeat": true,
+      "cooldownWeeks": 10,
+      "speaker": "buddy",
+      "title": "컵라면",
+      "text": "훈련 끝! 편의점 컵라면 콜? 오늘은 네가 쏘는 날 아니냐?",
+      "choices": [
+        {
+          "label": "오케이, 삼각김밥까지 쏜다",
+          "result": "편의점 앞 의자에 앉아 국물까지 다 마셨다.",
+          "cost": 10000,
+          "effects": {
+            "rel": {
+              "buddy": 6
+            },
+            "condition": 3
+          }
+        },
+        {
+          "label": "난 닭가슴살 먹을래",
+          "result": "\"헬창이냐?\" {buddyName}이(가) 혼자 라면을 먹었다.",
+          "effects": {
+            "condition": 5,
+            "rel": {
+              "buddy": -3
+            }
+          }
+        }
+      ],
+      "place": "street"
+    },
+    {
+      "id": "g2_winter_camp",
+      "grade": [
+        2,
+        2
+      ],
+      "week": [
+        1,
+        6
+      ],
+      "speaker": "coach",
+      "title": "전지훈련",
+      "text": "남쪽으로 전지훈련 간다. 숙박비 일부는 각자 부담이다. 빠질 사람은 말해.",
+      "choices": [
+        {
+          "label": "따라간다",
+          "result": "따뜻한 운동장에서 하루 여덟 시간. 몸이 단단해졌다.",
+          "cost": 100000,
+          "effects": {
+            "contact": 1,
+            "power": 1,
+            "condition": -6
+          }
+        },
+        {
+          "label": "학교에 남아 개인 훈련",
+          "result": "혼자 하니 편하긴 한데, 돌아온 애들 얼굴이 까맣다.",
+          "effects": {
+            "condition": 8,
+            "rel": {
+              "coach": -5
+            }
+          }
+        }
+      ],
+      "place": "bus"
+    },
+    {
+      "id": "g2_junior",
+      "grade": [
+        2,
+        2
+      ],
+      "week": [
+        2,
+        14
+      ],
+      "speaker": "buddy",
+      "title": "후배",
+      "text": "1학년 애 하나가 너한테 타격 좀 배우고 싶대. 너 팬이래, 웃기지?",
+      "choices": [
+        {
+          "label": "가르쳐 준다",
+          "result": "설명하다 보니 내 스윙도 정리가 됐다. 대신 내 연습 시간은 줄었다.",
+          "effects": {
+            "rel": {
+              "coach": 3
+            },
+            "reputation": 2,
+            "condition": -4
+          }
+        },
+        {
+          "label": "나도 아직 배우는 중이야",
+          "result": "후배가 시무룩해졌다. 그 시간에 티 배팅을 백 개 더 했다.",
+          "effects": {
+            "contact": 1,
+            "reputation": -2
+          }
+        }
+      ],
+      "place": "field"
+    },
+    {
+      "id": "g2_buddy_fight",
+      "grade": [
+        2,
+        2
+      ],
+      "week": [
+        3,
+        16
+      ],
+      "speaker": "buddy",
+      "title": "사인",
+      "text": "야! 아까 주자 있을 때 내 사인 왜 무시했어? 런앤히트였잖아!",
+      "choices": [
+        {
+          "label": "미안, 내가 못 봤어",
+          "result": "{buddyName}이(가) 씩씩대다 \"다음엔 봐라\" 했다. 둘이 음료수를 나눠 마셨다.",
+          "effects": {
+            "rel": {
+              "buddy": 6
+            },
+            "form": -0.3
+          }
+        },
+        {
+          "label": "그 공은 쳐야 했어",
+          "result": "말다툼 끝에 서로 등 돌리고 퇴근. 그래도 내 타격감은 확실하다.",
+          "effects": {
+            "rel": {
+              "buddy": -8
+            },
+            "form": 0.5
+          }
+        }
+      ],
+      "place": "dugout"
+    },
+    {
+      "id": "g2_practice_game",
+      "grade": [
+        2,
+        2
+      ],
+      "week": [
+        3,
+        15
+      ],
+      "speaker": "coach",
+      "title": "연습경기",
+      "text": "이번 주 대학팀이랑 연습경기 잡혔다. 저쪽 투수 140 던진다. 4번으로 나가 볼래?",
+      "choices": [
+        {
+          "label": "나가겠습니다",
+          "outcomes": [
+            {
+              "weight": 2,
+              "result": "대학 투수 공을 담장까지 보냈다. 관중석이 웅성거렸다.",
+              "effects": {
+                "scoutInterest": 2,
+                "condition": -5
+              }
+            },
+            {
+              "weight": 1,
+              "result": "삼진 셋. 대학 형들 공은 달랐다.",
+              "effects": {
+                "form": -0.5,
+                "condition": -5
+              }
+            }
+          ]
+        },
+        {
+          "label": "벤치에서 공부하겠습니다",
+          "result": "대학 투수들의 볼배합을 노트에 빼곡히 적었다.",
+          "effects": {
+            "eye": 1,
+            "condition": 3
+          }
+        }
+      ],
+      "place": "stadium"
+    },
+    {
+      "id": "g2_glove_repair",
+      "grade": [
+        2,
+        2
+      ],
+      "week": [
+        2,
+        18
+      ],
+      "speaker": "수선집 사장님",
+      "portrait": "none",
+      "title": "글러브 끈",
+      "text": "어이쿠, 학생. 글러브 끈이 다 삭았네. 이대로 쓰다 시합 중에 터진다?",
+      "choices": [
+        {
+          "label": "수선 맡긴다",
+          "result": "새 끈이 손에 착 감긴다. 공 잡는 소리가 맑아졌다.",
+          "cost": 20000,
+          "effects": {
+            "form": 0.3
+          }
+        },
+        {
+          "label": "한 시즌만 더 버틴다",
+          "result": "끈을 꽉 묶고 나왔다. 공 잡을 때마다 신경이 쓰인다.",
+          "effects": {
+            "form": -0.3,
+            "condition": -2
+          }
+        }
+      ],
+      "place": "street"
+    },
+    {
+      "id": "g23_slump_video",
+      "grade": [
+        2,
+        3
+      ],
+      "maxForm": -0.5,
+      "repeat": true,
+      "cooldownWeeks": 10,
+      "weight": 2,
+      "speaker": "buddy",
+      "title": "영상 분석",
+      "text": "너 요즘 방망이가 늦어. 오늘 밤에 영상 같이 볼래? 아니면 머리 좀 식히러 노래방 갈까?",
+      "choices": [
+        {
+          "label": "밤새 영상 본다",
+          "result": "찾았다. 왼쪽 어깨가 일찍 열린다. 눈이 뻑뻑하다.",
+          "effects": {
+            "eye": 1,
+            "form": 0.5,
+            "condition": -6
+          }
+        },
+        {
+          "label": "노래방 간다",
+          "result": "목이 쉬도록 불렀다. 머리가 가벼워졌다.",
+          "cost": 15000,
+          "effects": {
+            "form": 0.3,
+            "condition": 8,
+            "rel": {
+              "buddy": 4
+            }
+          }
+        }
+      ],
+      "place": "phone"
+    },
+    {
+      "id": "g23_newspaper",
+      "grade": [
+        2,
+        3
+      ],
+      "minScout": 20,
+      "speaker": "지역 신문 기자",
+      "portrait": "none",
+      "title": "지역 신문",
+      "text": "우리 지역 고교 유망주 특집이에요. 한 줄로 각오 한마디 해 줄래요? 크게 실릴 거예요.",
+      "choices": [
+        {
+          "label": "팀이 먼저입니다",
+          "result": "기사 제목: '겸손한 {school}의 방망이'. 감독이 신문을 오려 붙였다.",
+          "effects": {
+            "reputation": 3,
+            "rel": {
+              "coach": 3
+            }
+          }
+        },
+        {
+          "label": "전국 최고 타자가 되겠습니다",
+          "result": "기사 제목: '당찬 출사표'. 스카우트들 사이에서 이름이 돌았다. 동네에선 좀 건방지다는 말도.",
+          "effects": {
+            "scoutInterest": 3,
+            "reputation": -3
+          }
+        }
+      ],
+      "place": "classroom"
+    },
+    {
+      "id": "g23_allowance",
+      "grade": [
+        2,
+        3
+      ],
+      "week": [
+        2,
+        18
+      ],
+      "speaker": "mom",
+      "title": "용돈 협상",
+      "text": "요즘 장비값이 많이 든다고? 용돈 올려 달라는 얘기면… 일단 들어나 보자.",
+      "choices": [
+        {
+          "label": "조금만 올려 주세요",
+          "outcomes": [
+            {
+              "weight": 1,
+              "result": "엄마가 지갑을 열었다. \"대신 성적표 가져와.\"",
+              "effects": {
+                "money": 50000,
+                "rel": {
+                  "mom": -2
+                }
+              }
+            },
+            {
+              "weight": 1,
+              "result": "\"네 나이 때 엄마는…\" 긴 이야기가 시작됐다.",
+              "effects": {
+                "rel": {
+                  "mom": -5
+                }
+              }
+            }
+          ]
+        },
+        {
+          "label": "아니에요, 아껴 쓸게요",
+          "result": "엄마가 머리를 쓰다듬었다. 저녁 반찬이 하나 늘었다.",
+          "effects": {
+            "rel": {
+              "mom": 5
+            },
+            "condition": 2
+          }
+        }
+      ],
+      "place": "home"
+    },
+    {
+      "id": "g23_jinx",
+      "grade": [
+        2,
+        3
+      ],
+      "lastMinHits": 2,
+      "repeat": true,
+      "cooldownWeeks": 12,
+      "speaker": "buddy",
+      "title": "징크스",
+      "text": "야, 너 그 양말 신고 멀티히트 쳤잖아. 설마 빨 거야? 그거 행운의 양말이야.",
+      "choices": [
+        {
+          "label": "안 빤다. 끝까지 신는다",
+          "result": "타석에 설 때마다 든든하다. 라커룸에선 다들 코를 막는다.",
+          "effects": {
+            "form": 0.5,
+            "reputation": -2,
+            "rel": {
+              "buddy": 3
+            }
+          }
+        },
+        {
+          "label": "운은 실력이 만든다. 빤다",
+          "result": "뽀송한 양말. 마음도 뽀송하다.",
+          "effects": {
+            "condition": 3,
+            "rel": {
+              "buddy": -2
+            }
+          }
+        }
+      ],
+      "place": "dugout"
+    },
+    {
+      "id": "g3_tipping",
+      "grade": [
+        3,
+        3
+      ],
+      "week": [
+        2,
+        16
+      ],
+      "speaker": "buddy",
+      "title": "투구 버릇",
+      "text": "다음 상대 에이스, 변화구 던질 때 글러브를 한 번 더 턴다. 내가 봤어. 믿어 볼래?",
+      "choices": [
+        {
+          "label": "믿는다. 그걸 노린다",
+          "outcomes": [
+            {
+              "weight": 2,
+              "result": "진짜였다! 변화구가 손에서 보이는 것 같다.",
+              "effects": {
+                "contact": 1,
+                "form": 0.5,
+                "rel": {
+                  "buddy": 3
+                }
+              }
+            },
+            {
+              "weight": 1,
+              "result": "글러브만 보다가 직구에 얼었다. 버릇은 착각이었다.",
+              "effects": {
+                "form": -0.5
+              }
+            }
+          ]
+        },
+        {
+          "label": "내 감대로 친다",
+          "result": "공 하나하나에 집중했다. 마음이 편하다.",
+          "effects": {
+            "condition": 5,
+            "rel": {
+              "buddy": -2
+            }
+          }
+        }
+      ],
+      "place": "dugout"
+    },
+    {
+      "id": "g3_cram",
+      "grade": [
+        3,
+        3
+      ],
+      "week": [
+        1,
+        8
+      ],
+      "speaker": "mom",
+      "title": "모의고사",
+      "text": "혹시 모르니까 학원 하나만 다니자. 야구가 안 되면 공부라도… 아니, 그냥 엄마 걱정이야.",
+      "choices": [
+        {
+          "label": "주말반만 다닐게요",
+          "result": "주말이 사라졌다. 엄마는 안심한 얼굴이다.",
+          "cost": 80000,
+          "effects": {
+            "rel": {
+              "mom": 8
+            },
+            "condition": -6
+          }
+        },
+        {
+          "label": "야구로 승부할게요",
+          "result": "엄마는 한참 말이 없다가 \"그래, 대신 다치지 마\" 했다.",
+          "effects": {
+            "rel": {
+              "mom": -5
+            },
+            "condition": 4
+          }
+        }
+      ],
+      "place": "home"
+    },
+    {
+      "id": "g3_alumni",
+      "grade": [
+        3,
+        3
+      ],
+      "minRep": 50,
+      "speaker": "프로 출신 동문 선배",
+      "portrait": "none",
+      "title": "동문 선배",
+      "text": "네가 요즘 잘 친다는 후배구나? 밥 한번 사 줄게. 궁금한 거 있으면 물어봐.",
+      "choices": [
+        {
+          "label": "밥 먹으며 이것저것 묻는다",
+          "result": "\"프로는 체력이야.\" 고기를 세 판 먹었다.",
+          "effects": {
+            "condition": 6,
+            "eye": 1,
+            "rel": {
+              "coach": 2
+            }
+          }
+        },
+        {
+          "label": "개인 레슨을 부탁한다",
+          "result": "레슨비는 반값만 받겠다며 배팅 케이지로 끌고 갔다.",
+          "cost": 50000,
+          "effects": {
+            "contact": 1,
+            "condition": -3
+          }
+        }
+      ],
+      "place": "cafe"
+    },
+    {
+      "id": "g3_team_bbq",
+      "grade": [
+        3,
+        3
+      ],
+      "lastResult": "win",
+      "repeat": true,
+      "cooldownWeeks": 10,
+      "weight": 2,
+      "speaker": "coach",
+      "title": "회식",
+      "text": "오늘 잘했다. 3학년들, 후배들 데리고 고기 먹고 와라. 감독 카드는… 반만 된다.",
+      "choices": [
+        {
+          "label": "나머지는 내가 쏜다",
+          "result": "후배들이 \"선배님!\"을 외쳤다. 통장은 울었다.",
+          "cost": 30000,
+          "effects": {
+            "reputation": 3,
+            "rel": {
+              "coach": 3
+            }
+          }
+        },
+        {
+          "label": "먼저 들어가 쉴게요",
+          "result": "집에서 일찍 잤다. 단톡방엔 고기 사진이 계속 올라왔다.",
+          "effects": {
+            "condition": 6,
+            "rel": {
+              "buddy": -3
+            }
+          }
+        }
+      ],
+      "place": "street"
+    },
+    {
+      "id": "g3_album",
+      "grade": [
+        3,
+        3
+      ],
+      "week": [
+        8,
+        18
+      ],
+      "speaker": "반장",
+      "portrait": "none",
+      "title": "졸업 앨범",
+      "text": "오늘 졸업 앨범 단체 사진이야. 야구부 훈련 시간이랑 겹치는데… 너 빠지면 사진에 구멍 난다?",
+      "choices": [
+        {
+          "label": "사진 찍고 간다",
+          "result": "어색하게 브이를 했다. 엄마가 제일 좋아할 사진이다.",
+          "effects": {
+            "rel": {
+              "mom": 4
+            },
+            "condition": 3
+          }
+        },
+        {
+          "label": "훈련이 먼저다",
+          "result": "앨범엔 동그라미 속 내 얼굴만 붙었다. 감독은 고개를 끄덕였다.",
+          "effects": {
+            "rel": {
+              "coach": 4,
+              "mom": -4
+            }
+          }
+        }
+      ],
+      "place": "classroom"
+    },
+    {
+      "id": "any_rehab",
+      "injured": true,
+      "weight": 3,
+      "repeat": true,
+      "cooldownWeeks": 8,
+      "speaker": "트레이너 선생님",
+      "portrait": "none",
+      "title": "재활",
+      "text": "회복 속도 좋은데? 여기서 서두르면 도루묵이야. 어떻게 할래?",
+      "choices": [
+        {
+          "label": "프로그램대로 천천히",
+          "result": "지루한 고무밴드 운동을 매일 했다. 몸이 단단해지는 느낌이다.",
+          "effects": {
+            "condition": 10,
+            "form": -0.3
+          }
+        },
+        {
+          "label": "빨리 복귀하고 싶어요",
+          "outcomes": [
+            {
+              "weight": 2,
+              "result": "생각보다 몸이 가볍다. 감독이 \"벌써?\" 하며 웃었다.",
+              "effects": {
+                "rel": {
+                  "coach": 4
+                },
+                "condition": -5
+              }
+            },
+            {
+              "weight": 1,
+              "result": "무리했다. 다시 얼음 찜질이다.",
+              "effects": {
+                "injury": 2,
+                "condition": -5
+              }
+            }
+          ]
+        }
+      ],
+      "place": "field"
+    },
+    {
+      "id": "any_rain",
+      "repeat": true,
+      "cooldownWeeks": 12,
+      "speaker": "coach",
+      "title": "우천",
+      "text": "비 때문에 운동장 못 쓴다. 실내에서 웨이트 할 사람, 쉬고 싶은 사람 알아서 해라.",
+      "choices": [
+        {
+          "label": "웨이트장으로",
+          "result": "바벨 소리가 빗소리보다 컸다. 팔이 묵직하다.",
+          "effects": {
+            "power": 1,
+            "condition": -6
+          }
+        },
+        {
+          "label": "오늘은 쉰다",
+          "result": "창밖 빗소리를 들으며 낮잠을 잤다. 개운하다.",
+          "effects": {
+            "condition": 10
+          }
+        }
+      ],
+      "place": "classroom"
     }
   ],
   "coachLines": {
     "_note": "이벤트가 없는 주에 결과 화면에 나오는 감독 한마디. 결과(win/draw/loss)와 내 활약(hot = 2안타 이상, cold = 무안타)으로 고른다",
-    "win_hot": ["오늘 방망이 좋더라. 이 감 잊지 마.", "네 덕에 이겼다. 오늘은 푹 쉬어."],
-    "win_cold": ["팀이 이겼으니 됐다. 다음엔 네 차례야.", "안 맞는 날도 있어. 이긴 게 중요해."],
-    "loss_hot": ["너 혼자 잘해선 못 이겨. 그래도 잘했다.", "졌지만 네 타격은 살아 있었어."],
-    "loss_cold": ["오늘은 다 같이 안 풀렸다. 다시 하자.", "고개 들어. 다음 주가 있잖아."],
-    "draw_hot": ["아깝다! 네가 한 방 더 쳤으면…", "비겼지만 네 타격은 좋았어."],
-    "draw_cold": ["비긴 것도 결과다. 다음엔 끝내자.", "무승부. 다음 주엔 확실히 가자."]
+    "win_hot": ["오늘 방망이 좋더라. 이 감 잊지 마.", "네 덕에 이겼다. 오늘은 푹 쉬어.", "오늘 같은 스윙이면 어디 가서도 안 꿀린다.", "잘 쳤다. 근데 내일 아침 러닝은 똑같다."],
+    "win_cold": ["팀이 이겼으니 됐다. 다음엔 네 차례야.", "안 맞는 날도 있어. 이긴 게 중요해.", "방망이는 쉬어도 다리는 안 쉬었지? 그거면 됐다.", "오늘 수비로 한 점 막았잖아. 그것도 야구다."],
+    "loss_hot": ["너 혼자 잘해선 못 이겨. 그래도 잘했다.", "졌지만 네 타격은 살아 있었어.", "너는 할 만큼 했다. 나머지는 내 숙제다.", "진 날 친 안타가 진짜 실력이다. 기억해 둬."],
+    "loss_cold": ["오늘은 다 같이 안 풀렸다. 다시 하자.", "고개 들어. 다음 주가 있잖아.", "오늘 거는 오늘 버리고 가. 밥 잘 먹고.", "안 맞을 땐 공을 끝까지 봐라. 그게 다다."],
+    "draw_hot": ["아깝다! 네가 한 방 더 쳤으면…", "비겼지만 네 타격은 좋았어.", "무승부여도 네 타석은 이긴 거다.", "한 끗 차이였다. 다음엔 네가 끝내라."],
+    "draw_cold": ["비긴 것도 결과다. 다음엔 끝내자.", "무승부. 다음 주엔 확실히 가자.", "비긴 날은 다 같이 반성하는 날이다.", "다음 주에 오늘 못 친 거까지 쳐."]
   },
   "regionalSchools": [
     {
