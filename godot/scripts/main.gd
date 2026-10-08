@@ -10,6 +10,10 @@ var presentation: Presentation
 var career_config: CareerConfig
 var sound: SoundPlayer
 var career: CareerState
+## 저장을 못 읽은 이유 (로비에 보여 준다, "" 이면 문제없음)
+var save_error := ""
+## 저장 파일 (스크린샷 스크립트는 다른 파일을 써서 유저 저장을 건드리지 않는다)
+var save_path := SaveGame.PATH
 
 var _source: BalanceSource
 var _screen_root: Control
@@ -33,6 +37,7 @@ func _ready() -> void:
 	sound = SoundPlayer.new()
 	add_child(sound)
 	await _load_configs()
+	_load_save()
 	if OS.is_debug_build():
 		_add_tuning_panel()
 		_add_fps()
@@ -67,7 +72,25 @@ func show_create() -> void:
 
 func start_career(player_name: String) -> void:
 	career = CareerState.new(career_config, player_name, batting_config)
+	save_career()
 	show_home()
+
+
+## 이어하기: 시즌이 끝났으면 시즌 결산, 아니면 허브 (경기를 마친 주면 허브가 남은 이야기와 [다음 주]를 보여 준다)
+func continue_career() -> void:
+	if career.is_season_over():
+		show_season()
+	else:
+		show_home()
+
+
+## 경기 뒤 다음 주로 (결과 화면·허브의 [다음 주])
+func next_week() -> void:
+	career.advance_week()
+	if career.is_season_over():
+		show_season()
+	else:
+		show_home()
 
 
 func show_home() -> void:
@@ -75,6 +98,9 @@ func show_home() -> void:
 
 
 func show_game() -> void:
+	if career.game_done:
+		show_home()  # 이번 주 경기는 이미 했다 (불러온 뒤 같은 경기를 다시 하지 않는다)
+		return
 	show_screen(GameScreen.new(self))
 
 
@@ -99,6 +125,27 @@ func new_batting_session() -> BattingSession:
 	var s := BattingSession.new(batting_config, presentation)
 	s.sound_requested.connect(sound.play)
 	return s
+
+
+# ---------- 저장 ----------
+
+## 지금 커리어를 저장한다 (허브·결과·시즌 결산 화면이 그릴 때와 선택할 때마다 부른다)
+func save_career() -> void:
+	if career == null:
+		return
+	var err := SaveGame.save(career, save_path)
+	if err != "":
+		push_warning("저장 실패: " + err)
+
+
+func _load_save() -> void:
+	if not SaveGame.exists(save_path):
+		return
+	var r := SaveGame.load_career(career_config, batting_config, save_path)
+	career = r["career"]
+	save_error = r["error"]
+	if save_error != "":
+		push_warning("불러오기 실패: " + save_error)
 
 
 # ---------- 수치 ----------

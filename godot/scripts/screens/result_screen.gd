@@ -18,6 +18,7 @@ func _init(app, game: GameRunner) -> void:
 func _ready() -> void:
 	var career: CareerState = _app.career
 	var notes := career.finish_game(_game)
+	_app.save_career()
 	var row := UiKit.hbox(Tokens.SPACE_MD)
 	add_child(UiKit.fill_parent(UiKit.margin(row)))
 
@@ -100,6 +101,7 @@ func _show_event() -> void:
 	add_child(UiKit.fill_parent(view))
 	view.finished.connect(func() -> void:
 		var entry: Dictionary = _app.career.book.log[-1]
+		_app.save_career()
 		view.queue_free()
 		var done := UiKit.label("%s · %s" % [entry["title"], entry["choice"]], Tokens.FONT_CAPTION, Tokens.INK_SOFT)
 		done.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -124,12 +126,7 @@ func _show_next() -> void:
 
 
 func _next() -> void:
-	var career: CareerState = _app.career
-	career.advance_week()
-	if career.is_season_over():
-		_app.show_season()
-	else:
-		_app.show_home()
+	_app.next_week()
 
 
 static func _line_text(l: PlayerData.SeasonStats) -> String:

@@ -2,6 +2,7 @@ extends SceneTree
 ## 타격 프로토타입 테스트. 실제 config/balance.json 으로 돈다.
 ##   ~/Applications/Godot.app/Contents/MacOS/Godot --headless --path godot --script res://tests/run_tests.gd
 ## 하나라도 실패하면 종료 코드 1.
+## 일부만 돌리기: ONLY=save 처럼 환경 변수를 주면 이름에 그 글자가 들어간 테스트만 돈다.
 
 var _config: BattingConfig
 var _judge: SwingJudge
@@ -103,7 +104,13 @@ func _init() -> void:
 		"test_final_count_recorded",
 		"test_season_stats_details",
 		"test_records_game_log_and_splits",
+		"test_save_roundtrip",
+		"test_save_then_continue_is_same",
+		"test_save_file_and_errors",
 	]:
+		var only := OS.get_environment("ONLY")
+		if only != "" and not test.contains(only):
+			continue
 		_current = test
 		var before := _failures
 		call(test)
@@ -1811,3 +1818,117 @@ func test_records_game_log_and_splits() -> void:
 		pa2 += (row[1] as PlayerData.SeasonStats).pa
 	check(pa2 == career.player.season.pa, "시즌별 분할은 그 시즌만")
 	check(rec.phases[-1].result == "" and rec.phases[-1].grade == 2, "새 시즌 첫 대회는 진행 중")
+
+
+## 저장 테스트용 한 주: 주 시작 이야기 → 훈련·경기(내 타석 자동, 타구·카운트 포함) → 경기 뒤 이야기 → 다음 주
+func _save_week(career: CareerState) -> void:
+	for e: Dictionary in career.events("start").duplicate():
+		career.resolve_event(e, _ok_choice(career, e, 0))
+	career.train("rest" if career.player.condition < 50 else "contact")
+	var game := career.new_game()
+	var rng := _rng(career.week * 17 + career.season_no)
+	while not game.state.over:
+		if game.step().type == "my_turn":
+			var pa := AutoPa.simulate(career.cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng)
+			var c: SwingJudge.Contact = null
+			if pa.ball != null:
+				c = SwingJudge.Contact.new(SwingJudge.Quality.SOLID, pa.ball.spray_deg, pa.ball.distance_m, pa.ball.batted_ball)
+				c.ball = pa.ball
+			var res := AtBat.Result.new(pa.outcome, SwingJudge.BattedBall.NONE, pa.pitches, c)
+			res.balls = rng.randi_range(0, 3)
+			res.strikes = rng.randi_range(0, 2)
+			game.apply_my_result(res)
+	career.finish_game(game)
+	for e: Dictionary in career.events("after").duplicate():
+		career.resolve_event(e, _ok_choice(career, e, 0))
+	career.advance_week()
+
+
+## 시즌 끝까지 (결산 이야기·겨울 훈련 포함) 진행하고 다음 시즌으로
+func _save_season_end(career: CareerState) -> void:
+	for e: Dictionary in career.events("seasonEnd").duplicate():
+		career.resolve_event(e, _ok_choice(career, e, 0))
+	career.winter_training()
+	career.start_next_season()
+
+
+func _reload(career: CareerState) -> CareerState:
+	var r := SaveGame.from_bytes(SaveGame.to_bytes(career), career.cfg, career.batting)
+	check(r["error"] == "", "불러오기 오류: %s" % r["error"])
+	return r["career"]
+
+
+func test_save_roundtrip() -> void:
+	var career := CareerState.new(_career_cfg(), "저장", _config)
+	for w in 9:
+		_save_week(career)
+	career.socialize("coach", "gift")
+	var bytes := SaveGame.to_bytes(career)
+	var loaded := _reload(career)
+	check(SaveGame.to_bytes(loaded) == bytes, "저장 → 불러오기 → 저장이 똑같다")
+	# 같은 객체를 가리키던 관계가 살아 있다 (라이벌 = 라이벌 학교 명단의 그 타자)
+	var slot := int(loaded.cfg.rival.lineupSlot) - 1
+	var school: School = loaded.schools[loaded.rival.school_id]
+	check(loaded.rival.batter == school.team.lineup[slot], "라이벌 타자는 명단 속 같은 객체")
+	check(loaded.history.is_empty() and loaded.player != career.player, "새 객체로 만들어진다")
+	# 타입이 붙은 배열·int 키·설정 참조
+	check(loaded.results.is_typed() and loaded.results == career.results, "results: Array[int]")
+	check(loaded.records.games.is_typed() and loaded.records.games.size() == career.records.games.size(), "기록실 경기")
+	check(loaded.records.splits.has(1) and loaded.records.splits.keys() == career.records.splits.keys(), "시즌 번호 키는 int 그대로")
+	check(loaded.cfg == career.cfg and loaded.book.defs.size() == career.book.defs.size(), "설정·이벤트 정의는 지금 것")
+	check(loaded.book.log.size() == career.book.log.size() and loaded.book.fired == career.book.fired, "이벤트 기록")
+	check(loaded.player.season.pa == career.player.season.pa and loaded.player.money == career.player.money
+		and loaded.player.potential == career.player.potential and loaded.week == career.week, "선수·주차")
+
+
+func test_save_then_continue_is_same() -> void:
+	# 원래 커리어와 불러온 커리어를 똑같이 진행하면 끝까지 똑같다 (시즌을 넘어가도)
+	var a := CareerState.new(_career_cfg(), "저장", _config)
+	for w in 5:
+		_save_week(a)
+	var b := _reload(a)
+	for career: CareerState in [a, b]:
+		var guard := 0
+		while not career.is_season_over() and guard < 40:
+			_save_week(career)
+			guard += 1
+		_save_season_end(career)
+		for w in 3:
+			_save_week(career)
+	check(SaveGame.to_bytes(a) == SaveGame.to_bytes(b), "불러온 뒤 진행 = 원래 진행")
+	check(a.player.grade == 2 and a.history.size() == 1, "2학년까지 갔다")
+	# 경기를 마친 주에 저장하면, 불러와도 경기는 끝난 상태 (같은 경기를 다시 하지 않는다)
+	var c := CareerState.new(_career_cfg(), "저장", _config)
+	var g := _auto_week(c, "rest")
+	c.finish_game(g)
+	var d := _reload(c)
+	check(d.game_done and d.week == c.week, "경기 마친 주")
+	d.advance_week()
+	check(not d.game_done and d.week == c.week + 1, "다음 주로 넘어가면 다시 경기")
+	# 겨울 훈련은 한 번만 (불러온 뒤 다시 눌러도 같은 결과, 능력치가 더 오르지 않는다)
+	a.phase_index = a.phases().size()
+	var gains := a.winter_training()
+	var ovr := a.player.overall()
+	var e := _reload(a)
+	check(e.winter_training() == gains and e.player.overall() == ovr, "겨울 훈련은 시즌에 한 번")
+
+
+func test_save_file_and_errors() -> void:
+	var path := "user://test_career.save"
+	SaveGame.delete(path)
+	var cfg := _career_cfg()
+	check(not SaveGame.exists(path) and SaveGame.load_career(cfg, _config, path)["career"] == null, "저장이 없으면 null")
+	var career := CareerState.new(cfg, "파일", _config)
+	_save_week(career)
+	check(SaveGame.save(career, path) == "" and SaveGame.exists(path), "파일에 저장")
+	check(not FileAccess.file_exists(path + ".tmp"), "임시 파일은 남지 않는다")
+	var r := SaveGame.load_career(cfg, _config, path)
+	check(r["error"] == "" and r["career"].player.name == "파일" and r["career"].week == 2, "파일에서 불러오기")
+	check(SaveGame.summary(r["career"]).begins_with("파일 · 1학년"), SaveGame.summary(r["career"]))
+	check(SaveGame.from_bytes("깨진 파일".to_utf8_buffer(), cfg, _config)["career"] == null, "깨진 파일")
+	check(SaveGame.from_bytes(PackedByteArray(), cfg, _config)["career"] == null, "빈 파일")
+	var data: Dictionary = bytes_to_var(SaveGame.to_bytes(career))
+	data["version"] = 999
+	check(SaveGame.from_bytes(var_to_bytes(data), cfg, _config)["error"].begins_with("저장 버전"), "다른 버전")
+	SaveGame.delete(path)
+	check(not SaveGame.exists(path), "지우기")

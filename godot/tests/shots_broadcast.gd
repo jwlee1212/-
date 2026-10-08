@@ -11,6 +11,9 @@ func _ready() -> void:
 	await get_tree().process_frame
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build/shots"))
 	_app = load("res://scenes/batting.tscn").instantiate()
+	# 유저 저장을 건드리지 않게 따로 저장하고, 매번 빈 저장에서 시작한다
+	_app.save_path = "user://shots.save"
+	SaveGame.delete(_app.save_path)
 	add_child(_app)
 	await _until(func() -> bool: return _app._current != null)
 	_app.show_practice()

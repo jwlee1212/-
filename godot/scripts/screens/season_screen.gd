@@ -20,6 +20,7 @@ func _build() -> void:
 		if c != _overlay:
 			c.queue_free()
 	var career: CareerState = _app.career
+	_app.save_career()
 	var p := career.player
 	var s := p.season
 	var center := CenterContainer.new()
@@ -54,17 +55,16 @@ func _build() -> void:
 	if p.grade < 3:
 		var next: Button
 		next = UiKit.button("겨울 훈련 ▶", func() -> void:
-			if next.text.begins_with("겨울"):
-				var gains: Dictionary = career.winter_training()
-				var parts := []
-				for st: String in gains:
-					if gains[st] > 0:
-						parts.append("%s +%d" % [PlayerData.STAT_LABELS[st], gains[st]])
-				winter.text = "겨울 훈련: " + (", ".join(parts) if not parts.is_empty() else "큰 변화 없음")
-				next.text = "%d학년 시즌 시작 ▶" % (p.grade + 1)
+			if career.winter_gains.is_empty():
+				career.winter_training()
+				_app.save_career()
+				_show_winter(winter, next)
 			else:
 				career.start_next_season()
 				_app.show_home(), Tokens.ACCENT, Tokens.FONT_LABEL)
+		# 겨울 훈련을 이미 했으면 (불러온 커리어) 결과와 다음 시즌 버튼
+		if not career.winter_gains.is_empty():
+			_show_winter(winter, next)
 		next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(next)
 	else:
@@ -81,9 +81,25 @@ func _build() -> void:
 	col.add_child(row)
 
 
+func _show_winter(winter: Label, next: Button) -> void:
+	var career: CareerState = _app.career
+	var gains: Dictionary = career.winter_gains
+	var parts := []
+	for st: String in gains:
+		if gains[st] > 0:
+			parts.append("%s +%d" % [PlayerData.STAT_LABELS[st], gains[st]])
+	winter.text = "겨울 훈련: " + (", ".join(parts) if not parts.is_empty() else "큰 변화 없음")
+	next.text = "%d학년 시즌 시작 ▶" % (career.player.grade + 1)
+
+
 ## 시즌 끝 이야기가 남았으면 대화 화면을 띄우고, 다 고르면 결산을 다시 그린다 (진로가 반영되게)
 func _next_story() -> void:
-	var events: Array = _app.career.events("seasonEnd")
+	var career: CareerState = _app.career
+	# 시즌 마지막 경기 뒤에 껐다 켰으면 남은 경기 뒤 이야기부터, 다 보면 그 주를 마친다
+	if career.game_done and career.events("after").is_empty():
+		career.advance_week()
+		_app.save_career()
+	var events: Array = career.events("after" if career.game_done else "seasonEnd")
 	if events.is_empty():
 		return
 	var view := DialogueView.new(_app.career, events[0])

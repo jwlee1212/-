@@ -40,11 +40,13 @@ func _ready() -> void:
 	gap.custom_minimum_size.y = Tokens.SPACE_MD
 	left.add_child(gap)
 
-	var resume := "저장 기능 준비 중"
+	var resume := "저장된 커리어 없음"
 	if career != null:
-		resume = "%s · %d학년 · %s %s" % [career.player.name, career.player.grade, career.phase_name(), career.round_text()]
+		resume = SaveGame.summary(career)
+	elif _app.save_error != "":
+		resume = "불러오지 못함: " + _app.save_error
 	var items := [
-		["이어하기", _app.show_home if career != null else Callable(), resume],
+		["이어하기", _app.continue_career if career != null else Callable(), resume],
 		["새 커리어", _app.show_create, ""],
 		["타격 연습", _app.show_practice, ""],
 		["기록실", _app.show_records if career != null else Callable(), "커리어를 시작하면 열려요"],

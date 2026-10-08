@@ -11,6 +11,9 @@ func _ready() -> void:
 	await get_tree().process_frame
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build/shots"))
 	_app = load("res://scenes/batting.tscn").instantiate()
+	# 유저 저장을 건드리지 않게 따로 저장하고, 매번 빈 저장에서 시작한다
+	_app.save_path = "user://shots.save"
+	SaveGame.delete(_app.save_path)
 	add_child(_app)
 	await _frames(10)
 	await _shot("menu-lobby-new")
@@ -77,7 +80,16 @@ func _ready() -> void:
 	(_app._current as RecordsScreen).view.show_tab("분할")
 	await _frames(10)
 	await _shot("menu-lobby-records")
-	_app.show_home()
+	# 앱을 다시 켠 것처럼: 메모리의 커리어를 버리고 저장에서 불러와 로비 → 이어하기
+	var before := "%d학년 %d주 · 돈 %d" % [career.player.grade, career.week, career.player.money]
+	_app.career = null
+	_app._load_save()
+	career = _app.career
+	print("불러오기: %s → %s" % [before, "%d학년 %d주 · 돈 %d" % [career.player.grade, career.week, career.player.money]])
+	_app.show_title()
+	await _frames(10)
+	await _shot("menu-lobby-loaded")
+	_app.continue_career()
 	await _frames(10)
 	career.socialize("manager", "hangout")
 	_app._current._show_tab("인물")
@@ -97,6 +109,33 @@ func _ready() -> void:
 	await _wait(0.2)
 	await _shot("menu-dialogue-date")
 	dv.queue_free()
+
+	# 경기를 마친 주에 껐다 켜면: 허브가 남은 경기 뒤 이야기와 [다음 주]를 보여 준다
+	_app.show_home()
+	await _frames(5)
+	_resolve_start(career)
+	career.train("rest")
+	var g2 := career.new_game()
+	var rng2 := RandomNumberGenerator.new()
+	rng2.seed = 77
+	while not g2.state.over:
+		if g2.step().type == "my_turn":
+			var pa2 := AutoPa.simulate(career.cfg.auto_pa, career.batting, g2.current_batter().skills, g2.current_pitcher(), rng2)
+			g2.apply_my_result(AtBat.Result.new(pa2.outcome, SwingJudge.BattedBall.NONE, pa2.pitches, null))
+	career.finish_game(g2)
+	_app.save_career()
+	_app.career = null
+	_app._load_save()
+	career = _app.career
+	_app.continue_career()
+	await _wait(1.5)
+	await _shot("menu-hub-after-game")
+	if _app._current.story_view() != null:
+		for e: Dictionary in career.events("after").duplicate():
+			career.resolve_event(e, _ok(career, e))
+		_app.show_home()
+		await _frames(10)
+		await _shot("menu-hub-after-game-next")
 
 	# 3학년 시즌 끝: 진로 선택
 	career.player.grade = 3
