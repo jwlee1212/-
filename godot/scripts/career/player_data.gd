@@ -160,8 +160,12 @@ var reputation := 50
 var money := 0
 ## 산 장비 (상점 gear id -> true)
 var gear := {}
-## 타순 (1~9)
+## 이번 경기에만 붙는 보정 {능력치: +n} (경기 중 대화의 gameBoost 효과 — 경기가 시작·끝날 때 지운다)
+var game_boost := {}
+## 타순 (1~9). 0 = 벤치 (선발 제외 — 이야기가 대타로 부를 때만 나간다)
 var lineup_slot := 7
+## 다음 경기는 벤치에서 시작해 대타로 나간다 (이벤트의 pinchHit 효과 — 그 경기가 끝나면 지운다)
+var bench_next := false
 ## 이벤트가 남긴 표시 (나중에 결과가 돌아오는 이벤트용)
 var flags := {}
 var season := SeasonStats.new()
@@ -173,6 +177,8 @@ var progress := {}
 var form := 0.0
 ## 남은 부상 주 수 (0 이면 건강)
 var injury_weeks := 0
+## 부상 이름 (이벤트의 injuryLabel 효과, "" 이면 그냥 "부상"). 나으면 지운다
+var injury_label := ""
 ## 시즌 시작 때 능력치 (시즌 결산에서 성장 비교)
 var season_start := {}
 
@@ -203,6 +209,16 @@ func mark_season_start() -> void:
 
 func is_injured() -> bool:
 	return injury_weeks > 0
+
+
+## "부상" 또는 이벤트가 붙인 이름 ("발목 염좌")
+func injury_text() -> String:
+	return injury_label if injury_label != "" else "부상"
+
+
+## "7번 타자" 또는 "벤치"
+func role_text() -> String:
+	return "%d번 타자" % lineup_slot if lineup_slot > 0 else "벤치"
 
 
 ## 종합 능력치 (네 능력치 평균, 반올림)
@@ -245,6 +261,8 @@ func potential_average() -> float:
 func skills_for_game(cfg: CareerConfig) -> BatterSkills:
 	var bonus := (condition - cfg.condition_pivot) * cfg.condition_per_point + form * float(cfg.form["skillPerPoint"])
 	var g := gear_bonus(cfg)
+	for s: String in game_boost:
+		g[s] = int(g.get(s, 0)) + int(game_boost[s])
 	return BatterSkills.new(
 		clampi(roundi(contact + bonus + g.get("contact", 0)), 1, 99), clampi(roundi(power + bonus + g.get("power", 0)), 1, 99),
 		clampi(roundi(eye + bonus + g.get("eye", 0)), 1, 99), clampi(speed + int(g.get("speed", 0)), 1, 99))

@@ -32,7 +32,7 @@ func _ready() -> void:
 		var view: DialogueView = _app._current.story_view()
 		view.choose(0)
 		await _wait_ms(200)
-		view.finished.emit()
+		view.skip()
 		await _wait_ms(200)
 	await _shot("3-home")
 	_app._current._train("contact")
@@ -57,7 +57,7 @@ func _ready() -> void:
 		await _wait_ms(1500)
 		await _shot("5b-highlight")
 		if game_screen._highlight != null:
-			game_screen._highlight.finished.emit()
+			game_screen._highlight.skip()
 	game_screen._fast = true
 
 	var turn := 0

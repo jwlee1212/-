@@ -54,6 +54,10 @@ const PORTRAIT_SLOT := Color(1, 1, 1, 0.45)
 const PORTRAIT_BORDER := Color("6b7690")
 const DIALOGUE_BOX := Color(1, 1, 1, 1)
 const NARRATION := Color("6b7690")
+## 배경 그림 위에 얹는 옅은 막(인물이 돋보이게), 말하지 않는 인물에 곱하는 색(어둡게), 머리말 뒤 판
+const DIALOGUE_BG_SCRIM := Color(0.05, 0.08, 0.16, 0.22)
+const PORTRAIT_IDLE := Color(0.5, 0.52, 0.6, 1)
+const DIALOGUE_HEADER_BG := Color(1, 1, 1, 0.86)
 const SHADOW := Color(0, 0, 0, 0.25)
 const SCRIM := Color(0, 0, 0, 0.6)
 const CONFETTI: Array[Color] = [PRIMARY, ACCENT, GOOD, WARN, BAD]

@@ -2,6 +2,7 @@ class_name GameScreen
 extends Control
 ## 경기: 점수판 + 상황(주자·아웃·타자) + 문자 중계가 자동으로 흘러가다가,
 ## 내 타순이 오면 타석 화면(BattingView)으로 바뀌어 직접 친다. 결과는 주자·점수에 그대로 반영된다.
+## 경기 중 대화: 내 타석 직전(첫 타석·승부처)과 직후(홈런·삼진)에 이벤트가 있으면 경기를 멈추고 대화 화면을 띄운다.
 
 var _app
 var _game: GameRunner
@@ -23,6 +24,8 @@ var _view: BattingView
 var _banner_until := 0.0
 var _waiting_for_turn := false
 var _highlight: HighlightView
+## 경기 중 대화 (떠 있는 동안 경기가 멈춘다)
+var _dialogue: DialogueView
 
 
 func _init(app) -> void:
@@ -81,7 +84,7 @@ func _process(_delta: float) -> void:
 	if _session != null:
 		_session.tick()
 		return
-	if _game.state.over or _highlight != null:
+	if _dialogue != null or _game.state.over or _highlight != null:
 		return
 	if _waiting_for_turn:
 		if _now() >= _banner_until:
@@ -94,9 +97,12 @@ func _process(_delta: float) -> void:
 	match step.type:
 		"my_turn":
 			# "★ 내 타석!" 을 잠깐 보여 주고 타석 화면으로
-			_banner.text = "★ %s의 타석! %s %s" % [_app.career.player.name, _game.state.half_text(), _outs_runners()]
+			var banner_format := "★ 대타 %s! %s %s" if _game.pinch_hit and _game.my_line.pa == 0 else "★ %s의 타석! %s %s"
+			_banner.text = banner_format % [_app.career.player.name, _game.state.half_text(), _outs_runners()]
 			_banner_until = _now() + 1200.0
 			_waiting_for_turn = true
+			# 타석 전에 할 이야기가 있으면 먼저 (끝나면 배너 → 타석)
+			_show_dialogue(_app.career.game_event(_app.career.pa_moment(_game), _game))
 		"auto":
 			_next_step_at = _now() + (_app.career_config.fast_step_ms if _fast else _app.career_config.auto_step_ms)
 			# 점수가 난 안타·홈런은 중계 화면 하이라이트로 (빠르게 모드면 건너뜀)
@@ -126,7 +132,7 @@ func _show_highlight(play: PlaySimulator.PlayResult, text: String, us_fielding: 
 func _open_batting() -> void:
 	_session = _app.new_batting_session()
 	# 지금 마운드에 있는 투수의 성향 (선발이 내려가면 불펜 투수)
-	var opp_pitcher: BattingConfig.PitcherProfile = _app.batting_config.pitchers[_game.current_pitcher().profile]
+	var opp_pitcher: BattingConfig.PitcherProfile = _app.batting_config.pitchers[_game.my_pitcher_profile()]
 	var player: PlayerData = _app.career.player
 	_session.start_single(player.skills_for_game(_app.career_config), opp_pitcher, _app.career.at_bat_seed(_game), _game.situation())
 	_session.at_bat_finished.connect(_on_at_bat_finished)
@@ -134,7 +140,7 @@ func _open_batting() -> void:
 	add_child(UiKit.fill_parent(_batting))
 	_view = BattingView.new()
 	_view.session = _session
-	_view.jersey_number = player.lineup_slot
+	_view.jersey_number = _game.my_slot + 1
 	_view.tapped.connect(_session.tap)
 	_batting.add_child(UiKit.fill_parent(_view))
 	var hud := BattingHud.new(_session)
@@ -144,7 +150,7 @@ func _open_batting() -> void:
 	var pitcher_name := opp_pitcher.name
 	hud.info_text = func() -> String:
 		var l := _game.my_line
-		return "%d번 %s · 오늘 %d타수 %d안타 %d타점 · 상대 %s" % [player.lineup_slot, player.name, l.ab, l.hits, l.rbi, pitcher_name]
+		return "%d번 %s · 오늘 %d타수 %d안타 %d타점 · 상대 %s" % [_game.my_slot + 1, player.name, l.ab, l.hits, l.rbi, pitcher_name]
 	_batting.add_child(hud)
 
 
@@ -157,6 +163,27 @@ func _on_at_bat_finished(result: AtBat.Result) -> void:
 	_banner.text = ""
 	_next_step_at = _now() + 900.0
 	_refresh()
+	# 홈런·삼진 뒤에 할 이야기가 있으면 (경기가 끝났어도 더그아웃 이야기는 한다)
+	_show_dialogue(_app.career.game_event(CareerState.result_moment(result.outcome), _game))
+
+
+## 경기 중 대화를 띄운다 (이벤트가 없으면 아무 일도 없다). 끝나면 경기가 이어진다
+func _show_dialogue(event: Dictionary) -> void:
+	if event.is_empty():
+		return
+	_dialogue = DialogueView.new(_app.career, event)
+	add_child(UiKit.fill_parent(_dialogue))
+	_dialogue.finished.connect(func() -> void:
+		_dialogue.queue_free()
+		_dialogue = null
+		# 멈춰 있던 만큼 시계를 다시 맞춘다
+		_banner_until = _now() + 900.0
+		_next_step_at = _now() + 600.0)
+
+
+## 지금 떠 있는 경기 중 대화 (스크린샷 스크립트용, 없으면 null)
+func story_view() -> DialogueView:
+	return _dialogue
 
 
 # ---------- 표시 ----------
@@ -201,7 +228,7 @@ func _refresh_scoreboard() -> void:
 				v = str(st.line[side][i])
 			_scoreboard.add_child(_cell(v, Tokens.INK))
 		_scoreboard.add_child(_cell(str(st.score[side]), Tokens.INK, true))
-		_scoreboard.add_child(_cell(str(_game.box.hits[side]), Tokens.INK_SOFT))
+		_scoreboard.add_child(_cell(str(_game.box.hits[side]) if _game.has_full_box() else "-", Tokens.INK_SOFT))
 
 
 func _cell(text: String, color: Color, bold: bool = false) -> Label:

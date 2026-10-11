@@ -12,13 +12,28 @@
     "short": "새싹"
   },
   "people": {
-    "_note": "고정 인물. speaker 가 이 id 면 이름(call)·역할·일러스트 자리가 붙는다. callFormat 의 {name} 은 만들 때 뽑는 이름(fixedName 이면 그 이름). hiddenUntilMet 이면 이벤트에서 만나기(meet) 전엔 인물 탭에 ??? 로 나온다. rival.school 은 regionalSchools 의 id. romance 면 연애 후보(관계 = 호감). place 는 이 사람이 말하는 이벤트의 기본 배경(places 의 id). 일러스트 파일은 godot/art/portraits/<id>.png, 배경은 godot/art/backgrounds/<place>.png (없으면 자리만 보인다)",
+    "_note": "고정 인물. speaker 가 이 id 면 이름(call)·역할·일러스트 자리가 붙는다. callFormat 의 {name} 은 만들 때 뽑는 이름(fixedName 이면 그 이름). lineup{slot, position, outFlag, backFlag, untilGrade} 이 있으면 우리 팀 타순의 그 자리 선수가 이 인물이다(이름·포지션). outFlag 플래그가 켜지고 backFlag 가 없는 동안은 후보가 대신 나오고, untilGrade 학년이 끝나면 졸업해 새 선수로 바뀐다. hiddenUntilMet 이면 이벤트에서 만나기(meet) 전엔 인물 탭에 ??? 로 나온다. rival.school 은 regionalSchools 의 id. romance 면 연애 후보(관계 = 호감). place 는 이 사람이 말하는 이벤트의 기본 배경(places 의 id). 일러스트 파일은 godot/art/portraits/<id>.png, 배경은 godot/art/backgrounds/<place>.png (없으면 자리만 보인다)",
     "coach": {
       "role": "감독",
       "callFormat": "{name} 감독",
       "desc": "새싹고 야구부 감독. 말수가 적고 칭찬은 더 적다.",
       "relLabel": "신뢰",
       "place": "dugout"
+    },
+    "batting_coach": {
+      "role": "코치",
+      "callFormat": "{name} 코치",
+      "desc": "타격 코치. 감독보다 말이 많고 영상 분석을 좋아한다.",
+      "relLabel": "신뢰",
+      "place": "field"
+    },
+    "senior": {
+      "role": "선배",
+      "callFormat": "{name} 선배",
+      "desc": "내가 1학년일 때 3학년 주장. 무섭지만 뒤에서 챙긴다. 졸업하면 대학에 간다.",
+      "relLabel": "친분",
+      "place": "field",
+      "lineup": {"slot": 3, "position": "중견수", "outFlag": "senior_injured", "backFlag": "senior_back", "untilGrade": 1}
     },
     "mom": {
       "role": "엄마",
@@ -33,6 +48,14 @@
       "callFormat": "{name}",
       "desc": "같이 입부한 포수. 시끄럽고 의리 있다.",
       "relLabel": "우정",
+      "place": "field"
+    },
+    "junior": {
+      "role": "후배",
+      "callFormat": "{name}",
+      "desc": "한 학년 아래 내야수. 내 스윙을 따라 한다.",
+      "relLabel": "친분",
+      "hiddenUntilMet": true,
       "place": "field"
     },
     "rival": {
@@ -95,7 +118,9 @@
     "cafe": "카페",
     "studio": "방송부실",
     "classroom": "교실",
-    "phone": "휴대폰"
+    "phone": "휴대폰",
+    "dorm": "합숙소",
+    "gym": "웨이트장"
   },
   "proTeams": [
     {
@@ -169,34 +194,504 @@
   ],
   "events": [
     {
+      "id": "d1_prologue",
+      "story": true,
+      "timing": "start",
+      "free": true,
+      "grade": [1, 1],
+      "week": [1, 1],
+      "speaker": "mom",
+      "title": "관중석에서",
+      "place": "stands",
+      "script": [
+        {
+          "text": "중학교 마지막 대회, 해 질 녘. 유니폼을 입은 채 관중석에 앉아 있다. 오늘은 한 번도 타석에 서지 못했다. 팀은 1회전에서 졌다."
+        },
+        {
+          "text": "옆 구장에서는 시상식이 한창이다. 중학교 전국대회 MVP 트로피를 든 소년이 카메라 앞에서 웃는다. 이쪽은 한 번도 보지 않는다."
+        },
+        {
+          "speaker": "mom",
+          "text": "먹어. 배고프겠다."
+        },
+        {
+          "speaker": "mom",
+          "text": "…오늘, 네 타석은 못 봤네."
+        },
+        {
+          "speaker": "player",
+          "text": "안 나갔어요."
+        },
+        {
+          "speaker": "mom",
+          "text": "아, 그래. …그래도 같이 응원하는 건 재밌었어."
+        },
+        {
+          "text": "대답 대신 식은 도시락을 먹었다. 해가 지고 조명탑이 켜진다. 옆 구장의 조명이 훨씬 밝다."
+        },
+        {
+          "text": "저 자리에 서는 건 어떤 기분일까."
+        },
+        {
+          "choices": [
+            {
+              "label": "…고등학교 가면, 진짜 해 볼래요",
+              "effects": {
+                "flag": ["d1_prologue"],
+                "rel": {
+                  "mom": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "그래. 엄마는 네가 하고 싶은 거 하는 게 좋아."
+                }
+              ]
+            },
+            {
+              "label": "(말없이 고개만 끄덕인다)",
+              "effects": {
+                "flag": ["d1_prologue"],
+                "condition": 3
+              },
+              "then": [
+                {
+                  "text": "엄마는 더 묻지 않고 물병을 건넸다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d1_dawn",
+      "story": true,
+      "timing": "start",
+      "free": true,
+      "grade": [1, 1],
+      "week": [1, 1],
+      "requires": ["d1_prologue"],
+      "speaker": "neighbor",
+      "title": "새벽 공터",
+      "place": "street",
+      "script": [
+        {
+          "text": "입학식 날 새벽 5시 40분. 아직 어두운 집 앞 공터에서 혼자 스윙한다. 가로등 아래 그림자가 길다."
+        },
+        {
+          "text": "2층 창문이 열린다. 옆집 소꿉친구가 스케치북을 안고 졸린 얼굴로 내다본다."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "…너 오늘 입학식인데 새벽부터 뭐 해."
+        },
+        {
+          "speaker": "player",
+          "text": "몸 풀어."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "야구부 들어갈 건데 지금부터 지쳐 있을 거야?"
+        },
+        {
+          "speaker": "player",
+          "text": "안 지쳐."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "(피식) 그럼 이따 입학식에서 졸지나 마."
+        },
+        {
+          "choices": [
+            {
+              "label": "졸지 않을게",
+              "effects": {
+                "meet": "neighbor",
+                "flag": ["d1_dawn"],
+                "rel": {
+                  "neighbor": 4
+                }
+              },
+              "then": [
+                {
+                  "speaker": "neighbor",
+                  "text": "그 말, 기억해 둘게."
+                }
+              ]
+            },
+            {
+              "label": "(대꾸 없이 스윙을 이어간다)",
+              "effects": {
+                "meet": "neighbor",
+                "flag": ["d1_dawn"],
+                "condition": 3,
+                "rel": {
+                  "neighbor": 2
+                }
+              },
+              "then": [
+                {
+                  "text": "창문 닫히는 소리. 공터에는 스윙 소리만 남았다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d1_breakfast",
+      "story": true,
+      "timing": "start",
+      "free": true,
+      "grade": [1, 1],
+      "week": [1, 1],
+      "requires": ["d1_dawn"],
+      "speaker": "mom",
+      "title": "식탁",
+      "place": "home",
+      "script": [
+        {
+          "text": "식탁. 엄마가 교복 넥타이를 대신 매어 준다. 식탁 한쪽에 가계부가 펴져 있다."
+        },
+        {
+          "speaker": "mom",
+          "text": "야구부는… 돈이 많이 든다던데."
+        },
+        {
+          "speaker": "player",
+          "text": "괜찮아요."
+        },
+        {
+          "speaker": "mom",
+          "text": "괜찮은 건 엄마가 정해. 너는 가서 치기나 해."
+        },
+        {
+          "choices": [
+            {
+              "label": "배트는 제가 알아서 살게요",
+              "effects": {
+                "flag": ["d1_breakfast", "self_reliant"],
+                "rel": {
+                  "mom": -3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "…누가 그런 걸 알아서 하래."
+                },
+                {
+                  "text": "엄마가 가계부를 조용히 덮었다."
+                }
+              ]
+            },
+            {
+              "label": "다녀오겠습니다",
+              "effects": {
+                "flag": ["d1_breakfast"],
+                "rel": {
+                  "mom": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "그래. 점심 거르지 말고."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d1_entrance",
+      "story": true,
+      "timing": "start",
+      "free": true,
+      "grade": [1, 1],
+      "week": [1, 1],
+      "requires": ["d1_breakfast"],
+      "speaker": "buddy",
+      "title": "입학식",
+      "place": "classroom",
+      "script": [
+        {
+          "text": "강당. 교장의 훈화가 길다. 졸음을 참고 있는데 옆자리에서 팔꿈치가 쿡 찌른다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "(속삭이며) 야, 졸지 마. 선생님이 쳐다봐."
+        },
+        {
+          "speaker": "player",
+          "text": "…너 누구야."
+        },
+        {
+          "speaker": "buddy",
+          "text": "나중에 알려 줄게. 야구부 맞지? 아까 가방에 배트 끈 보이던데."
+        },
+        {
+          "text": "강당 뒤쪽 창밖으로 운동장이 보인다. 한쪽 끝에 낡은 야구 그물이 서 있다."
+        },
+        {
+          "choices": [
+            {
+              "label": "(씩 웃는다) 맞아",
+              "effects": {
+                "flag": ["d1_entrance"],
+                "rel": {
+                  "buddy": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "buddy",
+                  "text": "역시. 이따 운동장에서 보자."
+                }
+              ]
+            },
+            {
+              "label": "…조용히 해. 졸 거야",
+              "effects": {
+                "flag": ["d1_entrance"],
+                "condition": 3,
+                "rel": {
+                  "buddy": 1
+                }
+              },
+              "then": [
+                {
+                  "speaker": "buddy",
+                  "text": "야, 그건 내가 할 말이거든."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d1_evening",
+      "story": true,
+      "timing": "start",
+      "free": true,
+      "grade": [1, 1],
+      "week": [1, 1],
+      "requires": ["d1_tryout"],
+      "speaker": "neighbor",
+      "title": "3월 2일",
+      "place": "street",
+      "script": [
+        {
+          "text": "돌아오는 길, 편의점 앞에 옆집 소꿉친구가 서 있다."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "어땠어?"
+        },
+        {
+          "speaker": "player",
+          "text": "벤치래. 대타 대기."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "잘된 거야?"
+        },
+        {
+          "speaker": "player",
+          "text": "…모르겠어. 근데 감독님 수첩에 이름은 적혔어."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "그럼 이름은 올라간 거네."
+        },
+        {
+          "text": "스케치북 한 장을 찢어 건넨다. 서툰 배트 그림 옆에 날짜가 적혀 있다. 3월 2일."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "첫날 기념. 야구장 그리기 전에 연습 중이야."
+        },
+        {
+          "choices": [
+            {
+              "label": "고마워. 잘 간직할게",
+              "effects": {
+                "flag": ["d1_evening", "neighbor_sketch"],
+                "rel": {
+                  "neighbor": 8
+                }
+              },
+              "then": [
+                {
+                  "speaker": "neighbor",
+                  "text": "…구기지만 마. 나중에 값 오를 수도 있잖아."
+                }
+              ]
+            },
+            {
+              "label": "나중에 진짜 야구장 그려 줘. 거기서 칠게",
+              "effects": {
+                "flag": ["d1_evening", "neighbor_sketch"],
+                "rel": {
+                  "neighbor": 5
+                },
+                "condition": 3
+              },
+              "then": [
+                {
+                  "speaker": "neighbor",
+                  "text": "그럼 네가 먼저 거기 서야 하는 거 알지?"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "text": "밤, 불을 끄고 누웠는데 잠이 오지 않는다. 관중석의 조명, 트로피, 그리고 감독의 수첩."
+        },
+        {
+          "text": "이번엔 구경만 하지 않을 거야."
+        }
+      ]
+    },
+    {
       "id": "s1_welcome",
       "story": true,
       "timing": "start",
+      "free": true,
       "grade": [1, 1],
       "week": [1, 1],
+      "requires": ["d1_entrance"],
       "speaker": "coach",
       "title": "입부",
-      "text": "새싹고 야구부 감독, {coachName}. 1학년한테 줄 자리는 없다… 고 하고 싶은데, 외야가 비었다. 7번, 외야. 할 수 있겠나?",
-      "choices": [
+      "place": "field",
+      "script": [
         {
-          "label": "열심히 하겠습니다!",
-          "result": "감독은 대답 대신 고개를 한 번 끄덕였다.",
-          "effects": {
-            "rel": {
-              "coach": 5
-            }
-          }
+          "text": "3월, 새싹고 야구부 운동장. 흙냄새가 난다."
         },
         {
-          "label": "4번도 칠 수 있습니다",
-          "result": "감독이 처음으로 웃었다. 좋은 뜻인지는 모르겠다.",
-          "effects": {
-            "rel": {
-              "coach": -3
+          "speaker": "coach",
+          "text": "새싹고 야구부 감독, {coachName}. 신입생은 저기 줄 서라."
+        },
+        {
+          "speaker": "senior",
+          "text": "주장 {seniorName}이다. 1학년한테는 내 말이 곧 법이야. 알겠나."
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "{seniorName}, 겁주지 마. 난 타격 코치 {batting_coachName}. 어디, 스윙 한번 보자."
+        },
+        {
+          "speaker": "buddy",
+          "text": "(줄 사이에서 손을 흔든다) 나 포수야. 이름은 이따가. 너 스윙 보고 나서 말해 줄게."
+        },
+        {
+          "text": "배트를 잡았다. 다들 지켜본다."
+        },
+        {
+          "choices": [
+            {
+              "label": "(힘껏 휘두른다)",
+              "effects": {
+                "flag": ["d1_tryout"],
+                "rel": {
+                  "batting_coach": 3
+                }
+              },
+              "then": [
+                {
+                  "text": "공이 담장 근처까지 날아갔다."
+                },
+                {
+                  "speaker": "batting_coach",
+                  "text": "오, 힘은 있네. 맞히는 건 내가 가르치면 되고."
+                }
+              ]
             },
-            "condition": 5,
-            "flag": "cocky"
-          }
+            {
+              "label": "(가볍게 정확히 맞힌다)",
+              "effects": {
+                "flag": ["d1_tryout"],
+                "rel": {
+                  "batting_coach": 5
+                }
+              },
+              "then": [
+                {
+                  "text": "타구가 중견수 앞에 떨어졌다."
+                },
+                {
+                  "speaker": "batting_coach",
+                  "text": "배트가 짧게 나오네. 가르칠 맛 나겠다."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "text": "감독이 말없이 수첩에 무언가를 적었다."
+        },
+        {
+          "speaker": "coach",
+          "text": "1학년한테 줄 자리는 없다. 일단 벤치다. 대신 대타 준비는 해 둬라. 할 수 있겠나?"
+        },
+        {
+          "choices": [
+            {
+              "label": "열심히 하겠습니다!",
+              "effects": {
+                "lineupSlot": 0,
+                "rel": {
+                  "coach": 5
+                }
+              },
+              "then": [
+                {
+                  "text": "감독은 대답 대신 고개를 한 번 끄덕였다."
+                },
+                {
+                  "speaker": "senior",
+                  "text": "대답은 잘하네. 내일부터 아침 6시다."
+                }
+              ]
+            },
+            {
+              "label": "기회만 주시면 칠 수 있습니다",
+              "effects": {
+                "lineupSlot": 0,
+                "rel": {
+                  "coach": -3,
+                  "senior": -3
+                },
+                "condition": 5,
+                "flag": ["cocky"]
+              },
+              "then": [
+                {
+                  "text": "운동장이 조용해졌다."
+                },
+                {
+                  "speaker": "senior",
+                  "text": "…야, 너 이리 와 봐."
+                },
+                {
+                  "speaker": "coach",
+                  "text": "놔둬라. 말은 경기에서 증명하면 된다."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "text": "테스트가 끝나고 해가 기운다. 운동장 구석에서 한 여학생이 기록지에 무언가를 열심히 적고 있다. 눈이 마주치자 급히 고개를 숙인다."
+        },
+        {
+          "text": "…매니저인가. 오늘은 그냥 지나가자."
         }
       ]
     },
@@ -205,1834 +700,3427 @@
       "story": true,
       "grade": [1, 1],
       "week": [1, 3],
+      "requires": ["d1_tryout"],
       "speaker": "buddy",
       "title": "동기",
-      "text": "야, 나 {buddyName}. 너도 1학년이지? 난 포수야. 우리 둘이 3년 뒤에 이 팀 먹자.",
-      "choices": [
+      "script": [
         {
-          "label": "좋아, 같이 가자",
-          "result": "{buddyName}이(가) 주먹을 내밀었다. 맞부딪쳤다.",
-          "effects": {
-            "rel": {
-              "buddy": 10
-            }
-          }
+          "speaker": "buddy",
+          "text": "나 {buddyName}. 아까 입학식에서 졸지 말랬잖아. 이제 이름은 알려 준다."
         },
         {
-          "label": "인사만 하고 스윙하러 간다",
-          "result": "혼자 남아 배트를 더 돌렸다. 뒤통수가 좀 따갑다.",
-          "effects": {
-            "contact": 1,
-            "rel": {
-              "buddy": -5
+          "speaker": "buddy",
+          "text": "아까 {seniorName} 선배 봤냐. 눈빛 진짜 무섭더라."
+        },
+        {
+          "choices": [
+            {
+              "label": "무섭긴 한데, 멋있던데",
+              "effects": {
+                "rel": {
+                  "buddy": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "buddy",
+                  "text": "…너 좀 이상한 애구나. 마음에 든다."
+                }
+              ]
+            },
+            {
+              "label": "우리가 3학년 되면 저러지 말자",
+              "effects": {
+                "rel": {
+                  "buddy": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "buddy",
+                  "text": "약속. 후배들한테 빵 사 주는 선배 되자."
+                }
+              ]
             }
-          }
+          ]
+        },
+        {
+          "speaker": "buddy",
+          "text": "우리 둘이 3년 뒤에 이 팀 먹자. 어때."
+        },
+        {
+          "choices": [
+            {
+              "label": "좋아, 같이 가자",
+              "effects": {
+                "rel": {
+                  "buddy": 10
+                }
+              },
+              "then": [
+                {
+                  "text": "{buddyName}이(가) 주먹을 내밀었다. 맞부딪쳤다."
+                }
+              ]
+            },
+            {
+              "label": "(인사만 하고 스윙하러 간다)",
+              "effects": {
+                "contact": 1,
+                "rel": {
+                  "buddy": -5
+                }
+              },
+              "then": [
+                {
+                  "text": "혼자 남아 배트를 더 돌렸다. 뒤통수가 좀 따갑다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y1_bench_board",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "grade": [1, 1],
+      "week": [2, 4],
+      "requires": ["d1_evening"],
+      "speaker": "coach",
+      "title": "대기 칸",
+      "place": "dugout",
+      "script": [
+        {
+          "text": "월요일, 더그아웃 칠판. 토요일 연습경기 라인업이 적혀 있다. 전부 2~3학년이고, 맨 아래 대기 칸에 1학년 이름이 작게 두 개 있다. 내 이름과 동기다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "야, 대기 칸에 우리 이름 있다. 이름만이라도 있는 게 어디냐."
+        },
+        {
+          "speaker": "coach",
+          "text": "1학년은 벤치다. 중학교 기록이 하나도 없더라. 이름도 처음 봤다."
+        },
+        {
+          "choices": [
+            {
+              "label": "기록은 이제부터 쌓겠습니다",
+              "effects": {
+                "rel": {
+                  "coach": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "…그래."
+                }
+              ]
+            },
+            {
+              "label": "기회만 주시면 보여 드리겠습니다",
+              "effects": {
+                "rel": {
+                  "coach": -2
+                },
+                "flag": ["cocky"]
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "…기회라."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "speaker": "coach",
+          "text": "기회는 주는 게 아니다. 대타는 감독이 부르면 나가는 거고, 한 번 부르면 한 타석이다."
+        },
+        {
+          "text": "훈련 뒤, 타격 코치가 태블릿을 들고 나와 동기를 벤치에 앉힌다."
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "대타는 방망이보다 눈이 먼저다. 경기 내내 앉아서 투수 공을 보는 놈이 한 방을 친다."
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "졸고 있다가 불리면 이미 끝난 거야. 너는 어느 쪽이냐."
+        },
+        {
+          "choices": [
+            {
+              "label": "초구부터 돌릴 준비를 해 두겠습니다",
+              "effects": {
+                "flag": ["y1_board_done", "pinch_aggressive"]
+              },
+              "then": [
+                {
+                  "speaker": "batting_coach",
+                  "text": "좋아. 그럼 배트부터 짧게 쥐는 연습이다."
+                }
+              ]
+            },
+            {
+              "label": "먼저 투수의 습관을 보겠습니다",
+              "effects": {
+                "flag": ["y1_board_done", "pinch_patient"]
+              },
+              "then": [
+                {
+                  "speaker": "batting_coach",
+                  "text": "좋아. 그럼 벤치에서 눈에 담는 연습이다."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "speaker": "buddy",
+          "text": "(작게) 나는 그냥 졸다가 불려도 칠 수 있는데."
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "넌 포수니까 안 불러."
+        }
+      ]
+    },
+    {
+      "id": "y1_pinch",
+      "story": true,
+      "free": true,
+      "timing": "game",
+      "moment": "pinch_pa",
+      "stage": {
+        "inning": 8,
+        "half": "bottom",
+        "outs": 2,
+        "bases": [2],
+        "score": [3, 3],
+        "slot": 8,
+        "practice": true,
+        "pitcher": "finesse"
+      },
+      "grade": [1, 1],
+      "requires": ["y1_board_done"],
+      "forbids": ["y1_pinch_done"],
+      "speaker": "coach",
+      "title": "대타",
+      "place": "dugout",
+      "script": [
+        {
+          "text": "토요일 연습경기 8회말 2사 2루, 3대 3. 벤치 맨 끝자리에서 공만 보고 있었다. 상대 투수는 좌완, 변화구 위주다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "야, 저 투수 득점권에선 직구가 없어. 거의 바깥쪽 변화구야."
+        },
+        {
+          "text": "7번 타자가 삼진으로 물러난다. 감독이 천천히 고개를 돌린다."
+        },
+        {
+          "speaker": "coach",
+          "text": "…대타. 너."
+        },
+        {
+          "speaker": "player",
+          "text": "저, 저요?"
+        },
+        {
+          "speaker": "coach",
+          "text": "이름이 그거 맞지. 가라."
+        },
+        {
+          "text": "더그아웃이 조용해진다. 감독이 처음 내 이름을 부른 순간이다."
+        },
+        {
+          "speaker": "senior",
+          "text": "쫄지 마. 아니, 쫄아도 돼. 배트는 휘둘러."
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "눈에 보이면 돌려! 보고 가도 돼!"
+        },
+        {
+          "text": "헬멧 속에서 심장 소리가 들린다. 관중석에서 보던 조명이 이번엔 위에서 내려온다."
+        },
+        {
+          "choices": [
+            {
+              "label": "(초구부터 돌린다고 마음먹는다)",
+              "effects": {
+                "flag": ["y1_pinch_done"],
+                "gameBoost": {
+                  "contact": 6
+                }
+              },
+              "then": [
+                {
+                  "text": "배트를 짧게 쥐었다. 타석에 들어선다."
+                }
+              ]
+            },
+            {
+              "label": "(공 하나 보고 간다)",
+              "effects": {
+                "flag": ["y1_pinch_done"],
+                "gameBoost": {
+                  "eye": 8
+                }
+              },
+              "then": [
+                {
+                  "text": "숨을 한 번 길게 내쉬었다. 타석에 들어선다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y1_pinch_hit",
+      "story": true,
+      "timing": "after",
+      "free": true,
+      "grade": [1, 1],
+      "requires": ["y1_pinch_done"],
+      "forbids": ["y1_pinch_closed"],
+      "lastMinHits": 1,
+      "speaker": "buddy",
+      "title": "대타 안타",
+      "place": "dugout",
+      "script": [
+        {
+          "text": "더그아웃이 들썩인다. 동기가 벤치에서 일어나 소리를 지른다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "미쳤다! 우리 쪽에서 안타 나왔어!"
+        },
+        {
+          "speaker": "senior",
+          "text": "(헬멧을 눌러 주며) 한 방은 치는구나, 1학년."
+        },
+        {
+          "choices": [
+            {
+              "label": "(씩 웃는다)",
+              "effects": {
+                "flag": ["y1_pinch_closed"],
+                "reputation": 2,
+                "condition": 3
+              }
+            },
+            {
+              "label": "(숨을 고른다)",
+              "effects": {
+                "flag": ["y1_pinch_closed"],
+                "reputation": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y1_pinch_out",
+      "story": true,
+      "timing": "after",
+      "free": true,
+      "grade": [1, 1],
+      "requires": ["y1_pinch_done"],
+      "forbids": ["y1_pinch_closed"],
+      "lastMaxHits": 0,
+      "speaker": "senior",
+      "title": "대타 아웃",
+      "place": "dugout",
+      "script": [
+        {
+          "text": "배트를 쥔 손에 감각이 없다. 더그아웃에 돌아오자 주장 선배가 먼저 다가온다."
+        },
+        {
+          "speaker": "senior",
+          "text": "고개 들어. 첫 타석에 치는 놈 못 봤다."
+        },
+        {
+          "speaker": "coach",
+          "text": "(뒤에서) 한 타석에 이름이 지워지진 않는다. 다음에 또 부른다."
+        },
+        {
+          "choices": [
+            {
+              "label": "…네",
+              "effects": {
+                "flag": ["y1_pinch_closed"],
+                "condition": 3,
+                "rel": {
+                  "senior": 3
+                }
+              }
+            },
+            {
+              "label": "(말없이 헬멧을 벗는다)",
+              "effects": {
+                "flag": ["y1_pinch_closed"],
+                "condition": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y1_pinch_end",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "grade": [1, 1],
+      "requires": ["y1_pinch_closed"],
+      "forbids": ["y1_pinch_end_done"],
+      "speaker": "coach",
+      "title": "기록",
+      "place": "field",
+      "script": [
+        {
+          "text": "철수가 끝난 운동장. 감독이 혼자 남아 낡은 수첩을 펼치고 있다."
+        },
+        {
+          "speaker": "coach",
+          "text": "중학교 기록이 없다고 했지."
+        },
+        {
+          "speaker": "coach",
+          "text": "오늘 거 적어 둔다. 네 첫 기록이다."
+        },
+        {
+          "speaker": "player",
+          "text": "…감사합니다."
+        },
+        {
+          "speaker": "coach",
+          "text": "감사는 기록이 쌓인 뒤에 해라."
+        },
+        {
+          "text": "멀리서 한 여학생이 기록지를 겨드랑이에 끼고 지나간다. 눈이 마주치지만 둘 다 인사 없이 지나친다."
+        },
+        {
+          "choices": [
+            {
+              "label": "(고개를 숙이고 돌아선다)",
+              "effects": {
+                "flag": ["y1_pinch_end_done"]
+              }
+            },
+            {
+              "label": "(수첩을 한 번 더 본다)",
+              "effects": {
+                "flag": ["y1_pinch_end_done"],
+                "rel": {
+                  "coach": 2
+                }
+              }
+            }
+          ]
         }
       ]
     },
     {
       "id": "s1_rival_meet",
       "story": true,
+      "free": true,
       "timing": "start",
-      "grade": [1, 3],
+      "grade": [1, 1],
       "opponent": "rival",
+      "requires": ["y1_manager_met"],
       "forbidsMet": ["rival"],
       "speaker": "rival",
-      "title": "라이벌",
-      "text": "(몸을 풀던 {rivalSchool} 4번 타자가 다가온다) 네가 새싹고 1학년 외야수? 중학교 때 이름 못 들어 봤는데. 난 {rivalName}. 오늘 잘 봐 둬.",
-      "choices": [
+      "title": "투명인간",
+      "place": "stadium",
+      "script": [
         {
-          "label": "경기 끝나고 다시 얘기하자",
-          "result": "{rivalName}이(가) 피식 웃고 돌아섰다. 손에 땀이 난다.",
-          "effects": {
-            "meet": "rival",
-            "rel": {
-              "rival": 15
-            },
-            "form": 0.5
-          }
+          "text": "토요일, 불꽃고 원정경기장. 이 지역 최강팀이다."
         },
         {
-          "label": "(대꾸하지 않는다)",
-          "result": "신경 쓰지 않기로 했다. …조금은 쓰인다.",
-          "effects": {
-            "meet": "rival",
-            "rel": {
-              "rival": 5
+          "speaker": "coach",
+          "text": "오늘 상대는 불꽃고다. 1학년은 벤치에서 보고 배워라."
+        },
+        {
+          "speaker": "buddy",
+          "text": "대기도 아니고 보고 배우래. 우리 오늘 그냥 관중이네."
+        },
+        {
+          "text": "경기 전. 몸을 풀던 4번 타자 {rivalName}이(가) 새싹고 벤치 앞을 지나간다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "야, 저 사람 {rivalName}이야. 중학교 전국대회 MVP."
+        },
+        {
+          "text": "{rivalName}은(는) 벤치 앞을 지나가면서 시선을 한 번도 주지 않는다. 눈이 닿는 곳에 있는데도 보고 있는 것은 담장 너머 관중석이다. 관중석에서 트로피를 들던 그 얼굴이다."
+        },
+        {
+          "choices": [
+            {
+              "label": "(그 뒷모습을 끝까지 본다)",
+              "effects": {
+                "meet": "rival",
+                "flag": ["y1_rival_seen"],
+                "lineupSlot": 0,
+                "condition": 3,
+                "matchOverride": {
+                  "score": [2, 6],
+                  "home": true,
+                  "line": [
+                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                    [0, 1, 0, 2, 0, 2, 0, 1, 0]
+                  ],
+                  "rivalLine": {
+                    "ab": 4,
+                    "hits": 2,
+                    "homeRuns": 1,
+                    "rbi": 2
+                  }
+                }
+              }
             },
-            "condition": 5
-          }
+            {
+              "label": "저기, 안녕",
+              "effects": {
+                "meet": "rival",
+                "flag": ["y1_rival_seen"],
+                "lineupSlot": 0,
+                "condition": -3,
+                "matchOverride": {
+                  "score": [2, 6],
+                  "home": true,
+                  "line": [
+                    [0, 0, 1, 0, 0, 0, 1, 0, 0],
+                    [0, 1, 0, 2, 0, 2, 0, 1, 0]
+                  ],
+                  "rivalLine": {
+                    "ab": 4,
+                    "hits": 2,
+                    "homeRuns": 1,
+                    "rbi": 2
+                  }
+                }
+              },
+              "then": [
+                {
+                  "speaker": "rival",
+                  "text": "(돌아보지도 않고 동료에게) 야, 장갑 어디 있냐."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "speaker": "buddy",
+          "text": "…방금 우리 안 보였나 봐."
+        },
+        {
+          "speaker": "player",
+          "text": "안 보이는 게 당연하지. 난 그라운드에 서 본 적도 없으니까."
         }
       ]
     },
     {
-      "id": "s1_rival_after",
+      "id": "y1_rival_bench",
       "story": true,
+      "free": true,
+      "timing": "after",
       "grade": [1, 1],
-      "met": ["rival"],
       "lastOpponent": "rival",
-      "speaker": "rival",
-      "title": "첫 맞대결",
-      "text": "(경기 뒤 {rivalName}이(가) 지나가며) 난 오늘 {rivalLast}. 넌?",
-      "choices": [
-        {
-          "label": "다음엔 내가 더 친다",
-          "result": "{rivalName}: \"기대할게.\" 진심인지 모르겠다.",
-          "effects": {
-            "rel": {
-              "rival": 10
-            }
-          }
-        },
-        {
-          "label": "축하해, 잘 치더라",
-          "result": "{rivalName}이(가) 의외라는 얼굴을 했다.",
-          "effects": {
-            "rel": {
-              "rival": -5
-            },
-            "reputation": 2
-          }
-        }
-      ]
-    },
-    {
-      "id": "s1_errand",
-      "grade": [1, 1],
-      "week": [2, 12],
-      "speaker": "주장 선배",
-      "title": "군기",
-      "text": "1학년! 공 줍고 장비 정리 끝나기 전엔 개인 훈련 없다.",
-      "choices": [
-        {
-          "label": "네, 알겠습니다",
-          "result": "공 바구니를 세 번 날랐다. 지나가던 감독이 봤다.",
-          "effects": {
-            "condition": -5,
-            "rel": {
-              "coach": 3
-            }
-          }
-        },
-        {
-          "label": "개인 훈련 먼저 하겠습니다",
-          "result": "스윙은 늘었지만 선배들 눈빛이 차갑다.",
-          "effects": {
-            "contact": 1,
-            "reputation": -4,
-            "rel": {
-              "buddy": -3
-            }
-          }
-        }
-      ],
-      "place": "field",
-      "portrait": "captain_senior"
-    },
-    {
-      "id": "s1_first_exit",
-      "story": true,
-      "grade": [1, 1],
-      "lastPhaseEnd": "eliminated",
-      "lastNational": true,
-      "speaker": "coach",
-      "title": "첫 전국대회",
-      "text": "(돌아오는 버스, 감독이 뒷자리로 온다) 첫 전국대회 어땠냐. …내년엔 너 때문에 이기는 경기가 나와야 한다.",
-      "choices": [
-        {
-          "label": "웨이트부터 다시 하겠습니다",
-          "result": "그날 밤 바로 웨이트장에 갔다.",
-          "effects": {
-            "power": 1,
-            "condition": -6
-          }
-        },
-        {
-          "label": "오늘은 좀 쉬겠습니다",
-          "result": "감독은 \"그래라\" 하고 앞자리로 돌아갔다.",
-          "effects": {
-            "condition": 8,
-            "rel": {
-              "coach": 3
-            }
-          }
-        }
-      ],
-      "place": "bus"
-    },
-    {
-      "id": "s1_winter",
-      "story": true,
-      "timing": "seasonEnd",
-      "grade": [1, 1],
-      "speaker": "mom",
-      "title": "첫 겨울",
-      "text": "1년 고생했다. 겨울엔 뭐 할 거니? 다들 야구 캠프 간다던데… 비싸더라.",
-      "choices": [
-        {
-          "label": "캠프 보내 주세요 (반은 내 돈으로)",
-          "result": "엄마는 가계부를 오래 들여다보더니 \"그래\" 했다.",
-          "effects": {
-            "eye": 1,
-            "contact": 1,
-            "rel": {
-              "mom": -6
-            }
-          },
-          "cost": 100000
-        },
-        {
-          "label": "집에서 혼자 할게요",
-          "result": "엄마가 등을 두드렸다. 집 앞 공터에서 매일 스윙했다.",
-          "effects": {
-            "rel": {
-              "mom": 8
-            },
-            "condition": 10
-          }
-        }
-      ],
-      "place": "home"
-    },
-    {
-      "id": "s2_scout_first",
-      "story": true,
-      "grade": [2, 3],
-      "minScout": 15,
-      "forbidsMet": ["scout"],
-      "speaker": "scout",
-      "title": "명함",
-      "text": "{scoutTeam} 스카우트 {scoutName}입니다. 작년부터 지켜봤어요. 명함 하나 드릴게요. 부담 갖지 말고.",
-      "choices": [
-        {
-          "label": "감사합니다! 열심히 하겠습니다",
-          "result": "명함을 지갑 맨 앞에 넣었다. 그날 밤 잠이 안 왔다.",
-          "effects": {
-            "meet": "scout",
-            "rel": {
-              "scout": 10
-            },
-            "condition": -3
-          }
-        },
-        {
-          "label": "부모님과 먼저 이야기해 보겠습니다",
-          "result": "스카우트는 \"좋은 습관이네요\" 하고 웃었다.",
-          "effects": {
-            "meet": "scout",
-            "rel": {
-              "scout": 3,
-              "mom": 5
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "s2_cleanup",
-      "story": true,
-      "grade": [2, 3],
-      "week": [3, 20],
-      "minRel": {
-        "coach": 55
-      },
-      "forbids": ["cleanup"],
-      "speaker": "coach",
-      "title": "4번 타자",
-      "text": "다음 경기부터 4번이다. 대신 삼진 먹고 고개 숙이면 바로 뺀다.",
-      "choices": [
-        {
-          "label": "맡겨 주십시오",
-          "result": "타순표 4번 칸에 내 이름이 적혔다.",
-          "effects": {
-            "lineupSlot": 4,
-            "rel": {
-              "coach": 5
-            },
-            "condition": -5
-          }
-        },
-        {
-          "label": "아직 이릅니다",
-          "result": "감독은 말없이 타순표를 접었다.",
-          "effects": {
-            "rel": {
-              "coach": -5
-            },
-            "condition": 5
-          }
-        }
-      ]
-    },
-    {
-      "id": "s2_winter",
-      "story": true,
-      "timing": "seasonEnd",
-      "grade": [2, 2],
-      "speaker": "buddy",
-      "title": "두 번째 겨울",
-      "text": "내년이면 3학년이다. 우리 진짜 마지막이야. 겨울에 같이 새벽 운동 할래?",
-      "choices": [
-        {
-          "label": "매일 5시, 운동장에서",
-          "result": "추운 새벽마다 {buddyName}의 미트 소리가 났다.",
-          "effects": {
-            "power": 1,
-            "rel": {
-              "buddy": 8
-            },
-            "condition": -5
-          }
-        },
-        {
-          "label": "난 내 루틴대로 할게",
-          "result": "{buddyName}: \"그래, 네 방식대로 해.\"",
-          "effects": {
-            "eye": 1,
-            "rel": {
-              "buddy": -3
-            }
-          }
-        }
-      ],
-      "place": "field"
-    },
-    {
-      "id": "s3_captain",
-      "story": true,
-      "timing": "start",
-      "grade": [3, 3],
-      "week": [1, 1],
-      "speaker": "coach",
-      "title": "주장",
-      "text": "올해 주장 해라. 싫으면 지금 말하고.",
-      "choices": [
-        {
-          "label": "맡겠습니다",
-          "result": "완장이 생각보다 무겁다.",
-          "effects": {
-            "flag": "captain",
-            "rel": {
-              "coach": 8
-            },
-            "reputation": 5,
-            "condition": -5
-          }
-        },
-        {
-          "label": "제 야구에 집중하고 싶습니다",
-          "result": "감독은 \"알았다\"고만 했다.",
-          "effects": {
-            "rel": {
-              "coach": -8
-            },
-            "contact": 1,
-            "power": 1
-          }
-        }
-      ]
-    },
-    {
-      "id": "s3_college_offer",
-      "story": true,
-      "grade": [3, 3],
-      "week": [4, 14],
-      "speaker": "대학 감독",
-      "title": "장학금",
-      "text": "한결대 야구부 감독입니다. 4년 장학금 준비했어요. 프로가 안 되면, 아니 되더라도 우리한테 와요.",
-      "choices": [
-        {
-          "label": "생각해 보겠습니다",
-          "result": "명함을 받아 두었다. 마음 한쪽이 든든하다.",
-          "effects": {
-            "flag": "college_offer"
-          }
-        },
-        {
-          "label": "저는 프로만 봅니다",
-          "result": "대학 감독은 \"그 눈빛 좋네\" 하고 돌아갔다.",
-          "effects": {
-            "scoutInterest": 2,
-            "condition": 3
-          }
-        }
-      ],
-      "place": "stands",
-      "portrait": "college_coach"
-    },
-    {
-      "id": "s3_rival_final",
-      "story": true,
-      "timing": "start",
-      "grade": [3, 3],
-      "week": [7, 20],
-      "opponent": "rival",
       "met": ["rival"],
-      "speaker": "rival",
-      "title": "마지막 맞대결",
-      "text": "고교 마지막 맞대결이네. 지는 사람이 프로 가서 밥 사기. 콜?",
-      "choices": [
+      "requires": ["y1_rival_seen"],
+      "forbids": ["y1_rival_bench_done"],
+      "speaker": "manager",
+      "title": "별 하나와 다섯 개",
+      "place": "bus",
+      "script": [
         {
-          "label": "콜",
-          "result": "{rivalName}과(와) 주먹을 맞댔다. 오늘은 진다는 생각이 안 든다.",
-          "effects": {
-            "rel": {
-              "rival": 10
-            },
-            "form": 1.0
-          }
+          "text": "경기는 벤치에서 지켜봤다. 6회초, {rivalName}이(가) 초구를 잡아당겨 담장을 넘긴다. 관중석이 환호한다."
         },
         {
-          "label": "밥은 그냥 내가 살게",
-          "result": "{rivalName}: \"재미없긴.\" 긴장이 좀 풀렸다.",
-          "effects": {
-            "condition": 6
-          }
-        }
-      ]
-    },
-    {
-      "id": "s3_last_game",
-      "story": true,
-      "grade": [3, 3],
-      "seasonOver": true,
-      "speaker": "buddy",
-      "title": "마지막 경기",
-      "text": "끝났다… 3년 진짜 빨리 갔다. 야, 너 프로 가도 나 잊으면 안 된다.",
-      "choices": [
-        {
-          "label": "(말없이 어깨를 두드린다)",
-          "result": "{buddyName}이(가) 고개를 숙이고 한참 있었다.",
-          "effects": {
-            "rel": {
-              "buddy": 10
-            }
-          }
+          "speaker": "manager",
+          "text": "(작게) 이 타자 기록은… 칸이 모자라."
         },
         {
-          "label": "울지 마. 프로 가서 또 하자",
-          "result": "둘 다 웃었다. 눈은 빨갰다.",
-          "effects": {
-            "rel": {
-              "buddy": 5
-            },
-            "condition": 5
-          }
-        }
-      ],
-      "place": "stadium"
-    },
-    {
-      "id": "s3_path",
-      "story": true,
-      "timing": "seasonEnd",
-      "grade": [3, 3],
-      "speaker": "coach",
-      "title": "진로",
-      "text": "진로 정할 때다. 스카우트들 말로는 {pick}. 드래프트 신청서 낼래, 대학 갈래? 네 인생이다.",
-      "choices": [
-        {
-          "label": "드래프트에 도전한다",
-          "result": "신청서에 이름을 적었다. 이제 기다리는 일만 남았다.",
-          "effects": {
-            "path": "draft"
-          }
+          "text": "소율의 기록지엔 {rivalName} 이름 옆에 별이 다섯 개. 내 줄엔 연습경기의 별 하나뿐이다. 오늘 칸은 비어 있다."
         },
         {
-          "label": "대학에 간다 (4년 뒤 다시 도전)",
-          "result": "대학 유니폼을 입기로 했다. 4년 뒤, 더 큰 선수가 되어.",
-          "effects": {
-            "path": "college"
-          }
-        }
-      ]
-    },
-    {
-      "id": "champion",
-      "story": true,
-      "lastPhaseEnd": "champion",
-      "repeat": true,
-      "cooldownWeeks": 4,
-      "speaker": "coach",
-      "title": "우승",
-      "text": "(헹가래가 끝나고, 감독이 모자를 고쳐 쓴다) …잘했다. 오늘은 그 말만 하마.",
-      "choices": [
-        {
-          "label": "감독님 덕분입니다",
-          "result": "감독의 귀가 빨개졌다.",
-          "effects": {
-            "rel": {
-              "coach": 8
-            }
-          }
+          "text": "별 하나와 다섯 개. 그리고 오늘 칸은 비어 있다. 저쪽은 내 이름조차 모른다."
         },
         {
-          "label": "다음 대회도 우승합니다",
-          "result": "기자들이 그 말을 받아 적었다.",
-          "effects": {
-            "scoutInterest": 4,
-            "reputation": -2
-          }
-        }
-      ],
-      "place": "stadium"
-    },
-    {
-      "id": "envelope",
-      "grade": [1, 2],
-      "week": [1, 10],
-      "speaker": "mom",
-      "title": "봉투",
-      "text": "감독님께 인사 좀 드려야 하지 않겠니? 봉투 하나 준비했어.",
-      "choices": [
-        {
-          "label": "말린다",
-          "result": "엄마는 아쉬워했지만, 마음은 편하다.",
-          "effects": {
-            "condition": 5,
-            "rel": {
-              "mom": -3
-            }
-          }
+          "text": "감독은 끝까지 대타 사인을 내지 않았다. 새싹고는 졌다. 불꽃고 버스가 먼저 출발한다. 창가의 {rivalName}은(는) 이어폰을 끼고 휴대폰만 본다."
         },
         {
-          "label": "모른 척한다",
-          "result": "다음 경기부터 타순이 3번으로 올라갔다. 왠지 찜찜하다.",
-          "effects": {
-            "lineupSlot": 3,
-            "flag": "envelope",
-            "rel": {
-              "mom": 3
-            }
-          }
-        }
-      ],
-      "place": "home"
-    },
-    {
-      "id": "envelope_rumor",
-      "requires": ["envelope"],
-      "weight": 3,
-      "speaker": "buddy",
-      "title": "소문",
-      "text": "야… 너희 엄마가 감독님한테 봉투 줬다는 소문 돌던데. 진짜야?",
-      "choices": [
-        {
-          "label": "솔직히 말한다",
-          "result": "분위기가 싸해졌지만, 거짓말은 하지 않았다.",
-          "effects": {
-            "condition": -10,
-            "scoutInterest": -3,
-            "reputation": -3,
-            "rel": {
-              "buddy": 5
-            }
-          }
+          "speaker": "buddy",
+          "text": "쟤는 우리 이름 하나도 모를걸."
         },
         {
-          "label": "잡아뗀다",
-          "result": "소문은 잠잠해졌다… 일단은.",
-          "effects": {
-            "condition": -5,
-            "scoutInterest": -6,
-            "lineupSlot": 7,
-            "reputation": -8,
-            "flag": "envelope_lie"
-          }
-        }
-      ]
-    },
-    {
-      "id": "rumor",
-      "week": [3, 20],
-      "speaker": "단톡방",
-      "title": "찌라시",
-      "text": "\"새싹고 {player}, 후배들한테 막 대한다던데?\" 근거 없는 찌라시가 돈다.",
-      "choices": [
-        {
-          "label": "직접 해명한다",
-          "result": "오해는 풀렸지만 신경 쓰느라 지쳤다.",
-          "effects": {
-            "condition": -8,
-            "reputation": 3
-          }
+          "speaker": "player",
+          "text": "…알아."
         },
         {
-          "label": "실력으로 보여준다",
-          "result": "말 대신 배트를 잡았다.",
-          "effects": {
-            "contact": 1,
-            "condition": -4,
-            "reputation": -2
-          }
+          "speaker": "manager",
+          "text": "오늘 칸은 비어 있지. 대신 지난 연습경기 영상 다시 봤어. 바깥쪽 공에 어깨가 먼저 열리더라. 오늘 네 얘기는 이것뿐이야."
         },
         {
-          "label": "누가 퍼뜨렸는지 찾는다",
-          "outcomes": [
+          "choices": [
             {
-              "weight": 1,
-              "result": "{rivalSchool} 쪽 계정이었다. 캡처를 감독님께 드렸다.",
+              "label": "고마워. 다음엔 고쳐 올게",
               "effects": {
-                "reputation": 8,
+                "flag": ["y1_rival_bench_done", "y1_ch3_done"],
+                "eye": 1,
                 "rel": {
-                  "rival": 10,
-                  "coach": 3
-                },
-                "condition": -10
+                  "manager": 6
+                }
               }
             },
             {
-              "weight": 1,
-              "result": "끝내 못 찾았다. 시간만 날렸다.",
+              "label": "…알고 있었어",
               "effects": {
-                "condition": -12
-              }
-            }
-          ]
-        }
-      ],
-      "place": "phone",
-      "portrait": "none"
-    },
-    {
-      "id": "leadoff",
-      "week": [3, 14],
-      "speaker": "coach",
-      "title": "1번 타자",
-      "text": "다음 경기 1번 한번 쳐 볼래? 공을 많이 봐야 하는 자리야.",
-      "choices": [
-        {
-          "label": "해보겠습니다!",
-          "result": "1번 타자가 됐다.",
-          "effects": {
-            "lineupSlot": 1,
-            "eye": 1
-          }
-        },
-        {
-          "label": "지금 자리가 좋아요",
-          "result": "감독은 고개를 끄덕였다.",
-          "effects": {
-            "condition": 3
-          }
-        }
-      ]
-    },
-    {
-      "id": "ace_rumor",
-      "week": [6, 20],
-      "speaker": "buddy",
-      "title": "상대 에이스",
-      "text": "다음 상대 에이스, 이번에 150 던졌대. 프로 스카우트들도 걔 보러 온다더라.",
-      "choices": [
-        {
-          "label": "영상을 밤새 본다",
-          "result": "공 궤적이 눈에 익었다. 조금 피곤하다.",
-          "effects": {
-            "eye": 2,
-            "condition": -10
-          }
-        },
-        {
-          "label": "푹 잔다",
-          "result": "몸이 가볍다.",
-          "effects": {
-            "condition": 15
-          }
-        }
-      ]
-    },
-    {
-      "id": "scout_visit",
-      "week": [4, 20],
-      "minScout": 15,
-      "speaker": "coach",
-      "title": "관중석",
-      "text": "오늘 관중석에 프로 스카우트가 왔다. 너 보러 온 것 같던데?",
-      "choices": [
-        {
-          "label": "평소처럼",
-          "result": "긴장하지 않기로 했다.",
-          "effects": {
-            "condition": 5
-          }
-        },
-        {
-          "label": "보여주고 싶다",
-          "result": "의욕이 넘친다. 힘이 들어간다.",
-          "effects": {
-            "power": 1,
-            "condition": -5,
-            "scoutInterest": 2
-          }
-        }
-      ]
-    },
-    {
-      "id": "slump_fix",
-      "maxForm": -1.0,
-      "weight": 3,
-      "speaker": "coach",
-      "title": "폼 교정",
-      "text": "타격 폼 좀 바꿔 보자. 당장은 더 안 맞을 거다. 한 달만 참아.",
-      "choices": [
-        {
-          "label": "바꿔 보겠습니다",
-          "result": "어색한 폼으로 공을 쳤다. 손이 얼얼하다.",
-          "effects": {
-            "contact": -2,
-            "rel": {
-              "coach": 5
-            },
-            "schedule": {
-              "event": "slump_fix_payoff",
-              "weeks": 4
-            }
-          }
-        },
-        {
-          "label": "제 폼으로 버티겠습니다",
-          "result": "감독은 더 말하지 않았다.",
-          "effects": {
-            "rel": {
-              "coach": -5
-            },
-            "condition": 5
-          }
-        }
-      ]
-    },
-    {
-      "id": "slump_fix_payoff",
-      "scheduledOnly": true,
-      "speaker": "coach",
-      "title": "폼 교정, 그 뒤",
-      "text": "봐라. 이제 배트가 늦게 나와도 맞잖아. 한 달 참은 값이다.",
-      "choices": [
-        {
-          "label": "감사합니다!",
-          "result": "새 폼이 몸에 붙었다.",
-          "effects": {
-            "contact": 4,
-            "form": 1.0
-          }
-        }
-      ]
-    },
-    {
-      "id": "mom_meal",
-      "repeat": true,
-      "cooldownWeeks": 8,
-      "speaker": "mom",
-      "title": "보양식",
-      "text": "보양식 해 놨다. 오늘은 일찍 들어와.",
-      "choices": [
-        {
-          "label": "일찍 들어간다",
-          "result": "배부르게 먹고 푹 잤다.",
-          "effects": {
-            "condition": 10,
-            "rel": {
-              "mom": 3
-            }
-          }
-        },
-        {
-          "label": "야간 훈련이 있어요",
-          "result": "식은 밥상이 마음에 걸린다.",
-          "effects": {
-            "power": 1,
-            "condition": -6,
-            "rel": {
-              "mom": -5
-            }
-          }
-        }
-      ],
-      "place": "home"
-    },
-    {
-      "id": "mom_worry",
-      "maxRel": {
-        "mom": 35
-      },
-      "repeat": true,
-      "cooldownWeeks": 8,
-      "weight": 3,
-      "speaker": "mom",
-      "title": "걱정",
-      "text": "요즘 집에서 얼굴 보기 힘들다. 밥은 먹고 다니니?",
-      "choices": [
-        {
-          "label": "이번 주말엔 집에 있을게요",
-          "result": "엄마가 좋아하는 드라마를 같이 봤다.",
-          "effects": {
-            "rel": {
-              "mom": 15
-            },
-            "condition": 5
-          }
-        },
-        {
-          "label": "바빠요",
-          "result": "방문 닫는 소리가 크게 났다.",
-          "effects": {
-            "rel": {
-              "mom": -5
-            }
-          }
-        }
-      ],
-      "place": "home"
-    },
-    {
-      "id": "buddy_pc",
-      "repeat": true,
-      "cooldownWeeks": 8,
-      "speaker": "buddy",
-      "title": "PC방",
-      "text": "오늘 훈련 끝나고 PC방 ㄱ? 머리 좀 식히자.",
-      "choices": [
-        {
-          "label": "가자",
-          "result": "세 판 내리 졌다. 그래도 웃었다.",
-          "effects": {
-            "condition": 8,
-            "rel": {
-              "buddy": 5
-            }
-          }
-        },
-        {
-          "label": "난 스윙 좀 더 할게",
-          "result": "{buddyName}이(가) 어깨를 으쓱했다.",
-          "effects": {
-            "contact": 1,
-            "condition": -5,
-            "rel": {
-              "buddy": -4
-            }
-          }
-        }
-      ],
-      "place": "street"
-    },
-    {
-      "id": "exam",
-      "repeat": true,
-      "cooldownWeeks": 14,
-      "week": [8, 20],
-      "speaker": "mom",
-      "title": "기말고사",
-      "text": "기말고사 다음 주야. 공부는 하고 있니?",
-      "choices": [
-        {
-          "label": "벼락치기라도 한다",
-          "result": "새벽까지 교과서를 붙잡았다.",
-          "effects": {
-            "condition": -6,
-            "rel": {
-              "mom": 5
-            },
-            "reputation": 2
-          }
-        },
-        {
-          "label": "야구만 할래요",
-          "result": "성적표는 보지 않기로 했다.",
-          "effects": {
-            "contact": 1,
-            "rel": {
-              "mom": -6
-            }
-          }
-        }
-      ],
-      "place": "home"
-    },
-    {
-      "id": "sns_clip",
-      "lastMinHomeRuns": 1,
-      "repeat": true,
-      "cooldownWeeks": 10,
-      "weight": 2,
-      "speaker": "buddy",
-      "title": "조회수",
-      "text": "야, 네 홈런 영상 조회수 터졌어! 댓글 장난 아님.",
-      "choices": [
-        {
-          "label": "댓글을 다 읽어 본다",
-          "outcomes": [
-            {
-              "weight": 1,
-              "result": "칭찬 일색이다. 날아갈 것 같다.",
-              "effects": {
-                "condition": 8,
-                "scoutInterest": 2
-              }
-            },
-            {
-              "weight": 1,
-              "result": "악플 하나가 계속 머리에 맴돈다.",
-              "effects": {
-                "condition": -8,
-                "form": -0.5
-              }
-            }
-          ]
-        },
-        {
-          "label": "폰을 덮는다",
-          "result": "다음 타석만 생각하기로 했다.",
-          "effects": {
-            "condition": 3
-          }
-        }
-      ]
-    },
-    {
-      "id": "interview",
-      "grade": [2, 3],
-      "minScout": 30,
-      "speaker": "지역 신문 기자",
-      "title": "인터뷰",
-      "text": "요즘 주목받는 새싹고 {player} 선수! 목표가 뭐예요?",
-      "choices": [
-        {
-          "label": "팀 우승이요",
-          "result": "기사 제목: \"새싹고 {player}, 팀이 먼저\"",
-          "effects": {
-            "reputation": 5,
-            "rel": {
-              "coach": 3
-            }
-          }
-        },
-        {
-          "label": "1라운드 지명입니다",
-          "result": "기사 제목: \"새싹고 {player}, 1라운드 자신\"",
-          "effects": {
-            "scoutInterest": 4,
-            "reputation": -3,
-            "rel": {
-              "rival": 5
-            }
-          }
-        }
-      ],
-      "place": "field",
-      "portrait": "local_reporter"
-    },
-    {
-      "id": "coach_scold",
-      "lastMaxHits": 0,
-      "lastResult": "loss",
-      "repeat": true,
-      "cooldownWeeks": 6,
-      "speaker": "coach",
-      "title": "꾸중",
-      "text": "오늘 네 타석, 생각 없이 휘둘렀지?",
-      "choices": [
-        {
-          "label": "죄송합니다. 영상 다시 보겠습니다",
-          "result": "밤늦게까지 내 타석 영상을 돌려 봤다.",
-          "effects": {
-            "eye": 1,
-            "condition": -4
-          }
-        },
-        {
-          "label": "공이 안 보였어요",
-          "result": "감독이 한숨을 쉬었다.",
-          "effects": {
-            "rel": {
-              "coach": -4
-            },
-            "condition": 4
-          }
-        }
-      ]
-    },
-    {
-      "id": "play_hurt",
-      "maxCondition": 40,
-      "injured": false,
-      "repeat": true,
-      "cooldownWeeks": 10,
-      "weight": 2,
-      "speaker": "coach",
-      "title": "출전",
-      "text": "다음 경기 중요하다. 몸 괜찮지?",
-      "choices": [
-        {
-          "label": "뛸 수 있습니다",
-          "outcomes": [
-            {
-              "weight": 2,
-              "result": "버텼다. 감독 눈빛이 달라졌다.",
-              "effects": {
+                "flag": ["y1_rival_bench_done", "y1_ch3_done"],
+                "condition": 3,
                 "rel": {
-                  "coach": 8
-                },
-                "condition": -3
-              }
-            },
-            {
-              "weight": 1,
-              "result": "결국 탈이 났다. 허벅지가 올라왔다.",
-              "effects": {
-                "injury": 2,
-                "rel": {
-                  "coach": 3
+                  "manager": 2
                 }
               }
             }
           ]
         },
         {
-          "label": "솔직히 쉬고 싶습니다",
-          "result": "감독은 \"알았다\" 하고 라인업을 고쳤다.",
-          "effects": {
-            "condition": 12,
-            "rel": {
-              "coach": -6
-            }
-          }
+          "text": "저쪽은 나를 보지 않지만, 이쪽엔 내 빈칸까지 챙기는 사람이 있다."
         }
       ]
     },
     {
-      "id": "rival_dm",
-      "grade": [2, 3],
-      "met": ["rival"],
-      "minRel": {
-        "rival": 45
-      },
-      "speaker": "rival",
-      "title": "DM",
-      "text": "(DM) 난 지난주 {rivalLast}. 너 요즘 기사 좀 나더라? 전국대회에서 보자.",
-      "choices": [
+      "id": "y1_inj_night",
+      "story": true,
+      "timing": "start",
+      "free": true,
+      "grade": [1, 1],
+      "requires": ["y1_ch3_done"],
+      "forbids": ["senior_injured"],
+      "speaker": "senior",
+      "title": "예열",
+      "place": "dorm",
+      "script": [
         {
-          "label": "결승에서 보자",
-          "result": "답장을 보내고 바로 배트를 잡았다.",
-          "effects": {
-            "rel": {
-              "rival": 10
+          "text": "새봄기 지역 예선 전날 밤, 합숙소 마당. 가로등 아래서 누군가 혼자 스윙한다. 주장 선배다."
+        },
+        {
+          "speaker": "senior",
+          "text": "야, 1학년. 거기서 뭐 하냐."
+        },
+        {
+          "speaker": "player",
+          "text": "잠이 안 와서요."
+        },
+        {
+          "speaker": "senior",
+          "text": "나도다."
+        },
+        {
+          "text": "선배는 스윙을 멈추지 않는다."
+        },
+        {
+          "speaker": "senior",
+          "text": "이번 대회는 예열이야. 진짜는 여름이고, 그게 내 마지막이다."
+        },
+        {
+          "speaker": "senior",
+          "text": "근데 이상하게, 예열이 더 떨린다."
+        },
+        {
+          "choices": [
+            {
+              "label": "선배도 떨리세요?",
+              "effects": {
+                "flag": ["y1_inj_night_done"],
+                "rel": {
+                  "senior": 4
+                }
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "떨려. 너는 떨 일도 없잖아. 벤치니까."
+                },
+                {
+                  "text": "선배가 웃는다. 대답하지 못했다."
+                }
+              ]
             },
-            "form": 0.5
-          }
-        },
-        {
-          "label": "(읽고 답장하지 않는다)",
-          "result": "폰을 뒤집어 놓았다.",
-          "effects": {
-            "condition": 3
-          }
+            {
+              "label": "(말없이 같이 스윙한다)",
+              "effects": {
+                "flag": ["y1_inj_night_done"],
+                "condition": -3,
+                "rel": {
+                  "senior": 6
+                }
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "…스윙 소리, 나쁘지 않네."
+                }
+              ]
+            }
+          ]
         }
-      ],
-      "place": "phone"
+      ]
     },
     {
-      "id": "scout_dinner",
-      "grade": [3, 3],
-      "met": ["scout"],
-      "minRel": {
-        "scout": 40
-      },
-      "speaker": "scout",
-      "title": "저녁 식사",
-      "text": "저녁 한 끼 해요. 부모님도 같이 오시고요.",
-      "choices": [
+      "id": "y1_inj_morning",
+      "story": true,
+      "timing": "start",
+      "free": true,
+      "grade": [1, 1],
+      "requires": ["y1_inj_night_done"],
+      "forbids": ["senior_injured"],
+      "speaker": "coach",
+      "title": "7번 중견수",
+      "place": "dugout",
+      "script": [
         {
-          "label": "감사히 가겠습니다",
-          "result": "{scoutTeam} 이야기를 잔뜩 들었다.",
-          "effects": {
-            "rel": {
-              "scout": 10,
-              "mom": 5
+          "text": "지역 예선 당일 아침, 워밍업. 외야 펜스 쪽으로 높게 뜬 타구를 선배가 뒤로 달리다 둔탁한 소리와 함께 잔디 위에 주저앉는다. 오른쪽 발목이다."
+        },
+        {
+          "speaker": "player",
+          "text": "선배!"
+        },
+        {
+          "speaker": "senior",
+          "text": "…오지 마. 괜찮아."
+        },
+        {
+          "text": "괜찮지 않다. 얼굴이 하얗게 질려 있다."
+        },
+        {
+          "speaker": "트레이너",
+          "text": "3주는 못 뜁니다. 오늘은 절대 안 돼요."
+        },
+        {
+          "text": "새싹고는 외야 자원이 얇다. 선배를 빼면 중견수를 볼 수 있는 선수는 나뿐이다."
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "감독님, 쟤 1학년인데…"
+        },
+        {
+          "speaker": "coach",
+          "text": "알고 있다."
+        },
+        {
+          "speaker": "coach",
+          "text": "7번, 중견수. 할 수 있겠나?"
+        },
+        {
+          "choices": [
+            {
+              "label": "열심히 하겠습니다!",
+              "effects": {
+                "flag": ["senior_injured"],
+                "lineupSlot": 7,
+                "schedule": {
+                  "event": "y5_board",
+                  "weeks": 2
+                },
+                "rel": {
+                  "coach": 5
+                }
+              },
+              "then": [
+                {
+                  "text": "감독이 고개를 한 번 끄덕였다."
+                }
+              ]
             },
-            "condition": -3
-          }
+            {
+              "label": "…제가 해도 됩니까?",
+              "effects": {
+                "flag": ["senior_injured"],
+                "lineupSlot": 7,
+                "schedule": {
+                  "event": "y5_board",
+                  "weeks": 2
+                },
+                "rel": {
+                  "coach": 2
+                },
+                "condition": -3
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "하라는 게 아니라 하는 거다. 다른 대답은 필요 없다."
+                }
+              ]
+            },
+            {
+              "label": "선배의 자리인데 제가 해도 되는지…",
+              "effects": {
+                "flag": ["senior_injured"],
+                "lineupSlot": 7,
+                "schedule": {
+                  "event": "y5_board",
+                  "weeks": 2
+                },
+                "rel": {
+                  "senior": 6,
+                  "coach": -2
+                }
+              },
+              "then": [
+                {
+                  "text": "감독이 잠깐 선배 쪽을 본다."
+                },
+                {
+                  "speaker": "senior",
+                  "text": "(얼음주머니를 든 채) 내가 말한다. 가라."
+                }
+              ]
+            }
+          ]
         },
         {
-          "label": "다른 구단 분들도 만나 봐야 해서요",
-          "result": "스카우트의 웃음이 잠깐 굳었다.",
-          "effects": {
-            "scoutInterest": 5,
-            "rel": {
-              "scout": -10
-            }
-          }
-        }
-      ],
-      "place": "cafe"
-    },
-    {
-      "id": "agent",
-      "grade": [3, 3],
-      "minScout": 35,
-      "speaker": "에이전트라는 남자",
-      "title": "계약서",
-      "text": "계약금 두 배 받게 해 줄게. 여기 사인 하나만. 수수료는 나중에 얘기하고.",
-      "choices": [
-        {
-          "label": "사인한다",
-          "result": "그 뒤로 구단 전화가 늘었다. 왠지 불안하다.",
-          "effects": {
-            "scoutInterest": 5,
-            "flag": "shady_agent",
-            "schedule": {
-              "event": "agent_trouble",
-              "weeks": 5
-            }
-          }
+          "text": "경기 전, 아이싱 중인 선배가 얼음주머니를 든 채 나를 부른다. 평소 호통 치던 목소리가 낮다."
         },
         {
-          "label": "거절한다",
-          "result": "엄마가 \"잘했다\" 했다.",
-          "effects": {
-            "rel": {
-              "mom": 4
+          "speaker": "senior",
+          "text": "내 자리다. 이번 대회 마지막 같은 건 아니지만, 내 자리였다. 근데 어쩔 수 없네. 네가 나가야지."
+        },
+        {
+          "speaker": "senior",
+          "text": "이 구장은 바람이 중견수 쪽에서 분다. 높게 뜬 공은 한 발 앞에 떨어진다고 생각해라. 뒤로 뛰지 말고."
+        },
+        {
+          "speaker": "senior",
+          "text": "그리고 중견수는 외야의 눈이다. 좌우 둘이 네 콜을 기다린다. 콜은 크게, 먼저."
+        },
+        {
+          "choices": [
+            {
+              "label": "메모하겠습니다",
+              "effects": {
+                "flag": ["senior_tip", "y1_inj_morning_done"],
+                "rel": {
+                  "senior": 4
+                }
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "메모는 무슨. 몸으로 기억해."
+                }
+              ]
+            },
+            {
+              "label": "선배 몫까지 하겠습니다",
+              "effects": {
+                "flag": ["senior_tip", "y1_inj_morning_done"],
+                "rel": {
+                  "senior": 8
+                },
+                "condition": -3
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "…내 몫까지는 하지 마. 네 몫만 해."
+                }
+              ]
             }
-          }
+          ]
         }
-      ],
-      "place": "cafe",
-      "portrait": "agent"
+      ]
     },
     {
-      "id": "agent_trouble",
+      "id": "y1_inj_lineup",
+      "story": true,
+      "timing": "start",
+      "free": true,
+      "grade": [1, 1],
+      "requires": ["y1_inj_morning_done"],
+      "forbids": ["y1_inj_lineup_done"],
+      "speaker": "manager",
+      "title": "네 이름으로",
+      "place": "dugout",
+      "script": [
+        {
+          "speaker": "manager",
+          "text": "상대 팀 외야 쪽 타구 방향이야. 좌타자는 우중간, 우타자는 3-유간."
+        },
+        {
+          "speaker": "player",
+          "text": "이걸 언제 정리했어?"
+        },
+        {
+          "speaker": "manager",
+          "text": "어젯밤에. 네가 나갈 줄은 몰랐는데, 감독님이 오늘 외야 쪽을 물으셨거든."
+        },
+        {
+          "speaker": "manager",
+          "text": "오늘 칸은 비어 있지 않게 할게. 네 이름으로."
+        },
+        {
+          "choices": [
+            {
+              "label": "고마워. 잘 볼게",
+              "effects": {
+                "flag": ["scouting_sheet"],
+                "rel": {
+                  "manager": 8
+                }
+              }
+            },
+            {
+              "label": "…내가 잘할 수 있을까?",
+              "effects": {
+                "rel": {
+                  "manager": 5
+                },
+                "condition": -3
+              },
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "넌 잘해. 근거 없이 하는 말 아니야. 영상 다 봤거든."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "speaker": "coach",
+          "text": "7번, 중견수. {player}."
+        },
+        {
+          "text": "더그아웃이 잠깐 조용해진다. 동기가 소리 죽여 웃는다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "7번이래. 야, 우리 이름이 명단에 올라갔다."
+        },
+        {
+          "text": "관중석 맨 앞줄 가운데에 엄마가 작은 가방을 무릎에 올리고 앉아 있다. 입모양으로 파이팅."
+        },
+        {
+          "choices": [
+            {
+              "label": "(엄마를 향해 고개를 끄덕인다)",
+              "effects": {
+                "flag": ["y1_inj_lineup_done"],
+                "rel": {
+                  "mom": 3
+                }
+              }
+            },
+            {
+              "label": "(헬멧을 눌러쓴다)",
+              "effects": {
+                "flag": ["y1_inj_lineup_done"],
+                "condition": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "g_starter_first",
+      "story": true,
+      "free": true,
+      "timing": "game",
+      "moment": "first_pa",
+      "grade": [1, 1],
+      "requires": ["y1_inj_lineup_done"],
+      "forbids": ["y1_starter_done"],
+      "speaker": "senior",
+      "title": "첫 선발 타석",
+      "place": "dugout",
+      "script": [
+        {
+          "text": "헬멧 속에서 심장 소리가 들린다. 대타로 서던 때와 다르다. 처음부터 그라운드에 선 사람으로 서는 타석이다."
+        },
+        {
+          "text": "더그아웃 맨 끝에서 선배가 발을 올려놓은 채 보고 있다. 눈이 마주치자 입모양으로 쳐."
+        },
+        {
+          "choices": [
+            {
+              "label": "(초구부터 돌린다고 마음먹는다)",
+              "effects": {
+                "flag": ["y1_starter_done"],
+                "gameBoost": {
+                  "contact": 6
+                }
+              }
+            },
+            {
+              "label": "(공 하나 보고 간다)",
+              "effects": {
+                "flag": ["y1_starter_done"],
+                "gameBoost": {
+                  "eye": 8
+                }
+              }
+            },
+            {
+              "label": "(선배를 한 번 보고 타석에 선다)",
+              "effects": {
+                "flag": ["y1_starter_done"],
+                "gameBoost": {
+                  "contact": 3,
+                  "eye": 3
+                },
+                "rel": {
+                  "senior": 3
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y1_inj_after_hit",
+      "story": true,
+      "timing": "after",
+      "free": true,
+      "grade": [1, 1],
+      "requires": ["y1_starter_done"],
+      "forbids": ["y1_inj_closed"],
+      "lastMinHits": 1,
+      "speaker": "senior",
+      "title": "첫 선발 뒤",
+      "place": "dugout",
+      "script": [
+        {
+          "text": "경기가 끝난 더그아웃. 선배가 목발에 기댄 채 기다린다."
+        },
+        {
+          "speaker": "senior",
+          "text": "…좀 쳤더라."
+        },
+        {
+          "speaker": "player",
+          "text": "선배 덕분입니다."
+        },
+        {
+          "speaker": "senior",
+          "text": "아부는 집어치워. 내가 알려 준 건 하나였어."
+        },
+        {
+          "text": "선배의 눈가가 약간 붉다."
+        },
+        {
+          "speaker": "senior",
+          "text": "…중견수 뒤 펜스 쪽 타구, 안 놓쳤더라. 좋았어."
+        },
+        {
+          "choices": [
+            {
+              "label": "(고개를 숙인다)",
+              "effects": {
+                "flag": ["y1_inj_closed", "y1_ch4_done"],
+                "rel": {
+                  "senior": 3
+                }
+              }
+            },
+            {
+              "label": "앞으로도 알려 주세요",
+              "effects": {
+                "flag": ["y1_inj_closed", "y1_ch4_done"],
+                "rel": {
+                  "senior": 5
+                }
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "…발목 낫기 전까진 어차피 할 일도 없다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y1_inj_after_out",
+      "story": true,
+      "timing": "after",
+      "free": true,
+      "grade": [1, 1],
+      "requires": ["y1_starter_done"],
+      "forbids": ["y1_inj_closed"],
+      "lastMaxHits": 0,
+      "speaker": "senior",
+      "title": "첫 선발 뒤",
+      "place": "dugout",
+      "script": [
+        {
+          "text": "경기가 끝난 더그아웃. 선배가 목발에 기댄 채 고개를 든다."
+        },
+        {
+          "speaker": "senior",
+          "text": "못 쳤다고 그 자리가 네 게 아닌 게 아니야."
+        },
+        {
+          "speaker": "senior",
+          "text": "근데 다음에도 그 자리에 설 수 있는지는, 다음 경기에서 정해진다."
+        },
+        {
+          "choices": [
+            {
+              "label": "다음엔 치겠습니다",
+              "effects": {
+                "flag": ["y1_inj_closed", "y1_ch4_done"],
+                "rel": {
+                  "senior": 3
+                }
+              }
+            },
+            {
+              "label": "(말없이 고개를 끄덕인다)",
+              "effects": {
+                "flag": ["y1_inj_closed", "y1_ch4_done"],
+                "condition": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y5_board",
       "scheduledOnly": true,
-      "speaker": "buddy",
-      "title": "기사",
-      "text": "야, 뉴스 봤어? 그 에이전트, 다른 선수 학부모 돈 들고 잠적했대. 너도 사인했잖아…",
-      "choices": [
+      "story": true,
+      "free": true,
+      "grade": [1, 1],
+      "speaker": "manager",
+      "title": "볼펜",
+      "place": "dugout",
+      "script": [
         {
-          "label": "구단과 감독님께 먼저 알린다",
-          "result": "계약은 무효가 됐다. 감독이 뒤처리를 도와줬다.",
-          "effects": {
-            "reputation": -4,
-            "rel": {
-              "coach": 3
-            },
-            "clearFlag": "shady_agent"
-          }
+          "text": "선배가 빠진 지 3주. 칠판 7번 중견수 칸에 분필로 쓴 내 이름이 있다. 그동안 전 경기를 직접 뛰었다."
         },
         {
-          "label": "조용히 넘어간다",
-          "result": "아직은 아무도 모른다. 아직은.",
-          "effects": {
-            "reputation": -10,
-            "condition": -8
-          }
+          "speaker": "buddy",
+          "text": "3주 연속 선발이다. 이 정도면 이름이 박히는 거 아니냐."
+        },
+        {
+          "speaker": "player",
+          "text": "…칠판은 지우개 한 번이면 끝이야."
+        },
+        {
+          "text": "소율이 기록지를 정리하다가 내 줄에서 손을 멈춘다. 지금까지 연필로 쓰던 이름을 오늘은 볼펜으로 쓴다."
+        },
+        {
+          "speaker": "manager",
+          "text": "연필은 지우개로 지워지니까. 3주 동안 별이 세 개 쌓였어."
+        },
+        {
+          "speaker": "player",
+          "text": "세 개?"
+        },
+        {
+          "speaker": "manager",
+          "text": "볼펜은 확신이 서야 쓰는 거거든."
+        },
+        {
+          "choices": [
+            {
+              "label": "…고마워",
+              "effects": {
+                "flag": ["y5_board_done"],
+                "schedule": {
+                  "event": "s5_return",
+                  "weeks": 1
+                },
+                "rel": {
+                  "manager": 5
+                }
+              }
+            },
+            {
+              "label": "(말없이 기록지를 본다)",
+              "effects": {
+                "flag": ["y5_board_done"],
+                "schedule": {
+                  "event": "s5_return",
+                  "weeks": 1
+                },
+                "condition": 3
+              }
+            }
+          ]
         }
-      ],
-      "place": "phone"
+      ]
+    },
+    {
+      "id": "s5_return",
+      "scheduledOnly": true,
+      "story": true,
+      "free": true,
+      "grade": [1, 1],
+      "speaker": "coach",
+      "title": "주장 복귀",
+      "place": "dugout",
+      "script": [
+        {
+          "text": "훈련 전, 트레이너가 감독에게 서류를 건넨다."
+        },
+        {
+          "speaker": "트레이너",
+          "text": "주장 복귀 가능합니다. 다음 경기부터요."
+        },
+        {
+          "text": "더그아웃이 술렁인다. 3주 동안 중견수 자리는 내 것이었다."
+        },
+        {
+          "choices": [
+            {
+              "label": "…준비하고 있었습니다",
+              "effects": {
+                "flag": ["senior_back"],
+                "condition": -2
+              },
+              "then": [
+                {
+                  "speaker": "buddy",
+                  "text": "무슨 준비. 너 표정이 지금 시험 보는 애 같거든."
+                }
+              ]
+            },
+            {
+              "label": "(말없이 글러브를 닦는다)",
+              "effects": {
+                "flag": ["senior_back"],
+                "condition": 3
+              },
+              "then": [
+                {
+                  "text": "가죽 냄새가 코끝에 남는다. 3주 전과는 손에 닿는 느낌이 다르다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s5_verdict_good",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "grade": [1, 1],
+      "requires": ["senior_back"],
+      "forbids": ["s5_verdict_done"],
+      "recentGames": 3,
+      "recentMinHits": 3,
+      "speaker": "coach",
+      "title": "3경기",
+      "place": "dugout",
+      "script": [
+        {
+          "speaker": "batting_coach",
+          "text": "감독님, 선배 복귀하면 라인업은요. 쟤는…"
+        },
+        {
+          "text": "감독이 수첩을 넘긴다. 지난 3경기 기록이 소율의 글씨체로 정리되어 있다."
+        },
+        {
+          "speaker": "coach",
+          "text": "이 정도로 하는데 빼는 것도 이상하지."
+        },
+        {
+          "speaker": "coach",
+          "text": "중견수는 {seniorName} 자리다. 너는 우익수. 6번이다."
+        },
+        {
+          "choices": [
+            {
+              "label": "우익수로 증명하겠습니다",
+              "effects": {
+                "flag": ["rf_starter", "s5_verdict_done", "slot6"],
+                "lineupSlot": 6,
+                "rel": {
+                  "coach": 5
+                }
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "증명은 경기에서 해라. 말로 하지 말고."
+                }
+              ]
+            },
+            {
+              "label": "중견수는 안 됩니까?",
+              "effects": {
+                "flag": ["rf_starter", "s5_verdict_done", "slot6"],
+                "lineupSlot": 6,
+                "rel": {
+                  "coach": -3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "선배 앞에서도 그 말을 할 수 있으면 해 봐라."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s5_verdict_swing",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "grade": [1, 1],
+      "requires": ["senior_back"],
+      "forbids": ["s5_verdict_done"],
+      "recentGames": 3,
+      "recentMaxHits": 2,
+      "speaker": "batting_coach",
+      "title": "3경기",
+      "place": "dugout",
+      "script": [
+        {
+          "speaker": "coach",
+          "text": "지난 3경기 기록만 보면, 선배가 돌아오는 마당에 뺄 이유가 있긴 하다."
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "결과는 안 나왔지만 스윙은 좋았습니다."
+        },
+        {
+          "text": "코치가 태블릿을 내민다. 3경기 영상이 나란히 재생된다. 헛스윙이 줄었고 배트 나오는 길이 짧아졌다."
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "숫자가 아직 안 따라왔을 뿐입니다. 폼은 맞아요."
+        },
+        {
+          "speaker": "coach",
+          "text": "…스윙을 본 놈이 하는 말이라면 믿는다. 우익수, 7번이다."
+        },
+        {
+          "choices": [
+            {
+              "label": "숫자로 바꿔 놓겠습니다",
+              "effects": {
+                "flag": ["rf_starter", "s5_verdict_done", "slot7"],
+                "lineupSlot": 7,
+                "rel": {
+                  "batting_coach": 5,
+                  "coach": 2
+                }
+              },
+              "then": [
+                {
+                  "speaker": "batting_coach",
+                  "text": "그 말, 영상으로 다시 확인하자."
+                }
+              ]
+            },
+            {
+              "label": "…죄송합니다. 기록이 안 나와서",
+              "effects": {
+                "flag": ["rf_starter", "s5_verdict_done", "slot7"],
+                "lineupSlot": 7,
+                "condition": -3,
+                "rel": {
+                  "batting_coach": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "batting_coach",
+                  "text": "죄송할 일이 아니다. 기록은 따라오는 거야. 고개 들어."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y5_call",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "grade": [1, 1],
+      "requires": ["rf_starter"],
+      "forbids": ["y5_call_done"],
+      "speaker": "senior",
+      "title": "콜",
+      "place": "field",
+      "script": [
+        {
+          "text": "복귀 첫날 외야 수비 훈련. 선배의 발목에는 아직 테이프가 감겨 있다. 우중간으로 높은 타구가 뜬다. 선배와 내가 동시에 달려간다."
+        },
+        {
+          "speaker": "senior",
+          "text": "내 거다!"
+        },
+        {
+          "speaker": "player",
+          "text": "제가 잡습니다!"
+        },
+        {
+          "text": "두 사람 사이 한가운데에 공이 툭 떨어진다. 둘 다 멈칫하다 서로를 쳐다본다."
+        },
+        {
+          "speaker": "senior",
+          "text": "…야. 방금 뭐야."
+        },
+        {
+          "speaker": "player",
+          "text": "죄송합니다."
+        },
+        {
+          "speaker": "senior",
+          "text": "중견수가 부르면 양옆은 비킨다. 규칙은 이게 전부야."
+        },
+        {
+          "speaker": "senior",
+          "text": "…근데 3주 동안 네가 중견수였지. 그럼 알겠네. 콜이 늦을 때 옆에서 뭘 해 줘야 하는지."
+        },
+        {
+          "choices": [
+            {
+              "label": "우중간은 선배 공으로 하겠습니다",
+              "effects": {
+                "flag": ["y5_call_done", "senior_call_deal"],
+                "rel": {
+                  "senior": 4
+                }
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "…눈치는 빠르네. 근데 네 쪽이 더 가까우면 네가 불러."
+                },
+                {
+                  "speaker": "senior",
+                  "text": "네가 중견수를 해 봤으니까, 내가 늦을 때 네 콜을 믿는다."
+                }
+              ]
+            },
+            {
+              "label": "제가 먼저 보이면 제가 부르겠습니다",
+              "effects": {
+                "flag": ["y5_call_done"],
+                "rel": {
+                  "senior": -2
+                },
+                "contact": 1
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "(눈썹이 올라간다) …그래? 그럼 부르기만 해 봐라."
+                }
+              ]
+            },
+            {
+              "label": "선배가 먼저 부르시고, 제가 받치겠습니다",
+              "effects": {
+                "flag": ["y5_call_done", "senior_call_deal"],
+                "rel": {
+                  "senior": 6
+                },
+                "condition": -3
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "받치는 건 후배의 일이지. 근데 받치기만 하는 후배는 필요 없어."
+                },
+                {
+                  "speaker": "senior",
+                  "text": "네가 중견수를 해 봤으니까, 내가 늦을 때 네 콜을 믿는다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y5_clutch",
+      "story": true,
+      "free": true,
+      "timing": "game",
+      "moment": "clutch_pa",
+      "stage": {
+        "inning": 7,
+        "half": "bottom",
+        "outs": 2,
+        "bases": [2],
+        "runnerSlots": [3],
+        "reached": ["walk"],
+        "score": [2, 3]
+      },
+      "grade": [1, 1],
+      "requires": ["y5_call_done"],
+      "forbids": ["y5_clutch_done"],
+      "speaker": "coach",
+      "title": "복귀전 승부처",
+      "place": "stadium",
+      "script": [
+        {
+          "text": "복귀전. 7회말 1점 차 열세. 3번 타자인 선배가 볼넷으로 걸어 나가 2루에 있다. 선배가 팔짱을 낀 채 나를 본다."
+        },
+        {
+          "speaker": "coach",
+          "text": "(타임을 부르고 다가온다) 뭘 노릴래."
+        },
+        {
+          "choices": [
+            {
+              "label": "직구 하나만 보겠습니다",
+              "effects": {
+                "flag": ["y5_clutch_done"],
+                "gameBoost": {
+                  "contact": 8
+                }
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "그래. 변화구는 버려라."
+                }
+              ]
+            },
+            {
+              "label": "변화구가 올 것 같습니다",
+              "effects": {
+                "flag": ["y5_clutch_done"],
+                "gameBoost": {
+                  "eye": 10
+                }
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "…네 눈을 믿어 보마."
+                }
+              ]
+            },
+            {
+              "label": "넘기겠습니다",
+              "effects": {
+                "flag": ["y5_clutch_done"],
+                "gameBoost": {
+                  "power": 8,
+                  "contact": -3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "큰소리는. …해 봐라."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y5_after_hit",
+      "story": true,
+      "free": true,
+      "timing": "after",
+      "grade": [1, 1],
+      "requires": ["y5_clutch_done"],
+      "forbids": ["y5_game_done"],
+      "lastMinHits": 1,
+      "speaker": "buddy",
+      "title": "홈",
+      "place": "dugout",
+      "script": [
+        {
+          "speaker": "buddy",
+          "text": "들어왔다! 선배가 들어왔어!"
+        },
+        {
+          "text": "우중간을 가른 타구에 2루에 있던 선배가 3루를 돌아 홈으로 들어왔다. 부상으로 자리를 비웠던 사람이 홈을 밟는 순간이다."
+        },
+        {
+          "text": "더그아웃 앞에서 선배가 주먹을 내민다. 하이파이브가 아니라 주먹이다. 말 대신 부딪쳤다."
+        },
+        {
+          "choices": [
+            {
+              "label": "(주먹을 맞댄다)",
+              "effects": {
+                "flag": ["y5_game_done"],
+                "rel": {
+                  "senior": 4
+                },
+                "condition": 3
+              }
+            },
+            {
+              "label": "선배 덕분입니다",
+              "effects": {
+                "flag": ["y5_game_done"],
+                "rel": {
+                  "senior": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "홈은 내가 밟았지만, 불러서 보낸 건 너다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y5_after_out",
+      "story": true,
+      "free": true,
+      "timing": "after",
+      "grade": [1, 1],
+      "requires": ["y5_clutch_done"],
+      "forbids": ["y5_game_done"],
+      "lastMaxHits": 0,
+      "speaker": "senior",
+      "title": "복귀전 뒤",
+      "place": "dugout",
+      "script": [
+        {
+          "text": "타구가 높게 떠서 우익수 정면으로 갔다. 선배가 2루에서 고개를 숙이고 돌아섰다."
+        },
+        {
+          "speaker": "senior",
+          "text": "못 쳤다고 자리가 바뀌는 건 아니야. 내일 또 나와."
+        },
+        {
+          "speaker": "coach",
+          "text": "한 경기일 뿐이다. 내일도 쓴다."
+        },
+        {
+          "choices": [
+            {
+              "label": "…네, 내일 치겠습니다",
+              "effects": {
+                "flag": ["y5_game_done"],
+                "rel": {
+                  "senior": 3,
+                  "coach": 2
+                }
+              }
+            },
+            {
+              "label": "(말없이 헬멧을 벗는다)",
+              "effects": {
+                "flag": ["y5_game_done"],
+                "condition": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y5_talk",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "grade": [1, 1],
+      "requires": ["y5_game_done"],
+      "forbids": ["y5_talk_done"],
+      "speaker": "senior",
+      "title": "빌린 자리",
+      "place": "field",
+      "script": [
+        {
+          "text": "모두 철수한 뒤 외야에서 선배와 둘이 잔디를 정리한다. 석양이 길다."
+        },
+        {
+          "speaker": "senior",
+          "text": "오늘은 한 번도 안 겹쳤다. 네가 불러야 할 땐 불렀고, 내가 부를 땐 받쳐 줬고."
+        },
+        {
+          "speaker": "senior",
+          "text": "3주 동안 중견수 지켜 준 건, 고맙다는 말은 안 한다."
+        },
+        {
+          "speaker": "senior",
+          "text": "대신 우익수는 이제 네 자리다."
+        },
+        {
+          "choices": [
+            {
+              "label": "선배가 알려 주신 대로 했습니다",
+              "effects": {
+                "rel": {
+                  "senior": 4
+                }
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "내가 알려 준 건 하나였다. 나머지는 네 몫이야."
+                }
+              ]
+            },
+            {
+              "label": "선배 덕분에 자리를 지킬 수 있었습니다",
+              "effects": {
+                "rel": {
+                  "senior": 6
+                },
+                "condition": 3
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "자리는 지키는 게 아니라 만드는 거다. 오늘 네가 만든 거야."
+                }
+              ]
+            },
+            {
+              "label": "(말없이 고개를 숙인다)",
+              "effects": {
+                "condition": 3
+              }
+            }
+          ]
+        },
+        {
+          "text": "밤. 더그아웃에서 감독이 라인업 노트를 펼친다. 우익수 칸에 분필 대신 볼펜으로 이름이 적혀 있다. 감독은 그 글자를 한참 내려다본다."
+        },
+        {
+          "choices": [
+            {
+              "label": "(조용히 지켜본다)",
+              "effects": {
+                "flag": ["y5_talk_done"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y5_home_6",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "grade": [1, 1],
+      "requires": ["y5_talk_done", "slot6"],
+      "forbids": ["y5_done"],
+      "speaker": "mom",
+      "title": "일정표",
+      "place": "home",
+      "script": [
+        {
+          "text": "밤, 식탁. 엄마가 가계부 옆에 야구부 경기 일정표를 붙이고 있다."
+        },
+        {
+          "speaker": "mom",
+          "text": "오늘은 몇 번이었니?"
+        },
+        {
+          "speaker": "player",
+          "text": "6번."
+        },
+        {
+          "speaker": "mom",
+          "text": "6번? 7번 아니었어?"
+        },
+        {
+          "speaker": "player",
+          "text": "올라갔어."
+        },
+        {
+          "speaker": "mom",
+          "text": "…그래."
+        },
+        {
+          "text": "엄마가 일정표 귀퉁이에 연필로 작게 썼다. 6번."
+        },
+        {
+          "choices": [
+            {
+              "label": "다음 경기도 와요",
+              "effects": {
+                "flag": ["y5_done"],
+                "rel": {
+                  "mom": 4
+                }
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "일정 맞으면."
+                }
+              ]
+            },
+            {
+              "label": "(말없이 밥을 먹는다)",
+              "effects": {
+                "flag": ["y5_done"],
+                "condition": 5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y5_home_7",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "grade": [1, 1],
+      "requires": ["y5_talk_done", "slot7"],
+      "forbids": ["y5_done"],
+      "speaker": "mom",
+      "title": "일정표",
+      "place": "home",
+      "script": [
+        {
+          "text": "밤, 식탁. 엄마가 가계부 옆에 야구부 경기 일정표를 붙이고 있다."
+        },
+        {
+          "speaker": "mom",
+          "text": "오늘은 몇 번이었니?"
+        },
+        {
+          "speaker": "player",
+          "text": "7번. 근데 이제 우익수야."
+        },
+        {
+          "speaker": "mom",
+          "text": "중견수 아니었어?"
+        },
+        {
+          "speaker": "player",
+          "text": "선배가 돌아왔어요."
+        },
+        {
+          "speaker": "mom",
+          "text": "그래도 자리는 있구나."
+        },
+        {
+          "text": "엄마가 일정표 귀퉁이에 연필로 작게 썼다. 7번, 우익수."
+        },
+        {
+          "choices": [
+            {
+              "label": "다음 경기도 와요",
+              "effects": {
+                "flag": ["y5_done"],
+                "rel": {
+                  "mom": 4
+                }
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "일정 맞으면."
+                }
+              ]
+            },
+            {
+              "label": "(말없이 밥을 먹는다)",
+              "effects": {
+                "flag": ["y5_done"],
+                "condition": 5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y6_camp",
+      "story": true,
+      "free": true,
+      "grade": [1, 1],
+      "lastPhaseEnd": "leagueEnd",
+      "requires": ["y5_done"],
+      "forbids": ["y6_camp_done"],
+      "speaker": "coach",
+      "title": "합숙 첫날",
+      "place": "dorm",
+      "script": [
+        {
+          "text": "새싹고가 처음으로 전국 본선에 올랐다. 새봄기 본선 일주일 전, 합숙 첫날. 칠판 시간표에는 빈칸이 없다. 6시 기상, 러닝, 웨이트, 타격, 야간 타격."
+        },
+        {
+          "speaker": "coach",
+          "text": "본선까지 일주일. 이번 주는 지옥이다. 못 버티겠으면 말해라."
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "(따로 부른다) 1학년 몸은 아직 크는 중이다. 근육이 스윙 속도를 못 따라가면 몸이 먼저 신호를 보낸다."
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "그 신호 놓치지 마라. 놓치면 그날부터 못 뛴다."
+        },
+        {
+          "choices": [
+            {
+              "label": "알겠습니다",
+              "effects": {
+                "flag": ["y6_camp_done"]
+              }
+            },
+            {
+              "label": "…조심하겠습니다",
+              "effects": {
+                "flag": ["y6_camp_done"],
+                "rel": {
+                  "batting_coach": 2
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y6_night",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "grade": [1, 1],
+      "requires": ["y6_camp_done"],
+      "forbids": ["y6_night_done"],
+      "speaker": "manager",
+      "title": "640개",
+      "place": "dorm",
+      "script": [
+        {
+          "text": "합숙소 마당, 야간. 모두 방에 들어간 뒤 혼자 스윙한다. 선배가 서 있던 가로등 밑이다. 소율이 기록지를 안고 지나가다 멈춘다."
+        },
+        {
+          "speaker": "manager",
+          "text": "오늘 640개야."
+        },
+        {
+          "speaker": "player",
+          "text": "…세고 있었어?"
+        },
+        {
+          "speaker": "manager",
+          "text": "기록하는 사람이니까. 어제는 380개였어. 왜 이렇게까지 해?"
+        },
+        {
+          "choices": [
+            {
+              "label": "선배 마지막 시즌이잖아. 한 번이라도 더 이기게 해 주고 싶어",
+              "effects": {
+                "flag": ["y6_night_done", "overwork_for_senior"],
+                "condition": -3
+              },
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "선배가 보고 싶은 건 네가 서 있는 모습이지, 쓰러진 모습이 아니야."
+                }
+              ]
+            },
+            {
+              "label": "여기서 못 하면 다시 벤치로 돌아갈 것 같아",
+              "effects": {
+                "flag": ["y6_night_done", "overwork_fear"],
+                "condition": -3
+              },
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "…그 마음은 알아. 근데 벤치 안 가려다 벤치 가는 사람도 있어."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "text": "대답 대신 배트를 다시 들었다. 소율은 더 말리지 않고 기록지에 숫자를 하나 더 적었다."
+        }
+      ]
+    },
+    {
+      "id": "y6_montage",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "grade": [1, 1],
+      "requires": ["y6_night_done"],
+      "forbids": ["y6_montage_done"],
+      "speaker": "coach",
+      "title": "몸의 신호",
+      "place": "dorm",
+      "script": [
+        {
+          "text": "이틀 전. 계단을 내려가는데 허벅지가 풀린다. 난간을 잡고 한 칸씩 내려간다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "너 할아버지 같아."
+        },
+        {
+          "text": "하루 전 오후. 티배팅 중 손목이 떨린다. 어깨가 귀 높이 위로 올라가지 않는다."
+        },
+        {
+          "text": "하루 전 밤. 세수를 하다 팔이 얼굴까지 안 올라간다. 거울 속 나를 한참 본다."
+        },
+        {
+          "choices": [
+            {
+              "label": "감독님께 말씀드린다",
+              "effects": {
+                "flag": ["y6_montage_done", "told_pain"],
+                "condition": -10,
+                "rel": {
+                  "coach": 3
+                }
+              },
+              "then": [
+                {
+                  "text": "감독이 팔을 올려 보라고 한다. 올라가지 않는다."
+                },
+                {
+                  "speaker": "coach",
+                  "text": "…알았다. 내일은 쉬어라."
+                },
+                {
+                  "speaker": "coach",
+                  "text": "죄송한 건 내가 해야지. 1학년한테 이 일정을 준 건 나다."
+                },
+                {
+                  "text": "안도하다가, 곧 그 안도가 부끄러워졌다."
+                }
+              ]
+            },
+            {
+              "label": "숨긴다. 자고 나면 괜찮겠지",
+              "effects": {
+                "flag": ["y6_montage_done", "hid_pain"],
+                "condition": -10
+              },
+              "then": [
+                {
+                  "text": "그날 밤은 눕는 것도 아팠다. 천장을 보며 팔을 올려 본다. 올라가지 않는다. 눈을 감았다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y6_morning_told",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "grade": [1, 1],
+      "requires": ["y6_montage_done", "told_pain"],
+      "forbids": ["y6_morning_done"],
+      "speaker": "buddy",
+      "title": "단추",
+      "place": "dorm",
+      "script": [
+        {
+          "text": "경기 당일 아침. 알람이 울린다. 상체가 올라오지 않는다. 짚으려 하자 어깨가 비명을 지른다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "야, 일어나. 버스 간다."
+        },
+        {
+          "speaker": "player",
+          "text": "…못 일어나겠어."
+        },
+        {
+          "speaker": "buddy",
+          "text": "장난하지 말고."
+        },
+        {
+          "speaker": "player",
+          "text": "장난 아니야."
+        },
+        {
+          "text": "동기가 한참 보다가 팔을 끌어 일으킨다. 유니폼 단추를 채우려는데 손이 가슴까지 올라가지 않는다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "…내가 해 줄게. 가만있어."
+        },
+        {
+          "text": "단추를 채워 주는 동기의 손이 서툴다. 둘 다 웃지 못한다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "이런 날 제일 웃긴데 하나도 안 웃기네."
+        },
+        {
+          "text": "더그아웃. 라인업의 우익수 칸이 3학년 후보 외야수의 이름으로 바뀌어 있다."
+        },
+        {
+          "speaker": "coach",
+          "text": "벤치에서 봐라. 보는 것도 훈련이다."
+        },
+        {
+          "choices": [
+            {
+              "label": "…네",
+              "effects": {
+                "flag": ["y6_morning_done"],
+                "injury": 1,
+                "injuryLabel": "근육통",
+                "matchOverride": {
+                  "opponent": "cheonji",
+                  "result": "loss",
+                  "score": [0, 11],
+                  "innings": 7,
+                  "playerAbsent": true,
+                  "home": false,
+                  "line": [
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [4, 2, 3, 0, 1, 1, 0]
+                  ]
+                }
+              }
+            },
+            {
+              "label": "(고개를 끄덕인다)",
+              "effects": {
+                "flag": ["y6_morning_done"],
+                "injury": 1,
+                "injuryLabel": "근육통",
+                "matchOverride": {
+                  "opponent": "cheonji",
+                  "result": "loss",
+                  "score": [0, 11],
+                  "innings": 7,
+                  "playerAbsent": true,
+                  "home": false,
+                  "line": [
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [4, 2, 3, 0, 1, 1, 0]
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y6_morning_hid",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "grade": [1, 1],
+      "requires": ["y6_montage_done", "hid_pain"],
+      "forbids": ["y6_morning_done"],
+      "speaker": "buddy",
+      "title": "단추",
+      "place": "dorm",
+      "script": [
+        {
+          "text": "경기 당일 아침. 알람이 울린다. 상체가 올라오지 않는다. 짚으려 하자 어깨가 비명을 지른다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "야, 일어나. 버스 간다."
+        },
+        {
+          "speaker": "player",
+          "text": "…못 일어나겠어."
+        },
+        {
+          "speaker": "buddy",
+          "text": "장난하지 말고."
+        },
+        {
+          "speaker": "player",
+          "text": "장난 아니야."
+        },
+        {
+          "text": "동기가 한참 보다가 팔을 끌어 일으킨다. 유니폼 단추를 채우려는데 손이 가슴까지 올라가지 않는다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "…내가 해 줄게. 가만있어."
+        },
+        {
+          "text": "단추를 채워 주는 동기의 손이 서툴다. 둘 다 웃지 못한다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "이런 날 제일 웃긴데 하나도 안 웃기네."
+        },
+        {
+          "text": "더그아웃. 감독이 라인업을 읽다가, 단추를 못 채워 어색하게 서 있는 나를 본다."
+        },
+        {
+          "speaker": "coach",
+          "text": "…팔 올려 봐."
+        },
+        {
+          "text": "올라가지 않는다."
+        },
+        {
+          "speaker": "coach",
+          "text": "언제부터 그랬냐."
+        },
+        {
+          "speaker": "player",
+          "text": "…이틀 전부터입니다."
+        },
+        {
+          "speaker": "coach",
+          "text": "왜 말 안 했냐. 말했으면 오늘 라인업 이렇게 안 짰다. 감독도 판단할 기회가 필요한 거야."
+        },
+        {
+          "choices": [
+            {
+              "label": "죄송합니다",
+              "effects": {
+                "flag": ["y6_morning_done"],
+                "injury": 1,
+                "injuryLabel": "근육통",
+                "rel": {
+                  "coach": -4
+                },
+                "matchOverride": {
+                  "opponent": "cheonji",
+                  "result": "loss",
+                  "score": [0, 11],
+                  "innings": 7,
+                  "playerAbsent": true,
+                  "home": false,
+                  "line": [
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [4, 2, 3, 0, 1, 1, 0]
+                  ]
+                }
+              }
+            },
+            {
+              "label": "(고개를 숙인다)",
+              "effects": {
+                "flag": ["y6_morning_done"],
+                "injury": 1,
+                "injuryLabel": "근육통",
+                "rel": {
+                  "coach": -4
+                },
+                "matchOverride": {
+                  "opponent": "cheonji",
+                  "result": "loss",
+                  "score": [0, 11],
+                  "innings": 7,
+                  "playerAbsent": true,
+                  "home": false,
+                  "line": [
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [4, 2, 3, 0, 1, 1, 0]
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y6_after",
+      "story": true,
+      "free": true,
+      "timing": "after",
+      "grade": [1, 1],
+      "lastNational": true,
+      "requires": ["y6_morning_done"],
+      "forbids": ["y6_after_done"],
+      "speaker": "senior",
+      "title": "벤치에서",
+      "place": "dugout",
+      "script": [
+        {
+          "text": "벤치에서 경기를 지켜봤다. 천지고 에이스의 최고 구속은 153. 1회말에 4점을 준다. 우익수 자리의 3학년 후보가 타구를 쫓다 담장에 부딪힌다. 그 자리에 서 있었어야 했다는 생각을 지울 수 없다."
+        },
+        {
+          "text": "3회, 0-9. 관중석 반대편에서 환호가 터진다. 박수를 치고 싶지만 어깨를 올릴 수 없어 가슴 높이에서 두 손을 겨우 맞댄다."
+        },
+        {
+          "text": "5회, 선배의 타석. 150km 직구를 노려 쳤다. 타구가 우중간을 가른다. 우리 둘이 겹쳤던 바로 그 자리다. 점수에는 아무 영향도 없는 안타였다. 나도 모르게 벤치에서 일어섰다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "…쳤다. 선배가 쳤어."
+        },
+        {
+          "text": "7회말, 0-11 콜드게임. 일어서려다 허벅지가 풀려 도로 앉았다."
+        },
+        {
+          "text": "짐을 싸는 사이, 선배가 앞에 선다. 땀이 마르지 않은 얼굴이다."
+        },
+        {
+          "choices": [
+            {
+              "label": "…제가 빠져서 죄송합니다",
+              "effects": {
+                "rel": {
+                  "senior": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "빠져서 진 거 아니다. 착각하지 마."
+                }
+              ]
+            },
+            {
+              "label": "제가 뛰었으면 달라졌을까요?",
+              "effects": {
+                "rel": {
+                  "senior": 5
+                }
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "…아니. 11점은 11점이다. 그걸 알아야 다음 걸 준비하지."
+                }
+              ]
+            },
+            {
+              "label": "(말없이 고개를 숙인다)",
+              "effects": {
+                "rel": {
+                  "senior": 2
+                },
+                "condition": 3
+              },
+              "then": [
+                {
+                  "text": "선배가 아픈 쪽 어깨를 조심스럽게 한 번 두드린다."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "speaker": "senior",
+          "text": "하나만 기억해라. 내 마지막 시즌 중에 네가 몸 망가뜨리면, 그건 내가 화낸다."
+        },
+        {
+          "speaker": "senior",
+          "text": "이기고 지는 건 어쩔 수 없어도, 그건 네가 정할 수 있는 거니까."
+        },
+        {
+          "choices": [
+            {
+              "label": "…알겠습니다",
+              "effects": {
+                "flag": ["y6_after_done", "first_national_loss"]
+              }
+            },
+            {
+              "label": "(말없이 고개를 끄덕인다)",
+              "effects": {
+                "flag": ["y6_after_done", "first_national_loss"],
+                "condition": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s1_first_exit",
+      "story": true,
+      "free": true,
+      "grade": [1, 1],
+      "lastPhaseEnd": "eliminated",
+      "lastNational": true,
+      "requires": ["y6_after_done"],
+      "forbids": ["y6_exit_done"],
+      "speaker": "coach",
+      "title": "첫 전국대회",
+      "place": "bus",
+      "script": [
+        {
+          "text": "돌아오는 버스. 아무도 말이 없다. {seniorName} 선배는 창밖만 본다."
+        },
+        {
+          "speaker": "senior",
+          "text": "…분하다. 다음 대회가 내 마지막이야."
+        },
+        {
+          "speaker": "coach",
+          "text": "(뒷자리로 온다) 첫 전국대회 어땠냐."
+        },
+        {
+          "choices": [
+            {
+              "label": "…뛰지도 못했습니다",
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "그래. 못 뛴 놈은 보는 게 다르다. 눈에 담은 거, 써먹어라."
+                }
+              ]
+            },
+            {
+              "label": "벤치에서 봐도 공이 빨랐습니다. 그래도 눈에는 익었습니다",
+              "effects": {
+                "rel": {
+                  "coach": 2
+                }
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "익었으면 다음엔 쳐라."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "speaker": "coach",
+          "text": "다음 대회부터는 너 때문에 이기는 경기가 나와야 한다."
+        },
+        {
+          "choices": [
+            {
+              "label": "몸부터 다시 만들겠습니다",
+              "effects": {
+                "flag": ["y6_exit_done", "body_rebuild"],
+                "power": 1,
+                "condition": 3,
+                "rel": {
+                  "senior": 3
+                }
+              },
+              "then": [
+                {
+                  "text": "그날 밤 헬스장 대신 스트레칭 룸에 갔다. 선배가 먼저 와 있었다."
+                }
+              ]
+            },
+            {
+              "label": "다음엔 절대 안 빠지겠습니다",
+              "effects": {
+                "flag": ["y6_exit_done", "push_again"],
+                "condition": -6,
+                "rel": {
+                  "coach": 1
+                }
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "…그 말, 몸이 먼저 지킬 수 있어야 의미가 있다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y6_night_end",
+      "story": true,
+      "free": true,
+      "timing": "after",
+      "grade": [1, 1],
+      "requires": ["y6_exit_done"],
+      "forbids": ["y6_done"],
+      "speaker": "manager",
+      "title": "300개",
+      "place": "dorm",
+      "script": [
+        {
+          "text": "합숙소, 밤. 불을 끄고 누워 천장을 본다. 폰에 소율이 보낸 짧은 메시지가 있다."
+        },
+        {
+          "speaker": "manager",
+          "text": "640개 말고, 회복하면 300개부터 다시 세자."
+        },
+        {
+          "text": "화면을 끄고 천장 쪽으로 팔을 올려 본다. 귀 높이까지 올라간다. 어제보다 한 뼘 올라갔다."
+        },
+        {
+          "text": "다음엔 내 몸이 하는 말부터 듣자."
+        },
+        {
+          "choices": [
+            {
+              "label": "(답장을 쓴다) 응, 300개부터",
+              "effects": {
+                "flag": ["y6_done"],
+                "rel": {
+                  "manager": 4
+                }
+              }
+            },
+            {
+              "label": "(말없이 폰을 내려놓는다)",
+              "effects": {
+                "flag": ["y6_done"],
+                "condition": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s1_senior_farewell",
+      "story": true,
+      "free": true,
+      "timing": "seasonEnd",
+      "grade": [1, 1],
+      "minRel": {
+        "senior": 40
+      },
+      "speaker": "senior",
+      "title": "선배의 졸업",
+      "script": [
+        {
+          "text": "시즌이 끝났다. 3학년 라커가 하나씩 비워진다."
+        },
+        {
+          "speaker": "senior",
+          "text": "야, 1학년. 이리 와 봐."
+        },
+        {
+          "speaker": "senior",
+          "text": "1년 동안 많이 굴렸다. 미안하단 말은 안 한다."
+        },
+        {
+          "speaker": "senior",
+          "text": "…그리고 그때 한 말은 취소 안 한다. 몸 망가뜨리면 화낸다고 했지."
+        },
+        {
+          "speaker": "senior",
+          "text": "이거 받아라. 나는 대학 가서 새로 산다. 내년엔 네가 3번 쳐라. 팔이 올라가는 몸으로."
+        },
+        {
+          "choices": [
+            {
+              "label": "감사히 쓰겠습니다",
+              "effects": {
+                "flag": ["y7_farewell_done"],
+                "gear": "maple_bat"
+              },
+              "then": [
+                {
+                  "text": "손잡이 테이프가 닳아 있다. 선배의 3년이 묻어 있다."
+                },
+                {
+                  "speaker": "senior",
+                  "text": "내년에 후배 들어오면 잘해 줘라. 나처럼 하지 말고."
+                }
+              ]
+            },
+            {
+              "label": "선배 배트는 선배가 쓰셔야죠",
+              "effects": {
+                "flag": ["y7_farewell_done"],
+                "condition": 10,
+                "rel": {
+                  "senior": 5
+                }
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "…고집은. 그럼 밥이나 사 주마."
+                },
+                {
+                  "text": "선배가 사 준 국밥은 뜨거웠다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s1_senior_farewell_cold",
+      "story": true,
+      "free": true,
+      "timing": "seasonEnd",
+      "grade": [1, 1],
+      "maxRel": {
+        "senior": 39
+      },
+      "speaker": "senior",
+      "title": "선배의 졸업",
+      "script": [
+        {
+          "text": "시즌이 끝났다. 3학년 라커가 하나씩 비워진다."
+        },
+        {
+          "speaker": "senior",
+          "text": "야, 1학년."
+        },
+        {
+          "text": "선배가 뭔가 말하려다 멈춘다. 가방 밖으로 배트 손잡이가 삐져나와 있다."
+        },
+        {
+          "speaker": "senior",
+          "text": "…아니다. 외야 잘 지켜라. 그게 다야."
+        },
+        {
+          "choices": [
+            {
+              "label": "3년 동안 감사했습니다",
+              "effects": {
+                "flag": ["y7_farewell_done"],
+                "rel": {
+                  "senior": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "senior",
+                  "text": "…그래."
+                },
+                {
+                  "text": "선배는 라커 문을 닫고 걸어갔다. 배트는 가방에 든 채였다."
+                }
+              ]
+            },
+            {
+              "label": "(말없이 고개를 숙인다)",
+              "effects": {
+                "flag": ["y7_farewell_done"],
+                "condition": 3
+              },
+              "then": [
+                {
+                  "text": "선배가 어깨를 한 번 두드렸다. 그게 전부였다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y7_video",
+      "story": true,
+      "free": true,
+      "timing": "seasonEnd",
+      "grade": [1, 1],
+      "requires": ["y7_farewell_done"],
+      "forbids": ["y7_video_done"],
+      "speaker": "batting_coach",
+      "title": "벤치에서 본 것",
+      "place": "classroom",
+      "script": [
+        {
+          "text": "시즌이 끝난 겨울 첫 주. 타격 코치가 태블릿을 들고 나를 앉힌다. 화면에는 천지고전이 멈춰 있다."
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "너 그날 7이닝을 벤치에 앉아서 봤지. 뛴 놈들은 자기 타석밖에 못 봤어. 7이닝 내내 투수만 본 사람은 너 하나야."
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "뭘 봤는지 말해 봐."
+        },
+        {
+          "choices": [
+            {
+              "label": "직구가 높게 들어올 때 타자들이 먼저 열렸습니다",
+              "effects": {
+                "flag": ["y7_video_done", "observe_high"],
+                "eye": 1
+              }
+            },
+            {
+              "label": "변화구 직전에 투수의 어깨가 먼저 내려갑니다",
+              "effects": {
+                "flag": ["y7_video_done", "observe_shoulder"],
+                "eye": 1
+              }
+            },
+            {
+              "label": "타자들이 투수를 보는 게 아니라 공이 올 자리를 보고 있었습니다",
+              "effects": {
+                "flag": ["y7_video_done", "observe_zone"],
+                "contact": 1
+              }
+            }
+          ]
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "…기록은 없는데 눈은 있네. 그 눈, 겨울에 쓸 데 만들어 줄게."
+        }
+      ]
+    },
+    {
+      "id": "s1_winter",
+      "story": true,
+      "free": true,
+      "timing": "seasonEnd",
+      "grade": [1, 1],
+      "requires": ["y7_video_done"],
+      "forbids": ["y7_winter_done"],
+      "speaker": "mom",
+      "title": "첫 겨울",
+      "place": "home",
+      "script": [
+        {
+          "text": "집. 식탁에 파스 한 장이 놓여 있다. 엄마가 말없이 가계부를 넘긴다."
+        },
+        {
+          "speaker": "mom",
+          "text": "1년 고생했다. 밥 더 먹어."
+        },
+        {
+          "speaker": "mom",
+          "text": "겨울엔 뭐 할 거니? 다들 야구 캠프 간다던데… 비싸더라."
+        },
+        {
+          "choices": [
+            {
+              "label": "캠프 보내 주세요 (반은 내 돈으로)",
+              "cost": 100000,
+              "effects": {
+                "eye": 1,
+                "contact": 1,
+                "rel": {
+                  "mom": -6
+                }
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "…네 돈을 왜 써. 아니다, 그래. 반반 하자."
+                },
+                {
+                  "text": "엄마는 가계부를 오래 들여다봤다."
+                }
+              ]
+            },
+            {
+              "label": "집에서 혼자 할게요",
+              "effects": {
+                "condition": 10,
+                "rel": {
+                  "mom": 8
+                }
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "그래도 되겠니?"
+                },
+                {
+                  "text": "엄마가 등을 두드렸다. 집 앞 공터에서 매일 스윙했다."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "speaker": "mom",
+          "text": "합숙 끝나고 돌아온 날, 팔 못 올리더라."
+        },
+        {
+          "speaker": "player",
+          "text": "…봤어요?"
+        },
+        {
+          "speaker": "mom",
+          "text": "엄마가 그걸 모르겠니. 네가 말 안 하길래 안 물었어."
+        },
+        {
+          "speaker": "mom",
+          "text": "그 뒤로도 밤마다 공터에서 스윙 소리 났다. 다 들렸어."
+        },
+        {
+          "text": "침묵. 엄마가 파스를 어깨에 붙여 준다."
+        },
+        {
+          "speaker": "mom",
+          "text": "하나만 물을게. 야구, 재밌니?"
+        },
+        {
+          "choices": [
+            {
+              "label": "네. 힘든데 재밌어요",
+              "effects": {
+                "flag": ["y7_winter_done", "fun_first"],
+                "clearFlag": "win_first",
+                "rel": {
+                  "mom": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "그럼 됐다. 엄마는 그거면 돼."
+                }
+              ]
+            },
+            {
+              "label": "잘 모르겠어요. 그냥 이기고 싶어요",
+              "effects": {
+                "flag": ["y7_winter_done", "win_first"],
+                "clearFlag": "fun_first",
+                "condition": 3
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "이기고 싶은 것도 재미지 뭐. …근데 재미없어지면 그건 말해. 그것도 네가 정할 수 있는 거니까."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y7_plan",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "winter": true,
+      "campWeek": [1, 1],
+      "grade": [1, 1],
+      "requires": ["y7_winter_done"],
+      "forbids": ["y7_plan_done"],
+      "speaker": "coach",
+      "title": "겨울 계획서",
+      "place": "field",
+      "script": [
+        {
+          "text": "겨울 캠프 첫날. 감독이 칠판에 4주 일정을 붙인다. 이번엔 빈칸이 있다."
+        },
+        {
+          "speaker": "coach",
+          "text": "이번 겨울은 하나만 정해서 해라. 네가 정해서 써 와라. 내가 안 시킨다."
+        },
+        {
+          "speaker": "coach",
+          "text": "합숙 일정은 내가 짰고, 네가 몸으로 무리했다. 그건 반쯤 내 실수다. 이번엔 네가 짜 봐."
+        },
+        {
+          "text": "노트를 펴 계획서를 쓴다."
+        },
+        {
+          "choices": [
+            {
+              "label": "정확하게 맞히는 것 (컨택)",
+              "effects": {
+                "flag": ["y7_plan_done"],
+                "campFocus": "contact"
+              },
+              "then": [
+                {
+                  "speaker": "batting_coach",
+                  "text": "좋아. 티배팅부터 다시. 하루 300개."
+                }
+              ]
+            },
+            {
+              "label": "멀리 치는 것 (파워)",
+              "effects": {
+                "flag": ["y7_plan_done"],
+                "campFocus": "power"
+              },
+              "then": [
+                {
+                  "speaker": "batting_coach",
+                  "text": "그럼 웨이트장에서 살자. 하체부터."
+                }
+              ]
+            },
+            {
+              "label": "공을 고르는 것 (선구안)",
+              "effects": {
+                "flag": ["y7_plan_done"],
+                "campFocus": "eye"
+              },
+              "then": [
+                {
+                  "speaker": "batting_coach",
+                  "text": "불펜 포수 뒤에 서서 공만 봐. 휘두르지 말고."
+                }
+              ]
+            },
+            {
+              "label": "빨리 뛰는 것 (주력)",
+              "effects": {
+                "flag": ["y7_plan_done"],
+                "campFocus": "speed"
+              },
+              "then": [
+                {
+                  "speaker": "batting_coach",
+                  "text": "눈 치우고 뛰어. 매일. 스타트 연습도 같이."
+                }
+              ]
+            },
+            {
+              "label": "몸을 만드는 것 (회복과 체력)",
+              "effects": {
+                "flag": ["y7_plan_done"],
+                "campFocus": "body"
+              },
+              "then": [
+                {
+                  "speaker": "batting_coach",
+                  "text": "좋아. 근육이 크는 속도에 맞춰서 간다. 주 2회 회복 프로그램 포함이다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y7_plan_rebuild",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "winter": true,
+      "grade": [1, 1],
+      "requires": ["y7_plan_done", "body_rebuild"],
+      "forbids": ["y7_plan_react_done"],
+      "speaker": "coach",
+      "title": "회복 프로그램",
+      "place": "field",
+      "script": [
+        {
+          "speaker": "coach",
+          "text": "트레이너한테 말해 놨다. 주 2회 회복 프로그램은 네가 빼먹지 마라."
+        },
+        {
+          "choices": [
+            {
+              "label": "네, 안 빼먹겠습니다",
+              "effects": {
+                "flag": ["y7_plan_react_done", "recovery_program"],
+                "rel": {
+                  "coach": 3
+                }
+              }
+            },
+            {
+              "label": "(고개를 끄덕인다)",
+              "effects": {
+                "flag": ["y7_plan_react_done", "recovery_program"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y7_plan_push",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "winter": true,
+      "grade": [1, 1],
+      "requires": ["y7_plan_done", "push_again"],
+      "forbids": ["y7_plan_react_done"],
+      "speaker": "coach",
+      "title": "스윙 상한",
+      "place": "field",
+      "script": [
+        {
+          "speaker": "coach",
+          "text": "하고 싶은 거 해라. 대신 규칙 하나. 하루 스윙 300개 상한이다."
+        },
+        {
+          "speaker": "player",
+          "text": "…300개요?"
+        },
+        {
+          "speaker": "coach",
+          "text": "640개 하던 놈이 300개로 줄이는 게 제일 힘들 거다."
+        },
+        {
+          "speaker": "manager",
+          "text": "(기록지를 들고) 제가 셀게요."
+        },
+        {
+          "choices": [
+            {
+              "label": "…알겠습니다",
+              "effects": {
+                "flag": ["y7_plan_react_done", "swing_cap_300"],
+                "rel": {
+                  "manager": 3
+                }
+              }
+            },
+            {
+              "label": "(말없이 고개를 끄덕인다)",
+              "effects": {
+                "flag": ["y7_plan_react_done", "swing_cap_300"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y7_dawn",
+      "story": true,
+      "free": true,
+      "timing": "start",
+      "winter": true,
+      "campWeek": [2, 2],
+      "grade": [1, 1],
+      "met": ["neighbor"],
+      "requires": ["y7_plan_done"],
+      "forbids": ["y7_dawn_done"],
+      "speaker": "neighbor",
+      "title": "새벽 공터",
+      "place": "street",
+      "script": [
+        {
+          "text": "겨울 캠프 둘째 주, 새벽 5시 40분. 1화의 그 공터. 입김이 하얗다. 계획서대로 몸을 푼다."
+        },
+        {
+          "text": "2층 창문이 열린다. 다온이 스케치북 대신 두꺼운 목도리를 두르고 내다본다."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "…또 새벽이네. 올해 3월에도 이랬는데."
+        },
+        {
+          "speaker": "player",
+          "text": "입시 준비는?"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "다음 주 실기야. 손이 얼어서 그림이 안 나와."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "(한참 내려다본다) 있잖아. 3월엔 서두르는 사람 같았는데, 지금은 뭔가 아는 사람 같아."
+        },
+        {
+          "speaker": "player",
+          "text": "느려졌는데?"
+        },
+        {
+          "speaker": "neighbor",
+          "text": "느려진 게 아니라 안 서두르는 거야. 그림도 그렇거든."
+        },
+        {
+          "choices": [
+            {
+              "label": "실기 끝나면 나 경기 보러 와",
+              "effects": {
+                "flag": ["y7_dawn_done", "y1_done"],
+                "rel": {
+                  "neighbor": 8
+                }
+              },
+              "then": [
+                {
+                  "speaker": "neighbor",
+                  "text": "…그럼 그날은 야구장 그림 그릴게. 약속."
+                }
+              ]
+            },
+            {
+              "label": "잘할 거야. 파이팅",
+              "effects": {
+                "flag": ["y7_dawn_done", "y1_done"],
+                "rel": {
+                  "neighbor": 5
+                },
+                "condition": 3
+              },
+              "then": [
+                {
+                  "speaker": "neighbor",
+                  "text": "응. 너도."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "text": "창문이 닫힌다. 하늘이 파랗게 밝아 오기 시작한다."
+        },
+        {
+          "text": "3월엔 구경만 하지 않겠다고 했다. 이제는 끝까지 서 있어 보겠다."
+        }
+      ]
     },
     {
       "id": "love_manager_meet",
       "story": true,
+      "free": true,
+      "timing": "start",
       "grade": [1, 1],
-      "week": [2, 5],
+      "requires": ["y1_pinch_end_done"],
       "forbidsMet": ["manager"],
       "speaker": "manager",
       "title": "기록지",
-      "text": "(경기 뒤, 매니저가 기록지를 들고 온다) 오늘 네 타석 다 적었어. 세 번째 타석 초구에 배트 나간 거… 일부러야?",
-      "choices": [
+      "place": "classroom",
+      "script": [
         {
-          "label": "응, 노렸어",
-          "result": "\"오, 계산된 거였구나.\" {managerName}이(가) 기록지에 별표를 그렸다.",
-          "effects": {
-            "meet": "manager",
-            "rel": {
-              "manager": 8
+          "text": "월요일 점심, 복도 게시판. 주말 연습경기 결과 옆에 타자별 기록이 손글씨로 빼곡하다. 내 이름 옆에 대타 타석의 공 하나하나가 적혀 있다."
+        },
+        {
+          "speaker": "manager",
+          "text": "그거, 내가 쓴 거야."
+        },
+        {
+          "text": "뒤에서 기록지를 안은 여학생이 서 있다. 입학식 날 운동장 구석에서 눈이 마주쳤던 그 학생이다."
+        },
+        {
+          "speaker": "manager",
+          "text": "한소율. 같은 1학년이고 야구부 매니저야. 너는 이름이 비어 있어서 이번에 처음 적었어. 중학교 때 기록이 하나도 없었으니까."
+        },
+        {
+          "speaker": "manager",
+          "text": "하나만 물어볼게. 세 번째 공, 몸쪽인데 스윙을 반쯤 하다가 멈췄잖아. 일부러야?"
+        },
+        {
+          "choices": [
+            {
+              "label": "응, 노렸어",
+              "effects": {
+                "meet": "manager",
+                "rel": {
+                  "manager": 8
+                }
+              },
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "오, 계산된 거였구나."
+                },
+                {
+                  "text": "{managerName}이(가) 기록지에 별표를 그렸다."
+                }
+              ]
+            },
+            {
+              "label": "그냥 손이 나갔어",
+              "effects": {
+                "meet": "manager",
+                "rel": {
+                  "manager": 5
+                },
+                "condition": 3
+              },
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "솔직하네."
+                },
+                {
+                  "text": "{managerName}이(가) 웃음을 참았다."
+                }
+              ]
             }
-          }
+          ]
         },
         {
-          "label": "그냥 손이 나갔어",
-          "result": "{managerName}이(가) 웃음을 참았다. \"솔직하네.\"",
-          "effects": {
-            "meet": "manager",
-            "rel": {
-              "manager": 5
-            },
-            "condition": 3
-          }
-        }
-      ]
-    },
-    {
-      "id": "love_manager_1",
-      "met": ["manager"],
-      "minRel": {
-        "manager": 25
-      },
-      "forbids": ["rejected_manager"],
-      "weight": 2,
-      "speaker": "manager",
-      "title": "에너지바",
-      "text": "(훈련 뒤 장비를 정리하다가) 이거… 남는 거 있어서. 에너지바.",
-      "choices": [
-        {
-          "label": "고마워, 같이 먹자",
-          "result": "벤치에 나란히 앉아 하나씩 먹었다.",
-          "effects": {
-            "rel": {
-              "manager": 8
-            },
-            "condition": 3
-          }
+          "speaker": "manager",
+          "text": "이건 내가 써 둘게. 다음에 같은 공이 오면 이 기록이 도움이 될 거야."
         },
         {
-          "label": "괜찮아, 너 먹어",
-          "result": "\"…그래.\" 에너지바는 다시 주머니로 들어갔다.",
-          "effects": {
-            "rel": {
-              "manager": 2
+          "text": "방과 후 더그아웃. 소율이 기록지를 감독에게 조심스럽게 내민다."
+        },
+        {
+          "speaker": "manager",
+          "text": "감독님, 이번 주 타격 기록입니다."
+        },
+        {
+          "speaker": "coach",
+          "text": "그래. 놓고 가라."
+        },
+        {
+          "text": "감독은 기록지를 훑다가 내 줄에서 손가락을 멈춘다."
+        },
+        {
+          "speaker": "coach",
+          "text": "…이 별은 누가 그렸냐."
+        },
+        {
+          "speaker": "manager",
+          "text": "제가요. 의미 있는 공이라서요."
+        },
+        {
+          "speaker": "coach",
+          "text": "필요 없는 짓 하지 마라."
+        },
+        {
+          "text": "감독은 기록지를 수첩 사이에 끼워 넣는다."
+        },
+        {
+          "speaker": "coach",
+          "text": "다음 주 것도 이렇게 써 와라."
+        },
+        {
+          "text": "소율의 얼굴이 환해진다. 멀찍이서 그 장면을 봤다."
+        },
+        {
+          "choices": [
+            {
+              "label": "(소율에게 다가가 말을 건다)",
+              "effects": {
+                "flag": ["y1_manager_met"],
+                "rel": {
+                  "manager": 2
+                }
+              },
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "…봤어? 감독님이 다음 주도 써 오래."
+                }
+              ]
+            },
+            {
+              "label": "(말없이 지켜본다)",
+              "effects": {
+                "flag": ["y1_manager_met"]
+              }
             }
-          }
+          ]
         }
       ]
     },
     {
-      "id": "love_manager_2",
-      "met": ["manager"],
-      "minRel": {
-        "manager": 45
-      },
-      "forbids": ["rejected_manager"],
-      "weight": 2,
-      "speaker": "manager",
-      "title": "몸쪽 공",
-      "text": "기록지 보니까 너 몸쪽 공에 약하더라. 오늘 밤에 영상 같이 볼래? 내가 다 잘라 놨어.",
-      "choices": [
-        {
-          "label": "보자, 오늘 밤",
-          "result": "밤 11시까지 영상을 봤다. 몸쪽 공이 조금 보인다.",
-          "effects": {
-            "rel": {
-              "manager": 10
-            },
-            "eye": 1,
-            "condition": -4
-          }
-        },
-        {
-          "label": "오늘은 좀 쉴래",
-          "result": "\"응, 다음에.\" 목소리가 조금 작았다.",
-          "effects": {
-            "rel": {
-              "manager": -3
-            },
-            "condition": 5
-          }
-        }
-      ]
-    },
-    {
-      "id": "love_manager_confess",
-      "story": true,
-      "grade": [2, 3],
-      "met": ["manager"],
-      "minRel": {
-        "manager": 75
-      },
-      "partner": "none",
-      "forbids": ["rejected_manager"],
-      "speaker": "manager",
-      "title": "고백 · 소율",
-      "text": "(아무도 없는 더그아웃. {managerName}이(가) 기록지를 꼭 쥐고 있다) 있잖아. 나 요즘… 네 타석만 기록하는 것 같아.",
-      "choices": [
-        {
-          "label": "나도 너만 보여",
-          "result": "{managerName}이(가) 기록지로 얼굴을 가렸다. 귀까지 빨갰다.",
-          "effects": {
-            "partner": "manager",
-            "rel": {
-              "manager": 10
-            },
-            "condition": 10
-          }
-        },
-        {
-          "label": "지금은 야구만 생각하고 싶어",
-          "result": "\"…알았어. 기록은 계속 할게.\" 뒤돌아선 어깨가 작아 보였다.",
-          "effects": {
-            "rel": {
-              "manager": -20
-            },
-            "flag": "rejected_manager",
-            "condition": -5
-          }
-        }
-      ]
-    },
-    {
-      "id": "love_neighbor_meet",
-      "story": true,
-      "grade": [1, 1],
-      "week": [3, 8],
-      "forbidsMet": ["neighbor"],
-      "speaker": "neighbor",
-      "title": "옆집",
-      "text": "(집 앞, 옆집 {neighborName}이(가) 스케치북을 끼고 서 있다) 야구부 들어갔다며? 공 맞으면 어떡해. …아니, 걱정한 건 아니고.",
-      "choices": [
-        {
-          "label": "경기 보러 와",
-          "result": "\"시간 되면.\" 스케치북 귀퉁이에 배트를 그리고 있었다.",
-          "effects": {
-            "meet": "neighbor",
-            "rel": {
-              "neighbor": 8
-            }
-          }
-        },
-        {
-          "label": "걱정 마, 안 맞아",
-          "result": "\"누가 걱정했대?\" 문이 쾅 닫혔다. 그래도 웃는 소리가 들렸다.",
-          "effects": {
-            "meet": "neighbor",
-            "rel": {
-              "neighbor": 5
-            },
-            "condition": 3
-          }
-        }
-      ]
-    },
-    {
-      "id": "love_neighbor_1",
-      "met": ["neighbor"],
-      "minRel": {
-        "neighbor": 25
-      },
-      "forbids": ["rejected_neighbor"],
-      "weight": 2,
-      "speaker": "neighbor",
-      "title": "크로키",
-      "text": "가만히 있어 봐. 너 그리는 중이야. 배트 든 거 말고, 그냥 너.",
-      "choices": [
-        {
-          "label": "(가만히 앉아 있는다)",
-          "result": "10분 뒤 받은 그림 속 나는 생각보다 지쳐 보였다.",
-          "effects": {
-            "rel": {
-              "neighbor": 8
-            },
-            "condition": 5
-          }
-        },
-        {
-          "label": "훈련 가야 돼",
-          "result": "\"맨날 훈련.\" 연필 소리가 빨라졌다.",
-          "effects": {
-            "rel": {
-              "neighbor": -2
-            },
-            "contact": 1
-          }
-        }
-      ]
-    },
-    {
-      "id": "love_neighbor_2",
-      "met": ["neighbor"],
-      "minRel": {
-        "neighbor": 45
-      },
-      "forbids": ["rejected_neighbor"],
-      "weight": 2,
-      "speaker": "neighbor",
-      "title": "학원비",
-      "text": "미대 입시 학원비가 너무 비싸. 엄마한테 말도 못 꺼내겠어… 그만둘까 봐.",
-      "choices": [
-        {
-          "label": "재료값이라도 보탤게",
-          "result": "{neighborName}이(가) 한참 말이 없다가 \"갚을 거야\" 했다.",
-          "cost": 50000,
-          "effects": {
-            "rel": {
-              "neighbor": 15
-            }
-          }
-        },
-        {
-          "label": "넌 꼭 해야 돼",
-          "result": "\"말은 쉽지.\" 그래도 스케치북을 다시 폈다.",
-          "effects": {
-            "rel": {
-              "neighbor": 6
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "love_neighbor_confess",
-      "story": true,
-      "grade": [2, 3],
-      "met": ["neighbor"],
-      "minRel": {
-        "neighbor": 75
-      },
-      "partner": "none",
-      "forbids": ["rejected_neighbor"],
-      "place": "street",
-      "speaker": "neighbor",
-      "title": "고백 · 다온",
-      "text": "(밤, 놀이터 그네) 나 미대 붙으면 서울 가. 너는 프로 가면 어디로 갈지 모르고. …그 전에 말할래. 좋아해.",
-      "choices": [
-        {
-          "label": "나도. 오래전부터",
-          "result": "그네가 멈췄다. {neighborName}이(가) 처음으로 먼저 손을 잡았다.",
-          "effects": {
-            "partner": "neighbor",
-            "rel": {
-              "neighbor": 10
-            },
-            "condition": 10
-          }
-        },
-        {
-          "label": "미안, 넌 친구야",
-          "result": "\"…알아. 그냥 말하고 싶었어.\" 다음 날부터 창문 커튼이 닫혀 있었다.",
-          "effects": {
-            "rel": {
-              "neighbor": -20
-            },
-            "flag": "rejected_neighbor",
-            "condition": -5
-          }
-        }
-      ]
-    },
-    {
-      "id": "love_reporter_meet",
-      "story": true,
-      "grade": [1, 2],
-      "minScout": 12,
-      "forbidsMet": ["reporter"],
-      "speaker": "reporter",
-      "title": "30초 인터뷰",
-      "text": "{school} {player} 선수 맞죠? 방송부 {reporterName}이에요. 인터뷰 30초만! 조회수 책임질게요.",
-      "choices": [
-        {
-          "label": "30초면 되죠",
-          "result": "카메라 앞에서 말을 더듬었다. 그 영상이 제일 많이 봤다.",
-          "effects": {
-            "meet": "reporter",
-            "rel": {
-              "reporter": 8
-            },
-            "reputation": 2,
-            "scoutInterest": 1
-          }
-        },
-        {
-          "label": "죄송해요, 지금은 좀",
-          "result": "\"다음엔 꼭이에요!\" 명함 대신 SNS 아이디를 받았다.",
-          "effects": {
-            "meet": "reporter",
-            "rel": {
-              "reporter": 4
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "love_reporter_1",
-      "met": ["reporter"],
-      "minRel": {
-        "reporter": 25
-      },
-      "forbids": ["rejected_reporter"],
-      "weight": 2,
-      "place": "studio",
-      "speaker": "reporter",
-      "title": "조회수",
-      "text": "어제 올린 영상 조회수 2만 넘었어요. 댓글이 다 그쪽 얘기예요. 편집본 같이 볼래요?",
-      "choices": [
-        {
-          "label": "같이 봐요",
-          "result": "방송부실에서 편집 화면을 봤다. 슬로모션 속 내가 낯설다.",
-          "effects": {
-            "rel": {
-              "reporter": 8
-            },
-            "scoutInterest": 2
-          }
-        },
-        {
-          "label": "댓글은 안 봐요",
-          "result": "\"멘탈 관리? 멋있네.\" 메모장에 뭔가 적었다.",
-          "effects": {
-            "rel": {
-              "reporter": 4
-            },
-            "condition": 3
-          }
-        }
-      ]
-    },
-    {
-      "id": "love_reporter_2",
-      "met": ["reporter"],
-      "minRel": {
-        "reporter": 45
-      },
-      "forbids": ["rejected_reporter"],
-      "weight": 2,
-      "speaker": "reporter",
-      "title": "누구 응원",
-      "text": "다음 주에 우리 학교랑 붙으면… 난 누구 응원해야 돼요?",
-      "choices": [
-        {
-          "label": "나",
-          "result": "\"…방송부는 중립이거든요?\" 하면서 웃었다.",
-          "effects": {
-            "rel": {
-              "reporter": 10
-            }
-          }
-        },
-        {
-          "label": "당연히 그쪽 학교죠",
-          "result": "\"재미없어.\" 그래도 응원 영상 하나가 더 올라왔다.",
-          "effects": {
-            "rel": {
-              "reporter": 4
-            },
-            "reputation": 2
-          }
-        }
-      ]
-    },
-    {
-      "id": "love_reporter_confess",
-      "story": true,
-      "grade": [2, 3],
-      "met": ["reporter"],
-      "minRel": {
-        "reporter": 75
-      },
-      "partner": "none",
-      "forbids": ["rejected_reporter"],
-      "place": "studio",
-      "speaker": "reporter",
-      "title": "고백 · 지안",
-      "text": "(카메라 빨간불이 꺼진다) 이건 방송 아니고… 그냥 내가 궁금해서요. 나 어때요?",
-      "choices": [
-        {
-          "label": "좋아해요. 카메라 없을 때도",
-          "result": "{reporterName}이(가) 카메라를 내려놓고 한참 웃었다.",
-          "effects": {
-            "partner": "reporter",
-            "rel": {
-              "reporter": 10
-            },
-            "condition": 10
-          }
-        },
-        {
-          "label": "선수랑 기자잖아요",
-          "result": "\"…맞는 말이네요.\" 다음 영상부터 내 이름이 빠졌다.",
-          "effects": {
-            "rel": {
-              "reporter": -20
-            },
-            "flag": "rejected_reporter",
-            "condition": -5
-          }
-        }
-      ]
-    },
-    {
-      "id": "date_watch",
-      "partner": "any",
-      "repeat": true,
-      "cooldownWeeks": 8,
-      "weight": 2,
-      "place": "phone",
-      "speaker": "partner",
-      "title": "응원",
-      "text": "이번 경기 보러 갈게! 홈런 하나만 쳐 줘. 약속.",
-      "choices": [
-        {
-          "label": "약속할게",
-          "result": "새끼손가락을 걸었다. 묘하게 힘이 난다.",
-          "effects": {
-            "rel": {
-              "partner": 5
-            },
-            "form": 0.8
-          }
-        },
-        {
-          "label": "부담 주지 마",
-          "result": "\"농담이야, 농담.\" 표정은 농담이 아니었다.",
-          "effects": {
-            "rel": {
-              "partner": -4
-            },
-            "condition": 3
-          }
-        }
-      ]
-    },
-    {
-      "id": "date_anniversary",
-      "partner": "any",
-      "repeat": true,
-      "cooldownWeeks": 14,
-      "weight": 2,
-      "place": "cafe",
-      "speaker": "partner",
-      "title": "100일",
-      "text": "우리 사귄 지 오늘 100일인데… 알지?",
-      "choices": [
-        {
-          "label": "선물 준비했지",
-          "result": "작은 상자를 내밀었다. 그날 하루는 야구 생각이 안 났다.",
-          "cost": 50000,
-          "effects": {
-            "rel": {
-              "partner": 12
-            },
-            "condition": 5
-          }
-        },
-        {
-          "label": "아… 미안, 깜빡했어",
-          "result": "긴 침묵. \"응, 괜찮아.\" 괜찮지 않은 목소리였다.",
-          "effects": {
-            "rel": {
-              "partner": -15
-            },
-            "condition": -5
-          }
-        }
-      ]
-    },
-    {
-      "id": "date_slump",
-      "partner": "any",
-      "maxForm": -0.5,
-      "repeat": true,
-      "cooldownWeeks": 6,
-      "weight": 3,
-      "place": "street",
-      "speaker": "partner",
-      "title": "야구 얘기 금지",
-      "text": "요즘 표정 안 좋아. 오늘은 야구 얘기 금지. 떡볶이 먹으러 가자.",
-      "choices": [
-        {
-          "label": "고마워, 가자",
-          "result": "떡볶이 2인분에 웃음이 돌아왔다.",
-          "cost": 10000,
-          "effects": {
-            "rel": {
-              "partner": 6
-            },
-            "condition": 10,
-            "form": 0.5
-          }
-        },
-        {
-          "label": "혼자 있고 싶어",
-          "result": "\"…응.\" 메시지 알림이 그날 밤 내내 조용했다.",
-          "effects": {
-            "rel": {
-              "partner": -8
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "date_jealous",
-      "partner": "any",
-      "minScout": 35,
-      "repeat": true,
-      "cooldownWeeks": 12,
-      "place": "phone",
-      "speaker": "partner",
-      "title": "팬",
-      "text": "너 팬이라는 애들이 SNS에 사진 올리더라? 인기 많아서 좋겠다.",
-      "choices": [
-        {
-          "label": "너밖에 없어",
-          "result": "\"알아, 그냥 해 본 말이야.\" 손을 꽉 잡았다.",
-          "effects": {
-            "rel": {
-              "partner": 6
-            }
-          }
-        },
-        {
-          "label": "그게 뭐 어때서",
-          "result": "대화가 거기서 끊겼다.",
-          "effects": {
-            "rel": {
-              "partner": -10
-            },
-            "reputation": 1
-          }
-        }
-      ]
-    },
-    {
-      "id": "date_crisis",
-      "partner": "any",
-      "maxRel": {
-        "partner": 35
-      },
-      "story": true,
-      "place": "street",
-      "speaker": "partner",
-      "title": "위기",
-      "text": "우리 요즘… 연락도 잘 안 하고. 나만 좋아하는 것 같아.",
-      "choices": [
-        {
-          "label": "이번 주말엔 꼭 시간 낼게",
-          "result": "주말 내내 같이 있었다. 다시 웃었다.",
-          "cost": 30000,
-          "effects": {
-            "rel": {
-              "partner": 20
-            },
-            "condition": 5
-          }
-        },
-        {
-          "label": "미안해. 지금은 야구가 먼저야",
-          "result": "\"…그래. 그럼 우리 그만하자.\" 생각보다 마음이 아프다.",
-          "effects": {
-            "partner": "none",
-            "rel": {
-              "partner": -15
-            },
-            "condition": -12,
-            "form": -1.0
-          }
-        }
-      ]
-    },
-    {
-      "id": "bat_broken",
-      "repeat": true,
-      "cooldownWeeks": 16,
-      "week": [3, 20],
-      "speaker": "buddy",
-      "title": "부러진 배트",
-      "text": "야, 네 배트 금 갔다. 이거 다음 경기 못 써. 어떡할래?",
-      "choices": [
-        {
-          "label": "새 배트를 산다",
-          "result": "새 배트 냄새가 좋다. 지갑은 가볍다.",
-          "cost": 80000,
-          "effects": {
-            "condition": 3
-          }
-        },
-        {
-          "label": "선배 배트를 빌린다",
-          "result": "무게가 안 맞는다. 스윙이 어색하다.",
-          "effects": {
-            "form": -0.8,
-            "rel": {
-              "buddy": 2
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "buddy_borrow",
-      "week": [2, 20],
-      "speaker": "buddy",
-      "title": "부탁",
-      "text": "저기… 미안한데 3만 원만 빌려줄 수 있어? 포수 미트 끈이 끊어져서. 다음 달에 꼭 갚을게.",
-      "choices": [
-        {
-          "label": "빌려준다",
-          "result": "{buddyName}이(가) 두 손으로 받았다.",
-          "cost": 30000,
-          "effects": {
-            "rel": {
-              "buddy": 8
-            },
-            "schedule": {
-              "event": "buddy_repay",
-              "weeks": 4
-            }
-          }
-        },
-        {
-          "label": "나도 빠듯해",
-          "result": "\"그치, 미안.\" 어색하게 웃었다.",
-          "effects": {
-            "rel": {
-              "buddy": -6
-            }
-          }
-        }
-      ]
-    },
-    {
-      "id": "buddy_repay",
-      "scheduledOnly": true,
-      "speaker": "buddy",
-      "title": "갚을게",
-      "text": "자, 지난번 3만 원. 그리고 이건 이자. 미트 덕분에 블로킹 잘 되더라.",
-      "choices": [
-        {
-          "label": "이자는 됐어",
-          "result": "\"그럼 음료수라도.\" 둘이 편의점 앞에 앉았다.",
-          "effects": {
-            "money": 30000,
-            "rel": {
-              "buddy": 5
-            }
-          }
-        },
-        {
-          "label": "이자까지 받는다",
-          "result": "\"치사하네.\" 그래도 웃었다.",
-          "effects": {
-            "money": 40000
-          }
-        }
-      ]
-    },
-    {
-      "id": "butcher",
-      "lastMinHomeRuns": 1,
-      "minScout": 20,
+      "id": "camp_joint",
+      "requires": ["rival_noticed"],
+      "winter": true,
+      "met": ["rival"],
       "repeat": true,
       "cooldownWeeks": 10,
-      "place": "street",
-      "portrait": "butcher",
-      "speaker": "동네 정육점 사장님",
-      "title": "금일봉",
-      "text": "어이, 새싹고 홈런 타자! 신문에서 봤어. 이거 받아. 고기 사 먹고 더 쳐!",
+      "weight": 2,
+      "place": "field",
+      "speaker": "rival",
+      "title": "합동훈련",
+      "text": "(합동훈련 날, {rivalSchool} 버스가 들어온다) 겨울에 뭐 했나 보자. 티배팅 열 개, 멀리 치는 사람이 이기는 거다.",
       "choices": [
         {
-          "label": "감사히 받습니다",
-          "result": "봉투가 두툼하다. 그날 저녁은 삼겹살이었다.",
-          "effects": {
-            "money": 50000,
-            "condition": 5
-          }
+          "label": "받아들인다",
+          "outcomes": [
+            {
+              "weight": 1,
+              "result": "마지막 공이 {rivalName}의 것을 넘어갔다. \"…봄에 다시 해.\"",
+              "effects": {
+                "power": 1,
+                "form": 0.5,
+                "rel": {
+                  "rival": 10
+                }
+              }
+            },
+            {
+              "weight": 1,
+              "result": "두 개 차이로 졌다. {rivalName}은(는) 웃지도 않았다. 오기가 생겼다.",
+              "effects": {
+                "condition": -5,
+                "rel": {
+                  "rival": 8
+                },
+                "power": 1
+              }
+            }
+          ]
         },
         {
-          "label": "마음만 받을게요",
-          "result": "\"요즘 애들 참…\" 사장님이 고기 한 근을 대신 싸 주셨다.",
+          "label": "내 훈련을 한다",
+          "result": "{rivalName}: \"도망가는 건 아니고?\" 못 들은 척했다.",
           "effects": {
-            "condition": 8,
-            "reputation": 3
+            "eye": 1,
+            "rel": {
+              "rival": -5
+            }
           }
+        }
+      ]
+    },
+    {
+      "id": "g_rival_field",
+      "requires": ["rival_noticed"],
+      "timing": "game",
+      "moment": "first_pa",
+      "winter": "any",
+      "story": true,
+      "opponent": "rival",
+      "met": ["rival"],
+      "repeat": true,
+      "cooldownWeeks": 5,
+      "place": "stadium",
+      "speaker": "rival",
+      "title": "맞대결",
+      "script": [
+        {
+          "text": "타석으로 걸어가는데 3루 쪽에서 목소리가 날아온다."
+        },
+        {
+          "speaker": "rival",
+          "text": "어이. 오늘은 좀 치냐?"
+        },
+        {
+          "choices": [
+            {
+              "label": "거기로 하나 보내 줄게",
+              "effects": {
+                "rel": {
+                  "rival": 6
+                },
+                "gameBoost": {
+                  "power": 6
+                }
+              },
+              "then": [
+                {
+                  "speaker": "rival",
+                  "text": "와 봐. 잡아 줄 테니까."
+                },
+                {
+                  "text": "3루 쪽을 한 번 보고 타석에 섰다. 힘이 들어간다."
+                }
+              ]
+            },
+            {
+              "label": "(헬멧을 고쳐 쓰고 투수만 본다)",
+              "effects": {
+                "gameBoost": {
+                  "eye": 6,
+                  "contact": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "rival",
+                  "text": "…무시하냐."
+                },
+                {
+                  "text": "공만 보기로 했다. 머리가 맑다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "camp_focus",
+      "grade": [2, 3],
+      "winter": true,
+      "story": true,
+      "timing": "start",
+      "campWeek": [1, 1],
+      "repeat": true,
+      "cooldownWeeks": 10,
+      "place": "field",
+      "speaker": "coach",
+      "title": "겨울 과제",
+      "script": [
+        {
+          "text": "입김이 하얗게 나오는 운동장."
+        },
+        {
+          "speaker": "coach",
+          "text": "겨울 캠프 4주다. 이것저것 건드리지 말고 하나만 확실히 잡아라."
+        },
+        {
+          "speaker": "batting_coach",
+          "text": "작년 영상 다 돌려 봤다. 네가 뭘 고르든 메뉴는 내가 짠다."
+        },
+        {
+          "speaker": "coach",
+          "text": "뭘 할래?"
+        },
+        {
+          "choices": [
+            {
+              "label": "정확하게 맞히는 것 (컨택)",
+              "effects": {
+                "campFocus": "contact"
+              },
+              "then": [
+                {
+                  "speaker": "batting_coach",
+                  "text": "좋아. 티배팅부터 다시. 하루 300개."
+                }
+              ]
+            },
+            {
+              "label": "멀리 치는 것 (파워)",
+              "effects": {
+                "campFocus": "power"
+              },
+              "then": [
+                {
+                  "speaker": "batting_coach",
+                  "text": "그럼 웨이트장에서 살자. 하체부터."
+                }
+              ]
+            },
+            {
+              "label": "공을 고르는 것 (선구안)",
+              "effects": {
+                "campFocus": "eye"
+              },
+              "then": [
+                {
+                  "speaker": "batting_coach",
+                  "text": "불펜 포수 뒤에 서서 공만 봐. 휘두르지 말고."
+                }
+              ]
+            },
+            {
+              "label": "빨리 뛰는 것 (주력)",
+              "effects": {
+                "campFocus": "speed"
+              },
+              "then": [
+                {
+                  "speaker": "batting_coach",
+                  "text": "눈 치우고 뛰어. 매일. 스타트 연습도 같이."
+                }
+              ]
+            }
+          ]
         }
       ]
     }
@@ -2162,6 +4250,8 @@
       "pitcher": "balanced"
     }
   ],
-  "tournaments": ["새봄기 전국고교야구대회", "한여름배 전국고교야구대회"],
-  "eventsNote": "이벤트 형식: id, speaker(people id · partner(지금 사귀는 사람) 또는 그냥 이름), title(기록용 짧은 제목), text(맨 앞 괄호는 지문으로 따로 보인다), place(배경 places id, 없으면 화자의 기본 장소), portrait(인물이 아닌 화자의 일러스트 id, none 이면 없음), choices[{label, result, cost?, effects} 또는 {label, cost?, outcomes[{weight, result, effects}]}] — cost(원)가 있으면 돈이 모자랄 때 고를 수 없고 고르면 빠진다. 조건(모두 생략 가능): story(조건이 맞으면 반드시, 무작위보다 먼저) timing(start 주 시작 | after 경기 뒤(기본) | seasonEnd 시즌 결산) grade[a,b] week[a,b] repeat cooldownWeeks weight requires/forbids(플래그) met/forbidsMet(인물) minScout maxScout minRel/maxRel{인물 또는 partner:값} minRep maxRep maxForm maxCondition injured opponent(\"rival\") scheduledOnly partner(none|any|인물) minMoney lastResult(win|loss|draw) lastMinHits lastMaxHits lastMinHomeRuns lastPhaseEnd(champion|eliminated|leagueEnd) lastNational lastOpponent seasonOver. 효과: condition scoutInterest lineupSlot contact power eye speed form reputation money injury(주) rel{인물 또는 partner:값} meet flag clearFlag schedule{event,weeks} path(draft|college) partner(인물 id | none). 글자 치환: {player} {school} {coach} {coachName} {mom} {buddy} {buddyName} {rival} {rivalName} {rivalSchool} {scout} {scoutName} {scoutTeam} {managerName} {neighborName} {reporterName} {partner} {partnerName} {rivalLast} {pick} {rank}. 조사 이(가)·을(를)·은(는)·과(와)는 앞 글자 받침으로 고른다"
+  "tournaments": ["새봄기 지역 예선", "새봄기 본선", "한여름배 전국고교야구대회"],
+  "pendingFlags": ["rival_noticed"],
+  "pendingEvents": ["y6_camp"],
+  "eventsNote": "이벤트 형식: id, speaker(이벤트의 대표 화자 — people id · partner(지금 사귀는 사람) 또는 그냥 이름), title(기록용 짧은 제목), place(배경 places id, 없으면 화자의 기본 장소), portrait(인물이 아닌 화자의 일러스트 id, none 이면 없음), 그리고 대본: ① script [줄…] — 줄은 {speaker, text}(speaker 없으면 지문, player 면 내 대사, 대사 맨 앞 괄호는 지문으로 따로) 또는 선택 지점 {choices: [{label, cost?, effects?, then: [줄…], outcomes?: [{weight, effects?, then}]}]}. 고르면 then 의 줄이 이어지고(그 안에 또 선택 지점을 둘 수 있다) 끝나면 선택 지점 다음 줄로 돌아온다. 선택 지점은 하나 이상. 효과는 대화가 끝날 때 한꺼번에 반영된다. ② 옛 형식 text + choices[{label, result, cost?, effects} 또는 {label, cost?, outcomes[{weight, result, effects}]}] — 대사 하나, 선택 한 번, 결과 한 줄 (짧은 돌발 이벤트용). cost(원)가 있으면 돈이 모자랄 때 고를 수 없다. 조건(모두 생략 가능): story(조건이 맞으면 반드시, 무작위보다 먼저. 스토리가 끝나면 같은 시점(주 시작·경기 뒤·시즌 결산)의 이야기를 다시 찾아 이어서 띄운다 — requires 로 순서를 잇는다) free(true 면 한 주 이벤트 개수에 넣지 않는다 — 입학 첫날처럼 연달아 이어지는 이야기) timing(start 주 시작 | after 경기 뒤(기본) | seasonEnd 시즌 결산 | game 경기 중 — moment 가 꼭 있어야 한다: first_pa 내 첫 타석 직전 | pinch_pa 대타로 나가는 타석 직전(그 경기엔 first_pa 대신) | clutch_pa 승부처 타석 직전 | after_homer 내 홈런 직후 | after_strikeout 내 삼진 직후) grade[a,b] week[a,b] repeat cooldownWeeks weight requires/forbids(플래그) met/forbidsMet(인물) minScout maxScout minRel/maxRel{인물 또는 partner:값} minRep maxRep maxForm maxCondition injured opponent(\"rival\") scheduledOnly partner(none|any|인물) minMoney winter(true 겨울 캠프에서만 | any 시즌·캠프 둘 다, 없으면 시즌에서만) campWeek[a,b] lastResult(win|loss|draw) lastMinHits lastMaxHits lastMinHomeRuns lastPhaseEnd(champion|eliminated|leagueEnd) lastNational lastOpponent seasonOver recentGames(N)+recentMinHits/recentMaxHits(내가 나온 최근 N경기의 안타 합 — 공식 경기만, 나온 경기가 N보다 적으면 있는 만큼, 한 경기도 안 나왔으면 조건이 안 맞는다. recentGames 는 둘 중 하나와 꼭 같이 쓴다). 효과: condition scoutInterest lineupSlot contact power eye speed form reputation money injury(주) rel{인물 또는 partner:값} meet flag clearFlag schedule{event,weeks} path(draft|college) partner(인물 id | none) campFocus(캠프 집중 과제 능력치) gear(상점 장비 id 를 받는다) gameBoost{능력치:값}(이번 경기에만 붙는 보정) pinchHit(true 면 다음 경기는 벤치에서 시작해 승부처에 대타로 나간다 — 대타는 이 효과가 붙은 경기에만 있다). 글자 치환: {player} {school} {coach} {coachName} {mom} {buddy} {buddyName} {rival} {rivalName} {rivalSchool} {scout} {scoutName} {scoutTeam} {batting_coach} {senior} {junior} (+Name) {managerName} {neighborName} {reporterName} {partner} {partnerName} {rivalLast} {pick} {rank}. 조사 이(가)·을(를)·은(는)·과(와)는 앞 글자 받침으로 고른다. 추가 키 — flag·clearFlag: 문자열 하나 또는 배열, 같은 effects 에 같이 써도 된다(적힌 순서대로 적용). lineupSlot 0: 벤치(선발 제외). 경기에 나가지 않고 기록도 쌓이지 않는다. 1~9 로 되돌리기 전까지 유지되지만 새 시즌에는 감독 신뢰로 타순을 다시 정한다. moment pinch_pa: lineupSlot 0(벤치)인 경기에 조건이 맞는 한 번뿐인(repeat 아님) pinch_pa 이벤트가 있으면 그 경기 pinchHit.forceInning(8)회 이후 우리 공격 때 한 번 대타로 불려 직접 친다(타석 직전에 그 이벤트가 뜬다). repeat 인 pinch_pa(g_pinch)는 pinchHit 효과로 나간 대타에만 쓰인다. 경기 중 스토리는 한 번뿐인 이벤트가 repeat 이벤트보다 먼저 뜬다. matchOverride{opponent?(학교 id — 전국대회·연습경기에서만 바뀐다, 주말리그는 일정대로), score[우리,상대], result?(win|loss|draw, score 와 맞아야 한다), innings?(정규 이닝보다 짧으면 콜드게임), playerAbsent?(true 만), home?(true 홈 | false 원정 — 없으면 주차대로), line?[[우리 이닝별 점수…],[상대 이닝별 점수…]](없으면 난수로 나눈다. 합은 score, 길이는 innings — 이긴 홈 팀의 마지막 회 말은 빼도 된다), rivalLine?{ab,hits,doubles,homeRuns,rbi,walks,strikeouts}(상대가 라이벌 학교일 때 라이벌의 그날 기록)}: 다음 경기 한 번의 결과를 고정한다. 내 선수는 나오지 않고 타석 중계·박스스코어 없이 이닝별 점수만 흐른다. injuryLabel(문구): 부상 이름. injury 와 같이 쓰면 홈·결과 화면의 부상 표시에 이 문구가 나오고 나으면 지워진다. campFocus body: 능력치 대신 몸 관리 — 캠프 동안 컨디션 하락 완화(balance.json career.camp.body), 플래그 body_rebuild·recovery_program 이 있으면 더 완화. stage{inning, half(top|bottom), outs, bases[루…], score[우리,상대], slot?(대타로 들어갈 타순), runnerSlots?[주자 타순…], reached?[walk|single|double|triple…], practice?(true 면 그 경기는 연습경기 — 순위·시즌 기록에 안 들어가고 리그 일정은 한 주 밀린다), pitcher?(balanced|power|finesse — 그 타석에서 상대하는 투구 성향)}(한 번뿐인 경기 중 스토리에만): 대사에 적힌 경기 상황을 실제 경기로 만든다. 이 이벤트의 조건이 맞는 경기는 장면 직전까지 타석 없이 이닝별 점수만 흐르고(점수 합은 score 에 맞춘다), 그 회·아웃·주자·점수에서 내 타석으로 진짜 경기가 시작된다. half 가 bottom 이면 홈, top 이면 원정 경기가 된다. 아웃은 내 바로 앞 타자들(마지막은 삼진), 주자는 runnerSlots 의 타자가 reached 방법으로 나간 것으로 기록된다. 장면 뒤로는 평소처럼 진행된다. pinch_pa 장면은 벤치에서 대타로 나가는 경기에, first_pa·clutch_pa 장면은 선발 경기에 걸린다(선발 경기면 장면 전 내 타석은 없다). pendingFlags(파일 최상위): 아직 세우는 이벤트가 없는 플래그 목록 — 여기 적힌 플래그는 requires 에 써도 검증을 통과한다(그 이벤트는 플래그를 세우는 이벤트가 들어올 때까지 안 나온다). pendingEvents(파일 최상위): 아직 없는 이벤트 id 목록 — schedule 의 대상으로 써도 검증을 통과하고, 그 예약은 이벤트가 들어올 때까지 아무 일도 하지 않는다."
 }

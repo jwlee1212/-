@@ -42,7 +42,7 @@ func _ready() -> void:
 
 	var resume := "저장된 커리어 없음"
 	if career != null:
-		resume = SaveGame.summary(career)
+		resume = ("[테스트] " if _app.test_mode else "") + SaveGame.summary(career)
 	elif _app.save_error != "":
 		resume = "불러오지 못함: " + _app.save_error
 	var items := [
@@ -64,6 +64,15 @@ func _ready() -> void:
 	var right := UiKit.vbox(0)
 	right.size_flags_horizontal = Control.SIZE_SHRINK_END
 	row.add_child(right)
+	# 개발 빌드: 원하는 시점부터 시작하는 테스트 (진짜 저장은 건드리지 않는다)
+	if OS.is_debug_build():
+		var test := UiKit.button("테스트 시작 ›", _app.show_jump, Tokens.INK_SOFT, Tokens.FONT_CAPTION)
+		test.size_flags_horizontal = Control.SIZE_SHRINK_END
+		right.add_child(test)
+		if _app.test_mode:
+			var end := UiKit.button("테스트 끝내기 (내 저장으로)", _app.end_test, Tokens.BAD, Tokens.FONT_CAPTION)
+			end.size_flags_horizontal = Control.SIZE_SHRINK_END
+			right.add_child(end)
 	right.add_child(UiKit.spacer())
 	if career != null:
 		var p := career.player

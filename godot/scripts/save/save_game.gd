@@ -77,6 +77,10 @@ static func delete(path: String = PATH) -> void:
 
 ## 로비·선수 만들기 화면에 보여 줄 한 줄 ("김도윤 · 2학년 · 주말리그 후반기 3/6")
 static func summary(career: CareerState) -> String:
+	if career.in_camp():
+		return "%s · %d학년 겨울 · 캠프 %s" % [career.player.name, career.player.grade, career.round_text()]
+	if career.camp_finished():
+		return "%s · %d학년 겨울 · 캠프 결산" % [career.player.name, career.player.grade]
 	if career.is_season_over():
 		return "%s · %d학년 · 시즌 결산" % [career.player.name, career.player.grade]
 	return "%s · %d학년 · %s %s" % [career.player.name, career.player.grade, career.phase_name(), career.round_text()]

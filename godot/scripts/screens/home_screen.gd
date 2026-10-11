@@ -92,7 +92,9 @@ func _top_bar() -> Control:
 		tabs.add_child(b)
 		_tab_buttons[t] = b
 	bar.add_child(tabs)
-	bar.add_child(UiKit.label("%d학년 · %d주차" % [career.player.grade, career.week], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	var when := "%d학년 겨울 · 캠프 %d/%d주" % [career.player.grade, career.camp_week, int(career.cfg.camp["weeks"])] if career.in_camp() \
+		else "%d학년 · %d주차" % [career.player.grade, career.week]
+	bar.add_child(UiKit.label(when, Tokens.FONT_CAPTION, Tokens.INK_SOFT))
 	return bar
 
 
@@ -165,6 +167,8 @@ func _home_page() -> Control:
 ## 다음 경기: 대회·라운드, 우리 학교 vs 상대 (방패 + 순위), 상대 선발
 func _match_card() -> Control:
 	var career: CareerState = _app.career
+	if career.in_camp():
+		return _camp_card()
 	var card := _card()
 	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var col := UiKit.vbox(Tokens.SPACE_XS)
@@ -189,7 +193,77 @@ func _match_card() -> Control:
 	col.add_child(UiKit.spacer())
 	var pitcher: BattingConfig.PitcherProfile = _app.batting_config.pitchers[opp.pitcher_profile]
 	col.add_child(UiKit.label("상대 선발 · %s 투수 · 전력 %s" % [pitcher.name, _stars(opp.strength)], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	col.add_child(_lineup_row())
 	return card
+
+
+## 우리 팀 선발 타순 (작은 글씨, 내 선수는 강조). 내가 선발이 아니면 끝에 이유를 붙인다
+func _lineup_row() -> Control:
+	var career: CareerState = _app.career
+	var flow := HFlowContainer.new()
+	flow.add_theme_constant_override("h_separation", Tokens.SPACE_XS)
+	flow.add_theme_constant_override("v_separation", 0)
+	flow.add_child(UiKit.label("라인업", Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD))
+	for r: Dictionary in career.next_lineup():
+		var me: bool = r["me"]
+		flow.add_child(UiKit.label("%d %s" % [r["slot"], r["name"]], Tokens.FONT_CAPTION, Tokens.PRIMARY if me else Tokens.INK_SOFT, Tokens.FONT_BOLD if me else Tokens.FONT_REGULAR))
+	if career.player.is_injured():
+		flow.add_child(UiKit.label("· %s 결장" % career.player.injury_text(), Tokens.FONT_CAPTION, Tokens.BAD, Tokens.FONT_BOLD))
+	elif career.player.bench_next:
+		flow.add_child(UiKit.label("· 벤치 대기 (대타)", Tokens.FONT_CAPTION, Tokens.PRIMARY, Tokens.FONT_BOLD))
+	elif career.next_role() != "start":
+		flow.add_child(UiKit.label("· 벤치", Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD))
+	return flow
+
+
+## 겨울 캠프 주: 연습경기가 있으면 상대, 없으면 훈련 주 안내. 집중 과제와 지금까지 연습경기
+func _camp_card() -> Control:
+	var career: CareerState = _app.career
+	var camp := career.cfg.camp
+	var card := _card(true)
+	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var col := UiKit.vbox(Tokens.SPACE_XS)
+	card.add_child(col)
+	var has_game := career.camp_has_game()
+	col.add_child(UiKit.kicker("WINTER CAMP · %d/%d주" % [career.camp_week, int(camp["weeks"])], Tokens.PRIMARY))
+	col.add_child(UiKit.title("연습경기" if has_game else "훈련 주", Tokens.FONT_TITLE))
+	var focus := "집중 과제 · 아직 (첫 주에 감독과 정한다)"
+	if career.camp_focus == CareerState.CAMP_FOCUS_BODY:
+		focus = "집중 과제 · %s (컨디션 하락 ×%.1f)" % [career.camp_focus_label(), career.camp_condition_multiplier()]
+	elif career.camp_focus != "":
+		focus = "집중 과제 · %s (훈련 ×%.1f)" % [career.camp_focus_label(), float(camp["focusMultiplier"])]
+	col.add_child(UiKit.label("%s · 다른 훈련 ×%.1f" % [focus, float(camp["trainingMultiplier"])], Tokens.FONT_CAPTION, Tokens.ACCENT, Tokens.FONT_BOLD))
+	col.add_child(UiKit.spacer())
+	if career.game_done:
+		col.add_child(UiKit.label("이번 주 일정을 마쳤다.", Tokens.FONT_BODY, Tokens.INK, Tokens.FONT_BOLD))
+	elif has_game:
+		var opp := career.opponent()
+		var vs := UiKit.hbox(Tokens.SPACE_MD)
+		vs.alignment = BoxContainer.ALIGNMENT_CENTER
+		vs.add_child(_team(career.my_school.short, career.my_school.name, "연습경기", Tokens.UNIFORM_US))
+		var v := UiKit.label("VS", Tokens.FONT_HERO, Color(Tokens.INK_SOFT, 0.6), Tokens.FONT_BOLD)
+		v.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		vs.add_child(v)
+		vs.add_child(_team(opp.short, opp.name, "전력 %s" % _stars(opp.strength), Tokens.UNIFORM_THEM))
+		col.add_child(vs)
+	else:
+		var t := UiKit.label("이번 주는 경기 없이 훈련만 한다. 훈련을 고르고 주를 마치면 캠프 이야기가 이어진다.", Tokens.FONT_BODY, Tokens.INK)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(t)
+	col.add_child(UiKit.spacer())
+	for g: Dictionary in career.camp_games:
+		var r: int = g["result"]
+		col.add_child(UiKit.label("연습경기 vs %s  %d : %d %s · %s" % [g["opponent"], g["my"], g["opp"], ["패", "무", "승"][r + 1], g["line"]], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	if has_game and not career.game_done:
+		col.add_child(UiKit.label("연습경기는 순위·시즌 기록에 들어가지 않는다 (성장·폼·용돈은 그대로)", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	return card
+
+
+## 훈련만 하는 캠프 주를 마친다 → 남은 이야기 → [다음 주]
+func _finish_camp_week() -> void:
+	_app.career.finish_camp_week()
+	_rebuild()
+	_next_story()
 
 
 func _team(short: String, full: String, rank: String, color: Color) -> Control:
@@ -220,9 +294,12 @@ func _go_button() -> Button:
 	var p := _app.career.player as PlayerData
 	if _app.career.game_done:
 		return _wide_button("다음 주  ›", _app.next_week)
+	var camp_training_week: bool = _app.career.in_camp() and not _app.career.camp_has_game()
 	if not _trained():
-		return _wide_button("훈련 고르고 경기 준비  ›", func() -> void: _show_tab("훈련"))
-	return _wide_button("경기 보기 (결장)  ›" if p.is_injured() else "경기 준비  ›", _app.show_game)
+		return _wide_button("훈련 고르기  ›" if camp_training_week else "훈련 고르고 경기 준비  ›", func() -> void: _show_tab("훈련"))
+	if camp_training_week:
+		return _wide_button("이번 주 마치기  ›", _finish_camp_week)
+	return _wide_button("경기 보기 (결장)  ›" if p.is_injured() else ("경기 결과 보기 (벤치)  ›" if _app.career.next_role() == "bench" else "경기 준비  ›"), _app.show_game)
 
 
 func _wide_button(text: String, on_press: Callable) -> Button:
@@ -319,7 +396,7 @@ func _scout_card() -> Control:
 	var career: CareerState = _app.career
 	var p: PlayerData = career.player
 	var proj := career.projection()
-	var teams := career.scouting.interested_teams(career.cfg, p.scout_interest)
+	var teams := career.scouting.interested_teams(career.cfg, p.scout_interest, p.grade)
 	var card := _card()
 	var col := UiKit.vbox(Tokens.SPACE_XS)
 	card.add_child(col)
@@ -410,9 +487,10 @@ func _training_page() -> Control:
 	var card := _card()
 	var col := UiKit.vbox(Tokens.SPACE_SM)
 	card.add_child(col)
-	col.add_child(UiKit.kicker("TRAINING · 이번 주 하나"))
+	var camp_note := " · 겨울 캠프 보너스" if career.in_camp() else ""
+	col.add_child(UiKit.kicker("TRAINING · 이번 주 하나" + camp_note))
 	if p.is_injured():
-		col.add_child(UiKit.label("부상 중 (%d주 남음) — 이번 주는 쉬어야 한다" % p.injury_weeks, Tokens.FONT_BODY, Tokens.BAD, Tokens.FONT_BOLD))
+		col.add_child(UiKit.label("%s (%d주 남음) — 이번 주는 쉬어야 한다" % [p.injury_label if p.injury_label != "" else "부상 중", p.injury_weeks], Tokens.FONT_BODY, Tokens.BAD, Tokens.FONT_BOLD))
 	else:
 		col.add_child(UiKit.label("감독: 이번 주는 뭘 할래? (하나만)", Tokens.FONT_BODY, Tokens.INK, Tokens.FONT_BOLD))
 	var grid := GridContainer.new()
@@ -420,7 +498,10 @@ func _training_page() -> Control:
 	grid.add_theme_constant_override("h_separation", Tokens.SPACE_XS)
 	for id: String in career.cfg.training:
 		var t: Dictionary = career.cfg.training[id]
-		var b := UiKit.button(t["label"], func() -> void: _train(id), Tokens.GOOD if id == "rest" else Tokens.PRIMARY, Tokens.FONT_CAPTION)
+		var mult := career.training_multiplier(id)
+		var text: String = t["label"] if mult == 1.0 else "%s ×%.1f" % [t["label"], mult]
+		var focused: bool = career.in_camp() and t["stat"] != "" and t["stat"] == career.camp_focus
+		var b := UiKit.button(text, func() -> void: _train(id), Tokens.GOOD if id == "rest" else (Tokens.ACCENT if focused else Tokens.PRIMARY), Tokens.FONT_CAPTION)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.disabled = _trained() or (p.is_injured() and id != "rest")
 		grid.add_child(b)
@@ -456,7 +537,8 @@ func _player_page() -> Control:
 	head.add_child(UiKit.title(p.name))
 	head.add_child(UiKit.label(_form_text(p.form), Tokens.FONT_CAPTION, Tokens.GOOD if p.form > 0.5 else (Tokens.BAD if p.form < -0.5 else Tokens.INK_SOFT), Tokens.FONT_BOLD))
 	col.add_child(head)
-	col.add_child(UiKit.label("%s %d학년 · 외야수 · %d번 타자" % [career.my_school.name, p.grade, p.lineup_slot], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	var role := "이번 경기 벤치 대기 (대타)" if p.bench_next else p.role_text()
+	col.add_child(UiKit.label("%s %d학년 · 외야수 · %s" % [career.my_school.name, p.grade, role], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
 	var colors := {"contact": Tokens.PRIMARY, "power": Tokens.ACCENT, "eye": Tokens.GOOD, "speed": Tokens.INK_SOFT}
 	for s in PlayerData.STATS:
 		col.add_child(UiKit.stat_bar(PlayerData.STAT_LABELS[s], p.stat(s), 99, colors[s]))
@@ -496,10 +578,15 @@ func _people_page() -> Control:
 	grid.columns = 4
 	grid.add_theme_constant_override("h_separation", Tokens.SPACE_SM)
 	grid.add_theme_constant_override("v_separation", Tokens.SPACE_SM)
-	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for id: String in career.people.by_id:
 		grid.add_child(_person_card(career.people.by_id[id]))
-	col.add_child(grid)
+	# 인물이 많아 세 줄이 된다 — 위아래로 민다
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(grid)
+	col.add_child(scroll)
 	return col
 
 
@@ -527,6 +614,8 @@ func _person_card(person: People.Person) -> Control:
 		note = "유망주 %d위 · 타율 %s" % [career.rival_rank(), career.rival.player.season.average()]
 	elif person.team_name != "":
 		note = person.team_name
+	elif person.id == "senior" and career.player.grade > 1:
+		note = "졸업 · 대학 야구부"
 	col.add_child(UiKit.label(note, Tokens.FONT_CAPTION, Tokens.PRIMARY, Tokens.FONT_BOLD))
 	var buttons := UiKit.hbox(Tokens.SPACE_XS)
 	if CareerState.can_gift(person):
@@ -684,7 +773,7 @@ func _scout_page() -> Control:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var rc := UiKit.vbox(Tokens.SPACE_XS)
 	right.add_child(rc)
-	var teams := career.scouting.interested_teams(career.cfg, p.scout_interest)
+	var teams := career.scouting.interested_teams(career.cfg, p.scout_interest, p.grade)
 	rc.add_child(UiKit.kicker("WATCHING · %d/%d" % [teams.size(), career.cfg.pro_teams.size()]))
 	if teams.is_empty():
 		rc.add_child(UiKit.label("아직 지켜보는 구단이 없다", Tokens.FONT_CAPTION, Tokens.INK_SOFT))

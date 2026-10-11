@@ -8,17 +8,22 @@ extends RefCounted
 ## 시즌 결산(seasonEnd) 이벤트는 주당 개수에 넣지 않는다.
 ## 이벤트는 기본적으로 커리어에 한 번. repeat 면 cooldownWeeks 주 뒤에 다시 나올 수 있다.
 ## 선택 결과가 확률로 갈리는 선택지(outcomes)는 커리어 시드로 뽑는다 (원칙 2).
-## 선택지에 cost(원)가 있으면 돈이 모자랄 때 고를 수 없다 (choice_block).
-## 대화 화면용: lines(대사 줄 나누기) · place_of(배경 자리) · portrait_of(일러스트 자리).
+## 선택지에 cost(원)가 있으면 돈이 모자랄 때 고를 수 없다.
+## 이벤트는 대본(script_of)으로 진행한다: 여러 인물의 대사 줄과 선택 지점이 이어지고, 선택마다 뒤따르는 대사가 붙는다.
+## 한 걸음씩 읽는 건 DialogueRun, 끝나면 commit 이 효과를 한꺼번에 반영한다. 화면용: place_of(배경 자리) · portrait_of(일러스트 자리).
 
-const TIMINGS := ["start", "after", "seasonEnd"]
-const CONDITION_KEYS := ["id", "speaker", "title", "text", "choices", "place", "portrait", "partner", "minMoney",
+const TIMINGS := ["start", "after", "seasonEnd", "game"]
+## 경기 중 대화가 뜨는 순간 (timing game 이벤트의 moment): 내 첫 타석 직전 · 대타로 나가는 타석 직전 · 승부처 타석 직전 · 내 홈런 직후 · 내 삼진 직후
+const MOMENTS := ["first_pa", "pinch_pa", "clutch_pa", "after_homer", "after_strikeout"]
+const CONDITION_KEYS := ["id", "speaker", "title", "text", "choices", "script", "place", "portrait", "partner", "minMoney", "winter", "campWeek", "moment", "free",
 	"story", "timing", "grade", "week", "repeat", "cooldownWeeks", "weight",
 	"requires", "forbids", "met", "forbidsMet", "minScout", "maxScout", "minRel", "maxRel", "minRep", "maxRep",
 	"maxForm", "maxCondition", "injured", "opponent", "scheduledOnly",
+	"recentGames", "recentMinHits", "recentMaxHits", "stage",
 	"lastResult", "lastMinHits", "lastMaxHits", "lastMinHomeRuns", "lastPhaseEnd", "lastNational", "lastOpponent", "seasonOver"]
 const EFFECT_KEYS := ["condition", "scoutInterest", "lineupSlot", "contact", "power", "eye", "speed", "form",
-	"reputation", "injury", "rel", "meet", "flag", "clearFlag", "schedule", "path", "money", "partner"]
+	"reputation", "injury", "rel", "meet", "flag", "clearFlag", "schedule", "path", "money", "partner", "campFocus", "gear", "gameBoost", "pinchHit",
+	"matchOverride", "injuryLabel"]
 const PATHS := ["draft", "college"]
 const PHASE_ENDS := ["champion", "eliminated", "leagueEnd"]
 
@@ -38,6 +43,8 @@ var _pending := {}
 var _pending_week := {}
 ## 주별로 뽑힌 이벤트 수 (total_week -> 수)
 var _count := {}
+## 같은 주에 다시 뽑아야 하는 시점 (timing -> total_week). 주 시작 스토리가 끝나면 그다음 이야기를 이어서 찾는다
+var _repick := {}
 
 
 func _init(cfg: CareerConfig) -> void:
@@ -54,18 +61,94 @@ static func timing_of(e: Dictionary) -> String:
 func pending(career: CareerState, timing: String) -> Array:
 	var key := career.total_week
 	if _pending_week.get(timing, -1) != key:
+		# 같은 주에 다시 뽑는 경우(이어지는 주 시작 스토리)엔 이미 올라 있던 이벤트를 개수에 또 세지 않는다
+		var again: bool = _repick.get(timing, -1) == key
+		var before: Array = _pending.get(timing, []) if again else []
+		_repick.erase(timing)
 		_pending_week[timing] = key
-		_pending[timing] = _pick(career, timing)
+		_pending[timing] = _pick(career, timing, before, again)
 	return _pending[timing]
 
 
-func _pick(career: CareerState, timing: String) -> Array:
+## 경기 중 이벤트 하나 (없으면 빈 Dictionary): 이 순간(moment)에 맞는 timing game 이벤트 중에서.
+## 스토리는 조건이 맞으면 반드시, 무작위는 gameEventChance 확률로 (weight 로 뽑는다). 한 주 이벤트 개수에 같이 센다.
+## salt: 같은 경기 안에서 순간을 구분하는 글자 (몇 번째 타석인지)
+func pick_game(career: CareerState, moment: String, salt: String) -> Dictionary:
 	var tw := career.total_week
-	var slots := 99 if timing == "seasonEnd" else int(career.cfg.story["maxEventsPerWeek"]) - int(_count.get(tw, 0))
-	if slots <= 0:
-		return []
+	# 한 주 개수가 찼으면 free 이벤트만 (개수 제한 밖)
+	var full := int(_count.get(tw, 0)) >= int(career.cfg.story["maxEventsPerWeek"])
+	var story := []
+	var pool := []
+	var total := 0.0
+	for id in order:
+		var e: Dictionary = defs[id]
+		if timing_of(e) != "game" or e.get("moment", "") != moment or (full and not e.get("free", false)) or not eligible(career, e):
+			continue
+		if e.get("story", false):
+			story.append(e)
+		else:
+			pool.append(e)
+			total += float(e.get("weight", 1))
+	var picked := {}
+	if not story.is_empty():
+		# 한 번뿐인 이야기가 되풀이되는 이야기(repeat — 평소의 대타 호출 같은)보다 먼저
+		picked = story[0]
+		for e: Dictionary in story:
+			if not e.get("repeat", false):
+				picked = e
+				break
+	elif not pool.is_empty():
+		var rng := career._rng("game-event:%s:%s" % [moment, salt])
+		if rng.randf() < float(career.cfg.story["gameEventChance"]):
+			var roll := rng.randf() * total
+			for e: Dictionary in pool:
+				roll -= float(e.get("weight", 1))
+				if roll < 0.0:
+					picked = e
+					break
+	if not picked.is_empty() and not picked.get("free", false):
+		_count[tw] = int(_count.get(tw, 0)) + 1
+	return picked
+
+
+## 이 순간(moment)에 조건이 맞는 한 번뿐인(repeat 아님) 경기 중 스토리가 있나.
+## pinch_pa 면 벤치(타순 0)에 있는 내 선수를 이번 경기에 대타로 부를 이야기가 있다는 뜻이다
+func has_game_story(career: CareerState, moment: String) -> bool:
+	for id in order:
+		var e: Dictionary = defs[id]
+		if timing_of(e) == "game" and e.get("moment", "") == moment and e.get("story", false) and not e.get("repeat", false) and eligible(career, e):
+			return true
+	return false
+
+
+## 이번 경기에 장면을 연출할 이야기 (없으면 빈 Dictionary): 조건이 맞는 한 번뿐인 경기 중 스토리 가운데 stage 가 있는 첫 번째.
+## role = CareerState.next_role() — 대타 장면(pinch_pa)은 대타로 나가는 경기에만, 나머지는 선발 경기에만
+func staged_story(career: CareerState, role: String) -> Dictionary:
+	if role != "start" and role != "pinch":
+		return {}
+	for id in order:
+		var e: Dictionary = defs[id]
+		if not e.has("stage") or timing_of(e) != "game" or e.get("repeat", false) or (e["moment"] == "pinch_pa") != (role == "pinch"):
+			continue
+		if eligible(career, e):
+			return e
+	return {}
+
+
+## 이번 주 주 시작·경기 뒤 이야기를 다시 뽑게 한다 (캠프가 시작되면 같은 주라도 나올 이야기가 달라진다)
+func reset_week() -> void:
+	_pending_week.erase("start")
+	_pending_week.erase("after")
+
+
+## counted: 이미 이번 주 개수에 들어가 있는 이벤트들 (다시 뽑을 때). again: 같은 주에 다시 뽑는 중인가 (무작위 이벤트는 처음 한 번만 굴린다)
+func _pick(career: CareerState, timing: String, counted: Array = [], again: bool = false) -> Array:
+	var tw := career.total_week
+	var slots := 99 if timing == "seasonEnd" else int(career.cfg.story["maxEventsPerWeek"]) - int(_count.get(tw, 0)) + counted.size()
 	var out := []
 	for item: Dictionary in scheduled:
+		if not defs.has(item["id"]):
+			continue  # 아직 없는 이벤트 (content.json pendingEvents)
 		var e: Dictionary = defs[item["id"]]
 		if int(item["due"]) <= tw and timing_of(e) == timing and eligible(career, e, true) and not out.has(e):
 			out.append(e)
@@ -73,10 +156,18 @@ func _pick(career: CareerState, timing: String) -> Array:
 		var e: Dictionary = defs[id]
 		if e.get("story", false) and timing_of(e) == timing and eligible(career, e) and not out.has(e):
 			out.append(e)
-	out = out.slice(0, slots)
-	if out.is_empty() and timing == "after":
+	# free 이벤트는 개수 제한 밖 (연달아 이어지는 이야기). 나머지는 남은 자리만큼
+	var kept := []
+	for e: Dictionary in out:
+		if e.get("free", false):
+			kept.append(e)
+		elif slots > 0:
+			kept.append(e)
+			slots -= 1
+	out = kept
+	if out.is_empty() and timing == "after" and slots > 0 and not again:
 		var rng := career._rng("event")
-		if rng.randf() < career.cfg.event_chance:
+		if rng.randf() < (float(career.cfg.camp["eventChance"]) if career.in_camp() else career.cfg.event_chance):
 			var pool := []
 			var total := 0.0
 			for id in order:
@@ -91,7 +182,11 @@ func _pick(career: CareerState, timing: String) -> Array:
 					out.append(e)
 					break
 	if timing != "seasonEnd":
-		_count[tw] = int(_count.get(tw, 0)) + out.size()
+		var added := 0
+		for e: Dictionary in out:
+			if not e.get("free", false) and not counted.has(e):
+				added += 1
+		_count[tw] = int(_count.get(tw, 0)) + added
 	return out
 
 
@@ -110,7 +205,13 @@ func eligible(career: CareerState, e: Dictionary, via_schedule: bool = false) ->
 	for t: String in _pending:
 		if _pending_week.get(t, -1) == tw and (_pending[t] as Array).has(e) and t != timing_of(e):
 			return false
-	if not _in_span(e, "grade", p.grade) or not _in_span(e, "week", career.week):
+	# 겨울 캠프: winter true 는 캠프에서만, any 는 둘 다, 없으면 시즌에서만 (예약된 지연 결과는 어디서든)
+	var winter := str(e.get("winter", "no"))
+	if not via_schedule and winter != "any" and (winter == "true") != career.in_camp():
+		return false
+	if not _in_span(e, "campWeek", career.camp_week):
+		return false
+	if not _in_span(e, "grade", p.grade) or (not career.in_camp() and not _in_span(e, "week", career.week)):
 		return false
 	if e.has("partner"):
 		var want: String = e["partner"]
@@ -154,6 +255,11 @@ func eligible(career: CareerState, e: Dictionary, via_schedule: bool = false) ->
 	if e.has("opponent"):
 		if career.is_season_over() or career.opponent().id != career.rival.school_id:
 			return false
+	if e.has("recentGames"):
+		# 내가 나온 최근 N경기 안타 합 (공식 경기만, 아직 한 경기도 안 나왔으면 조건이 안 맞는다)
+		var recent := career.records.recent_hits(int(e["recentGames"]))
+		if recent < 0 or recent < int(e.get("recentMinHits", 0)) or recent > int(e.get("recentMaxHits", 999)):
+			return false
 	return _last_ok(career, e)
 
 
@@ -192,38 +298,75 @@ static func _in_span(e: Dictionary, key: String, v: int) -> bool:
 	return v >= int(span[0]) and v <= int(span[1])
 
 
-## 선택. 돌려주는 값: 결과 문장 (+ 변화 설명)
+## 화면 없이 끝까지 고른다: 선택 지점마다 choice_index 번째(막혀 있으면 고를 수 있는 첫 번째). 돌려주는 값: 결과 문장 (+ 변화 설명)
 func resolve(career: CareerState, e: Dictionary, choice_index: int) -> String:
+	var run := DialogueRun.new(career, e)
+	run.auto(choice_index)
+	return run.commit()
+
+
+## 대화가 끝났다: 고른 선택들의 돈·효과를 한꺼번에 반영하고 기록에 남긴다. 돌려주는 값: 결과 문장 (+ 변화 설명)
+func commit(run: DialogueRun) -> String:
+	var career := run.career
+	var e := run.event
 	var id: String = e["id"]
 	fired[id] = career.total_week
 	for t: String in _pending:
 		(_pending[t] as Array).erase(e)
 	scheduled = scheduled.filter(func(item: Dictionary) -> bool: return item["id"] != id)
-	var choice: Dictionary = e["choices"][choice_index]
-	var cost := int(choice.get("cost", 0))
-	assert(career.player.money >= cost, "돈이 모자란 선택지를 골랐다")
-	career.player.money -= cost
-	var result: String
-	var fx: Dictionary
-	if choice.has("outcomes"):
-		var o := _roll_outcome(choice["outcomes"], career._rng("choice:" + id))
-		result = o["result"]
-		fx = o.get("effects", {})
-	else:
-		result = choice["result"]
-		fx = choice.get("effects", {})
+	# 스토리가 끝났다: 이 이야기가 세운 플래그로 열리는 같은 시점(주 시작·경기 뒤·시즌 결산)의 다음 이야기를 같은 주에 이어서 띄운다
+	var t_of := timing_of(e)
+	if e.get("story", false) and t_of != "game" and _pending_week.get(t_of, -1) == career.total_week:
+		_repick[t_of] = career.total_week
+		_pending_week.erase(t_of)
+	assert(career.player.money >= run.cost, "돈이 모자란 선택지를 골랐다")
+	career.player.money -= run.cost
 	var speaker := speaker_name(career, e)
-	var parts := apply_effects(career, fx)
-	if cost > 0:
-		parts.push_front("돈 -%s" % PlayerData.money_text(cost))
+	var parts: Array[String] = []
+	for fx: Dictionary in run.effects:
+		parts.append_array(apply_effects(career, fx))
+	if run.cost > 0:
+		parts.push_front("돈 -%s" % PlayerData.money_text(run.cost))
 	last_parts = parts
-	var text := fill(career, result)
+	var text := run.last_text
 	log.append({"season": career.season_no, "grade": career.player.grade, "week": career.week, "title": e.get("title", id),
-		"speaker": speaker, "choice": fill(career, choice["label"]), "result": text, "story": e.get("story", false)})
+		"speaker": speaker, "choice": " → ".join(run.labels), "result": text, "story": e.get("story", false)})
 	return text if parts.is_empty() else "%s (%s)" % [text, ", ".join(parts)]
 
 
-static func _roll_outcome(outcomes: Array, rng: RandomNumberGenerator) -> Dictionary:
+## 이벤트의 대본 (줄과 선택 지점이 순서대로). script 가 있으면 그대로, 옛 형식(text + choices)이면 대본으로 바꾼다:
+##   화자 대사 한 줄 → 선택 지점 하나 → 고른 선택지의 result 가 지문 한 줄
+static func script_of(e: Dictionary) -> Array:
+	if e.has("script"):
+		return e["script"]
+	var options := []
+	for c: Dictionary in e.get("choices", []):
+		var o := {"label": c.get("label", "")}
+		if c.has("cost"):
+			o["cost"] = c["cost"]
+		if c.has("outcomes"):
+			var outs := []
+			for oc: Dictionary in c["outcomes"]:
+				outs.append({"weight": oc.get("weight", 0), "effects": oc.get("effects", {}), "then": [{"text": oc.get("result", "")}]})
+			o["outcomes"] = outs
+		else:
+			o["effects"] = c.get("effects", {})
+			o["then"] = [{"text": c.get("result", "")}]
+		options.append(o)
+	return [{"speaker": e.get("speaker", ""), "text": e.get("text", "")}, {"choices": options}]
+
+
+## 불러온 이벤트 정의 손질: 대본 이벤트에 choices(첫 선택 지점의 선택지들)를 붙여 둔다 — 도구·테스트가 형식과 상관없이 e.choices 를 본다
+static func prepare(events: Array) -> void:
+	for e: Dictionary in events:
+		if e.has("script") and not e.has("choices"):
+			for node: Dictionary in e["script"]:
+				if node.has("choices"):
+					e["choices"] = node["choices"]
+					break
+
+
+static func roll_outcome(outcomes: Array, rng: RandomNumberGenerator) -> Dictionary:
 	var total := 0.0
 	for o: Dictionary in outcomes:
 		total += float(o["weight"])
@@ -259,7 +402,7 @@ func apply_effects(career: CareerState, fx: Dictionary) -> Array[String]:
 				parts.append("평판 %+d" % int(v))
 			"lineupSlot":
 				p.lineup_slot = int(v)
-				parts.append("타순 %d번" % int(v))
+				parts.append("타순 %d번" % int(v) if int(v) > 0 else "선발 제외 (벤치)")
 			"form":
 				var m := float(cfg.form["max"])
 				p.form = clampf(p.form + float(v), -m, m)
@@ -267,6 +410,10 @@ func apply_effects(career: CareerState, fx: Dictionary) -> Array[String]:
 			"injury":
 				p.injury_weeks = maxi(p.injury_weeks, int(v))
 				parts.append("부상 %d주" % int(v))
+			"injuryLabel":
+				p.injury_label = str(v)
+			"matchOverride":
+				career.match_override = (v as Dictionary).duplicate(true)
 			"rel":
 				for id: String in v:
 					var person := career.people.person(id)
@@ -287,6 +434,20 @@ func apply_effects(career: CareerState, fx: Dictionary) -> Array[String]:
 				scheduled.append({"id": v["event"], "due": career.total_week + int(v["weeks"])})
 			"path":
 				career.path = str(v)
+			"gameBoost":
+				for st: String in v:
+					p.game_boost[st] = int(p.game_boost.get(st, 0)) + int(v[st])
+					parts.append("이번 경기 %s %+d" % [PlayerData.STAT_LABELS[st], int(v[st])])
+			"pinchHit":
+				p.bench_next = bool(v)
+				if p.bench_next:
+					parts.append("다음 경기 벤치 대기")
+			"gear":
+				p.gear[str(v)] = true
+				parts.append("장비: %s" % cfg.shop["gear"][str(v)]["label"])
+			"campFocus":
+				career.camp_focus = str(v)
+				parts.append("집중 과제: %s" % career.camp_focus_label())
 			"money":
 				p.money = maxi(0, p.money + int(v))
 				parts.append("돈 %s%s" % ["+" if int(v) > 0 else "", PlayerData.money_text(int(v))])
@@ -319,25 +480,6 @@ static func choice_block(career: CareerState, choice: Dictionary) -> String:
 	if career.player.money < cost:
 		return "돈이 모자라다 (%s 필요)" % PlayerData.money_text(cost)
 	return ""
-
-
-## 대화 화면 대사 줄: [{"who": 인물 id | "" (지문) | "?" (인물이 아닌 화자), "name", "role", "text"}]
-## 본문 맨 앞 괄호는 지문으로 따로 뺀다: "(몸을 풀던 …) 네가 새싹고 1학년?" → 지문 + 화자 대사
-static func lines(career: CareerState, e: Dictionary) -> Array:
-	var t := fill(career, e["text"])
-	var out := []
-	if t.begins_with("("):
-		var close := t.find(")")
-		if close > 0:
-			out.append({"who": "", "name": "", "role": "", "text": t.substr(1, close - 1).strip_edges()})
-			t = t.substr(close + 1).strip_edges()
-	if t != "":
-		var s: String = e["speaker"]
-		var who := s if career.people.has(s) else "?"
-		if s == "partner":
-			who = career.people.partner
-		out.append({"who": who, "name": speaker_name(career, e), "role": speaker_role(career, e), "text": t})
-	return out
 
 
 ## 배경 자리 id: 이벤트 place → 화자의 기본 장소 → field
@@ -418,8 +560,12 @@ static func validate(cfg: CareerConfig) -> Array[String]:
 	var ids := {}
 	var flags_set := {}
 	var schedule_targets := {}
+	for f: String in cfg.pending_flags:
+		flags_set[f] = true
 	for e: Dictionary in cfg.events:
-		for c: Dictionary in e.get("choices", []):
+		var found := {"choices": [], "lines": []}
+		_collect(script_of(e), found)
+		for c: Dictionary in found["choices"]:
 			for fx: Dictionary in _choice_effects(c):
 				for f in _list(fx.get("flag", [])):
 					flags_set[f] = true
@@ -442,9 +588,17 @@ static func validate(cfg: CareerConfig) -> Array[String]:
 				errors.append("%s: 모르는 키 %s" % [where, k])
 		if not timing_of(e) in TIMINGS:
 			errors.append("%s: timing %s" % [where, timing_of(e)])
-		if str(e.get("speaker", "")) == "" or str(e.get("text", "")) == "":
+		if str(e.get("speaker", "")) == "" or (str(e.get("text", "")) == "" and not e.has("script")):
 			errors.append("%s: speaker·text 가 비었다" % where)
-		for k in ["grade", "week"]:
+		if e.has("script") and e.has("text"):
+			errors.append("%s: script 와 text 를 같이 쓸 수 없다" % where)
+		if (timing_of(e) == "game") != e.has("moment") or (e.has("moment") and not e["moment"] in MOMENTS):
+			errors.append("%s: timing game 이벤트는 moment(%s)가 있어야 하고, 다른 이벤트엔 없어야 한다" % [where, ", ".join(MOMENTS)])
+		if e.has("winter") and not (e["winter"] is bool or e["winter"] == "any"):
+			errors.append("%s: winter 는 true 또는 any" % where)
+		if e.has("campWeek") and e.get("winter", false) is not bool:
+			errors.append("%s: campWeek 는 winter: true 이벤트에서만" % where)
+		for k in ["grade", "week", "campWeek"]:
 			if e.has(k) and ((e[k] as Array).size() != 2 or int(e[k][0]) > int(e[k][1])):
 				errors.append("%s: %s 범위" % [where, k])
 		for f: String in e.get("requires", []):
@@ -470,17 +624,38 @@ static func validate(cfg: CareerConfig) -> Array[String]:
 			errors.append("%s: lastOpponent 는 rival 만" % where)
 		if e.has("lastPhaseEnd") and not e["lastPhaseEnd"] in PHASE_ENDS:
 			errors.append("%s: lastPhaseEnd %s" % [where, e["lastPhaseEnd"]])
+		if e.has("stage"):
+			var why := _stage_error(cfg, e)
+			if why != "":
+				errors.append("%s: stage %s" % [where, why])
+		if (e.has("recentMinHits") or e.has("recentMaxHits")) != e.has("recentGames") or int(e.get("recentGames", 1)) <= 0:
+			errors.append("%s: recentGames(1 이상)는 recentMinHits·recentMaxHits 와 같이 쓴다" % where)
 		if e.has("lastResult") and not e["lastResult"] in ["win", "loss", "draw"]:
 			errors.append("%s: lastResult %s" % [where, e["lastResult"]])
 		if e.get("scheduledOnly", false) and not schedule_targets.has(id):
 			errors.append("%s: scheduledOnly 인데 예약하는 선택지가 없다" % where)
 		if not cfg.people.has(e.get("speaker", "")) and str(e.get("speaker", "")).begins_with("{"):
 			errors.append("%s: speaker" % where)
-		var texts: Array = [e.get("text", "")]
-		var choices: Array = e.get("choices", [])
-		if choices.is_empty():
+		var texts: Array = []
+		var found := {"choices": [], "lines": []}
+		_collect(script_of(e), found)
+		var has_choice := false
+		for node: Dictionary in script_of(e):
+			if node.has("choices"):
+				has_choice = true
+		if not has_choice:
 			errors.append("%s: 선택지가 없다" % where)
-		for c: Dictionary in choices:
+		for line: Dictionary in found["lines"]:
+			texts.append(line.get("text", ""))
+			if str(line.get("text", "")) == "":
+				errors.append("%s: 빈 대사·결과" % where)
+			var sp: String = line.get("speaker", "")
+			# 영문 id 처럼 생겼는데 인물이 아니면 오타로 본다 (인물이 아닌 화자는 한글 이름으로 쓴다)
+			if sp != "" and sp != "player" and not sp in people_ids and _is_ascii(sp):
+				errors.append("%s: 대사 화자 %s 없음" % [where, sp])
+			if sp == "partner" and e.get("partner", "") != "any":
+				errors.append("%s: partner 가 말하면 partner: any 조건이 있어야 한다" % where)
+		for c: Dictionary in found["choices"]:
 			texts.append(c.get("label", ""))
 			if str(c.get("label", "")) == "":
 				errors.append("%s: 선택지 label 이 비었다" % where)
@@ -490,13 +665,8 @@ static func validate(cfg: CareerConfig) -> Array[String]:
 				if (c["outcomes"] as Array).is_empty():
 					errors.append("%s: outcomes 가 비었다" % where)
 				for o: Dictionary in c["outcomes"]:
-					if float(o.get("weight", 0)) <= 0.0 or str(o.get("result", "")) == "":
-						errors.append("%s: outcome 의 weight·result" % where)
-					texts.append(o.get("result", ""))
-			elif str(c.get("result", "")) == "":
-				errors.append("%s: 선택지 result 가 비었다" % where)
-			else:
-				texts.append(c["result"])
+					if float(o.get("weight", 0)) <= 0.0:
+						errors.append("%s: outcome 의 weight" % where)
 			for fx: Dictionary in _choice_effects(c):
 				for k: String in fx:
 					if not k in EFFECT_KEYS:
@@ -513,8 +683,21 @@ static func validate(cfg: CareerConfig) -> Array[String]:
 						errors.append("%s: meet 인물 %s 없음" % [where, pid])
 				if fx.has("schedule"):
 					var target: String = fx["schedule"].get("event", "")
-					if not _has_event(cfg, target) or int(fx["schedule"].get("weeks", 0)) <= 0:
+					if not (_has_event(cfg, target) or target in cfg.pending_events) or int(fx["schedule"].get("weeks", 0)) <= 0:
 						errors.append("%s: schedule 대상 %s" % [where, target])
+				if fx.has("campFocus") and not (fx["campFocus"] in PlayerData.STATS or fx["campFocus"] == CareerState.CAMP_FOCUS_BODY):
+					errors.append("%s: campFocus %s" % [where, fx["campFocus"]])
+				if fx.has("lineupSlot") and (int(fx["lineupSlot"]) < 0 or int(fx["lineupSlot"]) > 9):
+					errors.append("%s: lineupSlot 은 0(벤치)~9" % where)
+				if fx.has("matchOverride"):
+					var why := _match_override_error(cfg, fx["matchOverride"])
+					if why != "":
+						errors.append("%s: matchOverride %s" % [where, why])
+				for st: String in fx.get("gameBoost", {}):
+					if not st in PlayerData.STATS:
+						errors.append("%s: gameBoost 능력치 %s" % [where, st])
+				if fx.has("gear") and not (cfg.shop["gear"] as Dictionary).has(fx["gear"]):
+					errors.append("%s: gear %s 없음" % [where, fx["gear"]])
 				if fx.has("path") and not fx["path"] in PATHS:
 					errors.append("%s: path %s" % [where, fx["path"]])
 		for t: String in texts:
@@ -524,13 +707,112 @@ static func validate(cfg: CareerConfig) -> Array[String]:
 	return errors
 
 
+## stage(경기 장면 연출) 검사 ("" 이면 통과)
+static func _stage_error(cfg: CareerConfig, e: Dictionary) -> String:
+	if timing_of(e) != "game" or not e.get("story", false) or e.get("repeat", false):
+		return "은 한 번뿐인 경기 중 스토리(timing game, story, repeat 아님)에만"
+	if not e["stage"] is Dictionary:
+		return "형식"
+	var s: Dictionary = e["stage"]
+	for k: String in s:
+		if not k in ["inning", "half", "outs", "bases", "score", "slot", "runnerSlots", "reached", "practice", "pitcher"]:
+			return "모르는 키 %s" % k
+	if not s.get("half", "") in ["top", "bottom"]:
+		return "half 는 top 또는 bottom"
+	if int(s.get("inning", 0)) < 2 or int(s.get("inning", 0)) > cfg.innings:
+		return "inning 은 2~%d" % cfg.innings
+	if not s.get("score") is Array or (s["score"] as Array).size() != 2 or int(s["score"][0]) < 0 or int(s["score"][1]) < 0:
+		return "score 는 [우리 점수, 상대 점수]"
+	if s["half"] == "bottom" and int(s["inning"]) == cfg.innings and int(s["score"][0]) > int(s["score"][1]):
+		return "마지막 회 말에 이기고 있으면 공격이 없다"
+	if int(s.get("outs", 0)) < 0 or int(s.get("outs", 0)) > 2:
+		return "outs 는 0~2"
+	var bases: Array = s.get("bases", [])
+	var seen := {}
+	for b in bases:
+		if int(b) < 1 or int(b) > 3 or seen.has(int(b)):
+			return "bases 는 1~3 을 한 번씩"
+		seen[int(b)] = true
+	if (s.get("runnerSlots", []) as Array).size() > bases.size() or (s.get("reached", []) as Array).size() > bases.size():
+		return "runnerSlots·reached 는 bases 와 같은 순서로, 그보다 길 수 없다"
+	for v in s.get("runnerSlots", []) + ([s["slot"]] if s.has("slot") else []):
+		if int(v) < 1 or int(v) > 9:
+			return "타순은 1~9"
+	if s.has("pitcher") and not s["pitcher"] in Team.PITCHER_PROFILES:
+		return "pitcher 는 %s" % "|".join(Team.PITCHER_PROFILES)
+	for v in s.get("reached", []):
+		if not v in ["walk", "single", "double", "triple"]:
+			return "reached 는 walk|single|double|triple"
+	return ""
+
+
+## matchOverride 효과 검사 ("" 이면 통과)
+static func _match_override_error(cfg: CareerConfig, v: Variant) -> String:
+	if not v is Dictionary:
+		return "형식"
+	var m: Dictionary = v
+	for k: String in m:
+		if not k in ["opponent", "result", "score", "innings", "playerAbsent", "home", "line", "rivalLine"]:
+			return "모르는 키 %s" % k
+	if not m.get("score") is Array or (m["score"] as Array).size() != 2 or int(m["score"][0]) < 0 or int(m["score"][1]) < 0:
+		return "score 는 [우리 점수, 상대 점수]"
+	var want: String = ["loss", "draw", "win"][signi(int(m["score"][0]) - int(m["score"][1])) + 1]
+	if m.get("result", want) != want:
+		return "result 가 score 와 다르다"
+	if not m.get("playerAbsent", true):
+		return "playerAbsent 는 true 만 (결과를 고정한 경기에 내 선수는 나오지 않는다)"
+	if int(m.get("innings", cfg.innings)) < 1 or int(m.get("innings", cfg.innings)) > cfg.innings:
+		return "innings 는 1~%d" % cfg.innings
+	if m.has("line"):
+		var n := int(m.get("innings", cfg.innings))
+		if not m["line"] is Array or (m["line"] as Array).size() != 2:
+			return "line 은 [[우리 이닝별 점수…], [상대 이닝별 점수…]]"
+		for i in 2:
+			var per: Array = m["line"][i]
+			var sum := 0
+			for run in per:
+				sum += int(run)
+			if sum != int(m["score"][i]) or per.size() > n or per.size() < n - 1:
+				return "line 의 합·이닝 수가 score·innings 와 다르다"
+	for k: String in m.get("rivalLine", {}):
+		if not k in ["ab", "hits", "doubles", "homeRuns", "rbi", "walks", "strikeouts"]:
+			return "rivalLine 모르는 키 %s" % k
+	if m.has("opponent"):
+		var known := false
+		for s: Dictionary in cfg.regional_schools + cfg.national_schools:
+			if s["id"] == m["opponent"]:
+				known = true
+		if not known:
+			return "상대 학교 %s 없음" % m["opponent"]
+	return ""
+
+
+## 선택지 하나의 효과 사전들 (자기 효과 + 확률 갈래들의 효과)
 static func _choice_effects(c: Dictionary) -> Array:
-	if c.has("outcomes"):
-		var out := []
-		for o: Dictionary in c["outcomes"]:
-			out.append(o.get("effects", {}))
-		return out
-	return [c.get("effects", {})]
+	var out := [c.get("effects", {})]
+	for o: Dictionary in c.get("outcomes", []):
+		out.append(o.get("effects", {}))
+	return out
+
+
+## 대본을 끝까지 훑어 모든 줄과 선택지를 모은다 (then·outcomes 안쪽까지)
+static func _collect(nodes: Array, found: Dictionary) -> void:
+	for node: Dictionary in nodes:
+		if not node.has("choices"):
+			found["lines"].append(node)
+			continue
+		for c: Dictionary in node["choices"]:
+			found["choices"].append(c)
+			_collect(c.get("then", []), found)
+			for o: Dictionary in c.get("outcomes", []):
+				_collect(o.get("then", []), found)
+
+
+static func _is_ascii(t: String) -> bool:
+	for i in t.length():
+		if t.unicode_at(i) > 127:
+			return false
+	return true
 
 
 static func _is_romance(cfg: CareerConfig, id: String) -> bool:

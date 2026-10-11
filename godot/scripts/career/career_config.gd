@@ -26,6 +26,8 @@ var records: Dictionary
 var economy: Dictionary
 var shop: Dictionary
 var romance: Dictionary
+## 겨울 캠프 (주 수, 연습경기 주차, 훈련 보너스)
+var camp: Dictionary
 
 var innings: int
 var auto_step_ms: float
@@ -41,6 +43,10 @@ var tournaments: Array
 var surnames: Array
 var given_names: Array
 var events: Array
+## 아직 세우는 이벤트가 없는 플래그 (content.json pendingFlags — 검증에서 requires 로 써도 된다)
+var pending_flags: Array = []
+## 아직 없는 이벤트 id (content.json pendingEvents — schedule 대상으로 써도 된다, 예약은 이벤트가 들어올 때까지 쉰다)
+var pending_events: Array = []
 var coach_lines: Dictionary
 ## 게임 이름 (가제) {ko, en, kicker, version}
 var game_title: Dictionary
@@ -78,6 +84,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.economy = car["economy"]
 	c.shop = car["shop"]
 	c.romance = car["romance"]
+	c.camp = car["camp"]
 
 	var g: Dictionary = balance["game"]
 	c.innings = int(BattingConfig.num(g, "innings"))
@@ -94,6 +101,9 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.surnames = content["surnames"]
 	c.given_names = content["givenNames"]
 	c.events = content["events"]
+	EventBook.prepare(c.events)
+	c.pending_flags = content.get("pendingFlags", [])
+	c.pending_events = content.get("pendingEvents", [])
 	c.coach_lines = content["coachLines"]
 	c.game_title = content["gameTitle"]
 	for id: String in content["people"]:

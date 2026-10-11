@@ -26,7 +26,9 @@ func _init() -> void:
 		for season in 3:
 			var weeks := 0
 			while not career.is_season_over():
-				for e: Dictionary in career.events("start").duplicate():
+				# 주 시작 이야기는 하나가 끝나면 다음 것이 이어질 수 있다 — 남은 게 없을 때까지
+				while not career.events("start").is_empty():
+					var e: Dictionary = career.events("start")[0]
 					career.resolve_event(e, _ok(career, e, pick.randi_range(0, (e.choices as Array).size() - 1)))
 				career.train("rest" if career.player.condition < 50 else ids[weeks % ids.size()])
 				# 홀수 시드: 처음 만난 연애 후보와 돈이 되면 매주 만난다 / 짝수 시드: 돈을 모아 장비·레슨
@@ -46,6 +48,7 @@ func _init() -> void:
 				rng.seed = hash([cfg.seed, season, weeks])
 				while not game.state.over:
 					if game.step().type == "my_turn":
+						career.auto_game_story(game)
 						var pa := AutoPa.simulate(cfg.auto_pa, bc, game.current_batter().skills, game.current_pitcher(), rng)
 						game.apply_my_result(AtBat.Result.new(pa.outcome, SwingJudge.BattedBall.NONE, pa.pitches, null))
 				career.finish_game(game)
@@ -60,6 +63,30 @@ func _init() -> void:
 			for e: Dictionary in career.events("seasonEnd").duplicate():
 				career.resolve_event(e, _ok(career, e, pick.randi_range(0, (e.choices as Array).size() - 1)))
 			if season < 2:
+				career.start_camp()
+				while career.in_camp():
+					# 주 시작 이야기는 하나가 끝나면 다음 것이 이어질 수 있다 — 남은 게 없을 때까지
+					while not career.events("start").is_empty():
+						var e: Dictionary = career.events("start")[0]
+						career.resolve_event(e, _ok(career, e, pick.randi_range(0, (e.choices as Array).size() - 1)))
+					career.train("rest" if career.player.condition < 50 else ids[career.camp_week % ids.size()])
+					if career.camp_has_game():
+						var pg := career.new_game()
+						var prng := RandomNumberGenerator.new()
+						prng.seed = hash([cfg.seed, season, "camp", career.camp_week])
+						while not pg.state.over:
+							if pg.step().type == "my_turn":
+								career.auto_game_story(pg)
+								var ppa := AutoPa.simulate(cfg.auto_pa, bc, pg.current_batter().skills, pg.current_pitcher(), prng)
+								pg.apply_my_result(AtBat.Result.new(ppa.outcome, SwingJudge.BattedBall.NONE, ppa.pitches, null))
+						career.finish_game(pg)
+					else:
+						career.finish_camp_week()
+					for pair: Array in career.last_income:
+						earned += int(pair[1])
+					for e: Dictionary in career.events("after").duplicate():
+						career.resolve_event(e, _ok(career, e, pick.randi_range(0, (e.choices as Array).size() - 1)))
+					career.advance_week()
 				career.winter_training()
 				career.start_next_season()
 		var p := career.player

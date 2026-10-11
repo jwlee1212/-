@@ -53,6 +53,10 @@ func _init() -> void:
 		"test_record_distribution",
 		"test_physics_running",
 		"test_game_is_reproducible",
+		"test_pinch_hit",
+		"test_scenario_keys",
+		"test_y1_story",
+		"test_real_content",
 		"test_training_and_growth",
 		"test_condition_affects_skills",
 		"test_events_flow",
@@ -61,6 +65,7 @@ func _init() -> void:
 		"test_josa",
 		"test_story_three_years",
 		"test_rival",
+		"test_next_lineup",
 		"test_scouting",
 		"test_lineup_by_trust",
 		"test_economy",
@@ -68,6 +73,12 @@ func _init() -> void:
 		"test_social",
 		"test_romance",
 		"test_dialogue_lines",
+		"test_dialogue_run",
+		"test_first_day",
+		"test_game_events",
+		"test_camp",
+		"test_camp_save_and_repeat",
+		"test_fast_forward",
 		"test_season_loop",
 		"test_standings_consistent",
 		"test_tournament_elimination",
@@ -469,7 +480,17 @@ func test_apply_patch() -> void:
 
 # ---------- 게임형 프로토타입: 경기·커리어 ----------
 
+## 테스트용 설정: 게임 콘텐츠 + 테스트 전용 이벤트(tests/fixtures/legacy_events.json — 게임에서 뺀 옛 이벤트).
+## 이벤트 엔진의 기능(확률 갈림·지연 결과·연애·겨울 캠프·진로)은 이 이벤트들로 시험한다
 func _career_cfg() -> CareerConfig:
+	var content := BalanceLoader.load_config("content.json")
+	var legacy: Dictionary = BalanceLoader.parse(FileAccess.get_file_as_string("res://tests/fixtures/legacy_events.json"))
+	(content["events"] as Array).append_array(legacy["events"])
+	return CareerConfig.from(BalanceLoader.load_balance(), content)
+
+
+## 게임이 실제로 읽는 설정 그대로 (content.json 만)
+func _real_cfg() -> CareerConfig:
 	return CareerConfig.from(BalanceLoader.load_balance(), BalanceLoader.load_config("content.json"))
 
 
@@ -537,7 +558,7 @@ func test_half_inning_and_game_end() -> void:
 
 
 ## 경기 하나를 끝까지 (내 타석도 AutoPa 로 대신 — 기록 분포 검사에 쓰려고)
-func _play_full_game(seed_value: int) -> GameRunner:
+func _play_full_game(seed_value: int, bench: bool = false) -> GameRunner:
 	var cfg := _career_cfg()
 	var player := PlayerData.create("테스트", cfg)
 	var srng := _rng(seed_value)
@@ -545,7 +566,7 @@ func _play_full_game(seed_value: int) -> GameRunner:
 	var theirs := School.from_content(cfg.regional_schools[seed_value % cfg.regional_schools.size()], cfg, srng)
 	theirs.strength = 50.0
 	theirs.team = Team.generate(theirs.name, theirs.short, 50.0, theirs.pitcher_profile, cfg, srng)
-	var game := GameRunner.new(cfg, _config, player, mine, theirs, seed_value % 2 == 0, seed_value)
+	var game := GameRunner.new(cfg, _config, player, mine, theirs, seed_value % 2 == 0, seed_value, true, bench)
 	var rng := _rng(seed_value + 999)
 	var guard := 0
 	while not game.state.over and guard < 400:
@@ -705,15 +726,14 @@ func _event(cfg: CareerConfig, id: String) -> Dictionary:
 func test_events_flow() -> void:
 	var career := CareerState.new(_career_cfg(), "테스트", _config)
 	var book := career.book
-	var envelope := _event(career.cfg, "envelope")
-	var rumor := _event(career.cfg, "envelope_rumor")
-	career.week = 7
-	check(not book.eligible(career, rumor), "봉투를 받기 전에는 봉투 소문이 안 나온다")
-	career.resolve_event(envelope, 1)
-	check(career.player.flags.has("envelope") and career.player.lineup_slot == 3, "모른 척 → 3번 타순 + 표시")
-	check(book.eligible(career, rumor), "봉투를 받았으면 나중에 소문이 돌아온다")
+	var first := _event(career.cfg, "d1_prologue")
+	var second := _event(career.cfg, "d1_dawn")
+	check(not book.eligible(career, second), "앞 이야기의 플래그가 없으면 뒤 이야기는 안 나온다")
+	career.resolve_event(first, 1)
+	check(career.player.flags.has("d1_prologue") and career.player.condition == int(career.cfg.start.condition) + 3, "선택 → 플래그 + 효과")
+	check(book.eligible(career, second), "플래그가 서면 뒤 이야기가 열린다")
+	check(not book.eligible(career, first), "한 번 나온 이벤트는 다시 안 나온다")
 	career.week = 2
-	check(not book.eligible(career, envelope), "한 번 나온 이벤트는 다시 안 나온다")
 	# 다시 나오는 이벤트는 cooldownWeeks 뒤에
 	var meal := _event(career.cfg, "mom_meal")
 	career.resolve_event(meal, 0)
@@ -736,7 +756,17 @@ func test_event_integrity() -> void:
 			var c := _rich_career(cfg, e)
 			var text := c.resolve_event(e, i)
 			check(text != "" and not text.contains("{"), "%s 선택지 %d: %s" % [e.id, i, text])
-			check(not EventBook.fill(c, e.text).contains("{"), "%s 본문 치환" % e.id)
+			# 그 길에서 나오는 모든 대사·선택지 글자에 치환이 남지 않는다
+			var reader := DialogueRun.new(_rich_career(cfg, e), e)
+			var step := reader.next()
+			while step.type != "end":
+				if step.type == "line":
+					check(step.text != "" and not step.text.contains("{"), "%s 대사 치환: %s" % [e.id, step.text])
+				else:
+					for o: Dictionary in step.options:
+						check(not o.label.contains("{"), "%s 선택지 치환: %s" % [e.id, o.label])
+					reader.choose(reader.pick(i))
+				step = reader.next()
 			check(EventBook.speaker_name(c, e) != "", "%s 화자" % e.id)
 			var choice: Dictionary = e.choices[i]
 			if choice.has("outcomes"):
@@ -810,23 +840,188 @@ func _auto_career(seed_value: int, choose: Callable, max_events: Array = []) -> 
 		var weeks := 0
 		while not career.is_season_over() and weeks < 40:
 			var count := 0
-			for e: Dictionary in career.events("start").duplicate():
+			# 주 시작 이야기는 하나가 끝나면 다음 것이 이어질 수 있다 — 남은 게 없을 때까지
+			while not career.events("start").is_empty():
+				var e: Dictionary = career.events("start")[0]
 				career.resolve_event(e, _ok_choice(career, e, choose.call(e)))
-				count += 1
+				count += 0 if e.get("free", false) else 1
 			var game := _auto_week(career, ids[weeks % ids.size()])
 			career.finish_game(game)
-			for e: Dictionary in career.events("after").duplicate():
+			while not career.events("after").is_empty():
+				var e: Dictionary = career.events("after")[0]
 				career.resolve_event(e, _ok_choice(career, e, choose.call(e)))
-				count += 1
+				count += 0 if e.get("free", false) else 1
 			max_events.append(count)
 			career.advance_week()
 			weeks += 1
-		for e: Dictionary in career.events("seasonEnd").duplicate():
+		while not career.events("seasonEnd").is_empty():
+			var e: Dictionary = career.events("seasonEnd")[0]
 			career.resolve_event(e, _ok_choice(career, e, choose.call(e)))
 		if season < 2:
+			_auto_camp(career, choose, max_events)
 			career.winter_training()
 			career.start_next_season()
 	return career
+
+
+## 겨울 캠프를 끝까지 자동 진행 (연습경기 주엔 경기, 아니면 훈련만)
+func _auto_camp(career: CareerState, choose: Callable, max_events: Array = []) -> void:
+	career.start_camp()
+	var ids: Array = career.cfg.training.keys()
+	while career.in_camp():
+		var count := 0
+		# 주 시작 이야기는 하나가 끝나면 다음 것이 이어질 수 있다 — 남은 게 없을 때까지
+		while not career.events("start").is_empty():
+			var e: Dictionary = career.events("start")[0]
+			career.resolve_event(e, _ok_choice(career, e, choose.call(e)))
+			count += 0 if e.get("free", false) else 1
+		if career.camp_has_game():
+			career.finish_game(_auto_week(career, ids[career.camp_week % ids.size()]))
+		else:
+			career.train(ids[career.camp_week % ids.size()])
+			career.finish_camp_week()
+		while not career.events("after").is_empty():
+			var e: Dictionary = career.events("after")[0]
+			career.resolve_event(e, _ok_choice(career, e, choose.call(e)))
+			count += 0 if e.get("free", false) else 1
+		max_events.append(count)
+		career.advance_week()
+
+
+func test_camp() -> void:
+	var cfg := _career_cfg()
+	var camp := cfg.camp
+	var career := CareerState.new(cfg, "테스트", _config)
+	var focus := _event(cfg, "camp_focus")
+	check(not career.book.eligible(career, focus), "시즌 중엔 캠프 이벤트가 안 나온다")
+	check(not career.in_camp() and career.training_multiplier("power") == 1.0, "시즌 중엔 훈련 보너스 없음")
+	career.finish_game(_auto_week(career, "rest"))
+	career.advance_week()
+	var season_line := career.player.season.pa
+	var results := career.results.size()
+	var record_games: int = career.records.games.size()
+	career.phase_index = career.phases().size()
+	career.player.flags["y7_winter_done"] = true
+	career.start_camp()
+	check(career.in_camp() and career.camp_week == 1 and not career.camp_has_game(), "캠프 1주차는 훈련 주")
+	check(career.phase_name() == "겨울 캠프" and career.round_text().contains("훈련"), "허브 표시: %s %s" % [career.phase_name(), career.round_text()])
+	check(not career.book.eligible(career, _event(cfg, "rumor")) and career.book.eligible(career, _event(cfg, "mom_meal")), "시즌 이벤트는 쉬고, 일상 이벤트는 캠프에서도")
+	var start: Array = career.events("start")
+	check(start.size() == 1 and start[0].id == "y7_plan", "첫 주 시작에 집중 과제 이야기 (1학년 겨울은 겨울 계획서)")
+	career.resolve_event(start[0], 1)
+	check(career.camp_focus == "power", "집중 과제 = 파워")
+	check(is_equal_approx(career.training_multiplier("power"), float(camp.focusMultiplier)) and is_equal_approx(career.training_multiplier("contact"), float(camp.trainingMultiplier))
+		and career.training_multiplier("rest") == 1.0, "집중 과제 ×%.1f, 다른 훈련 ×%.1f, 휴식 ×1" % [float(camp.focusMultiplier), float(camp.trainingMultiplier)])
+	# 같은 선수로 시즌 훈련과 캠프 훈련을 비교: 캠프가 더 많이 오른다
+	var plain := CareerState.new(cfg, "테스트", _config)
+	plain.train("power")
+	var plain_gain: float = plain.player.power + float(plain.player.progress.get("power", 0.0)) - int(cfg.start.power)
+	var before: float = career.player.power + float(career.player.progress.get("power", 0.0))
+	var text := career.train("power")
+	var camp_gain: float = career.player.power + float(career.player.progress.get("power", 0.0)) - before
+	check(camp_gain > plain_gain * 1.5 and text.contains("집중 과제"), "캠프 집중 훈련이 더 크게 오른다 (%.2f vs %.2f)" % [camp_gain, plain_gain])
+	var money := career.player.money
+	career.finish_camp_week()
+	check(career.game_done and career.player.money > money and career.last.is_empty(), "훈련 주 마치기: 용돈은 들어오고 경기 조건 이벤트는 없다")
+	career.advance_week()
+	check(career.camp_week == 2 and career.camp_has_game() and career.week_training == "", "2주차는 연습경기")
+	var week := career.week
+	career.finish_game(_auto_week(career, "rest"))
+	check(career.camp_games.size() == 1 and career.player.season.pa == season_line and career.results.size() == results and career.records.games.size() == record_games,
+		"연습경기는 시즌 기록·팀 성적·기록실에 안 들어간다")
+	check(not career.last.is_empty() and career.last.phase_end == "", "연습경기 뒤 이벤트 조건은 남는다")
+	career.advance_week()
+	check(career.week == week, "캠프 중엔 시즌 주차가 멈춘다")
+	while career.in_camp():
+		if career.camp_has_game():
+			career.finish_game(_auto_week(career, "rest"))
+		else:
+			career.train("rest")
+			career.finish_camp_week()
+		career.advance_week()
+	check(career.camp_finished() and career.camp_games.size() == (camp.gameWeeks as Array).size(), "캠프 %d주, 연습경기 %d번" % [int(camp.weeks), career.camp_games.size()])
+	career.winter_training()
+	career.start_next_season()
+	check(not career.in_camp() and not career.camp_finished() and career.camp_focus == "" and career.player.grade == 2 and career.week == 1, "다음 시즌엔 캠프 상태가 지워진다")
+	check(career.training_multiplier("power") == 1.0, "시즌엔 다시 보너스 없음")
+
+
+func test_fast_forward() -> void:
+	# 테스트 시작: 고른 시점까지 실제 규칙대로 감긴다. 도착한 커리어는 정상 커리어다 (저장·이어 하기 가능)
+	var cfg := _career_cfg()
+	check(not FastForward.is_valid(3, "camp") and FastForward.is_valid(2, "camp_end"), "3학년 겨울은 캠프가 없다")
+	var a := CareerState.new(cfg, "감기", _config)
+	check(FastForward.reached(a, 1, "season_start"), "새 커리어는 1학년 시즌 시작")
+	check(FastForward.run(a, 1, "phase:1") and a.is_national() and a.phase_game == 0 and a.week == a.regional_ids.size() + 2, "1학년 첫 전국대회 (%d주차 — 2주차는 연습경기)" % a.week)
+	check(a.records.games.size() == a.week - 2 and a.player.season.games == 0, "지나온 경기가 기록에 있다 (나는 벤치라 공식 출전은 아직 없다)")
+	check(FastForward.run(a, 1, "season_end") and a.is_season_over() and not a.events("seasonEnd").is_empty(), "시즌 결산: 시즌 끝 이야기는 남겨 둔다")
+	check(FastForward.run(a, 1, "camp") and a.camp_week == 1 and a.events("start")[0].id == "y7_plan", "겨울 캠프 1주: 집중 과제 이야기부터 (%s, %s)" % [a.events("start").map(func(e: Dictionary) -> String: return e.id), a.player.flags.keys().filter(func(f: String) -> bool: return f.begins_with("y6") or f.begins_with("y7") or f.begins_with("y5"))])
+	check(FastForward.run(a, 1, "camp_game") and a.camp_has_game() and not a.game_done, "캠프 연습경기 주")
+	check(FastForward.run(a, 1, "camp_end") and a.camp_finished(), "캠프 결산")
+	check(FastForward.run(a, 2, "phase:2") and a.player.grade == 2 and a.phase_index == 2 and a.history.size() == 1, "2학년 주말리그 후반기")
+	check(not FastForward.run(a, 1, "season_end"), "지나간 시점으로는 못 간다")
+	# 같은 시점을 고르면 같은 커리어, 저장해도 그대로
+	var b := CareerState.new(cfg, "감기", _config)
+	FastForward.run(b, 2, "phase:2")
+	check(SaveGame.to_bytes(a) != PackedByteArray() and SaveGame.to_bytes(_reload(b)) == SaveGame.to_bytes(b), "감은 커리어도 저장된다")
+	var c := CareerState.new(cfg, "감기", _config)
+	for point in ["phase:1", "season_end", "camp", "camp_game", "camp_end"]:
+		FastForward.run(c, 1, point)
+	FastForward.run(c, 2, "phase:2")
+	check(SaveGame.to_bytes(c) == SaveGame.to_bytes(a), "끊어 감아도 한 번에 감아도 같다")
+	check(SaveGame.to_bytes(b) == SaveGame.to_bytes(a), "같은 시점 = 같은 커리어")
+	# 편의 옵션
+	var money := b.player.money
+	FastForward.apply_extras(b, 300000, "neighbor")
+	check(b.player.money == money + 300000 and b.people.partner == "neighbor" and b.people.is_met("neighbor"), "돈·연애 옵션")
+	# 3학년 시즌 결산까지 (진로 선택 이야기가 남아 있다)
+	check(FastForward.run(b, 3, "season_end") and b.player.grade == 3 and b.path == "", "3학년 시즌 결산, 진로는 아직")
+	var ids := []
+	for e: Dictionary in b.events("seasonEnd"):
+		ids.append(e.id)
+	check(ids.has("s3_path"), "진로 선택 이야기가 기다린다: %s" % [ids])
+
+
+func test_camp_save_and_repeat() -> void:
+	# 캠프 도중 저장·불러오기 → 끝까지 똑같이 진행된다. 같은 시드면 캠프 이야기도 같다
+	var runs := []
+	for k in 2:
+		var career := CareerState.new(_career_cfg(), "캠프", _config)
+		career.phase_index = career.phases().size()
+		career.player.flags["y7_winter_done"] = true
+		career.start_camp()
+		# 주 시작 이야기는 하나가 끝나면 다음 것이 이어질 수 있다 — 남은 게 없을 때까지
+		while not career.events("start").is_empty():
+			var e: Dictionary = career.events("start")[0]
+			career.resolve_event(e, 0)
+		career.train("contact")
+		career.finish_camp_week()
+		if k == 1:
+			career = _reload(career)
+			check(career.in_camp() and career.game_done and career.camp_focus == "contact", "불러온 캠프: 1주차를 마친 상태")
+		for e: Dictionary in career.events("after").duplicate():
+			career.resolve_event(e, _ok_choice(career, e, 0))
+		career.advance_week()
+		while career.in_camp():
+			# 주 시작 이야기는 하나가 끝나면 다음 것이 이어질 수 있다 — 남은 게 없을 때까지
+			while not career.events("start").is_empty():
+				var e: Dictionary = career.events("start")[0]
+				career.resolve_event(e, _ok_choice(career, e, 0))
+			if career.camp_has_game():
+				career.finish_game(_auto_week(career, "contact"))
+			else:
+				career.train("contact")
+				career.finish_camp_week()
+			for e: Dictionary in career.events("after").duplicate():
+				career.resolve_event(e, _ok_choice(career, e, 0))
+			career.advance_week()
+		runs.append(career)
+	check(SaveGame.to_bytes(runs[0]) == SaveGame.to_bytes(runs[1]), "캠프 도중 불러와도 끝이 같다")
+	var titles := []
+	for entry: Dictionary in runs[0].book.log:
+		titles.append(entry.title)
+	check(titles.has("겨울 계획서") and titles.has("캠프 끝"), "캠프 이야기: %s" % [titles])
+	check(SaveGame.summary(_reload(runs[0])).contains("캠프 결산"), "캠프를 마친 저장의 한 줄")
 
 
 func test_story_three_years() -> void:
@@ -836,12 +1031,13 @@ func test_story_three_years() -> void:
 	var titles := {}
 	for entry: Dictionary in career.book.log:
 		titles[entry.title] = true
-	for t in ["입부", "동기", "라이벌", "첫 겨울", "주장", "진로"]:
+	for t in ["입부", "동기", "대기 칸", "대타", "기록", "기록지", "투명인간", "별 하나와 다섯 개", "군기", "영상", "선배의 졸업", "첫 겨울", "겨울 과제", "후배", "주장", "진로"]:
 		check(titles.has(t), "고교 3년 이야기에 '%s' 가 나온다" % t)
 	check(career.path == "draft", "진로가 정해진다 (%s)" % career.path)
 	check(career.player.grade == 3 and career.history.size() == 2, "3학년까지, 지난 시즌 기록 2개")
 	check(career.people.is_met("rival"), "라이벌을 만났다")
-	check(career.book.log.size() >= 15 and career.book.log.size() <= 45, "3년 이벤트 수 %d" % career.book.log.size())
+	check(career.people.is_met("junior") and career.player.gear.has("maple_bat"), "후배를 만났고 선배의 배트를 받았다")
+	check(career.book.log.size() >= 25 and career.book.log.size() <= 80, "3년 이벤트 수 %d (시즌 약 50주 + 캠프 8주, 1학년 시나리오 약 30개)" % career.book.log.size())
 	# 같은 시드·같은 선택 → 같은 이야기
 	var again := _auto_career(2026, func(e: Dictionary) -> int: return 0)
 	check(JSON.stringify(again.book.log) == JSON.stringify(career.book.log), "재현성: 같은 시드면 같은 이야기")
@@ -886,6 +1082,22 @@ func test_rival() -> void:
 	check(rival.player.grade == 2 and rival.player.overall() > ovr, "라이벌도 학년이 오르고 자란다 (%d → %d)" % [ovr, rival.player.overall()])
 
 
+func test_next_lineup() -> void:
+	var career := CareerState.new(_career_cfg(), "테스트", _config)
+	var p := career.player
+	var rows := career.next_lineup()
+	check(rows.size() == 9, "선발 타순은 9명")
+	var mine := rows.filter(func(r: Dictionary) -> bool: return r["me"])
+	check(mine.size() == 1 and mine[0]["slot"] == p.lineup_slot and mine[0]["name"] == p.name, "내 선수는 내 타순 자리에 한 번")
+	var game := career.new_game()
+	var same := true
+	for i in 9:
+		same = same and game.teams[game.my_side].lineup[i].name == rows[i]["name"]
+	check(same, "홈 화면 라인업 = 실제 경기 타순")
+	p.bench_next = true
+	check(career.next_lineup().all(func(r: Dictionary) -> bool: return not r["me"]), "벤치 대기면 선발 타순에 내가 없다")
+
+
 func test_scouting() -> void:
 	var cfg := _career_cfg()
 	var career := CareerState.new(cfg, "테스트", _config)
@@ -901,8 +1113,12 @@ func test_scouting() -> void:
 	check(Scouting.projection(cfg, 1).text.begins_with("1라운드"), "1위는 1라운드: %s" % Scouting.projection(cfg, 1).text)
 	check(Scouting.projection(cfg, 10).suffix == "라운드 예상", "10위는 라운드 범위: %s" % Scouting.projection(cfg, 10).text)
 	check(Scouting.projection(cfg, 90).big == "지명 밖", "90위는 지명 밖")
+	check(Scouting.projection(cfg, 1, 1).text == "스카우터 관심 없음", "1학년은 랭킹 1위여도 스카우터 관심 없음")
+	check(Scouting.projection(cfg, 1, 2).text.begins_with("1라운드"), "2학년부터는 예상 지명이 나온다")
 	check(career.scouting.interested_teams(cfg, 5).size() < career.scouting.interested_teams(cfg, 60).size(), "관심도가 오르면 주목 구단이 는다")
 	check(career.scouting.interested_teams(cfg, 30)[0].name == career.people.person("scout").team_name, "스카우트 인물의 구단이 맨 먼저")
+	check(career.scouting.interested_teams(cfg, 90, 1).is_empty(), "1학년은 관심도가 높아도 주목 구단이 없다")
+	check(not career.scouting.interested_teams(cfg, 90, 2).is_empty(), "2학년부터는 주목 구단이 보인다")
 	var w1 := _range_width(career.scouting.potential_range(cfg, p))
 	p.grade = 3
 	var w3 := _range_width(career.scouting.potential_range(cfg, p))
@@ -1029,19 +1245,261 @@ func test_romance() -> void:
 	check(c2.people.partner == "" and not c2.book.eligible(c2, _event(cfg, "love_neighbor_1")), "거절하면 그 사람 이야기는 끝")
 
 
+## 대화를 끝까지 읽어 걸음들을 모은다 (선택 지점마다 picks 의 다음 번호, 모자라면 0)
+func _read(run: DialogueRun, picks: Array = []) -> Array:
+	var steps := []
+	var k := 0
+	while true:
+		var step := run.next()
+		if step.type == "end":
+			return steps
+		steps.append(step)
+		if step.type == "choice":
+			run.choose(picks[k] if k < picks.size() else 0)
+			k += 1
+	return steps
+
+
 func test_dialogue_lines() -> void:
 	var cfg := _career_cfg()
 	var career := CareerState.new(cfg, "테스트", _config)
 	var meet := _event(cfg, "s1_rival_meet")
-	var lines := EventBook.lines(career, meet)
-	check(lines.size() == 2 and lines[0].who == "" and lines[1].who == "rival", "맨 앞 괄호는 지문, 나머지는 라이벌 대사")
-	check(not lines[1].text.begins_with("("), "지문이 대사에서 빠진다")
-	check(EventBook.place_of(career, meet) == "stadium" and EventBook.portrait_of(career, meet) == "rival", "배경·일러스트 기본값은 화자 것")
+	var steps := _read(DialogueRun.new(career, meet))
+	check(steps[0].type == "line" and steps[0].who == "" and steps[1].who == "coach" and steps[2].who == "buddy", "지문 → 감독 → 동기가 번갈아 말한다")
+	check(steps[1].portrait == "coach" and steps[2].portrait == "buddy" and steps[0].portrait == "", "말하는 사람의 일러스트 자리")
+	check(EventBook.place_of(career, meet) == "stadium" and EventBook.portrait_of(career, meet) == "rival", "배경·일러스트 기본값은 대표 화자 것")
+	# 대사 맨 앞 괄호는 지문으로 따로
+	var exit_steps := _read(DialogueRun.new(career, _event(cfg, "s1_first_exit")))
+	var found := false
+	for i in exit_steps.size() - 1:
+		if exit_steps[i].type == "line" and exit_steps[i].text == "뒷자리로 온다":
+			found = exit_steps[i].who == "" and exit_steps[i + 1].who == "coach" and not exit_steps[i + 1].text.begins_with("(")
+	check(found, "'(뒷자리로 온다) …' → 지문 한 줄 + 감독 대사")
+	# 옛 형식(대사 하나 + 선택 한 번)도 같은 대본으로 읽힌다
 	var rumor := _event(cfg, "rumor")
+	var old := _read(DialogueRun.new(career, rumor))
+	check(old.size() == 3 and old[0].who == "?" and old[1].type == "choice" and old[2].who == "", "옛 형식: 대사 → 선택 → 결과 지문")
 	check(EventBook.portrait_of(career, rumor) == "none" and EventBook.place_of(career, rumor) == "phone", "이벤트가 정한 배경·일러스트")
-	check(EventBook.lines(career, rumor)[0].who == "?", "인물이 아닌 화자")
 	for e: Dictionary in cfg.events:
 		check(cfg.places.has(EventBook.place_of(career, e)), "%s 배경 %s 이 places 에 있다" % [e.id, EventBook.place_of(career, e)])
+		check(not (e.choices as Array).is_empty(), "%s: 형식과 상관없이 e.choices 가 있다" % e.id)
+
+
+func test_dialogue_run() -> void:
+	# 대화가 이어지는 대본: 선택에 따라 뒤따르는 대사가 달라지고, 효과는 끝날 때 한꺼번에 반영된다
+	var cfg := _career_cfg()
+	var errand := _event(cfg, "s1_errand")
+	var a := CareerState.new(cfg, "테스트", _config)
+	var run := DialogueRun.new(a, errand)
+	check(run.next().type == "line" and run.next().type == "choice", "선배 대사 → 첫 선택")
+	check(run.next().type == "choice" and run.at_choice(), "고르기 전엔 선택 지점에 머문다")
+	var senior := a.people.relation("senior")
+	var cond := a.player.condition
+	run.choose(0)
+	check(a.player.condition == cond and a.book.log.is_empty(), "고르는 순간엔 아직 아무것도 반영되지 않는다")
+	check(run.next().who == "" and run.next().who == "senior", "'네, 알겠습니다' 뒤: 지문 → 선배가 다시 묻는다")
+	var second := run.next()
+	check(second.type == "choice" and second.options.size() == 2, "대화 속 두 번째 선택")
+	run.choose(1)
+	check(run.next().text.contains("솔직해서") and run.next().type == "end", "두 번째 답에 맞는 대사로 끝난다")
+	var text := run.commit()
+	check(a.player.condition == cond - 5 + 3 and a.people.relation("senior") == senior + 6 and a.people.relation("coach") == int(cfg.story.relationStart.coach) + 3,
+		"끝나면 두 선택의 효과가 함께 반영된다 (%s)" % text)
+	var entry: Dictionary = a.book.log[-1]
+	check(entry.choice == "네, 알겠습니다 → 솔직히 얼었습니다" and entry.result.contains("솔직해서"), "기록: %s / %s" % [entry.choice, entry.result])
+	check(not a.book.eligible(a, errand), "끝난 이야기는 다시 안 나온다")
+	# 다른 길: 첫 선택이 다르면 다른 대사와 다른 두 번째 선택이 나온다
+	var b := CareerState.new(cfg, "테스트", _config)
+	var steps := _read(DialogueRun.new(b, errand), [1, 1])
+	var texts := []
+	for st: Dictionary in steps:
+		if st.type == "line":
+			texts.append(st.text)
+	check(texts.has("뭐?") and not texts.has("…솔직해서 봐준다. 나도 1학년 땐 그랬어."), "다른 선택 → 다른 대화: %s" % [texts])
+	# resolve(n) 은 선택 지점마다 n 번째를 고른다 (자동 진행·테스트용)
+	var c := CareerState.new(cfg, "테스트", _config)
+	c.resolve_event(_event(cfg, "s3_path"), 1)
+	check(c.path == "college", "두 번째 선택지를 끝까지 → 대학")
+	# 돈 드는 선택지: 대화 안에서 쓴 돈까지 따진다
+	var d := CareerState.new(cfg, "테스트", _config)
+	d.player.money = 30000
+	var visit := DialogueRun.new(d, _event(cfg, "senior_visit"))
+	while not visit.at_choice():
+		visit.next()
+	visit.choose(0)
+	while not visit.at_choice():
+		visit.next()
+	check(visit.block(1) != "" and visit.block(0) == "" and visit.pick(1) == 0, "돈이 모자란 선택지는 막히고 다른 걸 고른다")
+	# 장비를 받는 효과
+	var f := CareerState.new(cfg, "테스트", _config)
+	f.resolve_event(_event(cfg, "s1_senior_farewell"), 0)
+	check(f.player.gear.has("maple_bat"), "선배가 물려준 배트")
+	# 새 인물
+	for id in ["senior", "junior", "batting_coach"]:
+		check(a.people.has(id), "인물 %s" % id)
+	check(a.people.is_met("senior") and a.people.is_met("batting_coach") and not a.people.is_met("junior"), "선배·코치는 처음부터, 후배는 만나야")
+	check(EventBook.fill(a, "{senior}·{batting_coach}").ends_with("선배·%s 코치" % a.people.person("batting_coach").name), "부르는 이름: %s" % EventBook.fill(a, "{senior}·{batting_coach}"))
+	check(not CareerState.can_gift(a.people.person("batting_coach")) and CareerState.can_gift(a.people.person("senior")), "코치에겐 선물 못 하고 선배에겐 된다")
+
+
+func test_first_day() -> void:
+	# 입학 첫날: 주 시작 이야기 여섯 개가 정해진 순서로 이어진다 (하나가 끝나야 다음이 열린다). 한 주 개수 제한에는 안 들어간다
+	var cfg := _career_cfg()
+	var career := CareerState.new(cfg, "테스트", _config)
+	var order := []
+	var guard := 0
+	while not career.events("start").is_empty() and guard < 20:
+		guard += 1
+		var pending: Array = career.events("start")
+		check(pending.size() == 1, "한 번에 하나씩 뜬다 (%s)" % [pending.map(func(e: Dictionary) -> String: return e.id)])
+		order.append(pending[0].id)
+		career.resolve_event(pending[0], 0)
+	check(order == ["d1_prologue", "d1_dawn", "d1_breakfast", "d1_entrance", "s1_welcome", "d1_evening"], "첫날 순서: %s" % [order])
+	check(int(career.book._count.get(career.total_week, 0)) == 0, "첫날 이야기는 한 주 개수에 안 들어간다")
+	check(career.people.is_met("neighbor") and not career.people.is_met("manager"), "새벽 공터에서 다온을 만난다. 소율은 아직")
+	for f in ["d1_prologue", "d1_dawn", "d1_breakfast", "d1_entrance", "d1_tryout", "d1_evening", "neighbor_sketch"]:
+		check(career.player.flags.has(f), "플래그 %s" % f)
+	check(career.book.eligible(career, _event(cfg, "s1_buddy")), "테스트를 치르면 동기 이야기가 열린다")
+	# 불러온 뒤에도 이어진다: 두 개만 보고 저장 → 불러오기 → 세 번째부터
+	var b := CareerState.new(cfg, "테스트", _config)
+	for k in 2:
+		b.resolve_event(b.events("start")[0], 1)
+	var loaded := _reload(b)
+	check(loaded.events("start").size() == 1 and loaded.events("start")[0].id == "d1_breakfast", "불러오면 식탁부터")
+	check(b.player.flags.has("d1_dawn") and not b.player.flags.has("self_reliant"), "두 번째 선택지 플래그")
+	b.resolve_event(b.events("start")[0], 0)
+	check(b.player.flags.has("self_reliant"), "'배트는 제가 알아서 살게요' → self_reliant")
+	# 없어진 이벤트
+	for e: Dictionary in cfg.events:
+		check(e.id != "love_neighbor_meet", "love_neighbor_meet 는 d1_dawn 으로 대체")
+
+
+func test_game_events() -> void:
+	# 경기 중 대화: 순간 판정, 스토리는 반드시·무작위는 확률로, 한 주 개수 제한, 이번 경기에만 붙는 보정
+	var cfg := _career_cfg()
+	var career := CareerState.new(cfg, "테스트", _config)
+	# 주 시작 이야기는 하나가 끝나면 다음 것이 이어질 수 있다 — 남은 게 없을 때까지
+	while not career.events("start").is_empty():
+		var e: Dictionary = career.events("start")[0]
+		career.resolve_event(e, 0)
+	# 입부하면 벤치다 — 선배 부상으로 선발 자리를 받은 날로 건너뛴다
+	career.player.lineup_slot = 7
+	career.player.flags["y1_inj_lineup_done"] = true
+	career.train("rest")
+	var game := career.new_game()
+	check(career.pa_moment(game) == "first_pa", "첫 타석")
+	var debut := career.game_event("first_pa", game)
+	check(debut.get("id", "") == "g_starter_first", "1학년 첫 선발 경기 첫 타석엔 첫 선발 이야기: %s" % debut.get("id", ""))
+	check(career.events("start").is_empty() and career.events("after").filter(func(e: Dictionary) -> bool: return e.get("timing", "") == "game").is_empty(), "경기 중 이벤트는 다른 시점에 안 섞인다")
+	var base := career.player.skills_for_game(cfg)
+	career.resolve_event(debut, 0)
+	var boosted := career.player.skills_for_game(cfg)
+	check(boosted.contact == base.contact + 6 and career.player.contact == int(cfg.start.contact), "이번 경기 컨택 +6 (능력치 자체는 그대로)")
+	career.book._count[career.total_week] = int(cfg.story.maxEventsPerWeek)
+	check(career.game_event("after_strikeout", game).is_empty(), "한 주 이벤트 개수(2)가 차면 경기 중에도 안 나온다")
+	# 승부처: 7회 이후 · 2점 차 이내 · 득점권 주자
+	var probe_career := CareerState.new(cfg, "테스트", _config)
+	var probe := probe_career.new_game()
+	probe.my_line.pa = 2
+	probe.state.inning = 8
+	probe.state.score = [3, 2]
+	probe.state.bases = [GameState.EMPTY, 3, GameState.EMPTY]
+	check(probe_career.pa_moment(probe) == "clutch_pa", "8회 1점 차 2루 주자 = 승부처")
+	probe.state.score = [8, 2]
+	check(probe_career.pa_moment(probe) == "", "점수 차가 크면 평범한 타석")
+	probe.state.score = [3, 2]
+	probe.state.inning = 3
+	check(probe_career.pa_moment(probe) == "", "초반이면 평범한 타석")
+	check(CareerState.result_moment(SwingJudge.Outcome.HOME_RUN) == "after_homer" and CareerState.result_moment(SwingJudge.Outcome.STRIKEOUT) == "after_strikeout"
+		and CareerState.result_moment(SwingJudge.Outcome.SINGLE) == "", "타석 결과 → 순간")
+	# 경기가 끝나면 보정이 사라진다
+	while not game.state.over:
+		if game.step().type == "my_turn":
+			game.apply_my_result(AtBat.Result.new(SwingJudge.Outcome.STRIKEOUT, SwingJudge.BattedBall.NONE, 3, null))
+	career.finish_game(game)
+	check(career.player.game_boost.is_empty() and career.player.skills_for_game(cfg).contact < boosted.contact + 1, "경기가 끝나면 보정이 지워진다")
+	# 무작위 경기 중 이벤트: 여러 주를 돌리면 삼진 뒤 이야기가 가끔 나오고(전부는 아님), 나온 건 그 순간의 것
+	var seen := 0
+	var weeks := 12
+	for w in weeks:
+		var c2 := CareerState.new(cfg, "테스트", _config)
+		c2.week = w + 2
+		c2.total_week = w + 2
+		var g2 := c2.new_game()
+		g2.my_line.pa = 1
+		var ev := c2.game_event("after_strikeout", g2)
+		if not ev.is_empty():
+			seen += 1
+			check(ev.moment == "after_strikeout", "순간이 맞는 이벤트")
+	check(seen > 0 and seen < weeks, "삼진 뒤 이야기는 확률로 (%d/%d)" % [seen, weeks])
+
+
+func test_pinch_hit() -> void:
+	# 대타: 벤치에서 시작한 경기는 승부처(늦어도 forceInning 회)에 반드시 한 번 나가고, 그 뒤로는 그 타순에서 끝까지 뛴다
+	var cfg := _career_cfg()
+	var early := 0
+	for s in 100:
+		var game := _play_full_game(s, true)
+		var box := game.box
+		var side := game.my_side
+		check(game.pinch_hit and not game.on_bench and game.my_slot >= 0, "벤치에서 시작하면 반드시 대타로 나간다 (seed %d)" % s)
+		check(game.my_line.pa >= 1, "대타로 한 타석 이상 (seed %d)" % s)
+		check(box.replaced[side].size() == 1 and box.replaced[1 - side].is_empty(), "교체는 우리 팀에서 한 번")
+		var out: Dictionary = box.replaced[side][0]
+		check(out.slot == game.my_slot and out.name != "테스트", "나간 선수의 기록이 따로 남는다")
+		check(box.batters[side][game.my_slot].pa == game.my_line.pa, "그 타순의 새 줄 = 내 기록 (seed %d)" % s)
+		check(game.teams[side].lineup[game.my_slot].is_me, "타순에 내 선수가 들어가 있다")
+		var hits := 0
+		for b: BoxScore.BatterLine in box.all_batters(side):
+			hits += b.h
+		check(hits == box.hits[side], "교체가 있어도 타자 안타 합 = 팀 안타 (seed %d)" % s)
+		check(box.team_runs(side) == game.state.score[side], "교체가 있어도 타자 득점 합 = 총점 (seed %d)" % s)
+		# 들어간 회: 중계의 대타 줄 뒤에 처음 나오는 내 타석 줄 ([7회초] 처럼 시작)
+		var at := 0
+		for i in game.log.size():
+			if game.log[i].contains("대타:"):
+				at = i
+		var first := ""
+		for i in range(at + 1, game.log.size()):
+			if game.log[i].begins_with("[") and game.log[i].contains("★"):
+				first = game.log[i]
+				break
+		var inning := int(first.substr(1))
+		check(at > 0 and inning >= int(cfg.story.clutch.minInning), "승부처 회 이후에 나간다 (seed %d: %s)" % [s, first])
+		if inning < int(cfg.story.pinchHit.forceInning):
+			early += 1
+	check(early > 0 and early < 100, "승부처가 오면 일찍, 안 오면 %d회에 (%d/100 일찍)" % [int(cfg.story.pinchHit.forceInning), early])
+	var a := _play_full_game(7, true)
+	var b2 := _play_full_game(7, true)
+	check(a.log == b2.log, "대타가 낀 경기도 같은 시드면 같은 경기")
+	check(not _play_full_game(7).pinch_hit and _play_full_game(7).box.replaced[0].is_empty(), "평소 경기에는 대타가 없다")
+	# 커리어: 이벤트 효과로만 켜지고, 그 경기가 끝나면 꺼진다
+	var career := CareerState.new(cfg, "테스트", _config)
+	while not career.events("start").is_empty():
+		career.resolve_event(career.events("start")[0], 0)
+	check(not career.new_game().on_bench, "이벤트가 없으면 선발")
+	career.book.apply_effects(career, {"pinchHit": true})
+	check(career.player.bench_next, "pinchHit 효과 → 다음 경기 벤치")
+	var loaded: CareerState = SaveGame.from_bytes(SaveGame.to_bytes(career), cfg, _config).career
+	check(loaded != null and loaded.player.bench_next, "저장·불러오기에도 남는다")
+	career.train("rest")
+	var game := career.new_game()
+	check(game.on_bench and game.my_slot == -1 and not game.is_my_turn(), "벤치에서 시작")
+	var turns := 0
+	while not game.state.over:
+		if game.step().type == "my_turn":
+			if turns == 0:
+				check(career.pa_moment(game) == "pinch_pa", "대타로 나가는 타석")
+				check(career.game_event("pinch_pa", game).get("id", "") == "g_pinch", "감독이 부르는 이야기가 나온다")
+			turns += 1
+			game.apply_my_result(AtBat.Result.new(SwingJudge.Outcome.SINGLE, SwingJudge.BattedBall.NONE, 3, null))
+	check(turns >= 1 and game.my_line.hits == turns, "대타 타석이 내 기록에 쌓인다")
+	career.finish_game(game)
+	check(not career.player.bench_next and career.player.season.games == 1 and career.player.season.hits == turns, "경기가 끝나면 벤치 표시가 지워지고 시즌 기록에 들어간다")
+	check(career.records.games[-1].playing, "기록실에는 출전으로 남는다")
+	career.advance_week()
+	career.train("rest")
+	check(not career.new_game().on_bench, "다음 경기는 다시 선발")
 
 
 func test_lineup_by_trust() -> void:
@@ -1056,12 +1514,323 @@ func test_lineup_by_trust() -> void:
 	check(career.player.lineup_slot == 7, "낮으면 7번")
 
 
+func test_scenario_keys() -> void:
+	# 시나리오용 조건·효과: flag 배열 + clearFlag, recentGames, 타순 0(벤치)과 이야기가 부르는 대타, matchOverride, injuryLabel, campFocus body
+	var cfg := _career_cfg()
+	var call := {"id": "t_call", "timing": "game", "moment": "pinch_pa", "story": true, "requires": ["t_ready"], "speaker": "coach", "text": "나가라.",
+		"choices": [{"label": "네", "result": "배트를 들었다.", "effects": {"flag": "t_called"}}]}
+	var setter := {"id": "t_set", "scheduledOnly": true, "speaker": "coach", "text": "준비해라.", "choices": [{"label": "네", "result": "알겠다.", "effects": {"flag": ["t_ready"],
+		"schedule": {"event": "t_set", "weeks": 1}, "matchOverride": {"opponent": "cheonji", "result": "loss", "score": [0, 11], "innings": 7, "playerAbsent": true},
+		"injuryLabel": "발목 염좌", "campFocus": "body", "lineupSlot": 0}}]}
+	var slump := {"id": "t_slump", "recentGames": 3, "recentMaxHits": 1, "speaker": "coach", "text": "요즘 안 맞네.", "choices": [{"label": "네", "result": "…"}]}
+	cfg.events.append_array([call, setter, slump])
+	check(EventBook.validate(cfg).is_empty(), "새 키가 검증을 통과한다: %s" % [EventBook.validate(cfg)])
+	var broken := _career_cfg()
+	broken.events = [{"id": "x", "speaker": "coach", "text": "a", "recentMinHits": 1, "choices": [{"label": "a", "result": "b", "effects": {"lineupSlot": 10,
+		"matchOverride": {"opponent": "nowhere", "score": [0, 11]}}}, {"label": "c", "result": "d", "effects": {"matchOverride": {"result": "win", "score": [0, 11]}}}]}]
+	check(EventBook.validate(broken).size() == 4, "recentGames 없는 recentMinHits · 타순 10 · 없는 학교 · 점수와 다른 결과를 잡는다: %s" % [EventBook.validate(broken)])
+
+	var career := CareerState.new(cfg, "테스트", _config)
+	while not career.events("start").is_empty():
+		career.resolve_event(career.events("start")[0], 0)
+	var p := career.player
+	# flag 는 문자열·배열 모두, clearFlag 와 같이 써도 된다
+	career.book.apply_effects(career, {"flag": ["a", "b"], "clearFlag": "old"})
+	p.flags["old"] = true
+	career.book.apply_effects(career, {"flag": ["c"], "clearFlag": ["old", "a"]})
+	check(p.flags.has("b") and p.flags.has("c") and not p.flags.has("a") and not p.flags.has("old"), "flag 배열 + clearFlag")
+
+	# recentGames: 내가 나온 최근 N경기 안타 합
+	check(career.records.recent_hits(3) == -1 and not career.book.eligible(career, slump), "한 경기도 안 나왔으면 조건이 안 맞는다")
+	for hits: int in [2, 0, 1, 0]:
+		var entry := CareerRecords.GameEntry.new()
+		entry.line.hits = hits
+		entry.playing = hits != 1 or career.records.games.size() != 2
+		career.records.add_game(entry, [] as Array[Dictionary])
+	check(career.records.recent_hits(3) == 2 and career.records.recent_hits(1) == 0 and career.records.recent_hits(99) == 2, "결장 경기는 건너뛰고, 모자라면 있는 만큼")
+	check(not career.book.eligible(career, slump), "최근 3경기 2안타 → recentMaxHits 1 은 안 맞는다")
+	career.records.games[0].line.hits = 1
+	check(career.book.eligible(career, slump), "최근 3경기 1안타 이하 → 맞는다")
+	career.records.games.clear()
+	career.records.phases.clear()
+
+	# 타순 0 = 벤치: 부르는 이야기가 없으면 나가지 않는다
+	check(career.book.apply_effects(career, {"lineupSlot": 0}) == ["선발 제외 (벤치)"] and p.role_text() == "벤치", "타순 0 = 벤치")
+	check(career.next_role() == "bench", "부르는 이야기가 없으면 벤치")
+	check(career.next_lineup().size() == 9 and career.next_lineup().filter(func(r: Dictionary) -> bool: return r["me"]).is_empty(), "선발 9명에 내가 없다")
+	var game := _auto_week(career, "rest")
+	check(not game.me_playing and game.my_line.pa == 0 and game.absent_text.contains("벤치") and not game.teams[game.my_side].lineup.any(func(b: Team.Batter) -> bool: return b.is_me),
+		"벤치 경기: 타순에 내가 없고 타석도 없다")
+	var skipped := career.new_game()
+	skipped.run_to_end()
+	check(skipped.state.over and skipped.log == game.log, "벤치 경기를 한 번에 돌려도 같은 경기")
+	check(career.finish_game(game).has(game.absent_text) and p.season.games == 0 and not career.records.games[-1].playing, "기록에 결장으로 남는다")
+	for e: Dictionary in career.events("after").duplicate():
+		career.resolve_event(e, 0)
+	career.advance_week()
+	# 한 번뿐인 pinch_pa 이야기가 조건을 만족하면 8회 이후 대타로 불린다
+	p.flags["t_ready"] = true
+	check(career.next_role() == "pinch", "부르는 이야기가 있으면 대타")
+	career.train("rest")
+	game = career.new_game()
+	check(game.on_bench and game.pinch_late, "벤치에서 시작")
+	var turns := 0
+	while not game.state.over:
+		if game.step().type == "my_turn":
+			if turns == 0:
+				check(game.state.inning >= mini(int(cfg.story.pinchHit.forceInning), game.state.innings - 1), "%d회 이후에 불린다 (%s)" % [int(cfg.story.pinchHit.forceInning), game.state.half_text()])
+				var ev := career.game_event(career.pa_moment(game), game)
+				check(ev.get("id", "") == "t_call", "되풀이되는 대타 이야기(g_pinch)보다 그 이야기가 먼저 뜬다: %s" % ev.get("id", ""))
+				career.resolve_event(ev, 0)
+			turns += 1
+			game.apply_my_result(AtBat.Result.new(SwingJudge.Outcome.SINGLE, SwingJudge.BattedBall.NONE, 3, null))
+	check(turns >= 1 and p.flags.has("t_called"), "대타 타석을 직접 친다")
+	career.finish_game(game)
+	check(p.season.games == 1 and p.season.hits == turns and career.records.games[-1].playing, "대타로 나온 경기는 기록에 들어간다")
+	career.advance_week()
+	check(career.next_role() == "bench", "이야기가 끝난 다음 경기는 다시 벤치")
+	p.lineup_slot = 7
+	check(career.next_role() == "start", "타순을 돌려받으면 선발")
+
+	# matchOverride: 다음 경기 한 번의 결과 고정 (내 선수 미출전, 콜드게임)
+	var league_opponent := career.opponent().id
+	career.book.apply_effects(career, {"matchOverride": setter.choices[0].effects.matchOverride})
+	check(career.next_role() == "out" and career.opponent().id == league_opponent, "주말리그 상대는 일정대로")
+	var loaded: CareerState = SaveGame.from_bytes(SaveGame.to_bytes(career), cfg, _config).career
+	check(loaded != null and loaded.match_override == career.match_override, "저장·불러오기에도 남는다")
+	var games_before := p.season.games
+	game = _auto_week(career, "rest")
+	var st := game.state
+	check(game.fixed and not game.me_playing and st.over and st.innings == 7 and st.score[game.my_side] == 0 and st.score[1 - game.my_side] == 11 and game.my_result() == -1,
+		"0:11, 7회 콜드게임 패 (%d:%d, %d회)" % [st.score[game.my_side], st.score[1 - game.my_side], st.inning])
+	for side in 2:
+		var sum := 0
+		for v: int in st.line[side]:
+			sum += v
+		check(sum == st.score[side] and (st.line[side] as Array).size() <= 7, "이닝별 점수 합 = 총점")
+	check(game.log.any(func(l: String) -> bool: return l.contains("콜드게임")), "중계에 콜드게임이 나온다")
+	check(_auto_week_log(career) == game.log, "같은 시드면 같은 이닝별 점수")
+	career.finish_game(game)
+	check(career.match_override.is_empty() and career.results[-1] == -1 and career.last.result == "loss" and p.season.games == games_before, "한 번만 적용되고, 내 기록엔 안 들어간다")
+	career.advance_week()
+	check(career.next_role() == "start" and not career.new_game().fixed, "다음 경기는 평소대로")
+	# 전국대회에서는 상대도 바꾼다
+	career.phase_index = 1
+	career._start_phase()
+	career.book.apply_effects(career, {"matchOverride": {"opponent": "cheonji", "score": [3, 2]}})
+	check(career.is_national() and career.opponent().id == "cheonji", "전국대회 상대 고정")
+	game = career.new_game()
+	while not game.state.over:
+		game.step()
+	check(st.innings == 7 and game.state.innings == cfg.innings and game.my_result() == 1 and game.state.score[game.my_side] == 3, "innings 가 없으면 정규 이닝, 3:2 승")
+	career.match_override = {}
+
+	# injuryLabel: 부상 이름
+	career.book.apply_effects(career, {"injury": 1, "injuryLabel": "발목 염좌"})
+	check(p.is_injured() and p.injury_text() == "발목 염좌" and career.new_game().absent_text.contains("발목 염좌"), "부상 이름이 표시된다")
+	var notes: Array[String] = []
+	career._roll_injury(notes)
+	check(not p.is_injured() and p.injury_text() == "부상", "나으면 이름이 지워진다")
+
+	# campFocus body: 캠프 동안 컨디션 하락 완화
+	var body: Dictionary = cfg.camp.body
+	check(career.camp_condition_multiplier() == 1.0, "시즌 중엔 완화 없음")
+	career.phase_index = career.phases().size()
+	career.start_camp()
+	var cost := int(cfg.training.contact.condition)
+	p.condition = 80
+	career.train("contact")
+	check(p.condition == 80 + cost, "집중 과제가 몸 관리가 아니면 그대로 %d" % cost)
+	check(career.book.apply_effects(career, {"campFocus": "body"}) == ["집중 과제: %s" % body.label], "집중 과제: 몸 관리")
+	check(is_equal_approx(career.training_multiplier("contact"), float(cfg.camp.trainingMultiplier)), "몸 관리는 훈련 집중 배율이 없다")
+	career.week_training = ""
+	p.condition = 80
+	career.train("contact")
+	check(p.condition == 80 + roundi(cost * float(body.conditionMultiplier)) and p.condition > 80 + cost, "몸 관리: 컨디션 하락 ×%.1f" % float(body.conditionMultiplier))
+	p.flags[body.reliefFlags[0]] = true
+	check(is_equal_approx(career.camp_condition_multiplier(), float(body.conditionMultiplier) * float(body.flagMultiplier)), "플래그가 있으면 더 완화")
+	career.camp_focus = "power"
+	check(is_equal_approx(career.camp_condition_multiplier(), float(body.flagMultiplier)), "플래그 완화는 집중 과제와 상관없다")
+	career.week_training = ""
+	p.condition = 50
+	career.train("rest")
+	check(p.condition == 50 + int(cfg.training.rest.condition), "오르는 컨디션은 그대로")
+
+
+func test_y1_story() -> void:
+	# 1학년 프롤로그~3화: 입부(벤치) → 대기 칸 → 대타 한 타석 → 결과(안타/아웃) → 기록 → 매니저 → 라이벌(투명인간) → 별 하나와 다섯 개
+	# 4화: 선배 부상 → 7번 선발 → 첫 선발 타석 → 결과. 5화: 볼펜 → 주장 복귀 → 최근 3경기 판정(6번/7번) → 콜 → 승부처 → 결과 → 빌린 자리 → 일정표
+	for hit: bool in [true, false]:
+		var career := CareerState.new(_real_cfg(), "테스트", _config)
+		var p0 := career.player
+		var seen := {}  # 이벤트 id -> 나온 주
+		var played := {}  # 주 -> 내 타석 수
+		var rival_week := 0
+		var slot_at := {}  # 주 -> 그 주 경기 때 타순
+		var scenes := {}  # 장면을 연출한 이벤트 id
+		var games := {}  # 주 -> 그 주 경기
+		var nationals := {}
+		var phase_at := {}
+		while not career.is_season_over() and career.week < 40:
+			var w := career.week
+			if rival_week == 0 and career.opponent().id == career.rival.school_id:
+				rival_week = w
+			var guard := 0
+			while not career.events("start").is_empty() and guard < 20:
+				guard += 1
+				seen[career.events("start")[0].id] = w
+				career.resolve_event(career.events("start")[0], 0)
+			career.train("rest")
+			slot_at[w] = p0.lineup_slot
+			var game := career.new_game()
+			games[w] = game
+			nationals[w] = career.is_national()
+			phase_at[w] = career.phase_name()
+			while not game.state.over:
+				if game.step().type == "my_turn":
+					var ev := career.game_event(career.pa_moment(game), game)
+					if not ev.is_empty():
+						seen[ev.id] = w
+						career.resolve_event(ev, 0)
+						if ev.has("stage"):
+							# 대사에 적힌 상황이 실제 경기 상황이다
+							var sc: Dictionary = ev.stage
+							var st := game.state
+							var on_base := []
+							for b in 3:
+								if st.occupied(b):
+									on_base.append(b + 1)
+							scenes[ev.id] = true
+							check(st.inning == int(sc.inning) and not st.top and game.my_side == GameState.HOME and st.outs == int(sc.outs) and on_base == sc.bases.map(func(v: Variant) -> int: return int(v))
+								and st.score[game.my_side] == int(sc.score[0]) and st.score[1 - game.my_side] == int(sc.score[1]) and game.my_line.pa == 0,
+								"%s 장면 그대로: %s %d사 %s %d:%d" % [ev.id, st.half_text(), st.outs, st.runners_text(), st.score[game.my_side], st.score[1 - game.my_side]])
+							if sc.has("runnerSlots"):
+								check(st.bases[int(sc.bases[0]) - 1] == int(sc.runnerSlots[0]) - 1, "%s 주자는 정해 준 타순" % ev.id)
+							if sc.has("slot"):
+								check(game.my_slot == int(sc.slot) - 1 and game.pinch_hit, "%s 대타로 들어간 타순" % ev.id)
+					game.apply_my_result(AtBat.Result.new(SwingJudge.Outcome.SINGLE if hit else SwingJudge.Outcome.STRIKEOUT, SwingJudge.BattedBall.NONE, 3, null))
+			played[w] = game.my_line.pa
+			if game.staged or game.fixed:
+				for side in 2:
+					var sum := 0
+					for v: int in game.state.line[side]:
+						sum += v
+					check(sum == game.state.score[side] and not game.has_full_box(), "연출·고정 경기도 이닝별 점수 합 = 총점 (%d주차)" % w)
+			if w == rival_week:
+				check(game.fixed and game.my_result() == -1, "라이벌전은 대본대로 진다")
+			if seen.get("y1_pinch", 0) == w:
+				check(game.my_pas[0]["pitcher"] == "finesse", "대타 타석의 상대는 변화구 위주 투수")
+			career.finish_game(game)
+			guard = 0
+			while not career.events("after").is_empty() and guard < 20:
+				guard += 1
+				seen[career.events("after")[0].id] = w
+				career.resolve_event(career.events("after")[0], 0)
+			career.advance_week()
+		var p := career.player
+		check(seen.get("s1_welcome", 0) == 1 and played[1] == 0, "입부하면 벤치 — 1주차 경기엔 안 나간다")
+		check(seen.get("y1_bench_board", 0) == 2 and seen.get("y1_pinch", 0) == 2 and played[2] >= 1, "2주차: 대기 칸 → 그 경기에 대타 (%s)" % [seen])
+		check(seen.get("y1_pinch_hit" if hit else "y1_pinch_out", 0) == 2 and not seen.has("y1_pinch_out" if hit else "y1_pinch_hit"), "대타 결과에 맞는 이야기만, 같은 주 경기 뒤에 (%s)" % [seen])
+		check(seen.get("y1_pinch_end", 0) == 3 and seen.get("love_manager_meet", 0) == 3 and career.people.is_met("manager"), "3주차: 기록 → 매니저 (%s)" % [seen])
+		check(rival_week > 3 and seen.get("s1_rival_meet", 0) == rival_week and seen.get("y1_rival_bench", 0) == rival_week, "라이벌 학교와 붙는 %d주차: 투명인간 → 별 하나와 다섯 개 (%s)" % [rival_week, seen])
+		for w: int in played:
+			check(w == 2 or w > rival_week or played[w] == 0, "3화까지는 대타로 불린 경기 말고 벤치 (%d주차 %d타석)" % [w, played[w]])
+		check(slot_at[rival_week] == 0 and p.flags.has("y1_ch3_done") and not p.flags.has("rival_noticed") and not seen.has("g_rival_field"), "3화가 끝날 때까지 벤치, 맞대결 이야기는 아직")
+		# 4화: 3화 다음 주에 선배가 다치고 7번 선발
+		var w4 := rival_week + 1
+		for id: String in ["y1_inj_night", "y1_inj_morning", "y1_inj_lineup", "g_starter_first", "y1_inj_after_hit" if hit else "y1_inj_after_out"]:
+			check(seen.get(id, 0) == w4, "4화 %s 가 %d주차에 (%s)" % [id, w4, seen.get(id, 0)])
+		check(slot_at[w4] == 7 and played[w4] >= 3 and played[w4 + 4] >= 1 and p.flags.has("y1_ch4_done") and not seen.has("y1_inj_after_out" if hit else "y1_inj_after_hit"), "그 경기부터 7번 선발")
+		# 5화: 2주 뒤 볼펜 → 다음 주 복귀 통보 → 최근 3경기로 6번/7번 → 콜 → 다음 경기 승부처 → 결과 → 빌린 자리 → 일정표
+		check(seen.get("y5_board", 0) == w4 + 2 and seen.get("s5_return", 0) == w4 + 3, "볼펜 %d주차, 주장 복귀 %d주차 (%s, %s)" % [w4 + 2, w4 + 3, seen.get("y5_board", 0), seen.get("s5_return", 0)])
+		var verdict := "s5_verdict_good" if hit else "s5_verdict_swing"
+		check(seen.get(verdict, 0) == w4 + 4 and seen.get("y5_call", 0) == w4 + 4 and not seen.has("s5_verdict_swing" if hit else "s5_verdict_good"), "최근 3경기 안타로 판정이 갈린다 (%s)" % [seen])
+		check(slot_at[w4 + 4] == (6 if hit else 7) and p.flags.has("slot6" if hit else "slot7"), "잘 쳤으면 6번, 아니면 7번")
+		check(seen.get("y5_clutch", 0) == w4 + 4 and seen.get("y5_after_hit" if hit else "y5_after_out", 0) == w4 + 4, "그 경기(복귀전) 7회 이후 타석에 승부처 이야기, 경기 뒤 결과 (%s)" % [seen])
+		check(seen.get("y5_talk", 0) == w4 + 5 and seen.get("y5_home_6" if hit else "y5_home_7", 0) == w4 + 5 and p.flags.has("y5_done"), "그다음 주: 빌린 자리 → 일정표 (%s)" % [seen])
+		# 6화: 주말리그 후반기가 끝난 주에 합숙 → 다음 주(본선 첫 경기) 아침에 못 일어난다 → 천지고에 0:11 7회 콜드게임 → 그날 밤까지
+		var w6: int = seen.get("y6_camp", 0)
+		check(w6 > w4 + 5 and phase_at[w6] == "주말리그 후반기" and phase_at[w6 + 1] == "새봄기 본선" and phase_at[w4] == "새봄기 지역 예선", "후반기 마지막 주(%d주차)에 합숙 첫날, 다음 주가 본선 첫 경기" % w6)
+		for id: String in ["y6_night", "y6_montage", "y6_morning_told", "y6_after", "s1_first_exit", "y6_night_end"]:
+			check(seen.get(id, 0) == w6 + 1, "6화 %s 가 %d주차에 (%s)" % [id, w6 + 1, seen.get(id, 0)])
+		var last_game: GameRunner = games[w6 + 1]
+		var lg := last_game.state
+		check(last_game.fixed and not last_game.me_playing and last_game.opponent.id == "cheonji" and nationals[w6 + 1] and last_game.my_side == GameState.AWAY
+			and lg.innings == 7 and lg.score[GameState.AWAY] == 0 and lg.score[GameState.HOME] == 11 and last_game.absent_text.contains("근육통"),
+			"본선 첫 경기: 원정, 천지고, 0:11 7회 콜드게임, 나는 근육통으로 결장 (%s)" % last_game.absent_text)
+		check(lg.line[GameState.HOME] == [4, 2, 3, 0, 1, 1, 0], "대사대로: 1회말 4점, 3회까지 0-9, 7회말까지 (%s)" % [lg.line[GameState.HOME]])
+		# 본선 뒤에도 여름 대회가 남아 있다 ("다음 대회가 내 마지막이야") — 그 경기엔 다시 선발로 나간다
+		check(phase_at.get(w6 + 2, "") == "한여름배 전국고교야구대회" and slot_at[w6 + 2] >= 6 and played[w6 + 2] >= 3, "본선 다음 주는 여름 대회, 다시 선발 (%s)" % phase_at.get(w6 + 2, ""))
+		# 연습경기·라이벌전·선배의 자리
+		check(games[2].exhibition and phase_at[1] == "주말리그 전반기" and p.season.games == career.records.games.filter(func(g: CareerRecords.GameEntry) -> bool: return g.playing).size(), "대타로 나간 2주차는 연습경기 (시즌 기록 밖)")
+		var rg: GameRunner = games[rival_week]
+		check(rg.my_side == GameState.HOME and rg.state.line[GameState.AWAY][5] > 0 and career.rival.player.season.home_runs >= 1, "라이벌전: 6회초에 실점, 라이벌은 그날 홈런")
+		var senior_name: String = career.people.person("senior").name
+		check(games[1].teams[games[1].my_side].lineup[2].name == senior_name and games[1].teams[games[1].my_side].lineup[2].position == "중견수", "선배는 3번 중견수")
+		check(games[w4].teams[games[w4].my_side].lineup[2].name != senior_name and games[w4 + 4].teams[games[w4 + 4].my_side].lineup[2].name == senior_name, "다친 동안은 후보가, 복귀전부터 다시 선배가 3번")
+		check(p.flags.has("y6_done") and p.flags.has("body_rebuild") and not p.is_injured() and p.injury_label == "", "6화가 끝나면 근육통은 낫는다")
+		check(career.phase_log[1]["name"] == "새봄기 지역 예선" and career.phase_log[3]["name"] == "새봄기 본선" and career.phase_log[4]["name"] == "한여름배 전국고교야구대회", "대회 이름: 지역 예선 → 본선 → 여름 대회")
+		# 7화: 시즌 결산(선배의 졸업 → 벤치에서 본 것 → 첫 겨울) → 겨울 캠프(계획서 → 회복 프로그램, 둘째 주 새벽 공터)
+		var end_order := []
+		while not career.events("seasonEnd").is_empty():
+			end_order.append(career.events("seasonEnd")[0].id)
+			career.resolve_event(career.events("seasonEnd")[0], 1)
+		check(end_order == ["s1_senior_farewell", "y7_video", "s1_winter"], "시즌 결산 이야기 순서: %s" % [end_order])
+		check(p.flags.has("win_first") and not p.flags.has("fun_first"), "첫 겨울의 대답 (flag + clearFlag)")
+		career.start_camp()
+		check(p.lineup_slot >= 1 and career.next_role() == "start", "벤치로 시즌을 마쳤어도 캠프 연습경기에는 나간다")
+		var camp_order := []
+		for cw in 2:
+			while not career.events("start").is_empty():
+				camp_order.append(career.events("start")[0].id)
+				career.resolve_event(career.events("start")[0], 4 if career.events("start")[0].id == "y7_plan" else 0)
+			career.train("rest")
+			career.finish_camp_week() if not career.camp_has_game() else career.finish_game(_auto_week(career, "rest"))
+			while not career.events("after").is_empty():
+				career.resolve_event(career.events("after")[0], 0)
+			career.advance_week()
+		check(camp_order == ["y7_plan", "y7_plan_rebuild", "y7_dawn"], "겨울 캠프 이야기 순서: %s" % [camp_order])
+		check(career.camp_focus == CareerState.CAMP_FOCUS_BODY and p.flags.has("recovery_program") and p.flags.has("y1_done"), "몸 만들기 + 회복 프로그램, 1학년 이야기 끝")
+		check(is_equal_approx(career.camp_condition_multiplier(), float(career.cfg.camp.body.conditionMultiplier) * float(career.cfg.camp.body.flagMultiplier)), "캠프 컨디션 하락 완화가 겹친다")
+		check(not seen.has("g_debut"), "없어진 이벤트")
+		check(scenes.has("y1_pinch") and scenes.has("y5_clutch"), "대타·복귀전 승부처는 장면을 연출한다")
+
+
+func test_real_content() -> void:
+	# 게임이 읽는 content.json 만으로: 검증 통과, 테스트 전용 이벤트가 섞이지 않았고, 3학년 시즌 결산까지 막히지 않고 간다
+	var cfg := _real_cfg()
+	var errors := EventBook.validate(cfg)
+	check(errors.is_empty(), "content.json 이벤트 정의 문제: %s" % [errors])
+	var legacy: Dictionary = BalanceLoader.parse(FileAccess.get_file_as_string("res://tests/fixtures/legacy_events.json"))
+	var ids := {}
+	for e: Dictionary in cfg.events:
+		ids[e.id] = true
+	for e: Dictionary in legacy.events:
+		check(not ids.has(e.id), "테스트 전용 이벤트 %s 가 게임 콘텐츠에 없다" % e.id)
+	var career := CareerState.new(cfg, "테스트", _config)
+	check(FastForward.run(career, 2, "season_start"), "1학년 시즌·겨울 캠프를 지나 2학년 시작까지")
+	check(career.player.flags.has("y5_done") and career.player.lineup_slot >= 1, "1학년 시나리오가 5화까지 끝났고 벤치가 아니다")
+	check(FastForward.run(career, 3, "season_end"), "3학년 시즌 결산까지")
+	for e: Dictionary in career.events("seasonEnd").duplicate():
+		career.resolve_event(e, 0)
+	check(career.player.grade == 3 and career.history.size() == 2, "이벤트가 거의 없는 2~3학년도 끝까지 진행된다")
+
+
+## 지금 주 경기를 한 번 더 만들어 끝까지 돌린 중계 (결과 고정 경기의 재현성 확인용)
+func _auto_week_log(career: CareerState) -> Array[String]:
+	var game := career.new_game()
+	while not game.state.over:
+		game.step()
+	return game.log
+
+
 func _auto_week(career: CareerState, training_id: String) -> GameRunner:
 	career.train(training_id)
 	var game := career.new_game()
 	var rng := _rng(career.week * 31 + career.season_no)
 	while not game.state.over:
 		if game.step().type == "my_turn":
+			career.auto_game_story(game)
 			var pa := AutoPa.simulate(career.cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng)
 			game.apply_my_result(AtBat.Result.new(pa.outcome, SwingJudge.BattedBall.NONE, pa.pitches, null))
 	return game
@@ -1079,8 +1848,9 @@ func test_season_loop() -> void:
 		career.advance_week()
 		weeks += 1
 	var league := career.regional_ids.size()
-	check(weeks >= league * 2 + 2 and weeks <= league * 2 + 8, "한 시즌 %d경기 (리그 %d×2 + 대회 1~4×2)" % [weeks, league])
-	check(career.results.size() == weeks and career.phase_log.size() == 4, "단계 4개 기록")
+	var cups := career.phases().size() - 2
+	check(weeks >= league * 2 + cups and weeks <= league * 2 + cups * 4 + 1, "한 시즌 %d주 (리그 %d×2 + 대회 1~4×%d, 1학년은 연습경기 한 주 더)" % [weeks, league, cups])
+	check(career.results.size() >= weeks - 1 and career.phase_log.size() == career.phases().size(), "단계 %d개 기록" % career.phases().size())
 	check(career.player.season.games + 0 <= weeks)
 	check(career.coach_line(career.new_game()) != "" if not career.is_season_over() else true)
 	career.winter_training()
@@ -1164,12 +1934,17 @@ func test_injury_risk() -> void:
 		career.week = s + 1
 		career.player.condition = 15
 		var notes: Array[String] = []
+		# 1학년은 무작위 부상이 없다 (injury.minGrade)
+		career._roll_injury(notes)
+		check(not career.player.is_injured(), "1학년은 지쳐도 무작위로 다치지 않는다")
+		career.player.grade = 2
 		career._roll_injury(notes)
 		if career.player.is_injured():
 			tired += 1
 		var c2 := CareerState.new(_career_cfg(), "테스트", _config)
 		c2.week = s + 1
 		c2.player.condition = 90
+		c2.player.grade = 2
 		c2._roll_injury(notes)
 		if c2.player.is_injured():
 			fresh += 1
@@ -1746,6 +2521,7 @@ func _records_week(career: CareerState) -> void:
 	var rng := _rng(career.week * 17 + career.season_no)
 	while not game.state.over:
 		if game.step().type == "my_turn":
+			career.auto_game_story(game)
 			var pa := AutoPa.simulate(career.cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng)
 			var c: SwingJudge.Contact = null
 			if pa.ball != null:
@@ -1777,7 +2553,7 @@ func test_records_game_log_and_splits() -> void:
 		and sum.home_runs == season.home_runs and sum.walks == season.walks, "경기 합 = 시즌 (%d타석 / %d타석)" % [sum.pa, season.pa])
 	check(rec.game_log(0)[0] == rec.games[-1], "최근 경기부터")
 	# 대회별: 단계 4개, 모두 끝났고 결과가 시즌 단계 기록과 같다, 내 성적 합 = 시즌
-	check(rec.phases.size() == 4, "대회 4개 (%d)" % rec.phases.size())
+	check(rec.phases.size() == career.phases().size(), "대회 %d개 (%d)" % [career.phases().size(), rec.phases.size()])
 	var phase_sum := PlayerData.SeasonStats.new()
 	var team_games := 0
 	for i in rec.phases.size():
@@ -1822,13 +2598,16 @@ func test_records_game_log_and_splits() -> void:
 
 ## 저장 테스트용 한 주: 주 시작 이야기 → 훈련·경기(내 타석 자동, 타구·카운트 포함) → 경기 뒤 이야기 → 다음 주
 func _save_week(career: CareerState) -> void:
-	for e: Dictionary in career.events("start").duplicate():
+	# 주 시작 이야기는 하나가 끝나면 다음 것이 이어질 수 있다 — 남은 게 없을 때까지
+	while not career.events("start").is_empty():
+		var e: Dictionary = career.events("start")[0]
 		career.resolve_event(e, _ok_choice(career, e, 0))
 	career.train("rest" if career.player.condition < 50 else "contact")
 	var game := career.new_game()
 	var rng := _rng(career.week * 17 + career.season_no)
 	while not game.state.over:
 		if game.step().type == "my_turn":
+			career.auto_game_story(game)
 			var pa := AutoPa.simulate(career.cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng)
 			var c: SwingJudge.Contact = null
 			if pa.ball != null:
@@ -1932,3 +2711,4 @@ func test_save_file_and_errors() -> void:
 	check(SaveGame.from_bytes(var_to_bytes(data), cfg, _config)["error"].begins_with("저장 버전"), "다른 버전")
 	SaveGame.delete(path)
 	check(not SaveGame.exists(path), "지우기")
+

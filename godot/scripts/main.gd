@@ -2,6 +2,7 @@ extends Control
 ## 앱 루트: 수치·콘텐츠를 읽고 화면을 바꿔 끼운다.
 ##
 ## 화면 흐름: 타이틀 → 선수 만들기 → [홈(훈련) → 경기 → 결과·이벤트] × 시즌 주차 → 시즌 결산
+##   → 겨울 캠프 [홈(훈련) → (연습경기) → 이벤트] × 4주 → 캠프 결산 → 다음 시즌
 ## 타이틀의 "타격 연습"은 능력치 슬라이더가 있는 연습 화면 (손맛 튜닝용).
 ## 개발 빌드면 어느 화면에서나 왼쪽 아래 "⚙ 손맛" 패널을 쓸 수 있다 (CLAUDE.md §3-7).
 
@@ -14,6 +15,11 @@ var career: CareerState
 var save_error := ""
 ## 저장 파일 (스크린샷 스크립트는 다른 파일을 써서 유저 저장을 건드리지 않는다)
 var save_path := SaveGame.PATH
+
+## 테스트 커리어 저장 파일 (개발 빌드의 "테스트 시작" — 유저의 진짜 저장과 따로 둔다)
+const TEST_SAVE := "user://test.save"
+## 지금 테스트 커리어를 하고 있나
+var test_mode := false
 
 var _source: BalanceSource
 var _screen_root: Control
@@ -78,7 +84,16 @@ func start_career(player_name: String) -> void:
 
 ## 이어하기: 시즌이 끝났으면 시즌 결산, 아니면 허브 (경기를 마친 주면 허브가 남은 이야기와 [다음 주]를 보여 준다)
 func continue_career() -> void:
-	if career.is_season_over():
+	_show_current()
+
+
+## 지금 커리어 상태에 맞는 화면: 캠프 중이면 허브, 캠프를 마쳤으면 캠프 결산, 시즌이 끝났으면 시즌 결산
+func _show_current() -> void:
+	if career.in_camp():
+		show_home()
+	elif career.camp_finished():
+		show_camp_end()
+	elif career.is_season_over():
 		show_season()
 	else:
 		show_home()
@@ -87,10 +102,7 @@ func continue_career() -> void:
 ## 경기 뒤 다음 주로 (결과 화면·허브의 [다음 주])
 func next_week() -> void:
 	career.advance_week()
-	if career.is_season_over():
-		show_season()
-	else:
-		show_home()
+	_show_current()
 
 
 func show_home() -> void:
@@ -101,6 +113,12 @@ func show_game() -> void:
 	if career.game_done:
 		show_home()  # 이번 주 경기는 이미 했다 (불러온 뒤 같은 경기를 다시 하지 않는다)
 		return
+	if career.next_role() == "bench":
+		# 벤치에서 대타로도 안 나가는 날: 지켜볼 타석이 없으니 경기를 건너뛰고 결과만 본다
+		var game := career.new_game()
+		game.run_to_end()
+		show_result(game)
+		return
 	show_screen(GameScreen.new(self))
 
 
@@ -110,6 +128,37 @@ func show_result(game: GameRunner) -> void:
 
 func show_season() -> void:
 	show_screen(SeasonScreen.new(self))
+
+
+func show_camp_end() -> void:
+	show_screen(CampScreen.new(self))
+
+
+# ---------- 테스트 시작 (개발 빌드) ----------
+
+func show_jump() -> void:
+	show_screen(JumpScreen.new(self))
+
+
+## 빨리 감은 테스트 커리어로 시작한다. 저장은 TEST_SAVE 로 가서 진짜 저장을 덮지 않는다
+func start_test_career(test_career: CareerState) -> void:
+	if not test_mode:
+		save_path = TEST_SAVE
+		test_mode = true
+	career = test_career
+	save_career()
+	_show_current()
+
+
+## 테스트를 끝내고 진짜 저장으로 돌아간다
+func end_test() -> void:
+	SaveGame.delete(TEST_SAVE)
+	save_path = SaveGame.PATH
+	test_mode = false
+	career = null
+	save_error = ""
+	_load_save()
+	show_title()
 
 
 func show_records() -> void:

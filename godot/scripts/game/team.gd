@@ -3,6 +3,8 @@ extends RefCounted
 ## 한 경기에 나오는 팀: 타순 9명(이름·능력치·포지션)과 투수진(선발 + 불펜).
 ## 능력치는 팀 전력을 중심으로 시드 난수로 흩뿌린다 (같은 시드면 같은 선수들).
 
+## 투구 성향 id (balance.json batting.pitchers)
+const PITCHER_PROFILES := ["balanced", "power", "finesse"]
 const POSITIONS := ["중견수", "유격수", "2루수", "1루수", "좌익수", "3루수", "우익수", "포수", "지명타자"]
 
 
@@ -45,7 +47,7 @@ static func generate(p_name: String, p_short: String, strength: float, starter_p
 		b.position = POSITIONS[i]
 		b.skills = BatterSkills.new(_rating(strength, sd, rng), _rating(strength, sd, rng), _rating(strength, sd, rng), _rating(strength, sd, rng))
 		t.lineup.append(b)
-	var profiles := ["balanced", "power", "finesse"]
+	var profiles := PITCHER_PROFILES
 	for i in int(cfg.roster["bullpenSize"]) + 1:
 		var p := Pitcher.new()
 		p.name = _random_name(cfg, rng)
@@ -69,13 +71,32 @@ func for_game(player: PlayerData, skills: BatterSkills) -> Team:
 	t.lineup = lineup.duplicate()
 	t.pitchers = pitchers.duplicate()
 	if player != null:
-		var me := Batter.new()
-		me.name = player.name
-		me.skills = skills
-		me.position = "외야수"
-		me.is_me = true
-		t.lineup[player.lineup_slot - 1] = me
+		t.lineup[player.lineup_slot - 1] = my_batter(player, skills)
 	return t
+
+
+## 내 선수를 타순에 넣을 때 쓰는 타자 (선발이든 대타든 같다)
+static func my_batter(player: PlayerData, skills: BatterSkills) -> Batter:
+	var me := Batter.new()
+	me.name = player.name
+	me.skills = skills
+	me.position = "외야수"
+	me.is_me = true
+	return me
+
+
+## 명단의 한 자리를 새 선수로 (졸업한 고정 인물의 자리). 포지션은 그대로
+func replace_batter(idx: int, strength: float, cfg: CareerConfig, rng: RandomNumberGenerator) -> void:
+	lineup[idx] = new_batter(lineup[idx].position, strength, cfg, rng)
+
+
+static func new_batter(position: String, strength: float, cfg: CareerConfig, rng: RandomNumberGenerator) -> Batter:
+	var sd: float = cfg.roster["ratingSd"]
+	var b := Batter.new()
+	b.name = _random_name(cfg, rng)
+	b.position = position
+	b.skills = BatterSkills.new(_rating(strength, sd, rng), _rating(strength, sd, rng), _rating(strength, sd, rng), _rating(strength, sd, rng))
+	return b
 
 
 ## 졸업: 타자 n_b 명·투수 n_p 명을 새 얼굴로 바꾸고, 남은 선수는 조금 자란다

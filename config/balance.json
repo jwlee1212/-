@@ -322,7 +322,7 @@
       "perExtraBasePower": 0.3,
       "perHomeRunPower": 0.6,
       "perWalkEye": 0.3,
-      "winterGain": 4.0,
+      "winterGain": 2.5,
       "conditionPerGame": -6
     },
     "form": {
@@ -335,7 +335,8 @@
       "skillPerPoint": 1.5
     },
     "injury": {
-      "_note": "주마다 부상 확률 = base + max(0, threshold − 컨디션) × perPointBelow. 다치면 weeksMin~weeksMax 주 결장(훈련 대신 휴식)",
+      "_note": "주마다 부상 확률 = base + max(0, threshold − 컨디션) × perPointBelow. 다치면 weeksMin~weeksMax 주 결장(훈련 대신 휴식). minGrade 학년 전에는 무작위 부상이 없다 (1학년은 대본이 있는 해라, 갑자기 다쳐서 첫 선발·3주 연속 선발 같은 장면이 깨지지 않게 — 이벤트의 injury 효과는 학년과 상관없이 적용된다. 1 로 내리면 1학년도 다친다)",
+      "minGrade": 2,
       "base": 0.01,
       "threshold": 45,
       "perPointBelow": 0.006,
@@ -360,6 +361,10 @@
         {
           "kind": "tournament",
           "index": 1
+        },
+        {
+          "kind": "tournament",
+          "index": 2
         }
       ],
       "tournamentRounds": [
@@ -379,12 +384,15 @@
       "myTeamStrength": 45
     },
     "story": {
-      "_note": "돌발 이벤트·스토리 (G6). 한 주에 이벤트는 maxEventsPerWeek 개까지(주 시작 + 경기 뒤 합). 스토리 이벤트·예약된 지연 결과가 먼저, 없으면 eventChance 확률로 무작위 이벤트 하나. 관계는 인물마다 0~100 (relationStart), 평판도 0~100. 새 시즌 타순은 감독 신뢰로: lineupByTrust 의 [신뢰 이상, 타순] 중 처음 맞는 것",
+      "_note": "돌발 이벤트·스토리 (G6). 한 주에 이벤트는 maxEventsPerWeek 개까지(주 시작 + 경기 중 + 경기 뒤 합). 경기 중 대화: 내 타석 앞뒤의 순간(첫 타석 · 승부처 타석 = clutch.minInning 회 이후 · clutch.maxDiff 점 차 이내 · 득점권 주자 · 내 홈런 직후 · 내 삼진 직후)에 스토리 이벤트는 반드시, 무작위 이벤트는 gameEventChance 확률로. 스토리 이벤트·예약된 지연 결과가 먼저, 없으면 eventChance 확률로 무작위 이벤트 하나. 대타(이벤트의 pinchHit 효과가 붙은 경기만): 벤치에서 시작해 우리 공격의 승부처(clutch 와 같은 조건)에 그 타석 타자 대신 들어가 끝까지 뛴다. 승부처가 안 와도 pinchHit.forceInning 회부터는 우리 첫 타석에 나간다 (낮추면 대타가 일찍 나와 타석이 늘고, 높이면 한 타석 승부가 된다). 관계는 인물마다 0~100 (relationStart), 평판도 0~100. 새 시즌 타순은 감독 신뢰로: lineupByTrust 의 [신뢰 이상, 타순] 중 처음 맞는 것",
       "maxEventsPerWeek": 2,
-      "relationStart": {"coach": 40, "mom": 70, "buddy": 50, "rival": 30, "scout": 30, "manager": 20, "neighbor": 20, "reporter": 20},
+      "relationStart": {"coach": 40, "batting_coach": 45, "senior": 40, "junior": 50, "mom": 70, "buddy": 50, "rival": 30, "scout": 30, "manager": 20, "neighbor": 20, "reporter": 20},
       "reputationStart": 50,
       "lineupByTrust": [[80, 3], [60, 5], [0, 7]],
-      "dialogueCharsPerSec": 45
+      "dialogueCharsPerSec": 45,
+      "gameEventChance": 0.5,
+      "clutch": {"minInning": 7, "maxDiff": 2},
+      "pinchHit": {"forceInning": 8}
     },
     "economy": {
       "_note": "돈(원). 경기마다 용돈 = allowanceBase + (엄마 관계 − 50) × allowancePerMomPoint (최소 allowanceMin) + 칭찬 용돈(안타 perHit, 홈런 perHomeRun, 결장이면 없음). 주말리그 1위 leagueWinPrize, 전국대회 우승 championPrize (동문회 장학금). 인물 탭 교류는 한 주에 한 번: 선물(giftCost → 관계 +giftRel), 만나기(연애 후보만, hangoutCost → 호감 +hangoutRel, 컨디션 +hangoutCondition)",
@@ -417,6 +425,16 @@
         "meal": {"label": "보양식", "price": 30000, "condition": 8, "form": 0.3}
       }
     },
+    "camp": {
+      "_note": "겨울 캠프 (시즌 결산 뒤, 1·2학년 겨울). weeks 주 동안 매주 훈련 하나 + 이벤트, gameWeeks 주차에는 연습경기(순위·시즌 기록에 안 들어가고 성장·폼·돈만). 캠프 훈련은 성장량 × trainingMultiplier, 첫 주에 감독과 정한 집중 과제 능력치는 × focusMultiplier. 연습경기의 스카우트 관심은 × practiceScoutMultiplier. 무작위 이벤트 확률은 eventChance (시즌의 career.eventChance 대신). 집중 과제를 능력치 대신 몸 관리(이벤트 효과 campFocus: body)로 고르면 ×focusMultiplier 훈련은 없지만 캠프 동안 컨디션 하락(훈련·연습경기)이 × body.conditionMultiplier 로 줄고, body.reliefFlags 플래그가 하나라도 있으면 집중 과제와 상관없이 × body.flagMultiplier 가 더 곱해진다 (낮출수록 캠프에서 쉬는 주가 줄어 훈련을 더 한다, 1 이면 완화 없음). 캠프가 끝나면 growth.winterGain 의 겨울 기본 성장이 한 번 더 붙는다",
+      "weeks": 4,
+      "gameWeeks": [2, 4],
+      "trainingMultiplier": 1.5,
+      "focusMultiplier": 2.2,
+      "practiceScoutMultiplier": 0.5,
+      "eventChance": 0.75,
+      "body": {"label": "몸 관리", "conditionMultiplier": 0.5, "reliefFlags": ["body_rebuild", "recovery_program"], "flagMultiplier": 0.7}
+    },
     "romance": {
       "_note": "연애: 연애 후보(content.json people 의 romance)와 호감(관계 수치)을 쌓아 고백 이벤트로 사귄다(한 명만). 사귀는 동안 경기마다 호감 −weeklyDecay (만나기·이벤트로 채운다), 컨디션 +datingCondition. 호감이 낮으면 위기 이벤트",
       "weeklyDecay": 2,
@@ -433,7 +451,7 @@
       "rbiPerHitChance": 0.3
     },
     "scouting": {
-      "_note": "스카우트 평가값 = 종합 능력치 + 스카우트 관심도 × perScout + (평판 − 50) × perReputation + (잠재력 평균 − 종합) × potentialSeen. 같은 학년 전국 유망주 poolSize 명(평가값 정규분포, 매주·겨울에 자람)과 라이벌 사이 내 순위 = 유망주 랭킹. 예상 지명 순번 = 랭킹 × picksPerRank (대졸·투수도 뽑히니까), 범위는 ± max(rangeMin, 순번 × rangeShare). 주목 구단 수 = 관심도 / scoutPerTeam. 잠재력 범위는 학년별 폭 potentialRangeByGrade, 가운데가 potentialErrorSd 만큼 어긋난다",
+      "_note": "스카우트 평가값 = 종합 능력치 + 스카우트 관심도 × perScout + (평판 − 50) × perReputation + (잠재력 평균 − 종합) × potentialSeen. 같은 학년 전국 유망주 poolSize 명(평가값 정규분포, 매주·겨울에 자람)과 라이벌 사이 내 순위 = 유망주 랭킹. 예상 지명 순번 = 랭킹 × picksPerRank (대졸·투수도 뽑히니까), 범위는 ± max(rangeMin, 순번 × rangeShare). projectionFromGrade 학년 전에는 예상 지명 대신 스카우터 관심 없음으로 보이고 주목 구단도 없다(무명에서 시작, 랭킹은 그대로 매긴다). 주목 구단 수 = 관심도 / scoutPerTeam. 잠재력 범위는 학년별 폭 potentialRangeByGrade, 가운데가 potentialErrorSd 만큼 어긋난다",
       "perScout": 0.1,
       "perReputation": 0.1,
       "potentialSeen": 0.3,
@@ -448,6 +466,7 @@
       "rangeMin": 2,
       "picksPerRound": 10,
       "rounds": 11,
+      "projectionFromGrade": 2,
       "scoutPerTeam": 10,
       "potentialRangeByGrade": [10, 7, 4],
       "potentialErrorSd": 3,
@@ -540,8 +559,9 @@
       "pitchesJitter": 1.2
     },
     "roster": {
-      "_note": "팀 선수 만들기: 능력치 = 팀 전력 ± 정규분포(ratingSd). 선발은 투구 수가 starterPitches 를 넘거나 실점이 pullAfterRuns 이상이면 교체, 불펜은 relieverPitches 까지",
+      "_note": "팀 선수 만들기: 능력치 = 팀 전력 ± 정규분포(ratingSd). 선발은 투구 수가 starterPitches 를 넘거나 실점이 pullAfterRuns 이상이면 교체, 불펜은 relieverPitches 까지. substituteGap: 대본상 빠진 주전(content.json people 의 lineup — 다친 선배) 대신 나오는 후보는 팀 전력보다 이만큼 낮은 능력치로 만든다",
       "ratingSd": 8,
+      "substituteGap": 8,
       "starterPitches": 95,
       "starterPitchesJitter": 10,
       "relieverPitches": 30,

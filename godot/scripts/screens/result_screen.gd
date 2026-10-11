@@ -32,14 +32,15 @@ func _ready() -> void:
 	var st := _game.state
 	col.add_child(UiKit.label("%s %d : %d %s" % [_game.team_name(GameState.AWAY), st.score[0], st.score[1], _game.team_name(GameState.HOME)], Tokens.FONT_LABEL, Tokens.INK, Tokens.FONT_BOLD))
 	var line := _game.my_line
-	var my_text := _line_text(line) if _game.me_playing else "부상으로 결장"
+	var my_text := _line_text(line) if _game.me_playing else _game.absent_text
 	col.add_child(UiKit.label("%s: %s" % [career.player.name, my_text], Tokens.FONT_BODY, Tokens.PRIMARY, Tokens.FONT_BOLD))
 	col.add_child(UiKit.label("훈련: %s" % career.last_training, Tokens.FONT_CAPTION, Tokens.INK_SOFT))
 	if notes.is_empty():
 		col.add_child(UiKit.label("이번 경기 성장 없음", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
 	else:
 		col.add_child(UiKit.label("성장: " + ", ".join(notes), Tokens.FONT_BODY, Tokens.GOOD, Tokens.FONT_BOLD))
-	col.add_child(UiKit.button("박스스코어 보기", _show_box, Tokens.INK_SOFT, Tokens.FONT_CAPTION))
+	if _game.has_full_box():
+		col.add_child(UiKit.button("박스스코어 보기", _show_box, Tokens.INK_SOFT, Tokens.FONT_CAPTION))
 
 	_right = UiKit.vbox(Tokens.SPACE_SM)
 	_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -49,7 +50,7 @@ func _ready() -> void:
 	var cc := UiKit.vbox(Tokens.SPACE_XS)
 	coach.add_child(cc)
 	cc.add_child(UiKit.title(career.people.person("coach").call, Tokens.FONT_LABEL))
-	var coach_text := UiKit.label(career.coach_line(_game), Tokens.FONT_BODY)
+	var coach_text := UiKit.label(career.coach_line(_game) if _game.me_playing else "오늘은 %s." % _game.absent_text, Tokens.FONT_BODY)
 	coach_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	cc.add_child(coach_text)
 	_right.add_child(coach)
@@ -106,6 +107,9 @@ func _show_event() -> void:
 		var done := UiKit.label("%s · %s" % [entry["title"], entry["choice"]], Tokens.FONT_CAPTION, Tokens.INK_SOFT)
 		done.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_right.add_child(done)
+		# 방금 이야기가 연 다음 이야기가 있으면 이어서
+		if _queue.is_empty():
+			_queue = _app.career.events("after").duplicate()
 		if _queue.is_empty():
 			_show_next()
 		else:

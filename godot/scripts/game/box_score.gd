@@ -59,6 +59,8 @@ var batters := [[], []]
 var pitchers := [[], []]
 ## 팀별 안타 (점수판 H)
 var hits := [0, 0]
+## 교체돼 나간 타자의 기록 [팀]: [{"slot": 타순, "name", "line": BatterLine}] — 그 타순의 줄은 들어온 선수가 새로 쓴다
+var replaced := [[], []]
 
 
 func _init(away_pitchers: int, home_pitchers: int) -> void:
@@ -71,9 +73,23 @@ func _init(away_pitchers: int, home_pitchers: int) -> void:
 		pitchers[1].append(PitcherLine.new())
 
 
+## 타자 교체 (대타): 나간 선수의 기록은 따로 남기고, 그 타순은 빈 줄에서 다시 시작한다
+func substitute(side: int, slot: int, out_name: String) -> void:
+	replaced[side].append({"slot": slot, "name": out_name, "line": batters[side][slot]})
+	batters[side][slot] = BatterLine.new()
+
+
+## 그 팀에서 타석에 선 모든 타자의 줄 (지금 타순 9명 + 교체돼 나간 선수)
+func all_batters(side: int) -> Array:
+	var out: Array = batters[side].duplicate()
+	for r: Dictionary in replaced[side]:
+		out.append(r["line"])
+	return out
+
+
 func team_runs(side: int) -> int:
 	var total := 0
-	for b: BatterLine in batters[side]:
+	for b: BatterLine in all_batters(side):
 		total += b.r
 	return total
 

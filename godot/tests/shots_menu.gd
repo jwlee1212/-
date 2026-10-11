@@ -28,7 +28,7 @@ func _ready() -> void:
 	view.choose(0)
 	await _wait(1.5)
 	await _shot("menu-hub-story-result")
-	view.finished.emit()
+	view.skip()
 	await _frames(10)
 	await _shot("menu-hub")
 	_app._current._show_tab("훈련")
@@ -147,14 +147,16 @@ func _ready() -> void:
 	if not sv.is_empty():
 		(sv[0] as DialogueView).choose(0)
 		await _frames(10)
-		(sv[0] as DialogueView).finished.emit()
+		(sv[0] as DialogueView).skip()
 		await _frames(10)
 	await _shot("menu-season-graduate")
 	get_tree().quit()
 
 
 func _resolve_start(career: CareerState) -> void:
-	for e: Dictionary in career.events("start").duplicate():
+	# 주 시작 이야기는 하나가 끝나면 다음 것이 이어질 수 있다 — 남은 게 없을 때까지
+	while not career.events("start").is_empty():
+		var e: Dictionary = career.events("start")[0]
 		career.resolve_event(e, _ok(career, e))
 
 

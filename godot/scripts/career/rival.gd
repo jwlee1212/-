@@ -46,7 +46,21 @@ func play_week(cfg: CareerConfig, bc: BattingConfig, game: GameRunner, rng: Rand
 	var stat: String = PlayerData.STATS[rng.randi_range(0, PlayerData.STATS.size() - 1)]
 	Growth.apply(cfg, player, stat, float(rc["weeklyTrainingGain"]))
 	last_vs_me = game != null and game.opponent.id == school_id
-	if last_vs_me:
+	# 타석 없이 흘러간 이닝이 있는 경기(결과 고정·연출)는 박스스코어가 비어 있어서, 맞대결이어도 자동 타석으로 기록을 만든다
+	if last_vs_me and not game.rival_line.is_empty():
+		# 대본이 정한 그날 기록
+		var rl := game.rival_line
+		last_line = PlayerData.SeasonStats.new()
+		last_line.games = 1
+		last_line.ab = int(rl.get("ab", 0))
+		last_line.walks = int(rl.get("walks", 0))
+		last_line.pa = last_line.ab + last_line.walks
+		last_line.hits = int(rl.get("hits", 0))
+		last_line.doubles = int(rl.get("doubles", 0))
+		last_line.home_runs = int(rl.get("homeRuns", 0))
+		last_line.rbi = int(rl.get("rbi", 0))
+		last_line.strikeouts = int(rl.get("strikeouts", 0))
+	elif last_vs_me and game.has_full_box():
 		var side := 1 - game.my_side
 		last_line = PlayerData.SeasonStats.from_box(game.box.batters[side][int(rc["lineupSlot"]) - 1])
 	else:
