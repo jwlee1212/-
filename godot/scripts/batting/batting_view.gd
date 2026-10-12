@@ -22,7 +22,7 @@ const ZONE_Y := 0.77
 const ZONE_HALF_W := 0.045
 const ZONE_HALF_H := 0.095
 ## 타자: 골반의 가로 자리, 발바닥 높이(화면 아래로 살짝 잘린다), 키 — 화면 높이 비율
-const BATTER_X := 0.305
+const BATTER_X := 0.29
 const BATTER_FEET_Y := 1.03
 const BATTER_HEIGHT := 0.74
 
@@ -341,13 +341,13 @@ func _pose_batter() -> void:
 	if bunt:
 		bat_angle = 88.0
 	elif in_hit:
-		# 맞은 공: 배트가 공이 있는 자리를 향하게 한다. 멀면 배트를 조금 늘려 닿게 (최대 1.6배)
+		# 맞은 공: 배트가 공이 있는 자리를 향하게 하고, 공이 배트 굵은 쪽(끝에서 조금 안쪽)에 오게 길이를 맞춘다 (0.6~1.6배)
 		var b := _ball(session.pitch, session.swing_at_ms / session.pitch.flight_ms)
 		var v := Vector2(b.x, b.y) - hands
 		var aim := rad_to_deg(atan2(v.x, -v.y))
 		var follow := clampf((swing_progress - CONTACT_SWING) / (1.0 - CONTACT_SWING), 0.0, 1.0)
 		bat_angle = lerpf(aim, _bat_angle_deg(1.0), follow)
-		bat_length = lerpf(clampf(v.length() + 6.0, base_length, base_length * 1.6), base_length, follow)
+		bat_length = lerpf(clampf(v.length() / 0.78, base_length * 0.6, base_length * 1.6), base_length, follow)
 	_batter.pose(load, swing_progress, bunt, bat_angle, bat_length / base_length)
 	_bat_hands = hands
 	_bat_angle = bat_angle
@@ -567,11 +567,11 @@ func _draw_callout(canvas: CanvasItem) -> void:
 
 # ---------- 도우미 ----------
 
-## 배트 각도 (위쪽 0°, 시계 방향 +): 대기 −18°(머리 옆으로 세워 든다) → 수평(90°)을 지나 홈 쪽으로 → 팔로스루 +150°.
+## 배트 각도 (위쪽 0°, 시계 방향 +): 대기 −13°(머리 옆으로 세워 든다) → 수평(90°)을 지나 홈 쪽으로 → 팔로스루 +150°.
 ## 처음에 빠르고 끝에서 느려진다
 func _bat_angle_deg(progress: float) -> float:
 	var e := 1.0 - (1.0 - progress) * (1.0 - progress)
-	return -18.0 + 168.0 * e
+	return -13.0 + 163.0 * e
 
 
 ## 각도(위쪽 = 0°, 시계 방향 +)의 방향 벡터

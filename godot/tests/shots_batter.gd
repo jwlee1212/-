@@ -12,7 +12,7 @@ func _ready() -> void:
 	back.size = Vector2(1680, 900)
 	add_child(back)
 	# [힘 모으기, 스윙 진행률, 번트, 배트 각도]
-	var poses := [[0.0, -1.0, false, -18.0], [1.0, -1.0, false, -30.0], [1.0, 0.2, false, 35.0], [1.0, BatterRig.CONTACT_SWING, false, 95.0],
+	var poses := [[0.0, -1.0, false, -13.0], [1.0, -1.0, false, -25.0], [1.0, 0.2, false, 35.0], [1.0, BatterRig.CONTACT_SWING, false, 95.0],
 		[1.0, 0.7, false, 134.0], [1.0, 1.0, false, 150.0], [0.0, -1.0, true, 88.0]]
 	for i in poses.size():
 		var rig := BatterRig.new()
@@ -26,6 +26,22 @@ func _ready() -> void:
 	get_viewport().get_texture().get_image().save_png("res://build/shots/batter-poses.png")
 	for child in get_children():
 		child.queue_free()
+
+	# 준비 자세 한 장을 크게 (자세 기준 그림과 나란히 놓고 비율을 볼 때 쓴다)
+	await get_tree().process_frame
+	var bg := ColorRect.new()
+	bg.color = Tokens.GRASS
+	bg.size = Vector2(1680, 900)
+	add_child(bg)
+	var big := BatterRig.new()
+	big.scale = Vector2.ONE * 0.5
+	big.position = Vector2(150, 318)
+	add_child(big)
+	await get_tree().create_timer(0.5).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("res://build/shots/batter-stance.png")
+	bg.queue_free()
+	big.queue_free()
 
 	# 실제 타석 화면(타격 연습)에서: 준비 → 와인드업 → 공이 오는 중 → 맞는 순간 → 팔로스루
 	get_window().size = Vector2i(844, 390)
