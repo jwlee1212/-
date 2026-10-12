@@ -6,7 +6,7 @@ CLAUDE.md 원칙 6: 외부·AI 생성 그림·소리를 넣을 때는 여기 기
 |---|---|---|---|---|
 | Pretendard 글꼴 (Regular, Bold) | `godot/fonts/` | Kil Hyung-jin, github.com/orioncactus/pretendard | SIL OFL 1.1 (`licenses/Pretendard-OFL.txt`, `godot/fonts/Pretendard-OFL.txt`) | 가능 (글꼴 단독 판매 금지) |
 | 효과음 전부 (투구·스윙·타격음·미트·함성) | `godot/scripts/audio/sound_synth.gd` | 외부 음원·AI 도구 없이 코드로 합성 (사인파·잡음·감쇠 곡선) | 이 프로젝트 자체 코드 | 가능 |
-| 캐릭터·야구장 그림 | `godot/scripts/batting/batting_view.gd` | 코드로 그린 단순 도형 (임시, G8 에서 컷아웃 파츠로 교체) | 이 프로젝트 자체 코드 | 가능 |
+| 투수·야구장 그림 | `godot/scripts/batting/batting_view.gd` | 코드로 그린 단순 도형 (임시, G8 에서 타자와 같은 그림체로 교체) | 이 프로젝트 자체 코드 | 가능 |
 
 | **(임시)** 인물 일러스트 10장: 주인공 · 한소율(매니저) · 감독 · 동기 · 코치 · 정다온(소꿉친구) · 선배 · 엄마 · 후배 · 서지안(방송부) | `godot/art/portraits/` 의 `player` `manager` `coach` `buddy` `batting_coach` `neighbor` `senior` `mom` `junior` `reporter` `.png` | 유저가 **Google Gemini** 로 생성 (2026-10-11), 흰 배경만 지움 (선배는 가로로 긴 그림이라 인물만 남게 잘랐다). 그림 오른쪽 아래에 Gemini 표시(✦)가 남아 있다 | Gemini 이용 약관을 따른다 | **확인 필요 — 출시 전에 유저가 쓴 요금제의 약관(생성물의 상업 이용, 표시·워터마크 조건)을 확인해 여기 적는다** |
 
@@ -18,6 +18,8 @@ CLAUDE.md 원칙 6: 외부·AI 생성 그림·소리를 넣을 때는 여기 기
 
 | **(임시)** 배경 1장: 교실 | `godot/art/backgrounds/classroom.png` | 유저가 준 그림 (2026-10-12), 그대로 넣음. 오른쪽 아래에 Gemini 표시(✦)가 있어 **Google Gemini** 생성으로 적는다 — 다른 도구면 고친다 | Gemini 이용 약관을 따른다 | **확인 필요** (위와 같음) |
 
-AI 생성 에셋: 위 인물 일러스트 11장과 배경 6장 (Google Gemini).
+| 타자 캐릭터 파츠 10장 + 원본 시트 3장 | `godot/art/characters/batter/*.png`, `source/` | 유저가 **Google Gemini** 로 생성 (2026-10-12, 요금제는 유저 말로 'Gemini Plus'). 초록 배경을 빼고 조각으로 잘랐다 (`scripts/cut_batter_parts.py`). 팔은 위팔·아래팔이 붙어 나와 소매 끝에서 자르고, 아래팔의 잘린 끝에 같은 색으로 둥근 마개를 그려 넣었다. 원본 오른쪽 아래의 Gemini 표시(✦)는 어느 파츠에도 들어가지 않았다 (원본 시트에는 남아 있다) | Gemini 이용 약관을 따른다 | **확인 필요** (위와 같음) |
+
+AI 생성 에셋: 위 인물 일러스트 11장, 배경 6장, 타자 캐릭터 파츠 (Google Gemini).
 
 > 그림체는 원칙 6에 맞다 (대화 화면 일러스트는 애니메이션풍, 2026-10-11 결정). 남은 것은 상업 이용 약관 확인 하나다 — 확인 전까지는 임시로 본다.
