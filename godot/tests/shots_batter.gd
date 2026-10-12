@@ -15,13 +15,13 @@ func _ready() -> void:
 	for i in frames.size():
 		var batter := BatterSprite.new()
 		# 창은 크지만 화면 좌표는 844 폭 기준으로 늘어난다
-		batter.scale = Vector2.ONE * 0.36
-		batter.position = Vector2(60 + i * 165, 350)
+		batter.scale = Vector2.ONE * 0.3
+		batter.position = Vector2(55 + i * 170, 320)
 		add_child(batter)
 		batter.show_frame(frames[i])
 		var label := Label.new()
 		label.text = frames[i] + ("" if batter.has_frame(frames[i]) else " (없음)")
-		label.position = Vector2(40 + i * 165, 356)
+		label.position = Vector2(35 + i * 170, 330)
 		add_child(label)
 	await get_tree().create_timer(0.3).timeout
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build/shots"))

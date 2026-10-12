@@ -18,7 +18,7 @@ CLAUDE.md 원칙 6: 외부·AI 생성 그림·소리를 넣을 때는 여기 기
 
 | **(임시)** 배경 1장: 교실 | `godot/art/backgrounds/classroom.png` | 유저가 준 그림 (2026-10-12), 그대로 넣음. 오른쪽 아래에 Gemini 표시(✦)가 있어 **Google Gemini** 생성으로 적는다 — 다른 도구면 고친다 | Gemini 이용 약관을 따른다 | **확인 필요** (위와 같음) |
 
-| 타자 캐릭터 포즈 그림 (지금은 준비 자세 1장) + 초록 배경 원본 | `godot/art/characters/batter/*.png`, `source/` | 유저가 **Google Gemini** 로 생성 (2026-10-12, 요금제는 유저 말로 'Gemini Plus'). 초록 배경만 뺐다 (`scripts/cut_batter_poses.py`). 원본 오른쪽 아래의 Gemini 표시(✦)는 잘라 낸 그림에는 없다 (원본에는 남아 있다) | Gemini 이용 약관을 따른다 | **확인 필요** (위와 같음) |
+| 타자 캐릭터 포즈 그림 4장 (준비·힘 모으기·맞는 순간·팔로스루) + 초록 배경 원본 | `godot/art/characters/batter/*.png`, `source/` | 유저가 **Google Gemini** 로 생성 (2026-10-12, 요금제는 유저 말로 'Gemini Plus'). 초록 배경만 뺐다 (`scripts/cut_batter_poses.py`). 원본 오른쪽 아래의 Gemini 표시(✦)는 잘라 낸 그림에는 없다 (원본에는 남아 있다) | Gemini 이용 약관을 따른다 | **확인 필요** (위와 같음) |
 
 AI 생성 에셋: 위 인물 일러스트 11장, 배경 6장, 타자 캐릭터 포즈 그림 (Google Gemini).
 

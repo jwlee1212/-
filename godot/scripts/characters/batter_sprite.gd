@@ -9,20 +9,23 @@ extends Node2D
 
 const ART := "res://art/characters/batter/"
 ## 키 (헬멧 꼭대기 ~ 발바닥). 배트는 이보다 위로 올라갈 수 있다
-const HEIGHT := 803.0
+const HEIGHT := 800.0
 ## 준비 자세에서 손(배트 손잡이)의 자리와 배트 길이 — 배트 궤적 잔상을 그릴 때 쓴다
 const HANDS := Vector2(300, -325)
 const BAT_LENGTH := 560.0
+## 맞는 순간 그림에서 배트 굵은 쪽(공이 맞는 자리)이 있는 곳 — 타석 화면이 이 점을 공 쪽으로 돌려 맞춘다
+const CONTACT_BARREL := Vector2(563, -468)
 ## 스윙 진행률이 이 값을 넘으면 맞는 순간 그림에서 팔로스루 그림으로 바뀐다
 const FOLLOW_FROM := 0.7
 
-# 포즈: [발 자리, 키]
+# 포즈: [발 자리(벨트 가운데 바로 아래의 바닥), 키]
 const FRAMES := {
-	"stance": [Vector2(171, 844), 803.0],
-	"load": [Vector2(171, 844), 803.0],
-	"contact": [Vector2(171, 844), 803.0],
-	"follow": [Vector2(171, 844), 803.0],
-	"bunt": [Vector2(171, 844), 803.0],
+	"stance": [Vector2(171, 844), 800.0],
+	"load": [Vector2(176, 844), 797.0],
+	# 맞는 순간 그림은 작게 그려져 있다 — 헬멧 크기가 다른 포즈와 같아지게 키를 작게 적어 더 키운다
+	"contact": [Vector2(204, 692), 660.0],
+	"follow": [Vector2(303, 800), 796.0],
+	"bunt": [Vector2(171, 844), 800.0],
 }
 
 var _sprite: Sprite2D

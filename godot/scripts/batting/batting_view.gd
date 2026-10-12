@@ -25,6 +25,9 @@ const ZONE_HALF_H := 0.095
 const BATTER_X := 0.27
 const BATTER_FEET_Y := 1.03
 const BATTER_HEIGHT := 0.74
+## 맞는 순간 배트를 공 높이에 맞추려고 몸을 기울이는 한도 (도): 높은 공 쪽 / 낮은 공 쪽
+const BATTER_LEAN_UP_DEG := 6.0
+const BATTER_LEAN_DOWN_DEG := 20.0
 
 var session: BattingSession
 ## 타자 등번호 (경기에서는 타순, 연습에서는 7)
@@ -326,6 +329,14 @@ func _pose_batter() -> void:
 	_batter.position = feet + _shake()
 	var bunt := session.swing_type == "bunt"
 	_batter.pose(load, swing_progress, bunt)
+	# 맞는 순간 그림은 한 장이라 배트 높이가 정해져 있다. 발을 축으로 몸 전체를 조금 기울여 배트를 공 높이에 맞춘다
+	# (낮은 공엔 숙이고 높은 공엔 선다). 팔로스루로 넘어가면 바로 선다
+	var lean := 0.0
+	if not bunt and swing_progress >= 0.0 and swing_progress < BatterSprite.FOLLOW_FROM and _batter.has_frame("contact"):
+		var b := _ball(session.pitch, session.swing_at_ms / session.pitch.flight_ms)
+		var to_ball := Vector2(b.x, b.y) - feet
+		lean = clampf(angle_difference(BatterSprite.CONTACT_BARREL.angle(), to_ball.angle()), deg_to_rad(-BATTER_LEAN_UP_DEG), deg_to_rad(BATTER_LEAN_DOWN_DEG))
+	_batter.rotation = lean
 
 	# 배트 궤적 잔상: 맞은 공이면 공이 있던 자리까지, 아니면 스윙 진행만큼 쓸고 지나간다
 	_bat_hands = feet + BatterSprite.HANDS * unit
@@ -338,8 +349,8 @@ func _pose_batter() -> void:
 func _draw_batter_ground() -> void:
 	var h := size.y
 	_draw_ellipse(Vector2(size.x * BATTER_X, h * 0.985), Vector2(h * 0.2, h * 0.035), Tokens.SHADOW)
-	# 스윙 그림이 아직 없으면(준비 자세로 대신하는 동안) 잔상이 스윙을 알려 준다
-	if _swing_progress >= 0.0 and _swing_progress < 1.0:
+	# 스윙 그림이 없을 때만(준비 자세로 대신하는 동안) 잔상이 스윙을 알려 준다
+	if _swing_progress >= 0.0 and _swing_progress < 1.0 and not _batter.has_frame("contact"):
 		var wedge := PackedVector2Array([_bat_hands])
 		var from := _bat_angle_deg(0.0)
 		for i in 13:
