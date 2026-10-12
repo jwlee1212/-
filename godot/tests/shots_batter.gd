@@ -12,13 +12,13 @@ func _ready() -> void:
 	back.size = Vector2(1680, 900)
 	add_child(back)
 	# [힘 모으기, 스윙 진행률, 번트, 배트 각도]
-	var poses := [[0.0, -1.0, false, -30.0], [1.0, -1.0, false, -42.0], [1.0, 0.2, false, 35.0], [1.0, BatterRig.CONTACT_SWING, false, 95.0],
+	var poses := [[0.0, -1.0, false, -18.0], [1.0, -1.0, false, -30.0], [1.0, 0.2, false, 35.0], [1.0, BatterRig.CONTACT_SWING, false, 95.0],
 		[1.0, 0.7, false, 134.0], [1.0, 1.0, false, 150.0], [0.0, -1.0, true, 88.0]]
 	for i in poses.size():
 		var rig := BatterRig.new()
 		# 창은 크지만 화면 좌표는 844 폭 기준으로 늘어난다
-		rig.scale = Vector2.ONE * 0.3
-		rig.position = Vector2(80 + (i % 4) * 210, 150 + (i / 4) * 220)
+		rig.scale = Vector2.ONE * 0.24
+		rig.position = Vector2(70 + (i % 4) * 210, 165 + (i / 4) * 220)
 		add_child(rig)
 		rig.pose(poses[i][0], poses[i][1], poses[i][2], poses[i][3])
 	await get_tree().create_timer(0.3).timeout

@@ -18,7 +18,7 @@ CLAUDE.md 원칙 6: 외부·AI 생성 그림·소리를 넣을 때는 여기 기
 
 | **(임시)** 배경 1장: 교실 | `godot/art/backgrounds/classroom.png` | 유저가 준 그림 (2026-10-12), 그대로 넣음. 오른쪽 아래에 Gemini 표시(✦)가 있어 **Google Gemini** 생성으로 적는다 — 다른 도구면 고친다 | Gemini 이용 약관을 따른다 | **확인 필요** (위와 같음) |
 
-| 타자 캐릭터 파츠 10장 + 원본 시트 3장 | `godot/art/characters/batter/*.png`, `source/` | 유저가 **Google Gemini** 로 생성 (2026-10-12, 요금제는 유저 말로 'Gemini Plus'). 초록 배경을 빼고 조각으로 잘랐다 (`scripts/cut_batter_parts.py`). 팔은 위팔·아래팔이 붙어 나와 소매 끝에서 자르고, 아래팔의 잘린 끝에 같은 색으로 둥근 마개를 그려 넣었다. 원본 오른쪽 아래의 Gemini 표시(✦)는 어느 파츠에도 들어가지 않았다 (원본 시트에는 남아 있다) | Gemini 이용 약관을 따른다 | **확인 필요** (위와 같음) |
+| 타자 캐릭터 파츠 8장 + 원본 시트 3장 | `godot/art/characters/batter/*.png`, `source/` | 유저가 **Google Gemini** 로 생성 (2026-10-12, 요금제는 유저 말로 'Gemini Plus'). 초록 배경을 빼고 조각으로 잘랐다 (`scripts/cut_batter_parts.py`). 하체는 자세 그림에서 벨트 아래를 통째로 잘랐다. 팔은 위팔·아래팔이 붙어 나와 소매 끝에서 자르고, 아래팔의 잘린 끝에 같은 색으로 둥근 마개를 그려 넣었다. 원본 오른쪽 아래의 Gemini 표시(✦)는 어느 파츠에도 들어가지 않았다 (원본 시트에는 남아 있다) | Gemini 이용 약관을 따른다 | **확인 필요** (위와 같음) |
 
 AI 생성 에셋: 위 인물 일러스트 11장, 배경 6장, 타자 캐릭터 파츠 (Google Gemini).
 

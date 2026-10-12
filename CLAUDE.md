@@ -94,7 +94,7 @@ godot/                     Godot 프로젝트
 │  ├─ screens/             화면: 타이틀·선수 만들기·홈·폰(메시지·연락처)·경기·결과·시즌·연습·기록실
 │  ├─ balance_loader.gd, balance_source.gd   수치 읽기·저장 (맥은 파일, 웹은 개발 서버)
 │  └─ main.gd
-├─ art/characters/         SD 캐릭터 파츠(머리·몸통·골반·위팔·아래팔·장갑·다리·배트). `batter/source/` 는 자르기 전 원본 시트(Godot 는 안 읽는다)
+├─ art/characters/         SD 캐릭터 파츠(머리·몸통·하체·위팔·아래팔·장갑·배트). `batter/source/` 는 자르기 전 원본 시트(Godot 는 안 읽는다)
 ├─ art/portraits/, backgrounds/  대화 화면 일러스트·배경 (파일 목록은 art/README.md, 없으면 자리만 보인다)
 ├─ fonts/                  Pretendard (OFL)
 ├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_batter 타자 자세), calibrate.gd(가상 타자 튜닝 도구), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)

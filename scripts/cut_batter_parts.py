@@ -8,7 +8,8 @@
 하는 일
 1. 초록 배경을 투명하게 뺀다 (초록이 빨강·파랑보다 튀는 만큼 투명)
 2. 서로 떨어진 덩어리를 조각으로 나눈다 (순서는 위→아래, 왼쪽→오른쪽으로 고정)
-3. 팔은 위팔·아래팔이 붙어 나와서 남색 소매 끝에서 자른다. 아래팔의 잘린 끝에는
+3. 하체는 자세 그림(stance_reference.png)에서 벨트 아래를 통째로 잘라 쓴다
+4. 팔은 위팔·아래팔이 붙어 나와서 남색 소매 끝에서 자른다. 아래팔의 잘린 끝에는
    같은 살색·테두리로 둥근 마개를 그려, 팔꿈치에서 돌려도 틈이 보이지 않게 한다
 """
 from pathlib import Path
@@ -21,11 +22,24 @@ OUT = Path(__file__).resolve().parent.parent / "godot/art/characters/batter"
 SRC = OUT / "source"
 PAD = 4
 
-# parts_sheet.png 에서 나오는 조각 번호 → 파일 이름 (안 쓰는 조각은 뺀다: 붙은 팔 2개, 굽힌 다리 2개 — 골반 그림에 허벅지가 이미 있어 겹친다)
-SHEET_PARTS = {0: "head", 1: "torso", 4: "pelvis", 5: "glove_top", 6: "glove_bottom", 7: "bat", 8: "leg_back", 9: "leg_front"}
+# parts_sheet.png 에서 나오는 조각 번호 → 파일 이름 (안 쓰는 조각은 뺀다: 붙은 팔 2개, 골반, 다리 4개 — 하체는 자세 그림에서 통째로 가져온다)
+SHEET_PARTS = {0: "head", 1: "torso", 5: "glove_top", 6: "glove_bottom", 7: "bat"}
 # arms_sheet.png 의 두 번째 조각(소매 달린 팔)을 자르는 높이 = 남색 소매가 끝나는 줄
 ARM_PIECE = 0
 ARM_CUT_Y = 292
+# stance_reference.png 에서 하체(벨트~스파이크)를 통째로 자르는 상자와, 그 안에서 벨트 윗선이 지나는 두 점
+# (이 선 위쪽은 상의·팔이라 지운다)
+LOWER_BOX = (360, 600, 780, 890)
+LOWER_BELT_LINE = ((60, 12), (330, 30))
+
+
+def keyed(path: Path) -> np.ndarray:
+    """초록 배경을 뺀 RGBA 배열"""
+    rgb = np.asarray(Image.open(path).convert("RGB")).astype(float)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    alpha = 1.0 - np.clip((g - np.maximum(r, b)) / 90.0, 0.0, 1.0)
+    g = np.where(alpha < 1.0, np.minimum(g, np.maximum(r, b)), g)
+    return np.dstack([r, g, b, alpha * 255.0]).astype(np.uint8)
 
 
 def pieces(path: Path) -> list[Image.Image]:
@@ -65,6 +79,15 @@ def main() -> None:
     lower = arm.crop((0, ARM_CUT_Y + 8, arm.width, arm.height))
     forearm.paste(lower, (0, 78), lower)
     forearm.save(OUT / "forearm.png")
+
+    # 하체: 자세 그림에서 벨트 아래를 통째로 (골반 + 굽힌 두 다리가 한 장이라 이음새가 없다)
+    x0, y0, x1, y1 = LOWER_BOX
+    lower = keyed(SRC / "stance_reference.png")[y0:y1, x0:x1].copy()
+    (ax, ay), (bx, by) = LOWER_BELT_LINE
+    ys, xs = np.mgrid[0 : lower.shape[0], 0 : lower.shape[1]]
+    line_y = ay + (by - ay) * (xs - ax) / (bx - ax)
+    lower[..., 3] = np.where(ys < line_y, 0, lower[..., 3])
+    Image.fromarray(lower).save(OUT / "lower_body.png")
 
     for path in sorted(OUT.glob("*.png")):
         print(path.name, Image.open(path).size)

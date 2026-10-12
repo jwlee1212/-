@@ -53,11 +53,10 @@
 |---|---|
 | `head.png` | 헬멧 쓴 머리 (목 포함) |
 | `torso.png` | 상의 (짧은 소매 포함) |
-| `pelvis.png` | 벨트 + 하의 윗부분 |
 | `upper_arm.png` `forearm.png` | 위팔(소매) · 아래팔 — 두 팔이 같은 그림을 쓴다 |
 | `glove_top.png` `glove_bottom.png` | 배트를 쥔 장갑 낀 주먹 |
-| `leg_back.png` `leg_front.png` | 무릎 아래 다리 (바지 끝 + 양말 + 스파이크). 허벅지는 골반 그림에 있다 |
+| `lower_body.png` | 하체 통짜 (벨트 + 굽힌 두 다리 + 스파이크). 자세 그림에서 벨트 아래를 그대로 잘랐다 |
 | `bat.png` | 나무 배트 |
-| `source/` | 자르기 전 원본: `parts_sheet.png` `arms_sheet.png` `stance_reference.png`(자세 참고). `scripts/cut_batter_parts.py` 로 다시 자른다 |
+| `source/` | 자르기 전 원본: `parts_sheet.png` `arms_sheet.png` `stance_reference.png`(자세 기준 — 하체는 여기서 자른다). `scripts/cut_batter_parts.py` 로 다시 자른다 |
 
 새로 뽑을 때: 초록(#00FF00) 단색 배경, 조각끼리 닿지 않게, 관절 끝은 둥글고 넉넉하게, 유니폼은 밝은 회색 단색.
