@@ -2,7 +2,7 @@ class_name BattingView
 extends Control
 ## 타석 장면 (타자 어깨 너머 시점): 경기장 배경, 투수, 큰 타자 뒷모습, 스트라이크존 꺾쇠, 날아오는 공,
 ## 타격 연출(히트스톱·흔들림·섬광·파편·꽃가루), 정타 뒤 타구 중계 화면, 판정 문구.
-## 버튼·점수판 같은 HUD 는 BattingHud 가 위에 얹는다. 타자는 컷아웃 캐릭터(BatterRig), 나머지는 단순 도형.
+## 버튼·점수판 같은 HUD 는 BattingHud 가 위에 얹는다. 타자는 포즈별 그림(BatterSprite), 나머지는 단순 도형.
 ## 그리는 순서: 이 노드의 _draw(경기장·투수·존·공) → 타자(_batter) → 앞쪽 연출(_front: 맞은 공·섬광·꽃가루·판정 문구).
 ## 탭(손가락이 닿는 순간)은 tapped 시그널로 알린다.
 
@@ -21,24 +21,20 @@ const MOUND_Y := 0.535
 const ZONE_Y := 0.77
 const ZONE_HALF_W := 0.045
 const ZONE_HALF_H := 0.095
-## 타자: 골반의 가로 자리, 발바닥 높이(화면 아래로 살짝 잘린다), 키 — 화면 높이 비율
-const BATTER_X := 0.29
+## 타자: 두 발 사이의 가로 자리, 발바닥 높이(화면 아래로 살짝 잘린다), 키 — 화면 높이 비율
+const BATTER_X := 0.27
 const BATTER_FEET_Y := 1.03
 const BATTER_HEIGHT := 0.74
 
 var session: BattingSession
 ## 타자 등번호 (경기에서는 타순, 연습에서는 7)
-var jersey_number := 7:
-	set(value):
-		jersey_number = value
-		if _batter != null:
-			_batter.number = value
+var jersey_number := 7
 
 # 좌표 (매 프레임 다시 계산)
 var _release := Vector2.ZERO
 var _zone_center := Vector2.ZERO
 var _zone_half := Vector2.ZERO
-var _batter: BatterRig
+var _batter: BatterSprite
 ## 타자보다 앞에 그리는 연출
 var _front: Control
 # 이번 프레임의 배트 (타자 자세와 잔상이 같이 쓴다)
@@ -50,8 +46,7 @@ var _swing_progress := -1.0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	_batter = BatterRig.new()
-	_batter.number = jersey_number
+	_batter = BatterSprite.new()
 	add_child(_batter)
 	_front = Control.new()
 	_front.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -304,9 +299,9 @@ func _draw_pitcher() -> void:
 		draw_circle(shoulder + hand * u, u * 1.2, Tokens.CHALK, true, -1.0, true)
 
 
-## 타자 자세 (오른손 타자, 홈플레이트 왼쪽). 투수가 던지기 시작하면 배트를 더 눕히며 힘을 모으고(load),
-## 스윙하면 배트가 홈플레이트 쪽으로 돈다. 번트면 배트를 가슴 높이에서 눕혀 든다.
-## 그림은 BatterRig 가 그리고, 여기서는 언제 얼마나 휘두르는지와 배트가 향할 곳을 정한다
+## 타자 자세 (오른손 타자, 홈플레이트 왼쪽). 투수가 던지기 시작하면 힘을 모으고(load), 스윙하면 맞는 순간 →
+## 팔로스루 그림으로 넘어간다. 히트스톱 동안은 맞는 순간 그림에서 멈춘다. 번트면 번트 그림.
+## 그림은 BatterSprite 가 갈아 끼우고, 여기서는 언제 얼마나 휘둘렀는지를 정한다
 func _pose_batter() -> void:
 	var pres := session.presentation
 	var h := size.y
@@ -324,34 +319,18 @@ func _pose_batter() -> void:
 		load = clampf(session.since(session.phase_since_ms) / pres.windup_ms * 1.4 - 0.4, 0.0, 1.0)
 	elif in_flight and not session.swung:
 		load = 1.0
-	elif swing_progress >= 0.0:
-		load = 1.0
 
-	var unit := h * BATTER_HEIGHT / (BatterRig.FEET_Y - BatterRig.HEAD_TOP_Y)
+	var unit := h * BATTER_HEIGHT / BatterSprite.HEIGHT
+	var feet := Vector2(size.x * BATTER_X, h * BATTER_FEET_Y)
 	_batter.scale = Vector2.ONE * unit
-	_batter.position = Vector2(size.x * BATTER_X, h * BATTER_FEET_Y - BatterRig.FEET_Y * unit) + _shake()
-
+	_batter.position = feet + _shake()
 	var bunt := session.swing_type == "bunt"
-	if bunt and not in_hit:
-		swing_progress = -1.0 if not (in_flight and session.swung) else 0.0
-	var hands := _batter.position - _shake() + _batter.hands_position(load, swing_progress, bunt) * unit
-	var base_length := BatterRig.BAT_LENGTH * unit
-	var bat_length := base_length
-	var bat_angle := _bat_angle_deg(maxf(swing_progress, 0.0)) if swing_progress >= 0.0 else _bat_angle_deg(0.0) - 12.0 * load
-	if bunt:
-		bat_angle = 88.0
-	elif in_hit:
-		# 맞은 공: 배트가 공이 있는 자리를 향하게 하고, 공이 배트 굵은 쪽(끝에서 조금 안쪽)에 오게 길이를 맞춘다 (0.6~1.6배)
-		var b := _ball(session.pitch, session.swing_at_ms / session.pitch.flight_ms)
-		var v := Vector2(b.x, b.y) - hands
-		var aim := rad_to_deg(atan2(v.x, -v.y))
-		var follow := clampf((swing_progress - CONTACT_SWING) / (1.0 - CONTACT_SWING), 0.0, 1.0)
-		bat_angle = lerpf(aim, _bat_angle_deg(1.0), follow)
-		bat_length = lerpf(clampf(v.length() / 0.78, base_length * 0.6, base_length * 1.6), base_length, follow)
-	_batter.pose(load, swing_progress, bunt, bat_angle, bat_length / base_length)
-	_bat_hands = hands
-	_bat_angle = bat_angle
-	_bat_length = bat_length
+	_batter.pose(load, swing_progress, bunt)
+
+	# 배트 궤적 잔상: 맞은 공이면 공이 있던 자리까지, 아니면 스윙 진행만큼 쓸고 지나간다
+	_bat_hands = feet + BatterSprite.HANDS * unit
+	_bat_length = BatterSprite.BAT_LENGTH * unit
+	_bat_angle = _bat_angle_deg(maxf(swing_progress, 0.0))
 	_swing_progress = -1.0 if bunt else swing_progress
 
 
@@ -359,6 +338,7 @@ func _pose_batter() -> void:
 func _draw_batter_ground() -> void:
 	var h := size.y
 	_draw_ellipse(Vector2(size.x * BATTER_X, h * 0.985), Vector2(h * 0.2, h * 0.035), Tokens.SHADOW)
+	# 스윙 그림이 아직 없으면(준비 자세로 대신하는 동안) 잔상이 스윙을 알려 준다
 	if _swing_progress >= 0.0 and _swing_progress < 1.0:
 		var wedge := PackedVector2Array([_bat_hands])
 		var from := _bat_angle_deg(0.0)

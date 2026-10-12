@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://mqhwsj3of332"
-path="res://.godot/imported/glove_top.png-9b212c6dd5be00c9b954fcd166eed517.ctex"
+uid="uid://cdt5qjck861ep"
+path="res://.godot/imported/stance.png-01d718d48b0ef9082c6bcd9567e6c418.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/characters/batter/glove_top.png"
-dest_files=["res://.godot/imported/glove_top.png-9b212c6dd5be00c9b954fcd166eed517.ctex"]
+source_file="res://art/characters/batter/stance.png"
+dest_files=["res://.godot/imported/stance.png-01d718d48b0ef9082c6bcd9567e6c418.ctex"]
 
 [params]
 

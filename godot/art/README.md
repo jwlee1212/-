@@ -45,18 +45,16 @@
 | `dorm.png` | 합숙소 |
 | `gym.png` | 웨이트장 |
 
-## 인게임 캐릭터 `characters/batter/` (타자 뒷모습)
+## 인게임 캐릭터 `characters/batter/` (타자 뒷모습, 포즈별 그림)
 
-`scripts/characters/batter_rig.gd` 가 이 파츠들을 뼈대에 붙여 움직인다. 관절 자리(그림 픽셀)는 그 파일의 `PARTS` 에 있다 — 그림을 바꾸면 거기 숫자도 맞춘다.
+`scripts/characters/batter_sprite.gd` 가 진행에 맞춰 그림을 갈아 끼운다. 없는 포즈는 준비 자세가 대신 나온다.
 
-| 파일 | 파츠 |
-|---|---|
-| `head.png` | 헬멧 쓴 머리 (목 포함) |
-| `torso.png` | 상의 (등 + 가까운 쪽 소매). 자세 그림에서 테두리를 따라 따냈다 |
-| `upper_arm.png` `forearm.png` | 위팔(소매) · 아래팔 — 두 팔이 같은 그림을 쓴다 |
-| `glove_top.png` `glove_bottom.png` | 배트를 쥔 장갑 낀 주먹 |
-| `lower_body.png` | 하체 통짜 (벨트 + 굽힌 두 다리 + 스파이크). 자세 그림에서 벨트 아래를 그대로 잘랐다 |
-| `bat.png` | 나무 배트 |
-| `source/` | 자르기 전 원본: `parts_sheet.png` `arms_sheet.png` `stance_reference.png`(자세 기준 — 하체는 여기서 자른다). `scripts/cut_batter_parts.py` 로 다시 자른다 |
+| 파일 | 포즈 | 언제 |
+|---|---|---|
+| `stance.png` | 준비 자세 | 공을 기다릴 때 — **들어 있다** |
+| `load.png` | 힘 모으기 | 투수가 던지기 시작해서 스윙 전까지 |
+| `contact.png` | 맞는 순간 | 탭한 순간부터 (히트스톱 동안 이 그림에서 멈춘다) |
+| `follow.png` | 팔로스루 | 스윙 끝 |
+| `bunt.png` | 번트 | 스윙 종류가 번트일 때 |
 
-새로 뽑을 때: 초록(#00FF00) 단색 배경, 조각끼리 닿지 않게, 관절 끝은 둥글고 넉넉하게, 유니폼은 밝은 회색 단색.
+넣는 법: 초록(#00FF00) 배경 원본을 `source/<포즈>.png` 로 넣고 `scripts/cut_batter_poses.py` 를 돌린다. 그다음 `batter_sprite.gd` 의 `FRAMES` 에 그 그림의 발 자리와 키(헬멧 꼭대기~발바닥, 픽셀)를 적는다 — 포즈마다 그림 크기가 달라도 이 숫자로 키와 발 자리를 맞춘다.

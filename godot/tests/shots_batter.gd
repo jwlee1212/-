@@ -1,47 +1,33 @@
 extends Node
-## 확인용 스크린샷: 타자 컷아웃 캐릭터의 자세를 한 장에 늘어놓는다 → godot/build/shots/batter-poses.png
+## 확인용 스크린샷: 타자 포즈 그림을 한 장에 늘어놓고(batter-poses.png), 실제 타석 화면 다섯 장(batter-1 ~ 5)을 찍는다.
 ##   ~/Applications/Godot.app/Contents/MacOS/Godot --path godot res://tests/shots_batter.tscn
-## 준비 → 힘 모으기 → 스윙(0.2, 맞는 순간, 0.7, 끝) → 번트. 이어서 실제 타석 화면 다섯 장(batter-1 ~ 5)
+## 포즈 그림이 아직 없는 칸은 준비 자세가 대신 나오고 이름 옆에 "(없음)" 이 붙는다
 
 
 func _ready() -> void:
 	get_window().mode = Window.MODE_WINDOWED
-	get_window().size = Vector2i(1680, 900)
+	get_window().size = Vector2i(1680, 780)
 	var back := ColorRect.new()
 	back.color = Tokens.GRASS
 	back.size = Vector2(1680, 900)
 	add_child(back)
-	# [힘 모으기, 스윙 진행률, 번트, 배트 각도]
-	var poses := [[0.0, -1.0, false, -13.0], [1.0, -1.0, false, -25.0], [1.0, 0.2, false, 35.0], [1.0, BatterRig.CONTACT_SWING, false, 95.0],
-		[1.0, 0.7, false, 134.0], [1.0, 1.0, false, 150.0], [0.0, -1.0, true, 88.0]]
-	for i in poses.size():
-		var rig := BatterRig.new()
+	var frames: Array = BatterSprite.FRAMES.keys()
+	for i in frames.size():
+		var batter := BatterSprite.new()
 		# 창은 크지만 화면 좌표는 844 폭 기준으로 늘어난다
-		rig.scale = Vector2.ONE * 0.24
-		rig.position = Vector2(70 + (i % 4) * 210, 165 + (i / 4) * 220)
-		add_child(rig)
-		rig.pose(poses[i][0], poses[i][1], poses[i][2], poses[i][3])
+		batter.scale = Vector2.ONE * 0.36
+		batter.position = Vector2(60 + i * 165, 350)
+		add_child(batter)
+		batter.show_frame(frames[i])
+		var label := Label.new()
+		label.text = frames[i] + ("" if batter.has_frame(frames[i]) else " (없음)")
+		label.position = Vector2(40 + i * 165, 356)
+		add_child(label)
 	await get_tree().create_timer(0.3).timeout
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build/shots"))
 	get_viewport().get_texture().get_image().save_png("res://build/shots/batter-poses.png")
 	for child in get_children():
 		child.queue_free()
-
-	# 준비 자세 한 장을 크게 (자세 기준 그림과 나란히 놓고 비율을 볼 때 쓴다)
-	await get_tree().process_frame
-	var bg := ColorRect.new()
-	bg.color = Tokens.GRASS
-	bg.size = Vector2(1680, 900)
-	add_child(bg)
-	var big := BatterRig.new()
-	big.scale = Vector2.ONE * 0.5
-	big.position = Vector2(150, 318)
-	add_child(big)
-	await get_tree().create_timer(0.5).timeout
-	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://build/shots/batter-stance.png")
-	bg.queue_free()
-	big.queue_free()
 
 	# 실제 타석 화면(타격 연습)에서: 준비 → 와인드업 → 공이 오는 중 → 맞는 순간 → 팔로스루
 	get_window().size = Vector2i(844, 390)

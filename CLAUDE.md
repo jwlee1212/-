@@ -69,7 +69,7 @@ $G --headless --path godot --script res://tests/calibrate.gd   # 가상 타자�
 4. **시간은 하나의 시계로 잰다.** 타이밍 판정은 `Time.get_ticks_usec()` 기준으로, 공을 놓은 순간과 탭한 순간을 같은 시계로 잰다. 프레임 수로 시간을 세지 않는다 (프레임이 떨어져도 판정은 정확해야 한다).
 5. **디자인은 토큰으로만.** 색·간격·글자 크기·모서리·글꼴은 `godot/scripts/ui/tokens.gd`에서만 가져온다. 화면 코드에 색상값을 직접 쓰지 않는다. 세부 규칙은 `docs/02-design.md`.
 6. **그림체는 둘로 나눈다 (2026-10-11 결정): 인게임은 SD, 일러스트는 애니메이션풍.** 경기·타석·중계 화면의 캐릭터는 SD(약 2등신)에 **굵은 남색 테두리 + 부드러운 음영이 들어간 카툰풍**으로 그리고(2026-10-12 결정 — 플랫 벡터에서 바꿈. 타자부터 적용했고 투수·수비수·경기장은 아직 단순 도형이라 같은 그림체로 맞춰 간다), 대화 화면의 인물 일러스트(`godot/art/portraits/`)는 애니메이션풍 반신 그림으로 한다. 어느 쪽이든 실사 얼굴·사실적(사진 같은) AI 생성 얼굴은 금지. AI로 만든 그림·소리를 넣을 때는 쓴 도구와 그 도구의 상업적 이용 허용 여부를 `licenses/assets.md`에 기록한다. 기록 없는 에셋은 넣지 않는다.
-7. **캐릭터 애니메이션은 파츠 분리 컷아웃 방식으로 만든다.** 프레임마다 새로 그린 스프라이트 시트를 쓰지 않는다. 캐릭터를 머리·몸통·팔·다리·배트 파츠로 나누고 `Skeleton2D`로 움직인다. 팀 구분은 유니폼 파츠의 색만 바꾼다(색은 토큰에서). 같은 파츠로 스윙·투구·달리기를 모두 만든다.
+7. **캐릭터 애니메이션은 포즈별 통짜 그림을 갈아 끼워 만든다 (2026-10-12 결정 — 파츠 분리 컷아웃을 그만뒀다).** 파츠를 잘라 뼈대에 붙이는 방식은 AI 로 뽑은 조각끼리 크기·각도·이음새가 맞지 않아 포기했다. 동작마다 필요한 포즈(타자: 준비·힘 모으기·맞는 순간·팔로스루·번트)를 한 장씩 그리고, 진행에 맞춰 바꾼다. 포즈끼리 키와 발 자리는 코드에서 맞춘다(`batter_sprite.gd` `FRAMES`). 포즈 수는 동작당 3~6장으로 적게 잡는다 — 손맛은 장 수가 아니라 히트스톱·흔들림·소리에서 나온다.
 8. **테스트가 통과해야 다음 마일스톤으로 간다** (§7).
 
 ## 5. 폴더 구조
@@ -84,7 +84,7 @@ godot/                     Godot 프로젝트
 │  ├─ batting/             타격: 설정·투구·판정·타석(로직) / 세션·뷰(화면)
 │  ├─ audio/               효과음 합성·재생
 │  ├─ ui/                  디자인 토큰
-│  ├─ characters/          컷아웃 캐릭터: 파츠 그림을 Skeleton2D 뼈대에 붙여 자세를 잡는다 (batter_rig: 타자 뒷모습)
+│  ├─ characters/          캐릭터: 포즈별 그림을 갈아 끼운다 (batter_sprite: 타자 뒷모습)
 │  ├─ debug/               손맛 조절 패널, 테스트 시작(원하는 시점까지 빨리 감기) (개발 빌드 전용)
 │  ├─ career/              커리어: 선수·주간 루프·성장·인물·라이벌·스카우트 평가·기록실 (로직)
 │  ├─ events/              돌발 이벤트·스토리 엔진: 조건·효과(event_book) + 대본을 한 걸음씩 읽는 대화 진행(dialogue_run) (로직, 정의는 content.json)
@@ -94,14 +94,14 @@ godot/                     Godot 프로젝트
 │  ├─ screens/             화면: 타이틀·선수 만들기·홈·폰(메시지·연락처)·경기·결과·시즌·연습·기록실
 │  ├─ balance_loader.gd, balance_source.gd   수치 읽기·저장 (맥은 파일, 웹은 개발 서버)
 │  └─ main.gd
-├─ art/characters/         SD 캐릭터 파츠(머리·몸통·하체·위팔·아래팔·장갑·배트). `batter/source/` 는 자르기 전 원본 시트(Godot 는 안 읽는다)
+├─ art/characters/         SD 캐릭터 포즈 그림 (`batter/stance.png` …). `batter/source/` 는 초록 배경 원본(Godot 는 안 읽는다)
 ├─ art/portraits/, backgrounds/  대화 화면 일러스트·배경 (파일 목록은 art/README.md, 없으면 자리만 보인다)
 ├─ fonts/                  Pretendard (OFL)
-├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_batter 타자 자세), calibrate.gd(가상 타자 튜닝 도구), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
+├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_batter 타자 포즈), calibrate.gd(가상 타자 튜닝 도구), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
 └─ data/                   빌드 때 복사되는 balance.json (저장소에 넣지 않음)
 scripts/godot-web.sh       웹 빌드(개발용) + 개발 서버 실행
 scripts/dev_server.py      개발 서버: 웹 빌드 + 원본 balance.json 실시간 제공·저장
-scripts/cut_batter_parts.py  타자 원본 시트(초록 배경) → 파츠 PNG 자르기 (pillow·numpy·scipy 필요)
+scripts/cut_batter_poses.py  타자 포즈 원본(초록 배경) → 배경 뺀 PNG (pillow·numpy·scipy 필요)
 docs/                      기획·개발 기록
 licenses/                  글꼴 라이선스, assets.md(에셋 출처)
 ```
