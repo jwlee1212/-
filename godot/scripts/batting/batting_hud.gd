@@ -2,7 +2,7 @@ class_name BattingHud
 extends Control
 ## 타석 HUD (반투명 유리 패널):
 ##   위: 미니 다이아몬드·이닝·점수·B/S/O·메뉴 / 왼쪽 위 아래: 타자 정보
-##   왼쪽 아래: 스윙 종류 캡슐 (밸런스·컨택·파워·번트) / 오른쪽 아래: 큰 스윙 버튼 (선택 시간 링)
+##   왼쪽 아래: 스윙 종류 캡슐 (밸런스·컨택·파워·번트, 2×2) / 오른쪽 아래: 큰 스윙 버튼 (선택 시간 링)
 ##   아래 가운데: 구종·구속 표시 / 위 가운데: 투구 전 "스윙을 고르세요" 안내
 ## 경기 상황은 game(GameRunner)이 있으면 그것을, 없으면(연습) practice_text 를 보여 준다.
 
@@ -151,17 +151,21 @@ func _refresh_toast() -> void:
 # ---------- 아래 ----------
 
 func _build_swing_types() -> void:
-	var capsule := UiKit.glass_panel(36)
+	# 2×2 로 쌓는다: 가로 한 줄이면 타자 캐릭터의 몸통을 가린다
+	var capsule := UiKit.glass_panel(28)
 	add_child(capsule)
 	capsule.mouse_filter = Control.MOUSE_FILTER_STOP
-	var row := UiKit.hbox(Tokens.SPACE_XS)
+	var row := GridContainer.new()
+	row.columns = 2
+	row.add_theme_constant_override("h_separation", Tokens.SPACE_XS)
+	row.add_theme_constant_override("v_separation", Tokens.SPACE_XS)
 	capsule.add_child(row)
 	for id: String in session.config.swing_types:
 		var st: BattingConfig.SwingType = session.config.swing_types[id]
 		var b := Button.new()
 		b.text = st.label
 		b.focus_mode = Control.FOCUS_NONE
-		b.custom_minimum_size = Vector2(58, 50)
+		b.custom_minimum_size = Vector2(58, 44)
 		b.add_theme_font_override("font", Tokens.FONT_BOLD)
 		b.add_theme_font_size_override("font_size", Tokens.FONT_CAPTION)
 		b.pressed.connect(func() -> void: session.set_swing_type(id))
