@@ -2,14 +2,14 @@ class_name BatterRig
 extends Node2D
 ## 타자 뒷모습 컷아웃 캐릭터 (오른손 타자). 파츠 그림(art/characters/batter/)을 Skeleton2D 뼈대에 붙여 움직인다.
 ##
-## 좌표: 원점은 골반 가운데, 단위는 원본 시트의 픽셀 (머리 꼭대기 ≈ −475, 발바닥 ≈ +238). 화면 크기는 scale 로 맞춘다.
+## 좌표: 원점은 골반 가운데, 단위는 원본 시트의 픽셀 (머리 꼭대기 ≈ −475, 발바닥 ≈ +268). 화면 크기는 scale 로 맞춘다.
 ## 뼈대: hip → spine → (head, 가까운 팔 위·아래·손, 먼 팔 위·아래·손) / hip → 다리 둘. 배트는 따로 손 위치에 놓는다.
 ## 그리는 순서는 뼈대 순서와 달라서(먼 팔 → 다리 → 골반 → 몸통 → 머리 → 배트 → 가까운 팔 → 장갑),
 ## 그림은 _skin 아래에 그리는 순서대로 두고 매번 뼈의 위치·각도를 옮겨 적는다 (z_index 는 HUD 와 섞여서 안 쓴다).
 ## 자세는 pose() 하나로 정한다: 손 위치와 배트 각도를 주면 두 팔은 팔꿈치가 알아서 접힌다(2관절 IK).
 
 const ART := "res://art/characters/batter/"
-const FEET_Y := 238.0
+const FEET_Y := 268.0
 const HEAD_TOP_Y := -475.0
 ## 배트 손잡이(아래 손)에서 끝까지의 길이
 const BAT_LENGTH := 300.0
@@ -23,8 +23,8 @@ const PARTS := {
 	"pelvis": ["pelvis", Vector2(96, 20), 1.0],
 	"torso": ["torso", Vector2(126, 180), 1.0],
 	"head": ["head", Vector2(170, 270), 1.25],
-	"leg_back": ["leg_back", Vector2(95, 30), 0.95],
-	"leg_front": ["leg_front", Vector2(40, 40), 0.95],
+	"leg_back": ["leg_back", Vector2(48, 30), 1.0],
+	"leg_front": ["leg_front", Vector2(48, 30), 1.0],
 	"upper_arm": ["upper_arm", Vector2(88, 70), 0.42],
 	"forearm": ["forearm", Vector2(131, 70), 0.42],
 	"glove_top": ["glove_top", Vector2(46, 60), 0.75],
@@ -40,16 +40,16 @@ const SPINE_AT := Vector2(0, 10)
 const HEAD_AT := Vector2(-5, -150)
 const SHOULDER_NEAR_AT := Vector2(88, -108)
 const SHOULDER_FAR_AT := Vector2(40, -90)
-const LEG_BACK_AT := Vector2(-55, 70)
-const LEG_FRONT_AT := Vector2(30, 70)
+const LEG_BACK_AT := Vector2(-52, 100)
+const LEG_FRONT_AT := Vector2(46, 100)
 const NUMBER_AT := Vector2(0, -28)
 
 # 손(아래 손) 자리: 준비 → 힘 모으기 → 맞는 순간 → 팔로스루, 번트
-const HANDS_STANCE := Vector2(128, -88)
-const HANDS_LOAD := Vector2(118, -98)
-const HANDS_CONTACT := Vector2(158, -30)
-const HANDS_FINISH := Vector2(140, -52)
-const HANDS_BUNT := Vector2(150, -20)
+const HANDS_STANCE := Vector2(188, -92)
+const HANDS_LOAD := Vector2(178, -104)
+const HANDS_CONTACT := Vector2(200, -30)
+const HANDS_FINISH := Vector2(185, -55)
+const HANDS_BUNT := Vector2(185, -25)
 
 ## 등번호
 var number := 7:
@@ -126,9 +126,9 @@ func pose(load: float, swing: float, bunt: bool, bat_angle_deg: float, bat_stret
 	_bones["spine"].rotation = lean
 	_bones["head"].rotation = -lean * 0.7
 	# 앞발: 힘을 모을 때 살짝 들었다가 디딘다
-	_bones["leg_front"].rotation = deg_to_rad(-9.0 * load * (1.0 - eased))
+	_bones["leg_front"].rotation = deg_to_rad(-15.0 - 9.0 * load * (1.0 - eased))
 	_bones["leg_front"].position = LEG_FRONT_AT + Vector2(0, -8.0 * load * (1.0 - eased))
-	_bones["leg_back"].rotation = deg_to_rad(6.0 * eased)
+	_bones["leg_back"].rotation = deg_to_rad(17.0 + 6.0 * eased)
 
 	var grip := hands_position(load, swing, bunt)
 	var dir := Vector2.UP.rotated(deg_to_rad(bat_angle_deg))

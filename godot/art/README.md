@@ -56,7 +56,7 @@
 | `pelvis.png` | 벨트 + 하의 윗부분 |
 | `upper_arm.png` `forearm.png` | 위팔(소매) · 아래팔 — 두 팔이 같은 그림을 쓴다 |
 | `glove_top.png` `glove_bottom.png` | 배트를 쥔 장갑 낀 주먹 |
-| `leg_back.png` `leg_front.png` | 굽힌 다리 (허벅지~스파이크 한 덩어리) |
+| `leg_back.png` `leg_front.png` | 무릎 아래 다리 (바지 끝 + 양말 + 스파이크). 허벅지는 골반 그림에 있다 |
 | `bat.png` | 나무 배트 |
 | `source/` | 자르기 전 원본: `parts_sheet.png` `arms_sheet.png` `stance_reference.png`(자세 참고). `scripts/cut_batter_parts.py` 로 다시 자른다 |
 

@@ -21,8 +21,8 @@ OUT = Path(__file__).resolve().parent.parent / "godot/art/characters/batter"
 SRC = OUT / "source"
 PAD = 4
 
-# parts_sheet.png 에서 나오는 조각 번호 → 파일 이름 (안 쓰는 조각은 뺀다: 붙은 팔 2개, 편 다리 2개)
-SHEET_PARTS = {0: "head", 1: "torso", 4: "pelvis", 5: "glove_top", 6: "glove_bottom", 7: "bat", 10: "leg_back", 11: "leg_front"}
+# parts_sheet.png 에서 나오는 조각 번호 → 파일 이름 (안 쓰는 조각은 뺀다: 붙은 팔 2개, 굽힌 다리 2개 — 골반 그림에 허벅지가 이미 있어 겹친다)
+SHEET_PARTS = {0: "head", 1: "torso", 4: "pelvis", 5: "glove_top", 6: "glove_bottom", 7: "bat", 8: "leg_back", 9: "leg_front"}
 # arms_sheet.png 의 두 번째 조각(소매 달린 팔)을 자르는 높이 = 남색 소매가 끝나는 줄
 ARM_PIECE = 0
 ARM_CUT_Y = 292

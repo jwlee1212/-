@@ -22,7 +22,7 @@ const ZONE_Y := 0.77
 const ZONE_HALF_W := 0.045
 const ZONE_HALF_H := 0.095
 ## 타자: 골반의 가로 자리, 발바닥 높이(화면 아래로 살짝 잘린다), 키 — 화면 높이 비율
-const BATTER_X := 0.325
+const BATTER_X := 0.305
 const BATTER_FEET_Y := 1.03
 const BATTER_HEIGHT := 0.74
 
