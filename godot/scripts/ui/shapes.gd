@@ -37,6 +37,31 @@ class SlantText:
 		draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
+## 알림 배지: 빨간 원 안에 흰 숫자 (0 이면 안 보인다)
+class Badge:
+	extends Control
+	var count := 0:
+		set(v):
+			count = v
+			visible = v > 0
+			queue_redraw()
+
+	func _init(p_count: int = 0) -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		custom_minimum_size = Vector2(Tokens.BADGE_SIZE, Tokens.BADGE_SIZE)
+		size = custom_minimum_size
+		count = p_count
+
+	func _draw() -> void:
+		var r := size.y / 2.0
+		draw_circle(size / 2.0, r, Tokens.BADGE, true, -1.0, true)
+		var t := str(count) if count < 100 else "99+"
+		var fs := Tokens.FONT_CAPTION - (0 if t.length() < 2 else 2)
+		var font := Tokens.FONT_BOLD
+		var tw := font.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		draw_string(font, Vector2((size.x - tw) / 2.0, (size.y - font.get_height(fs)) / 2.0 + font.get_ascent(fs)), t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Tokens.SURFACE)
+
+
 ## 학교 방패 (위는 평평, 아래는 뾰족) + 약칭
 class Shield:
 	extends Control

@@ -1,12 +1,16 @@
 class_name HomeScreen
 extends Control
 ## 커리어 허브 (이번 주). 레이아웃은 유저가 준 시안(2026-10-07)을 따르고 색은 밝은 톤 토큰 그대로.
-## 위: 로고 · 탭(홈 · 선수 · 훈련 · 인물 · 스카우트 · 기록) · 학년/주차
+## 위: 로고 · 탭(홈 · 폰 · 선수 · 훈련 · 상점 · 스카우트 · 기록) · 학년/주차
+## 인물과의 문자·관계·교류는 폰(PhoneView)에 있다. 폰 탭을 누르면 허브 위에 폰이 뜬다.
+## 안 읽은 문자가 있으면 폰 탭 오른쪽 아래에 빨간 원 + 흰 숫자, 새 문자가 오면 오른쪽 위에 알림 띠가 미끄러져 들어왔다 나간다
 ## 홈 탭: 다음 경기 | 종합 능력치 + 시즌 기록 | 스카우트 리포트 + 받은 소식, 아래: 컨디션 · 폼 · 평판 · 행동 / 다음 주
 ## 주 시작 이야기(EventBook timing start)가 있으면 화면 가운데 겹쳐 먼저 보여 준다.
 ## 경기를 마친 주(불러온 커리어)면 남은 경기 뒤 이야기를 보여 주고 [다음 주]로 넘어간다. 그릴 때마다 저장한다
 
-const TABS := ["홈", "선수", "훈련", "인물", "상점", "스카우트", "기록"]
+const TABS := ["홈", "폰", "선수", "훈련", "상점", "스카우트", "기록"]
+## 누르면 페이지가 바뀌는 대신 폰이 뜨는 탭
+const PHONE_TAB := "폰"
 ## 지금 있는 탭
 const READY_TABS := TABS
 
@@ -21,6 +25,10 @@ var _training_buttons: Array[Button] = []
 var _overlay: Control
 ## 상점에서 마지막으로 쓴 서비스 결과
 var _last_shop_note := ""
+## 폰 탭의 알림 배지, 떠 있는 폰 화면 (없으면 null), 새 문자 알림 띠
+var _phone_badge: Shapes.Badge
+var _phone: PhoneView
+var _toast: Control
 
 
 func _init(app) -> void:
@@ -46,6 +54,7 @@ func _ready() -> void:
 func _next_story() -> void:
 	var events: Array = _app.career.events("after" if _app.career.game_done else "start")
 	if events.is_empty():
+		_notify_messages()
 		return
 	var view := DialogueView.new(_app.career, events[0])
 	_overlay = view
@@ -60,6 +69,85 @@ func _next_story() -> void:
 ## 지금 떠 있는 대화 화면 (스크린샷 스크립트용, 없으면 null)
 func story_view() -> DialogueView:
 	return _overlay as DialogueView
+
+
+# ---------- 폰 ----------
+
+## 폰을 연다 (room 이 있으면 그 대화방부터). 닫으면 허브를 다시 그린다
+func open_phone(room: String = "") -> void:
+	if _phone != null or _overlay != null:
+		return
+	_hide_toast()
+	_phone = PhoneView.new(_app.career, room)
+	add_child(UiKit.fill_parent(_phone))
+	_phone.changed.connect(_app.save_career)
+	_phone.closed.connect(func() -> void:
+		_phone.queue_free()
+		_phone = null
+		_rebuild())
+
+
+## 지금 떠 있는 폰 화면 (스크린샷 스크립트용, 없으면 null)
+func phone_view() -> PhoneView:
+	return _phone
+
+
+## 새 문자가 왔다: 오른쪽 위에 알림 띠가 오른쪽에서 미끄러져 들어왔다가 다시 미끄러져 나간다 (누르면 그 대화방이 열린다).
+## 이야기가 다 끝난 뒤에 뜬다. 시간은 balance.json career.phone 의 toastSec · toastSlideSec
+func _notify_messages() -> void:
+	var phone: Phone = _app.career.phone
+	var fresh: Array = phone.take_fresh(_app.career)
+	if fresh.is_empty():
+		return
+	_app.save_career()
+	var first: Dictionary = fresh[0]
+	var card := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Tokens.PHONE_BODY
+	style.set_corner_radius_all(Tokens.RADIUS_BUBBLE)
+	style.set_content_margin_all(Tokens.SPACE_SM)
+	style.content_margin_left = Tokens.SPACE_SM + Tokens.SPACE_XS
+	style.shadow_color = Tokens.SHADOW
+	style.shadow_size = Tokens.SPACE_SM
+	style.anti_aliasing = true
+	card.add_theme_stylebox_override("panel", style)
+	var row := UiKit.hbox(Tokens.SPACE_SM)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var badge := Shapes.Badge.new(phone.total_unread())
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(badge)
+	var col := UiKit.vbox(0)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_child(UiKit.label("알림이 %d개 쌓여 있습니다." % phone.total_unread(), Tokens.FONT_CAPTION + 1, Tokens.HUD_TEXT, Tokens.FONT_BOLD))
+	var preview := UiKit.label("%s: %s" % [first["name"], first["text"]], Tokens.FONT_CAPTION, Tokens.HUD_TEXT_SOFT)
+	preview.clip_text = true
+	col.add_child(preview)
+	row.add_child(col)
+	card.add_child(row)
+	var hit := Button.new()
+	hit.flat = true
+	hit.focus_mode = Control.FOCUS_NONE
+	hit.pressed.connect(func() -> void: open_phone(first["room"]))
+	card.add_child(hit)
+	card.custom_minimum_size.x = Tokens.TOAST_WIDTH
+	_toast = card
+	add_child(card)
+	# 화면 오른쪽 밖에서 시작해 안으로 들어오고, 잠깐 머문 뒤 다시 밖으로
+	var shown := size.x - Tokens.TOAST_WIDTH - Tokens.SPACE_SM
+	var hidden := size.x + Tokens.SPACE_MD
+	var slide := float(_app.career.cfg.phone["toastSlideSec"])
+	card.position = Vector2(hidden, Tokens.SPACE_SM)
+	var tw := card.create_tween()
+	tw.tween_property(card, "position:x", shown, slide).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(float(_app.career.cfg.phone["toastSec"]))
+	tw.tween_property(card, "position:x", hidden, slide).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_callback(_hide_toast)
+
+
+func _hide_toast() -> void:
+	if is_instance_valid(_toast):
+		_toast.queue_free()
+	_toast = null
 
 
 # ---------- 위 막대 ----------
@@ -88,7 +176,15 @@ func _top_bar() -> Control:
 		b.disabled = not (t in READY_TABS)
 		b.add_theme_font_override("font", Tokens.FONT_BOLD)
 		b.add_theme_font_size_override("font_size", Tokens.FONT_BODY)
-		b.pressed.connect(func() -> void: _show_tab(t))
+		if t == PHONE_TAB:
+			b.pressed.connect(func() -> void: open_phone())
+			# 알림 배지: 글자 오른쪽 아래에 걸친다
+			_phone_badge = Shapes.Badge.new()
+			_phone_badge.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+			_phone_badge.position += Vector2(Tokens.BADGE_SIZE * 0.4, -Tokens.SPACE_SM - Tokens.SPACE_XS)
+			b.add_child(_phone_badge)
+		else:
+			b.pressed.connect(func() -> void: _show_tab(t))
 		tabs.add_child(b)
 		_tab_buttons[t] = b
 	bar.add_child(tabs)
@@ -118,6 +214,7 @@ func _style_tabs() -> void:
 		line.content_margin_bottom = Tokens.SPACE_XS
 		for state in ["normal", "hover", "pressed", "disabled", "focus"]:
 			b.add_theme_stylebox_override(state, line)
+	_phone_badge.count = _app.career.phone.total_unread()
 
 
 # ---------- 페이지 ----------
@@ -131,8 +228,6 @@ func _rebuild() -> void:
 			_page_host.add_child(_player_page())
 		"훈련":
 			_page_host.add_child(_training_page())
-		"인물":
-			_page_host.add_child(_people_page())
 		"상점":
 			_page_host.add_child(_shop_page())
 		"스카우트":
@@ -436,6 +531,9 @@ func _letter_box(t: String) -> Control:
 func _inbox_card() -> Control:
 	var career: CareerState = _app.career
 	var items: Array = ["훈련 · " + career.week_training if _trained() else "%s · 이번 주는 뭘 할래? (훈련 하나)" % career.people.person("coach").call]
+	var unread := career.phone.total_unread()
+	if unread > 0:
+		items.append("폰 · 안 읽은 문자가 있다 (%d)" % unread)
 	items.append_array(career.news)
 	var card := _card()
 	var col := UiKit.vbox(Tokens.SPACE_XS)
@@ -556,85 +654,6 @@ func _player_page() -> Control:
 	var st := p.season
 	col.add_child(UiKit.label("시즌 %d승 %d패 · 타율 %s · %d홈런 %d타점" % [career.wins(), career.losses(), st.average(), st.home_runs, st.rbi], Tokens.FONT_CAPTION, Tokens.INK))
 	return card
-
-
-# ---------- 인물 탭 ----------
-
-## 인물: 4열 카드 (역할 · 이름 · 관계 막대 · 한마디), 아래에 교류 버튼(선물 / 만나기, 한 주에 한 번). 못 만난 사람은 ???
-func _people_page() -> Control:
-	var career: CareerState = _app.career
-	var e := career.cfg.economy
-	var col := UiKit.vbox(Tokens.SPACE_XS)
-	var head := UiKit.hbox(Tokens.SPACE_SM)
-	var partner := career.people.person("partner")
-	head.add_child(UiKit.kicker("PEOPLE · 교류는 한 주에 한 번 (선물 %s · 만나기 %s)" % [PlayerData.money_text(int(e["giftCost"])), PlayerData.money_text(int(e["hangoutCost"]))]))
-	var gap := Control.new()
-	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(gap)
-	var status := career.week_social if career.week_social != "" else ("♥ %s과(와) 연애 중" % partner.name if partner != null else "")
-	head.add_child(UiKit.label(EventBook.josa(status), Tokens.FONT_CAPTION, Tokens.BAD if career.week_social == "" else Tokens.GOOD, Tokens.FONT_BOLD))
-	col.add_child(head)
-	var grid := GridContainer.new()
-	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", Tokens.SPACE_SM)
-	grid.add_theme_constant_override("v_separation", Tokens.SPACE_SM)
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for id: String in career.people.by_id:
-		grid.add_child(_person_card(career.people.by_id[id]))
-	# 인물이 많아 세 줄이 된다 — 위아래로 민다
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.add_child(grid)
-	col.add_child(scroll)
-	return col
-
-
-func _person_card(person: People.Person) -> Control:
-	var career: CareerState = _app.career
-	var dating := career.people.partner == person.id
-	var card := _card(dating)
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var col := UiKit.vbox(2)
-	card.add_child(col)
-	var top := UiKit.hbox(Tokens.SPACE_XS)
-	top.add_child(UiKit.label(person.role, Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD))
-	if person.met:
-		top.add_child(UiKit.label(("♥ 연애 중" if dating else "") if person.romance else "", Tokens.FONT_CAPTION, Tokens.BAD, Tokens.FONT_BOLD))
-	col.add_child(top)
-	if not person.met:
-		col.add_child(UiKit.title("???", Tokens.FONT_LABEL, Tokens.INK_SOFT))
-		col.add_child(UiKit.label("아직 만나지 않았다", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
-		return card
-	col.add_child(UiKit.title(person.name, Tokens.FONT_LABEL))
-	col.add_child(_mini_bar(person.rel_label, person.relation))
-	var note := People.relation_text(person.relation)
-	if person.id == "rival":
-		note = "유망주 %d위 · 타율 %s" % [career.rival_rank(), career.rival.player.season.average()]
-	elif person.team_name != "":
-		note = person.team_name
-	elif person.id == "senior" and career.player.grade > 1:
-		note = "졸업 · 대학 야구부"
-	col.add_child(UiKit.label(note, Tokens.FONT_CAPTION, Tokens.PRIMARY, Tokens.FONT_BOLD))
-	var buttons := UiKit.hbox(Tokens.SPACE_XS)
-	if CareerState.can_gift(person):
-		buttons.add_child(_social_button("선물", person.id, "gift"))
-	if person.romance:
-		buttons.add_child(_social_button("데이트" if dating else "만나기", person.id, "hangout"))
-	col.add_child(buttons)
-	return card
-
-
-func _social_button(text: String, person_id: String, kind: String) -> Button:
-	var b := UiKit.button(text, func() -> void:
-		_app.career.socialize(person_id, kind)
-		_rebuild(), Tokens.BAD if kind == "hangout" else Tokens.PRIMARY, Tokens.FONT_CAPTION)
-	var why: String = _app.career.social_block(person_id, kind)
-	b.disabled = why != ""
-	b.tooltip_text = why
-	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	return b
 
 
 # ---------- 상점 탭 ----------

@@ -33,14 +33,14 @@
 |---|---|
 | `field.png` | 학교 운동장 — **임시 그림이 들어 있다** |
 | `dugout.png` | 더그아웃 — **임시 그림이 들어 있다** |
-| `home.png` | 우리 집 |
+| `home.png` | 우리 집 — **임시 그림이 들어 있다** |
 | `stadium.png` | 야구장 |
-| `stands.png` | 관중석 |
+| `stands.png` | 관중석 — **임시 그림이 들어 있다** |
 | `bus.png` | 원정 버스 |
-| `street.png` | 집 앞 골목 |
+| `street.png` | 집 앞 골목 — **임시 그림이 들어 있다** |
 | `cafe.png` | 카페 |
 | `studio.png` | 방송부실 |
-| `classroom.png` | 교실 |
+| `classroom.png` | 교실 — **임시 그림이 들어 있다** |
 | `phone.png` | 휴대폰 |
 | `dorm.png` | 합숙소 |
 | `gym.png` | 웨이트장 |

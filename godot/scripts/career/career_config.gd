@@ -28,6 +28,8 @@ var shop: Dictionary
 var romance: Dictionary
 ## 겨울 캠프 (주 수, 연습경기 주차, 훈련 보너스)
 var camp: Dictionary
+## 폰 (한 주 문자 수, 답장 기한, 말풍선 연출 시간)
+var phone: Dictionary
 
 var innings: int
 var auto_step_ms: float
@@ -56,6 +58,9 @@ var pro_teams: Array
 var chapters: Dictionary
 ## 대화 화면 배경 자리 (id -> 이름)
 var places: Dictionary = {}
+## 폰 문자 (content.json messages), 단체방 (phone.rooms: id -> {name})
+var messages: Array = []
+var phone_rooms: Dictionary = {}
 
 
 static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
@@ -85,6 +90,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.shop = car["shop"]
 	c.romance = car["romance"]
 	c.camp = car["camp"]
+	c.phone = car["phone"]
 
 	var g: Dictionary = balance["game"]
 	c.innings = int(BattingConfig.num(g, "innings"))
@@ -114,4 +120,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	for id: String in content["places"]:
 		if not id.begins_with("_"):
 			c.places[id] = content["places"][id]
+	c.messages = content.get("messages", [])
+	for id: String in content.get("phone", {}).get("rooms", {}):
+		c.phone_rooms[id] = content["phone"]["rooms"][id]
 	return c

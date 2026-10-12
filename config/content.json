@@ -4251,6 +4251,617 @@
     }
   ],
   "tournaments": ["새봄기 지역 예선", "새봄기 본선", "한여름배 전국고교야구대회"],
+  "phone": {
+    "_note": "폰 문자. rooms: 단체방 (id → {name}) — 인물 방은 적지 않아도 인물 id 로 생긴다. messages 형식: id(이벤트 id 와도 겹치면 안 된다), speaker(보낸 인물 id), room?(단체방 id — 없으면 그 인물과의 방), lines[글자 또는 {from: 인물 id, text}](단체방에서만 다른 사람이 끼어들 수 있다) 또는 text 하나, replies?[{label(고르는 글자), text?(실제로 보내는 글자 — 없으면 label), effects?, then?[돌아오는 줄…]}](없거나 2~3개), ignore?{효과}(답장 기한을 넘기면 반영), replyWeeks?(이 문자만의 답장 기한, 기본은 balance.json career.phone.replyWeeks). 조건은 이벤트와 같은 키·같은 뜻: grade week requires forbids met forbidsMet minScout maxScout minRel maxRel minRep maxRep maxForm maxCondition injured partner minMoney winter campWeek recentGames+recentMinHits/recentMaxHits last…(지난 경기) seasonOver. 보낸 사람(단체방이면 말하는 사람 모두)을 만난 뒤에만 온다. 효과는 가벼운 것만: condition form reputation money rel meet flag clearFlag schedule{event,weeks}(문자로 약속을 잡고 대화 이벤트로 잇는다). 새 주가 시작될 때 위에서부터 순서대로, 한 주에 maxPerWeek 통까지 오고 문자 하나는 커리어에 한 번이다. 답장을 기다리는 방에는 다음 문자가 오지 않는다. 관계 변화는 문자 화면에 숫자로 보이지 않는다(연락처의 상태 문구로만). 지금 들어 있는 문자는 Claude 가 1학년 대본에 맞춰 쓴 임시 글이다",
+    "rooms": {
+      "team": {
+        "name": "{school} 야구부"
+      }
+    }
+  },
+  "messages": [
+    {
+      "id": "m_mom_lunch",
+      "speaker": "mom",
+      "grade": [
+        1,
+        1
+      ],
+      "week": [
+        2,
+        4
+      ],
+      "requires": [
+        "d1_tryout"
+      ],
+      "lines": [
+        "도시락 가방 앞주머니에 넣어 놨다.",
+        "훈련은 몇 시에 끝나니?"
+      ],
+      "replies": [
+        {
+          "label": "8시쯤요. 먼저 드세요",
+          "effects": {
+            "rel": {
+              "mom": 1
+            }
+          },
+          "then": [
+            "기다릴게. 천천히 와."
+          ]
+        },
+        {
+          "label": "늦어요. 신경 쓰지 마세요",
+          "effects": {
+            "condition": 2
+          },
+          "then": [
+            "…그래. 밥은 남겨 둘게."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_team_morning",
+      "speaker": "senior",
+      "room": "team",
+      "grade": [
+        1,
+        1
+      ],
+      "week": [
+        2,
+        5
+      ],
+      "requires": [
+        "y1_board_done"
+      ],
+      "lines": [
+        {
+          "from": "senior",
+          "text": "내일 아침 6시 집합. 1학년은 5시 40분까지 장비 꺼내 놔라."
+        },
+        {
+          "from": "buddy",
+          "text": "넵!!"
+        }
+      ],
+      "replies": [
+        {
+          "label": "넵, 알겠습니다",
+          "effects": {
+            "rel": {
+              "senior": 1
+            }
+          },
+          "then": [
+            {
+              "from": "senior",
+              "text": "대답은 빠르네."
+            }
+          ]
+        },
+        {
+          "label": "(엄지 이모티콘만 보낸다)",
+          "text": "(엄지 이모티콘)",
+          "effects": {
+            "rel": {
+              "buddy": 1
+            }
+          },
+          "then": [
+            {
+              "from": "buddy",
+              "text": "야 선배 있는 방에 이모티콘은 좀"
+            },
+            {
+              "from": "senior",
+              "text": "…내일 보자."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_buddy_pinch",
+      "speaker": "buddy",
+      "grade": [
+        1,
+        1
+      ],
+      "week": [
+        3,
+        6
+      ],
+      "requires": [
+        "y1_pinch_closed"
+      ],
+      "lines": [
+        "야",
+        "대타 한 번 나갔다고 우리 반에서 벌써 네 얘기 한다",
+        "나는? 대기 칸에 이름 같이 있었는데?"
+      ],
+      "replies": [
+        {
+          "label": "너도 곧 불릴 거야",
+          "effects": {
+            "rel": {
+              "buddy": 2
+            }
+          },
+          "then": [
+            "그 말 캡처했다. 안 불리면 네가 빵 사."
+          ]
+        },
+        {
+          "label": "포수는 안 부른다잖아",
+          "effects": {
+            "rel": {
+              "buddy": 1
+            },
+            "condition": 1
+          },
+          "then": [
+            "코치님 말을 그렇게 정확히 기억할 필요는 없잖아."
+          ]
+        }
+      ],
+      "ignore": {
+        "rel": {
+          "buddy": -1
+        }
+      }
+    },
+    {
+      "id": "m_manager_sheet",
+      "speaker": "manager",
+      "grade": [
+        1,
+        1
+      ],
+      "week": [
+        4,
+        7
+      ],
+      "requires": [
+        "y1_manager_met"
+      ],
+      "lines": [
+        "네 타석 기록만 정리해서 사진으로 보냈어.",
+        "세 번째 공 다시 봐. 다음에 같은 공이 오면 도움이 될 거야."
+      ],
+      "replies": [
+        {
+          "label": "고마워. 자기 전에 볼게",
+          "effects": {
+            "rel": {
+              "manager": 2
+            }
+          },
+          "then": [
+            "응. 근데 너무 늦게까지 보진 마."
+          ]
+        },
+        {
+          "label": "이걸 타석마다 다 적어?",
+          "effects": {
+            "rel": {
+              "manager": 1
+            }
+          },
+          "then": [
+            "응. 그게 내 일이니까.",
+            "…재밌기도 하고."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_coach_early",
+      "speaker": "coach",
+      "grade": [
+        1,
+        1
+      ],
+      "week": [
+        4,
+        7
+      ],
+      "requires": [
+        "y1_pinch_end_done"
+      ],
+      "lines": [
+        "내일 훈련 10분 당긴다. 1학년한테 전달해라."
+      ],
+      "replies": [
+        {
+          "label": "네, 전달하겠습니다",
+          "effects": {
+            "rel": {
+              "coach": 1
+            }
+          },
+          "then": [
+            "그래."
+          ]
+        },
+        {
+          "label": "네. 단체방에도 올리겠습니다",
+          "then": [
+            "그건 주장이 한다. 너는 1학년만 챙겨라."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_neighbor_dawn",
+      "speaker": "neighbor",
+      "grade": [
+        1,
+        1
+      ],
+      "week": [
+        5,
+        9
+      ],
+      "requires": [
+        "d1_evening"
+      ],
+      "lines": [
+        "오늘도 새벽에 스윙 소리 났어.",
+        "덕분에 알람이 필요 없더라."
+      ],
+      "replies": [
+        {
+          "label": "미안. 시끄러웠어?",
+          "effects": {
+            "rel": {
+              "neighbor": 2
+            }
+          },
+          "then": [
+            "아니. 그 소리 들으면서 스케치하면 손이 잘 풀려."
+          ]
+        },
+        {
+          "label": "그럼 내일도 깨워 줄게",
+          "effects": {
+            "rel": {
+              "neighbor": 1
+            },
+            "condition": 1
+          },
+          "then": [
+            "…그건 좀. 6시 이후로 부탁해."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_senior_injury",
+      "speaker": "senior",
+      "grade": [
+        1,
+        1
+      ],
+      "requires": [
+        "y1_inj_closed"
+      ],
+      "forbids": [
+        "senior_back"
+      ],
+      "lines": [
+        "병원이라 기록으로만 봤다.",
+        "수비 위치는 어땠냐. 바람은 봤고?"
+      ],
+      "replies": [
+        {
+          "label": "한 발 앞에 섰습니다. 발목은 좀 어떠세요?",
+          "effects": {
+            "rel": {
+              "senior": 2
+            }
+          },
+          "then": [
+            "네 걱정이나 해.",
+            "…붓기는 빠졌다."
+          ]
+        },
+        {
+          "label": "콜은 크게, 먼저 했습니다",
+          "effects": {
+            "rel": {
+              "senior": 1
+            },
+            "condition": 1
+          },
+          "then": [
+            "그래. 그거면 됐다."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_mom_photo",
+      "speaker": "mom",
+      "grade": [
+        1,
+        1
+      ],
+      "requires": [
+        "y1_starter_done"
+      ],
+      "lines": [
+        "오늘 사진 찍었는데 다 흔들렸다.",
+        "7번 맞지? 전광판에 이름 나오더라."
+      ],
+      "replies": [
+        {
+          "label": "맞아요. 응원 소리 들렸어요",
+          "effects": {
+            "rel": {
+              "mom": 2
+            }
+          },
+          "then": [
+            "안 질렀다. 옆 사람이 지른 거야."
+          ]
+        },
+        {
+          "label": "다음엔 안 흔들리게 서 있을게요",
+          "effects": {
+            "rel": {
+              "mom": 1
+            },
+            "condition": 2
+          },
+          "then": [
+            "서 있지 말고 쳐."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_buddy_rf",
+      "speaker": "buddy",
+      "grade": [
+        1,
+        1
+      ],
+      "requires": [
+        "rf_starter"
+      ],
+      "lines": [
+        "야 우익수",
+        "외야에서 내 사인 보이냐? 안 보이면 손 더 크게 흔든다"
+      ],
+      "replies": [
+        {
+          "label": "보여. 너무 잘 보여서 상대도 볼 듯",
+          "effects": {
+            "rel": {
+              "buddy": 2
+            }
+          },
+          "then": [
+            "…그건 문제네. 내일 사인 바꾼다."
+          ]
+        },
+        {
+          "label": "네 사인은 투수한테나 내",
+          "effects": {
+            "rel": {
+              "buddy": 1
+            }
+          },
+          "then": [
+            "외야도 내 구역이거든? 포수는 다 본다."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_team_summer",
+      "speaker": "senior",
+      "room": "team",
+      "grade": [
+        1,
+        1
+      ],
+      "requires": [
+        "first_national_loss"
+      ],
+      "lines": [
+        {
+          "from": "senior",
+          "text": "고개 숙이고 다니지 마라. 여름 남았다."
+        },
+        {
+          "from": "buddy",
+          "text": "넵!!"
+        }
+      ],
+      "replies": [
+        {
+          "label": "넵. 여름엔 뜁니다",
+          "effects": {
+            "rel": {
+              "senior": 1
+            }
+          },
+          "then": [
+            {
+              "from": "senior",
+              "text": "뛰려면 몸부터. 스트레칭 빼먹지 마라."
+            }
+          ]
+        },
+        {
+          "label": "선배 안타, 벤치에서 봤습니다",
+          "effects": {
+            "rel": {
+              "senior": 2
+            }
+          },
+          "then": [
+            {
+              "from": "senior",
+              "text": "…점수랑 상관없는 안타였다. 잊어라."
+            },
+            {
+              "from": "buddy",
+              "text": "저는 안 잊습니다 선배"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_manager_cap",
+      "speaker": "manager",
+      "grade": [
+        1,
+        1
+      ],
+      "winter": true,
+      "requires": [
+        "swing_cap_300"
+      ],
+      "lines": [
+        "오늘 287개.",
+        "상한 지켰네."
+      ],
+      "replies": [
+        {
+          "label": "13개 남았는데 더 쳐도 돼?",
+          "effects": {
+            "rel": {
+              "manager": 1
+            }
+          },
+          "then": [
+            "안 돼. 내일로 이월도 안 돼."
+          ]
+        },
+        {
+          "label": "세어 줘서 고마워",
+          "effects": {
+            "rel": {
+              "manager": 2
+            },
+            "condition": 1
+          },
+          "then": [
+            "기록하는 사람이니까.",
+            "…내일도 셀게."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_buddy_homer",
+      "speaker": "buddy",
+      "lastMinHomeRuns": 1,
+      "lines": [
+        "야 오늘 홈런",
+        "누가 찍어서 벌써 학교 단체방에 돌아다닌다"
+      ],
+      "replies": [
+        {
+          "label": "몇 번 돌려 봤냐",
+          "effects": {
+            "rel": {
+              "buddy": 1
+            }
+          },
+          "then": [
+            "세 번.",
+            "…다섯 번."
+          ]
+        },
+        {
+          "label": "다음 건 네가 찍어 줘",
+          "effects": {
+            "rel": {
+              "buddy": 2
+            }
+          },
+          "then": [
+            "포수 마스크 쓰고 어떻게 찍냐. 그래도 해 본다."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_mom_tired",
+      "speaker": "mom",
+      "maxCondition": 40,
+      "lines": [
+        "요즘 얼굴이 안 좋더라.",
+        "주말엔 좀 쉬어. 야구는 안 도망간다."
+      ],
+      "replies": [
+        {
+          "label": "이번 주는 쉴게요",
+          "effects": {
+            "condition": 3,
+            "rel": {
+              "mom": 1
+            }
+          },
+          "then": [
+            "그래. 고기 사 놓을게."
+          ]
+        },
+        {
+          "label": "괜찮아요. 할 만해요",
+          "then": [
+            "괜찮은 건 엄마가 정한다고 했지."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_bcoach_slump",
+      "speaker": "batting_coach",
+      "grade": [
+        2,
+        3
+      ],
+      "recentGames": 3,
+      "recentMaxHits": 1,
+      "lines": [
+        "영상 보냈다. 최근 3경기 헛스윙만 모았어.",
+        "보기 싫어도 봐라."
+      ],
+      "replies": [
+        {
+          "label": "보고 내일 말씀드리겠습니다",
+          "effects": {
+            "rel": {
+              "batting_coach": 2
+            },
+            "form": 0.3
+          },
+          "then": [
+            "그래. 세 번째 영상부터 봐."
+          ]
+        },
+        {
+          "label": "…보기 싫은데요",
+          "effects": {
+            "rel": {
+              "batting_coach": 1
+            },
+            "condition": 1
+          },
+          "then": [
+            "그러니까 보라는 거야."
+          ]
+        }
+      ]
+    }
+  ],
   "pendingFlags": ["rival_noticed"],
   "pendingEvents": ["y6_camp"],
   "eventsNote": "이벤트 형식: id, speaker(이벤트의 대표 화자 — people id · partner(지금 사귀는 사람) 또는 그냥 이름), title(기록용 짧은 제목), place(배경 places id, 없으면 화자의 기본 장소), portrait(인물이 아닌 화자의 일러스트 id, none 이면 없음), 그리고 대본: ① script [줄…] — 줄은 {speaker, text}(speaker 없으면 지문, player 면 내 대사, 대사 맨 앞 괄호는 지문으로 따로) 또는 선택 지점 {choices: [{label, cost?, effects?, then: [줄…], outcomes?: [{weight, effects?, then}]}]}. 고르면 then 의 줄이 이어지고(그 안에 또 선택 지점을 둘 수 있다) 끝나면 선택 지점 다음 줄로 돌아온다. 선택 지점은 하나 이상. 효과는 대화가 끝날 때 한꺼번에 반영된다. ② 옛 형식 text + choices[{label, result, cost?, effects} 또는 {label, cost?, outcomes[{weight, result, effects}]}] — 대사 하나, 선택 한 번, 결과 한 줄 (짧은 돌발 이벤트용). cost(원)가 있으면 돈이 모자랄 때 고를 수 없다. 조건(모두 생략 가능): story(조건이 맞으면 반드시, 무작위보다 먼저. 스토리가 끝나면 같은 시점(주 시작·경기 뒤·시즌 결산)의 이야기를 다시 찾아 이어서 띄운다 — requires 로 순서를 잇는다) free(true 면 한 주 이벤트 개수에 넣지 않는다 — 입학 첫날처럼 연달아 이어지는 이야기) timing(start 주 시작 | after 경기 뒤(기본) | seasonEnd 시즌 결산 | game 경기 중 — moment 가 꼭 있어야 한다: first_pa 내 첫 타석 직전 | pinch_pa 대타로 나가는 타석 직전(그 경기엔 first_pa 대신) | clutch_pa 승부처 타석 직전 | after_homer 내 홈런 직후 | after_strikeout 내 삼진 직후) grade[a,b] week[a,b] repeat cooldownWeeks weight requires/forbids(플래그) met/forbidsMet(인물) minScout maxScout minRel/maxRel{인물 또는 partner:값} minRep maxRep maxForm maxCondition injured opponent(\"rival\") scheduledOnly partner(none|any|인물) minMoney winter(true 겨울 캠프에서만 | any 시즌·캠프 둘 다, 없으면 시즌에서만) campWeek[a,b] lastResult(win|loss|draw) lastMinHits lastMaxHits lastMinHomeRuns lastPhaseEnd(champion|eliminated|leagueEnd) lastNational lastOpponent seasonOver recentGames(N)+recentMinHits/recentMaxHits(내가 나온 최근 N경기의 안타 합 — 공식 경기만, 나온 경기가 N보다 적으면 있는 만큼, 한 경기도 안 나왔으면 조건이 안 맞는다. recentGames 는 둘 중 하나와 꼭 같이 쓴다). 효과: condition scoutInterest lineupSlot contact power eye speed form reputation money injury(주) rel{인물 또는 partner:값} meet flag clearFlag schedule{event,weeks} path(draft|college) partner(인물 id | none) campFocus(캠프 집중 과제 능력치) gear(상점 장비 id 를 받는다) gameBoost{능력치:값}(이번 경기에만 붙는 보정) pinchHit(true 면 다음 경기는 벤치에서 시작해 승부처에 대타로 나간다 — 대타는 이 효과가 붙은 경기에만 있다). 글자 치환: {player} {school} {coach} {coachName} {mom} {buddy} {buddyName} {rival} {rivalName} {rivalSchool} {scout} {scoutName} {scoutTeam} {batting_coach} {senior} {junior} (+Name) {managerName} {neighborName} {reporterName} {partner} {partnerName} {rivalLast} {pick} {rank}. 조사 이(가)·을(를)·은(는)·과(와)는 앞 글자 받침으로 고른다. 추가 키 — flag·clearFlag: 문자열 하나 또는 배열, 같은 effects 에 같이 써도 된다(적힌 순서대로 적용). lineupSlot 0: 벤치(선발 제외). 경기에 나가지 않고 기록도 쌓이지 않는다. 1~9 로 되돌리기 전까지 유지되지만 새 시즌에는 감독 신뢰로 타순을 다시 정한다. moment pinch_pa: lineupSlot 0(벤치)인 경기에 조건이 맞는 한 번뿐인(repeat 아님) pinch_pa 이벤트가 있으면 그 경기 pinchHit.forceInning(8)회 이후 우리 공격 때 한 번 대타로 불려 직접 친다(타석 직전에 그 이벤트가 뜬다). repeat 인 pinch_pa(g_pinch)는 pinchHit 효과로 나간 대타에만 쓰인다. 경기 중 스토리는 한 번뿐인 이벤트가 repeat 이벤트보다 먼저 뜬다. matchOverride{opponent?(학교 id — 전국대회·연습경기에서만 바뀐다, 주말리그는 일정대로), score[우리,상대], result?(win|loss|draw, score 와 맞아야 한다), innings?(정규 이닝보다 짧으면 콜드게임), playerAbsent?(true 만), home?(true 홈 | false 원정 — 없으면 주차대로), line?[[우리 이닝별 점수…],[상대 이닝별 점수…]](없으면 난수로 나눈다. 합은 score, 길이는 innings — 이긴 홈 팀의 마지막 회 말은 빼도 된다), rivalLine?{ab,hits,doubles,homeRuns,rbi,walks,strikeouts}(상대가 라이벌 학교일 때 라이벌의 그날 기록)}: 다음 경기 한 번의 결과를 고정한다. 내 선수는 나오지 않고 타석 중계·박스스코어 없이 이닝별 점수만 흐른다. injuryLabel(문구): 부상 이름. injury 와 같이 쓰면 홈·결과 화면의 부상 표시에 이 문구가 나오고 나으면 지워진다. campFocus body: 능력치 대신 몸 관리 — 캠프 동안 컨디션 하락 완화(balance.json career.camp.body), 플래그 body_rebuild·recovery_program 이 있으면 더 완화. stage{inning, half(top|bottom), outs, bases[루…], score[우리,상대], slot?(대타로 들어갈 타순), runnerSlots?[주자 타순…], reached?[walk|single|double|triple…], practice?(true 면 그 경기는 연습경기 — 순위·시즌 기록에 안 들어가고 리그 일정은 한 주 밀린다), pitcher?(balanced|power|finesse — 그 타석에서 상대하는 투구 성향)}(한 번뿐인 경기 중 스토리에만): 대사에 적힌 경기 상황을 실제 경기로 만든다. 이 이벤트의 조건이 맞는 경기는 장면 직전까지 타석 없이 이닝별 점수만 흐르고(점수 합은 score 에 맞춘다), 그 회·아웃·주자·점수에서 내 타석으로 진짜 경기가 시작된다. half 가 bottom 이면 홈, top 이면 원정 경기가 된다. 아웃은 내 바로 앞 타자들(마지막은 삼진), 주자는 runnerSlots 의 타자가 reached 방법으로 나간 것으로 기록된다. 장면 뒤로는 평소처럼 진행된다. pinch_pa 장면은 벤치에서 대타로 나가는 경기에, first_pa·clutch_pa 장면은 선발 경기에 걸린다(선발 경기면 장면 전 내 타석은 없다). pendingFlags(파일 최상위): 아직 세우는 이벤트가 없는 플래그 목록 — 여기 적힌 플래그는 requires 에 써도 검증을 통과한다(그 이벤트는 플래그를 세우는 이벤트가 들어올 때까지 안 나온다). pendingEvents(파일 최상위): 아직 없는 이벤트 id 목록 — schedule 의 대상으로 써도 검증을 통과하고, 그 예약은 이벤트가 들어올 때까지 아무 일도 하지 않는다."

@@ -435,6 +435,14 @@
       "eventChance": 0.75,
       "body": {"label": "몸 관리", "conditionMultiplier": 0.5, "reliefFlags": ["body_rebuild", "recovery_program"], "flagMultiplier": 0.7}
     },
+    "phone": {
+      "_note": "폰 문자 (content.json messages). 새 주가 시작될 때 조건이 맞는 문자가 한 주에 maxPerWeek 통까지 온다 (올리면 폰이 시끄러워지고 조용한 주가 줄어든다). 답장이 있는 문자는 replyWeeks 주 안에 답해야 한다 — 1 이면 받은 그 주에만, 늘리면 놓치는 일이 줄어든다 (문자마다 replyWeeks 로 따로 정할 수 있다). bubbleMs: 답장한 뒤 상대 말풍선이 하나씩 뜨는 간격(밀리초, 줄이면 빠릿하고 늘리면 진짜 답을 기다리는 느낌). toastSec: 허브 오른쪽 위 알림 띠가 머무는 시간(초), toastSlideSec: 알림 띠가 오른쪽에서 미끄러져 들어오고 나가는 데 걸리는 시간(초, 줄이면 툭 튀어나오고 늘리면 느긋하다)",
+      "maxPerWeek": 2,
+      "replyWeeks": 2,
+      "bubbleMs": 450,
+      "toastSec": 3.5,
+      "toastSlideSec": 0.35
+    },
     "romance": {
       "_note": "연애: 연애 후보(content.json people 의 romance)와 호감(관계 수치)을 쌓아 고백 이벤트로 사귄다(한 명만). 사귀는 동안 경기마다 호감 −weeklyDecay (만나기·이벤트로 채운다), 컨디션 +datingCondition. 호감이 낮으면 위기 이벤트",
       "weeklyDecay": 2,

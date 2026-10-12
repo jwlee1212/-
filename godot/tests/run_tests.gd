@@ -115,6 +115,8 @@ func _init() -> void:
 		"test_final_count_recorded",
 		"test_season_stats_details",
 		"test_records_game_log_and_splits",
+		"test_phone_messages",
+		"test_phone_content",
 		"test_save_roundtrip",
 		"test_save_then_continue_is_same",
 		"test_save_file_and_errors",
@@ -2712,3 +2714,113 @@ func test_save_file_and_errors() -> void:
 	SaveGame.delete(path)
 	check(not SaveGame.exists(path), "지우기")
 
+
+
+# ---------- 폰 ----------
+
+## 테스트용 문자만 든 설정
+func _phone_cfg() -> CareerConfig:
+	var cfg := _real_cfg()
+	cfg.messages = [
+		{"id": "t_mom", "speaker": "mom", "lines": ["밥은?", "{player}, 답 좀 해라."],
+			"replies": [{"label": "먹었어요", "effects": {"rel": {"mom": 2}, "condition": -3}, "then": ["그래."]}, {"label": "아직요", "text": "아직요…"}],
+			"ignore": {"rel": {"mom": -5}}},
+		{"id": "t_manager", "speaker": "manager", "text": "안녕"},
+		{"id": "t_team", "speaker": "senior", "room": "team", "lines": [{"from": "senior", "text": "집합"}, {"from": "buddy", "text": "넵"}]},
+		{"id": "t_coach", "speaker": "coach", "text": "내일 보자"},
+		{"id": "t_mom2", "speaker": "mom", "text": "일찍 와라"},
+		{"id": "t_flag", "speaker": "buddy", "text": "들었다", "requires": ["t_told"]},
+	]
+	cfg.pending_flags = cfg.pending_flags + ["t_told"]
+	return cfg
+
+
+func test_phone_messages() -> void:
+	var cfg := _phone_cfg()
+	check(Phone.validate(cfg).is_empty(), "테스트 문자 정의: %s" % [Phone.validate(cfg)])
+	var career := CareerState.new(cfg, "테스트", _config)
+	var phone := career.phone
+	check(phone.total_unread() == 0 and phone.order.is_empty(), "처음엔 문자가 없다")
+	career.advance_week()
+	# 한 주에 maxPerWeek 통, content 순서대로. 못 만난 사람(매니저)의 문자는 안 온다
+	check(int(cfg.phone.maxPerWeek) == 2 and phone.status.keys() == ["t_mom", "t_team"], "첫 주 문자: %s" % [phone.status.keys()])
+	check(phone.total_unread() == 4 and phone.order == (["team", "mom"] as Array[String]), "안 읽은 줄·방 순서 (최근이 앞)")
+	check(phone.lines("mom")[1].text == "테스트, 답 좀 해라." and phone.lines("team")[1].from == "buddy", "글자 치환 · 단체방의 보낸 사람")
+	check(Phone.room_name(career, "team") == "새싹고 야구부" and Phone.room_name(career, "mom") == "엄마", "방 이름")
+	var fresh := phone.take_fresh(career)
+	check(fresh.size() == 2 and fresh[0].text == "밥은?" and fresh[1].name == "새싹고 야구부 · " + career.people.person("senior").name and phone.take_fresh(career).is_empty(), "새 문자 알림은 한 번")
+	phone.mark_read("mom")
+	check(phone.total_unread() == 2, "읽음")
+	# 답장: 효과는 이벤트와 같은 처리기, 관계 변화는 안내 줄에 안 나온다, 주간 행동은 안 쓴다
+	check(phone.reply_options(career, "mom") == (["먹었어요", "아직요"] as Array[String]) and phone.weeks_left(career, "mom") == int(cfg.phone.replyWeeks), "답장 선택지")
+	check(phone.reply_options(career, "team").is_empty(), "답장 없는 문자")
+	var rel := career.people.relation("mom")
+	var cond := career.player.condition
+	var added := phone.reply(career, "mom", 0)
+	var tail: Array = phone.lines("mom").slice(-3)
+	check(added == 3 and tail[0].from == Phone.ME and tail[0].text == "먹었어요" and tail[1].from == "mom" and tail[2].from == Phone.SYSTEM, "내 답장 → 돌아온 답 → 안내")
+	check(career.people.relation("mom") == rel + 2 and career.player.condition == cond - 3, "답장 효과")
+	check(tail[2].text.contains("컨디션") and not tail[2].text.contains("관계"), "안내 줄에 관계 숫자는 없다: %s" % tail[2].text)
+	check(phone.status.t_mom.state == Phone.REPLIED and phone.reply_options(career, "mom").is_empty() and career.week_training == "" and career.week_social == "", "답장은 한 번, 행동을 안 쓴다")
+	# 다음 주: 밀려 있던 문자, 플래그가 선 문자
+	career.player.flags["t_told"] = true
+	career.advance_week()
+	check(phone.status.has("t_coach") and phone.status.has("t_mom2") and not phone.status.has("t_flag"), "밀린 문자가 먼저 (한 주 2통)")
+	career.advance_week()
+	check(phone.status.has("t_flag") and not phone.status.has("t_manager"), "조건(플래그)이 맞으면 온다")
+	# 저장 → 불러오기
+	var loaded := _reload(career)
+	check(SaveGame.to_bytes(loaded) == SaveGame.to_bytes(career) and loaded.phone.lines("mom").size() == phone.lines("mom").size() and loaded.phone.order.is_typed(), "대화방 기록이 저장된다")
+
+	# 답장을 안 하면: 그 방에는 다음 문자가 안 오고, 기한이 지나면 닫히며 ignore 효과가 붙는다
+	var b := CareerState.new(_phone_cfg(), "테스트", _config)
+	b.advance_week()
+	var rel_b := b.people.relation("mom")
+	b.advance_week()
+	check(b.phone.status.t_mom.state == Phone.OPEN and not b.phone.status.has("t_mom2") and b.phone.weeks_left(b, "mom") == 1, "답장을 기다리는 방엔 다음 문자가 안 온다")
+	b.advance_week()
+	check(b.phone.status.t_mom.state == Phone.EXPIRED and b.people.relation("mom") == rel_b - 5 and b.phone.reply_options(b, "mom").is_empty(), "기한이 지나면 닫힌다 + ignore")
+	check(b.phone.status.has("t_mom2") and b.phone.lines("mom")[2].from == Phone.SYSTEM, "닫힌 뒤엔 다음 문자가 온다")
+	# 같은 진행 = 같은 문자
+	var c := CareerState.new(_phone_cfg(), "테스트", _config)
+	for w in 3:
+		c.advance_week()
+	check(SaveGame.to_bytes(c) == SaveGame.to_bytes(b), "재현성")
+	# 연락처의 관계 문구 변화
+	check(b.phone.relation_was(b, "buddy") == "", "처음엔 변화 없음")
+	b.phone.see_relation(b, "buddy")
+	b.people.add_relation("buddy", 30)
+	check(b.phone.relation_was(b, "buddy") == "그럭저럭" and b.phone.relation_changes(b) == 1, "문구가 바뀌면 예전 문구를 알려 준다")
+	b.phone.see_relation(b, "buddy")
+	check(b.phone.relation_changes(b) == 0, "보고 나면 사라진다")
+	# 망가진 정의
+	var broken := _phone_cfg()
+	broken.messages = [{"id": "d1_prologue", "speaker": "mom", "text": "{nobody}", "requires": ["never"], "bogus": 1,
+		"replies": [{"label": "하나뿐", "effects": {"lineupSlot": 3, "rel": {"ghost": 1}}}]},
+		{"id": "x2", "speaker": "mom", "lines": [{"from": "buddy", "text": "끼어들기"}]}]
+	check(Phone.validate(broken).size() >= 8, "겹치는 id·모르는 키·플래그·치환·답장 수·큰 효과·인물·끼어들기를 잡는다: %s" % [Phone.validate(broken)])
+
+
+func test_phone_content() -> void:
+	# 게임 문자: 검증 통과, 1학년을 자동으로 돌리면 문자가 오고(답장은 안 한다) 이야기 진행은 그대로
+	var cfg := _real_cfg()
+	check(Phone.validate(cfg).is_empty(), "content.json 문자 정의 문제: %s" % [Phone.validate(cfg)])
+	var career := CareerState.new(cfg, "테스트", _config)
+	var per_week := {}
+	check(FastForward.run(career, 2, "season_start"), "2학년 시작까지")
+	for id: String in career.phone.status:
+		var tw := int(career.phone.status[id].tw)
+		per_week[tw] = int(per_week.get(tw, 0)) + 1
+		check(per_week[tw] <= int(cfg.phone.maxPerWeek), "한 주 문자 수")
+	check(career.phone.status.size() >= 8, "1학년 동안 온 문자 %d통: %s" % [career.phone.status.size(), career.phone.status.keys()])
+	check(career.phone.rooms.has("team") and career.phone.rooms.has("manager"), "단체방·매니저 방")
+	# 모든 문자의 모든 답장이 오류 없이 적용되고 글자 치환이 남지 않는다
+	for m: Dictionary in cfg.messages:
+		for i in (m.get("replies", []) as Array).size():
+			var c := CareerState.new(cfg, "테스트", _config)
+			for id: String in c.people.by_id:
+				c.people.meet(id)
+			c.phone._receive(c, m)
+			c.phone.reply(c, Phone.room_of(m), i)
+			for line: Dictionary in c.phone.lines(Phone.room_of(m)):
+				check(line.text != "" and not line.text.contains("{"), "%s 답장 %d: %s" % [m.id, i, line.text])

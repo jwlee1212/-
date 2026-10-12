@@ -58,6 +58,13 @@ const NARRATION := Color("6b7690")
 const DIALOGUE_BG_SCRIM := Color(0.05, 0.08, 0.16, 0.22)
 const PORTRAIT_IDLE := Color(0.5, 0.52, 0.6, 1)
 const DIALOGUE_HEADER_BG := Color(1, 1, 1, 0.86)
+## 폰: 몸체(테두리), 화면 바탕, 받은·보낸 말풍선과 그 글자, 안 읽음 배지
+const PHONE_BODY := Color("26324a")
+const PHONE_SCREEN := Color("fff8ec")
+const BUBBLE_THEM := Color("ffffff")
+const BUBBLE_ME := Color("2f6bff")
+const BUBBLE_ME_TEXT := Color("ffffff")
+const BADGE := Color("ff4d5e")
 const SHADOW := Color(0, 0, 0, 0.25)
 const SCRIM := Color(0, 0, 0, 0.6)
 const CONFETTI: Array[Color] = [PRIMARY, ACCENT, GOOD, WARN, BAD]
@@ -69,6 +76,16 @@ const SPACE_LG := 24
 
 const RADIUS_CARD := 20
 const RADIUS_HUD := 16
+## 폰: 몸체 모서리·테두리 두께·너비, 옆에 서는 인물 자리 너비, 말풍선 모서리·최대 너비
+const RADIUS_PHONE := 26
+const PHONE_BEZEL := 6
+const PHONE_WIDTH := 312
+const PHONE_SIDE_WIDTH := 230
+const RADIUS_BUBBLE := 12
+## 알림 배지 지름, 허브 알림 띠 너비
+const BADGE_SIZE := 16
+const TOAST_WIDTH := 280
+const BUBBLE_MAX_WIDTH := 196
 
 const FONT_CAPTION := 12
 const FONT_BODY := 15

@@ -47,6 +47,8 @@ var people: People
 var rival: Rival
 var scouting: Scouting
 var book: EventBook
+## 폰 (문자 · 연락처에서 본 관계 문구)
+var phone := Phone.new()
 ## 지난 경기 요약 (경기 뒤 이벤트 조건): {"result": "win"|"loss"|"draw", "hits", "home_runs",
 ##   "phase_end": ""|"champion"|"eliminated"|"leagueEnd"|"advanced", "national", "opponent_id", "season_over"}
 var last := {}
@@ -254,6 +256,7 @@ func start_camp() -> void:
 	_week_training_id = ""
 	week_social = ""
 	week_services.clear()
+	phone.deliver(self)
 
 
 ## 연습경기 상대: 권역·전국 학교 중 하나 (그 주 안에서는 같은 학교)
@@ -893,6 +896,7 @@ func advance_week() -> void:
 	_week_training_id = ""
 	week_social = ""
 	week_services.clear()
+	phone.deliver(self)
 
 
 # ---------- 시즌 끝 ----------
@@ -957,6 +961,7 @@ func start_next_season() -> void:
 	for id: String in schools:
 		schools[id].new_season(cfg, rng)
 	_start_phase()
+	phone.deliver(self)
 
 
 func _rng(salt: String) -> RandomNumberGenerator:

@@ -1,7 +1,7 @@
 extends Node
 ## 대화가 이어지는 스토리 확인용 스크린샷 → godot/build/shots/story-*.png
 ##   ~/Applications/Godot.app/Contents/MacOS/Godot --path godot res://tests/shots_story.tscn
-## 입부 이야기를 탭·선택으로 끝까지 따라가며 줄마다 찍는다 (말하는 사람이 바뀌는지, 선택 뒤 대사가 이어지는지), 그리고 인물 탭
+## 입부 이야기를 탭·선택으로 끝까지 따라가며 줄마다 찍는다 (말하는 사람이 바뀌는지, 선택 뒤 대사가 이어지는지), 그리고 폰 연락처
 
 var _app: Control
 var _n := 0
@@ -51,9 +51,12 @@ func _ready() -> void:
 				dv.queue_free()
 				await _frames(3)
 	await _frames(10)
-	_app._current._show_tab("인물")
+	_app._current.open_phone()
+	_app._current.phone_view().show_tab(PhoneView.TAB_CONTACTS)
 	await _frames(10)
 	await _shot("story-people")
+	_app._current.phone_view().closed.emit()
+	await _frames(5)
 	# 경기 중 대화: 첫 경기 첫 타석 직전에 데뷔 이야기가 뜬다
 	_app._current._train("contact")
 	await _frames(5)

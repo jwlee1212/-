@@ -554,29 +554,54 @@ static func chapter(career: CareerState) -> String:
 
 # ---------- 무결성 검사 (테스트용) ----------
 
-## 이벤트 정의 검사. 돌려주는 값: 문제 설명 목록 (비었으면 통과)
-static func validate(cfg: CareerConfig) -> Array[String]:
-	var errors: Array[String] = []
-	var ids := {}
-	var flags_set := {}
-	var schedule_targets := {}
+## 어딘가에서 세워지는 플래그들 (이벤트 선택지 · 문자 답장 · pendingFlags) — requires 검사용
+static func known_flags(cfg: CareerConfig) -> Dictionary:
+	var flags := {}
 	for f: String in cfg.pending_flags:
-		flags_set[f] = true
+		flags[f] = true
 	for e: Dictionary in cfg.events:
 		var found := {"choices": [], "lines": []}
 		_collect(script_of(e), found)
 		for c: Dictionary in found["choices"]:
 			for fx: Dictionary in _choice_effects(c):
 				for f in _list(fx.get("flag", [])):
-					flags_set[f] = true
+					flags[f] = true
+	for m: Dictionary in cfg.messages:
+		for fx: Dictionary in [m.get("ignore", {})] + (m.get("replies", []) as Array).map(func(r: Dictionary) -> Dictionary: return r.get("effects", {})):
+			for f in _list(fx.get("flag", [])):
+				flags[f] = true
+	return flags
+
+
+## 대사에 쓸 수 있는 글자 치환 이름들
+static func token_names(cfg: CareerConfig) -> Array:
+	var out := ["player", "school", "rivalSchool", "scoutTeam", "rivalLast", "pick", "rank", "partner", "partnerName"]
+	for id: String in cfg.people:
+		out.append(id)
+		out.append(id + "Name")
+	return out
+
+
+## 이벤트 정의 검사. 돌려주는 값: 문제 설명 목록 (비었으면 통과)
+static func validate(cfg: CareerConfig) -> Array[String]:
+	var errors: Array[String] = []
+	var ids := {}
+	var flags_set := known_flags(cfg)
+	var schedule_targets := {}
+	for e: Dictionary in cfg.events:
+		var found := {"choices": [], "lines": []}
+		_collect(script_of(e), found)
+		for c: Dictionary in found["choices"]:
+			for fx: Dictionary in _choice_effects(c):
 				if fx.has("schedule"):
 					schedule_targets[fx["schedule"].get("event", "")] = true
-	var known_tokens := ["player", "school", "rivalSchool", "scoutTeam", "rivalLast", "pick", "rank", "partner", "partnerName"]
+	for m: Dictionary in cfg.messages:
+		for r: Dictionary in m.get("replies", []):
+			if (r.get("effects", {}) as Dictionary).has("schedule"):
+				schedule_targets[r["effects"]["schedule"].get("event", "")] = true
+	var known_tokens := token_names(cfg)
 	var people_ids: Array = cfg.people.keys()
 	people_ids.append("partner")
-	for id: String in cfg.people:
-		known_tokens.append(id)
-		known_tokens.append(id + "Name")
 	for e: Dictionary in cfg.events:
 		var id: String = e.get("id", "")
 		var where := "이벤트 %s" % id

@@ -62,10 +62,11 @@ func _ready() -> void:
 	career.player.money = 320000
 	career.people.meet("manager")
 	career.people.by_id["manager"].relation = 62
-	for tab in ["인물", "상점", "스카우트"]:
+	for tab in ["상점", "스카우트"]:
 		_app._current._show_tab(tab)
 		await _frames(10)
-		await _shot("menu-hub-" + {"인물": "people", "상점": "shop", "스카우트": "scout"}[tab])
+		await _shot("menu-hub-" + {"상점": "shop", "스카우트": "scout"}[tab])
+	await _phone_shots(career)
 	# 기록 탭: 작은 탭마다
 	_app._current._show_tab("기록")
 	await _frames(10)
@@ -92,9 +93,12 @@ func _ready() -> void:
 	_app.continue_career()
 	await _frames(10)
 	career.socialize("manager", "hangout")
-	_app._current._show_tab("인물")
+	_app._current.open_phone()
+	_app._current.phone_view().open_person("manager")
 	await _frames(10)
-	await _shot("menu-hub-people-after")
+	await _shot("menu-phone-person-after")
+	_app._current.phone_view().closed.emit()
+	await _frames(5)
 	# 연애 이벤트 대화 (돈 드는 선택지 포함)
 	career.people.partner = "manager"
 	career.player.money = 20000
@@ -102,13 +106,15 @@ func _ready() -> void:
 	for e: Dictionary in career.cfg.events:
 		if e.id == "date_anniversary":
 			anniv = e
-	var dv := DialogueView.new(career, anniv)
-	_app._current.add_child(UiKit.fill_parent(dv))
-	await _wait(1.5)
-	dv.advance()
-	await _wait(0.2)
-	await _shot("menu-dialogue-date")
-	dv.queue_free()
+	# (date_anniversary 는 테스트 전용 이벤트로 옮겨져 지금 게임 콘텐츠에는 없다)
+	if not anniv.is_empty():
+		var dv := DialogueView.new(career, anniv)
+		_app._current.add_child(UiKit.fill_parent(dv))
+		await _wait(1.5)
+		dv.advance()
+		await _wait(0.2)
+		await _shot("menu-dialogue-date")
+		dv.queue_free()
 
 	# 경기를 마친 주에 껐다 켜면: 허브가 남은 경기 뒤 이야기와 [다음 주]를 보여 준다
 	_app.show_home()
@@ -151,6 +157,57 @@ func _ready() -> void:
 		await _frames(10)
 	await _shot("menu-season-graduate")
 	get_tree().quit()
+
+
+## 폰: 대화방 목록 → 대화방(답장 전·후) → 단체방 → 연락처 → 인물 카드
+func _phone_shots(career: CareerState) -> void:
+	_app._current._show_tab("홈")
+	await _frames(10)
+	await _shot("menu-hub-phone-badge")
+	# 새 문자 알림 띠 (오른쪽에서 미끄러져 들어온 뒤)
+	career.phone.fresh.append(career.phone.status.keys()[0])
+	_app._current._notify_messages()
+	await _wait(0.8)
+	await _shot("menu-hub-phone-toast")
+	# 손맛 버튼을 끌어 옮긴 모습
+	var gear: Button = _app._panel._gear if _app._panel != null else null
+	if gear != null:
+		for e: InputEvent in [_mouse(Vector2(5, 5), true), _motion(Vector2(120, -150)), _mouse(Vector2(120, -150), false)]:
+			gear.gui_input.emit(e)
+		await _frames(5)
+		await _shot("menu-hub-gear-moved")
+		gear.position = Vector2(4, 390 - gear.size.y - 4)
+	_app._current.open_phone()
+	await _frames(10)
+	await _shot("menu-phone-rooms")
+	var pv: PhoneView = _app._current.phone_view()
+	# 자동 진행은 답장을 안 해서 다 놓쳤다 — 아직 안 온 문자 하나를 받아 답장 장면을 찍는다
+	for m: Dictionary in career.cfg.messages:
+		if not career.phone.status.has(m.id) and m.has("replies") and not m.has("room") and career.phone.open_message(m.speaker) == "":
+			career.people.meet(m.speaker)
+			career.phone._receive(career, m)
+			break
+	for room: String in career.phone.order:
+		if not career.phone.reply_options(career, room).is_empty() and not Phone.is_group(career, room):
+			pv.open_room(room)
+			await _frames(10)
+			await _shot("menu-phone-room")
+			pv.reply(0)
+			await _wait(2.0)
+			await _shot("menu-phone-room-replied")
+			break
+	if career.phone.rooms.has("team"):
+		pv.open_room("team")
+		await _frames(10)
+		await _shot("menu-phone-team")
+	pv.show_tab(PhoneView.TAB_CONTACTS)
+	await _frames(10)
+	await _shot("menu-phone-contacts")
+	pv.open_person("manager")
+	await _frames(10)
+	await _shot("menu-phone-person")
+	pv.closed.emit()
+	await _frames(5)
 
 
 func _resolve_start(career: CareerState) -> void:
@@ -197,6 +254,20 @@ func _ok(career: CareerState, e: Dictionary) -> int:
 		if EventBook.choice_block(career, e.choices[i]) == "":
 			return i
 	return 0
+
+
+func _mouse(at: Vector2, pressed: bool) -> InputEventMouseButton:
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = pressed
+	e.position = at
+	return e
+
+
+func _motion(at: Vector2) -> InputEventMouseMotion:
+	var e := InputEventMouseMotion.new()
+	e.position = at
+	return e
 
 
 func _wait(sec: float) -> void:
