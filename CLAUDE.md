@@ -97,7 +97,7 @@ godot/                     Godot 프로젝트
 ├─ art/characters/         SD 캐릭터 포즈 그림 (`batter/stance.png` …). `batter/source/` 는 초록 배경 원본(Godot 는 안 읽는다)
 ├─ art/portraits/, backgrounds/  대화 화면 일러스트·배경 (파일 목록은 art/README.md, 없으면 자리만 보인다)
 ├─ fonts/                  Pretendard (OFL)
-├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_batter 타자 포즈), calibrate.gd(가상 타자 튜닝 도구), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
+├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_batter 타자 포즈 · shots_effects 타격 이펙트), calibrate.gd(가상 타자 튜닝 도구), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
 └─ data/                   빌드 때 복사되는 balance.json (저장소에 넣지 않음)
 scripts/godot-web.sh       웹 빌드(개발용) + 개발 서버 실행
 scripts/dev_server.py      개발 서버: 웹 빌드 + 원본 balance.json 실시간 제공·저장

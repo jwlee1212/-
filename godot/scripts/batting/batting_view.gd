@@ -414,7 +414,7 @@ func _draw_ball_in_flight() -> void:
 		var t := clampf(session.since(session.swing_since_ms) / FOUL_FLIGHT_MS, 0.0, 1.0)
 		var side := -1.0 if session.swing_outcome.contact.angle_deg < 0 else 1.0
 		_draw_launched_ball(self, hit_pos, hit_pos + Vector2(side * size.x * 0.6, -size.y * 0.7), t, _ball_radius(b.z))
-		_draw_burst(self, hit_pos, session.since(session.swing_since_ms) / pres.burst_ms, SwingJudge.Quality.FOUL)
+		_draw_burst(self, hit_pos, session.since(session.swing_since_ms), SwingJudge.Quality.FOUL)
 	elif progress <= 1.15:
 		var b := _ball(p, progress)
 		var pos := Vector2(b.x, b.y)
@@ -442,7 +442,6 @@ func _draw_hit_launch(canvas: CanvasItem) -> void:
 	var hit_pos := Vector2(b.x, b.y)
 	var c := session.last_result.contact
 	var e := session.since(session.phase_since_ms)
-	_draw_burst(canvas, hit_pos, e / pres.burst_ms, c.quality)
 	var t := clampf((e - pres.hit_stop_ms) / pres.launch_ms, 0.0, 1.0)
 	var ang := deg_to_rad(c.angle_deg)
 	var target: Vector2
@@ -452,6 +451,8 @@ func _draw_hit_launch(canvas: CanvasItem) -> void:
 		target = Vector2(size.x * 0.5 + sin(ang) * size.x * 0.8, -size.y * 0.1)
 	if t < 1.0:
 		_draw_launched_ball(canvas, hit_pos, target, t, _ball_radius(b.z))
+	# 이펙트는 공 위에: 히트스톱 동안 별이 공을 덮었다가 공이 그 속에서 튀어 나간다
+	_draw_burst(canvas, hit_pos, e, c.quality, session.impact != null and session.impact.home_run)
 
 
 func _pitch_color(type: String) -> Color:
@@ -473,27 +474,76 @@ func _draw_launched_ball(canvas: CanvasItem, from: Vector2, to: Vector2, t: floa
 	canvas.draw_circle(at.call(t), radius.call(t), Tokens.INK, false, 1.0, true)
 
 
-## 맞은 자리에서 퍼지는 별 모양 파편. 정타일수록 크고 노랗다
-func _draw_burst(canvas: CanvasItem, center: Vector2, t: float, quality: SwingJudge.Quality) -> void:
-	if t >= 1.0 or quality == SwingJudge.Quality.MISS:
+## 타격 이펙트: 맞은 자리에서 터지는 만화식 별. 맞은 질에 따라 급이 다르다 —
+##   파울: 작은 흰 별 하나 / 빗맞음: 회색빛 작은 별 + 먼지 / 정타: 주황·노랑·흰 세 겹 별 + 충격파 고리 + 불티 /
+##   홈런: 더 크고 오래 가는 세 겹 별 + 화면으로 뻗는 빛살 + 고리 두 개 + 불티 두 배.
+## elapsed_ms 는 맞은 뒤 지난 시간. 모양은 조각 번호로 정해져서 매번 같다
+func _draw_burst(canvas: CanvasItem, center: Vector2, elapsed_ms: float, quality: SwingJudge.Quality, home_run: bool = false) -> void:
+	var pres := session.presentation
+	var t := elapsed_ms / (pres.burst_home_run_ms if home_run else pres.burst_ms)
+	if t >= 1.0 or t < 0.0 or quality == SwingJudge.Quality.MISS:
 		return
-	var spokes := 6
-	var reach := size.y * 0.05
-	var color := Tokens.CHALK
-	if quality == SwingJudge.Quality.SOLID:
-		spokes = 12
-		reach = size.y * 0.12
-		color = Tokens.WARN
-	elif quality == SwingJudge.Quality.WEAK:
-		spokes = 8
-		reach = size.y * 0.07
-	var e := 1.0 - (1.0 - t) * (1.0 - t)
-	var alpha := 1.0 - t
-	for i in spokes:
-		var ang := TAU * i / spokes + 0.3
-		var dir := Vector2(cos(ang), sin(ang))
-		canvas.draw_line(center + dir * reach * 0.25 * e, center + dir * reach * e, Color(color, alpha), maxf(3.0 * alpha, 1.0), true)
-	canvas.draw_circle(center, reach * 0.6 * e, Color(color, alpha * 0.8), false, 2.0, true)
+	var h := size.y
+	# 처음에 "팡" 하고 커졌다가(살짝 넘쳤다 돌아옴) 끝에서 사라진다
+	var pop := minf(t / 0.18, 1.0)
+	var grow := pop * (1.0 + 0.22 * sin(pop * PI))
+	var alpha := clampf((1.0 - t) / 0.4, 0.0, 1.0)
+	var out := 1.0 - (1.0 - t) * (1.0 - t)
+
+	if quality == SwingJudge.Quality.FOUL:
+		_draw_star(canvas, center, h * 0.045 * grow, 0.42, 4, 0.4, Color(Tokens.CHALK, alpha), alpha)
+		return
+	if quality == SwingJudge.Quality.WEAK:
+		# 먼지 세 덩이가 옆으로 흩어진다
+		for i in 3:
+			var dir := Vector2.from_angle(-0.5 + i * 1.3)
+			canvas.draw_circle(center + dir * h * 0.07 * out, h * 0.016 * (1.0 - t * 0.5), Color(Tokens.DIRT.lightened(0.35), alpha * 0.8), true, -1.0, true)
+		_draw_star(canvas, center, h * 0.062 * grow, 0.5, 6, 0.3, Color(Tokens.CHALK.darkened(0.12), alpha), alpha)
+		return
+
+	# 정타 · 홈런
+	var reach := h * (0.2 if home_run else 0.125)
+	var points := 14 if home_run else 10
+	var spin := t * (0.5 if home_run else 0.2)
+	if home_run:
+		# 빛살: 화면 멀리까지 뻗는 얇은 부채꼴
+		for i in 12:
+			var ang := TAU * i / 12.0 + spin * 0.6
+			var half := 0.07 if i % 2 == 0 else 0.04
+			var far := h * (0.75 if i % 2 == 0 else 0.5) * (0.4 + 0.6 * out)
+			canvas.draw_colored_polygon(PackedVector2Array([center, center + Vector2.from_angle(ang - half) * far, center + Vector2.from_angle(ang + half) * far]),
+				Color(Tokens.WARN, alpha * 0.45))
+	# 충격파 고리
+	canvas.draw_circle(center, reach * (0.5 + 1.1 * out), Color(Tokens.CHALK, alpha * 0.9), false, maxf(h * 0.012 * (1.0 - t), 1.0), true)
+	if home_run:
+		canvas.draw_circle(center, reach * (0.3 + 1.9 * out), Color(Tokens.WARN, alpha * 0.7), false, maxf(h * 0.016 * (1.0 - t), 1.0), true)
+	# 불티: 작은 마름모가 사방으로 튄다
+	var sparks := 16 if home_run else 8
+	for i in sparks:
+		var ang := TAU * i / sparks + 0.2 + fposmod(sin(i * 12.9898) * 43758.5453, 1.0) * 0.5
+		var far := reach * (1.1 + 0.9 * fposmod(sin(i * 78.233) * 43758.5453, 1.0)) * out
+		var at := center + Vector2.from_angle(ang) * far + Vector2(0, h * 0.06 * t * t)
+		_draw_star(canvas, at, h * 0.016 * (1.0 - t * 0.6), 0.45, 4, ang, Color(Tokens.WARN if i % 2 == 0 else Tokens.CHALK, alpha), 0.0)
+	# 세 겹 별
+	_draw_star(canvas, center, reach * grow, 0.55, points, spin, Color(Tokens.ACCENT, alpha), alpha)
+	_draw_star(canvas, center, reach * 0.74 * grow, 0.55, points, spin + PI / points, Color(Tokens.WARN, alpha), 0.0)
+	_draw_star(canvas, center, reach * 0.44 * grow, 0.6, points, spin, Color(Tokens.CHALK, alpha), 0.0)
+
+
+## 뾰족한 별 하나. inner 는 안쪽 꼭짓점의 비율(작을수록 뾰족), outline_alpha 가 0보다 크면 남색 테두리를 두른다
+func _draw_star(canvas: CanvasItem, center: Vector2, radius: float, inner: float, points: int, rotation_rad: float, color: Color, outline_alpha: float) -> void:
+	if radius < 0.5:
+		return
+	var pts := PackedVector2Array()
+	for i in points * 2:
+		var r := radius if i % 2 == 0 else radius * inner
+		pts.append(center + Vector2.from_angle(rotation_rad + PI * i / points) * r)
+	# 오목한 별은 한 번에 못 칠한다 — 가운데에서 꼭짓점으로 부채꼴처럼 나눠 칠한다
+	for i in pts.size():
+		canvas.draw_colored_polygon(PackedVector2Array([center, pts[i], pts[(i + 1) % pts.size()]]), color)
+	if outline_alpha > 0.0:
+		pts.append(pts[0])
+		canvas.draw_polyline(pts, Color(Tokens.INK, outline_alpha), maxf(radius * 0.06, 1.5), true)
 
 
 ## 홈런 꽃가루. 위치는 조각 번호로 정해지는 가짜 난수라 매번 같다

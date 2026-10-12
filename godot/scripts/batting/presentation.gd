@@ -12,6 +12,7 @@ var swing_ms: float
 var hit_stop_ms: float
 var flash_ms: float
 var burst_ms: float
+var burst_home_run_ms: float
 var shake_ms: float
 var shake_solid_px: float
 var shake_weak_px: float
@@ -41,6 +42,7 @@ static func from_balance(balance: Dictionary) -> Presentation:
 	p.hit_stop_ms = BattingConfig.num(s, "hitStopMs")
 	p.flash_ms = BattingConfig.num(s, "flashMs")
 	p.burst_ms = BattingConfig.num(s, "burstMs")
+	p.burst_home_run_ms = BattingConfig.num(s, "burstHomeRunMs")
 	p.shake_ms = BattingConfig.num(s, "shakeMs")
 	p.shake_solid_px = BattingConfig.num(s, "shakeSolidPx")
 	p.shake_weak_px = BattingConfig.num(s, "shakeWeakPx")
