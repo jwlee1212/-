@@ -34,6 +34,8 @@ const BATTER_LEAN_DOWN_DEG := 20.0
 var session: BattingSession
 ## 타자 등번호 (경기에서는 타순, 연습에서는 7)
 var jersey_number := 7
+## 스트라이크존 꺾쇠·노려치기 칸을 그릴까 (로비 데모 장면에서는 끈다)
+var show_zone := true
 
 # 좌표 (매 프레임 다시 계산)
 var _release := Vector2.ZERO
@@ -383,6 +385,8 @@ func _draw_batter_ground() -> void:
 
 ## 스트라이크존: 네 모서리 꺾쇠 + (노려치기) 3×3 칸
 func _draw_zone() -> void:
+	if not show_zone:
+		return
 	var zone := Rect2(_zone_center - _zone_half, _zone_half * 2.0)
 	var arm := minf(_zone_half.x, _zone_half.y) * 0.45
 	var c := Tokens.BAD

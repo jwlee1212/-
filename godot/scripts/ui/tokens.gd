@@ -72,6 +72,8 @@ const BUBBLE_ME_TEXT := Color("ffffff")
 const BADGE := Color("ff4d5e")
 const SHADOW := Color(0, 0, 0, 0.25)
 const SCRIM := Color(0, 0, 0, 0.6)
+## 로비: 데모 타석 위에 메뉴를 얹는 오른쪽 판
+const LOBBY_PANEL := Color(BACKGROUND, 0.93)
 const CONFETTI: Array[Color] = [PRIMARY, ACCENT, GOOD, WARN, BAD]
 
 const SPACE_XS := 4

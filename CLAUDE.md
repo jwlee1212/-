@@ -43,7 +43,7 @@ Claude Code가 이 저장소에서 작업할 때 가장 먼저 읽는 파일이�
 G=~/Applications/Godot.app/Contents/MacOS/Godot
 $G --headless --path godot --script res://tests/run_tests.gd   # 테스트 (ONLY=save 처럼 주면 이름에 그 글자가 든 것만)
 $G --path godot                                                # 맥에서 실행
-$G --path godot res://tests/shots.tscn                         # 확인용 스크린샷 → godot/build/shots/
+$G --always-on-top --path godot res://tests/shots.tscn         # 확인용 스크린샷 → godot/build/shots/ (창이 뒤에 깔리면 맥이 그리기를 멈춰서 항상 위에 띄운다)
 ./scripts/godot-web.sh                                         # 웹 개발 빌드 + 개발 서버 (폰에서 ⚙ 손맛 패널)
 $G --headless --path godot --script res://tests/calibrate.gd   # 가상 타자로 타율·삼진율 보기
 ```
@@ -98,7 +98,7 @@ godot/                     Godot 프로젝트
 ├─ art/characters/         SD 캐릭터 포즈 그림 (`batter/stance.png`, `pitcher/set.png` …). 각 폴더의 `source/` 는 초록 배경 원본(Godot 는 안 읽는다)
 ├─ art/portraits/, backgrounds/  대화 화면 일러스트·배경 (파일 목록은 art/README.md, 없으면 자리만 보인다)
 ├─ fonts/                  Pretendard (OFL)
-├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_steal 도루·주루 버튼 · shots_run_game 실제 경기 화면에서 내 주루 · shots_run_practice 주루 연습 · shots_batter 타자 포즈 · shots_effects 타격 이펙트 · shots_hud 타석 중계 그래픽), calibrate.gd(가상 타자 튜닝 도구), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
+├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_lobby 로비 데모 장면 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_steal 도루·주루 버튼 · shots_run_game 실제 경기 화면에서 내 주루 · shots_run_practice 주루 연습 · shots_batter 타자 포즈 · shots_effects 타격 이펙트 · shots_hud 타석 중계 그래픽), calibrate.gd(가상 타자 튜닝 도구), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
 └─ data/                   빌드 때 복사되는 balance.json (저장소에 넣지 않음)
 scripts/godot-web.sh       웹 빌드(개발용) + 개발 서버 실행
 scripts/dev_server.py      개발 서버: 웹 빌드 + 원본 balance.json 실시간 제공·저장
