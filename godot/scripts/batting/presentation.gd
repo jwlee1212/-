@@ -29,6 +29,9 @@ var broadcast_speed: float
 var after_play_hold_ms: float
 ## 투구 전, 투수가 세트 자세로 기다리며 스윙 종류를 고르는 시간
 var select_ms: float
+## 타석이 시작될 때 왼쪽 아래 타자 자막이 떠 있는 시간 (첫 공을 던지면 그 전이라도 들어간다), 미끄러져 나오고 들어가는 시간
+var batter_card_ms: float
+var batter_card_slide_ms: float
 
 
 static func from_balance(balance: Dictionary) -> Presentation:
@@ -54,4 +57,6 @@ static func from_balance(balance: Dictionary) -> Presentation:
 	p.broadcast_speed = BattingConfig.num(s, "broadcastSpeed")
 	p.after_play_hold_ms = BattingConfig.num(s, "afterPlayHoldMs")
 	p.select_ms = BattingConfig.num(s, "selectMs")
+	p.batter_card_ms = BattingConfig.num(s, "batterCardMs")
+	p.batter_card_slide_ms = BattingConfig.num(s, "batterCardSlideMs")
 	return p

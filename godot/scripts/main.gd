@@ -11,6 +11,8 @@ var presentation: Presentation
 var career_config: CareerConfig
 var sound: SoundPlayer
 var career: CareerState
+## 유저 설정 (주루 설정)
+var settings := Settings.new()
 ## 저장을 못 읽은 이유 (로비에 보여 준다, "" 이면 문제없음)
 var save_error := ""
 ## 저장 파일 (스크린샷 스크립트는 다른 파일을 써서 유저 저장을 건드리지 않는다)
@@ -44,6 +46,7 @@ func _ready() -> void:
 	add_child(sound)
 	await _load_configs()
 	_load_save()
+	settings = Settings.load_from()
 	if OS.is_debug_build():
 		_add_tuning_panel()
 		_add_fps()
@@ -167,6 +170,15 @@ func show_records() -> void:
 
 func show_practice() -> void:
 	show_screen(PracticeScreen.new(self))
+
+
+func show_settings() -> void:
+	show_screen(SettingsScreen.new(self))
+
+
+## 주루 연습 (개발 빌드): 도루·한 베이스 더·태그업만 되풀이
+func show_run_practice() -> void:
+	show_screen(RunPracticeScreen.new(self))
 
 
 ## 새 타격 세션 (설정은 앱이 들고 있는 것을 같이 쓴다 → 손맛 패널 조절이 바로 반영)

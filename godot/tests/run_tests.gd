@@ -110,6 +110,13 @@ func _init() -> void:
 		"test_no_pointless_throws",
 		"test_force_outs_and_cover",
 		"test_relay_play",
+		"test_run_control_overrides_my_runner",
+		"test_run_control_tag_up",
+		"test_steal_judge",
+		"test_steal_in_game_state",
+		"test_interactive_game_matches_and_stays_consistent",
+		"test_my_at_bat_run_control",
+		"test_settings_running_mode",
 		"test_one_training_per_week",
 		"test_launch_angle_never_backwards",
 		"test_final_count_recorded",
@@ -2495,6 +2502,315 @@ func test_final_count_recorded() -> void:
 		and CareerRecords.count_key(1, 1) == "even" and CareerRecords.count_key(3, 2) == "two_strikes" and CareerRecords.count_key(-1, 0) == "")
 	check(CareerRecords.direction_key(-30.0, 15.0) == "pull" and CareerRecords.direction_key(5.0, 15.0) == "center"
 		and CareerRecords.direction_key(20.0, 15.0) == "oppo", "음수 = 3루 쪽 = 당겨친 타구")
+
+
+# ---------- 내 주루 조작 · 도루 ----------
+
+## 2루 주자(타순 1)를 조작 주자로 한 플레이
+func _controlled_play(ball: BattedBallSim.Result, bases: Array, choices: Array, seed_value: int = 7, controlled: int = 1) -> PlaySimulator.PlayResult:
+	return PlaySimulator.new(_config.ball_physics, ball, 4, bases, func(_i: int) -> int: return 50, 0, _rng(seed_value), controlled, choices).run()
+
+
+func test_run_control_overrides_my_runner() -> void:
+	var asked := 0
+	var went_home := 0
+	var held := 0
+	for ev in range(120, 160, 6):
+		for spray in range(-40, 41, 8):
+			var ball := _sim(ev, 10, spray)
+			if ball.caught or ball.home_run or ball.fielder in _config.ball_physics.infield:
+				continue
+			var plain := _run_play(ev, 10, spray, [-1, 1, -1], 0)
+			var ai := _controlled_play(ball, [-1, 1, -1], [])
+			check(ai.bases == plain.bases and ai.scorers == plain.scorers and ai.outs == plain.outs and ai.batter_outcome == plain.batter_outcome,
+				"조작 주자를 정해도 고르지 않으면 AI 와 같은 결과 (ev %d, 방향 %d)" % [ev, spray])
+			if ai.decisions.is_empty():
+				continue
+			asked += 1
+			var d: Dictionary = ai.decisions[0]
+			check(d.id == 1 and d.kind == "extra" and d.go == d.ai, "판단 기록: 내 주자, AI 판단대로")
+			var go := _controlled_play(ball, [-1, 1, -1], [true])
+			var stop := _controlled_play(ball, [-1, 1, -1], [false])
+			check(go.decisions[0].go and not stop.decisions[0].go, "고른 대로 기록된다")
+			# 판단 전까지는 어떤 선택이든 똑같이 흘러간다
+			var n := int(float(d.t) / PlaySimulator.DT) - 1
+			var same := true
+			for i in go.runners.size():
+				same = same and go.runners[i].track.slice(0, n) == stop.runners[i].track.slice(0, n)
+			check(same, "판단 시각 전의 주자 궤적은 선택과 무관하다")
+			if int(d.to) == 4:
+				# 3루에서 멈출까 홈까지 갈까: 멈추면 3루에 남고, 뛰면 득점하거나 홈에서 죽는다
+				check(stop.bases[2] == 1 and not (1 in stop.scorers), "멈추면 3루에 남는다 (ev %d, 방향 %d)" % [ev, spray])
+				var me: RunnerAI = go.runners.filter(func(r: RunnerAI) -> bool: return r.id == 1)[0]
+				check((1 in go.scorers) or me.state == RunnerAI.State.OUT, "뛰면 득점하거나 홈에서 아웃")
+				went_home += 1 if 1 in go.scorers else 0
+				held += 1
+			# RunControl (보조): 베이스를 누르면 판단 시각에 거기까지 가도록 확정된다. 안 누르면 코치 사인대로
+			var resim := func(choices: Array) -> PlaySimulator.PlayResult: return _controlled_play(ball, [-1, 1, -1], choices)
+			var rc := RunControl.new(resim.call([]), resim)
+			check(rc.has_decisions() and rc.min_base() == int(d.from) and rc.coach_base() == (int(d.to) if d.ai else int(d.from)), "누를 수 있는 베이스와 코치 사인")
+			rc.set_target(int(d.from) - 1)
+			check(rc.target == -1, "이미 지난 베이스는 누를 수 없다")
+			rc.set_target(int(d.from) if d.ai else int(d.to))
+			check(not rc.advance(float(d.t) - 0.1), "판단 시각 전에는 그대로")
+			check(rc.advance(float(d.t)) and rc.play.decisions[0].go == (not d.ai), "코치와 다른 베이스를 누르면 플레이가 다시 계산된다")
+			var rc2 := RunControl.new(resim.call([]), resim)
+			check(not rc2.advance(float(d.t)) and rc2.play.decisions[0].go == d.ai, "안 누르면 코치 사인대로 (다시 계산 없음)")
+			rc2.finish()
+			check(rc2.pending().is_empty() and rc2.min_base() == -1, "끝내면 남은 판단이 없다")
+			# 홈을 누르면 판단이 몇 번이든 끝까지 뛴다, 가장 가까운 베이스를 누르면 바로 멈춘다
+			var rc3 := RunControl.new(resim.call([]), resim)
+			rc3.set_target(4)
+			rc3.finish()
+			check(rc3.play.decisions.all(func(x: Dictionary) -> bool: return x.go), "홈을 누르면 모든 판단에서 뛴다")
+			var rc4 := RunControl.new(resim.call([]), resim)
+			rc4.set_target(int(d.from))
+			rc4.finish()
+			check(rc4.play.decisions.size() == 1 and not rc4.play.decisions[0].go, "가장 가까운 베이스를 누르면 거기서 멈춘다")
+			# 수동: 안 누르면 멈춘다 (처음 보여 줄 플레이부터), 코치 사인이 없다
+			var rm := RunControl.new(resim.call([]), resim, true)
+			check(not rm.play.decisions[0].go and rm.coach_base() == -1, "수동은 처음부터 멈추는 그림, 코치 사인 없음")
+			rm.finish()
+			check(rm.play.decisions.size() == 1 and not rm.play.decisions[0].go and rm.play.bases[int(d.from) - 1] == 1, "수동에서 안 누르면 %d루에 선다" % int(d.from))
+			var rm2 := RunControl.new(resim.call([]), resim, true)
+			rm2.set_target(int(d.to))
+			rm2.finish()
+			check(rm2.play.decisions[0].go, "수동에서 누르면 뛴다")
+	check(asked >= 5, "외야 안타에 내 주자의 판단이 나온다 (%d번)" % asked)
+	check(held > 0 and went_home > 0, "홈 승부 %d번 중 뛰어서 득점 %d번" % [held, went_home])
+	# 내야 땅볼·잡힌 공에는 묻지 않는다
+	check(_controlled_play(_sim(130, -8, -10), [-1, 1, -1], []).decisions.is_empty(), "내야 땅볼에는 판단이 없다")
+
+
+func test_run_control_tag_up() -> void:
+	# 3루 주자(타순 2)가 나: 외야 뜬공이 잡히면 태그업을 고른다
+	var asked := 0
+	for ev in range(125, 160, 5):
+		for spray in [-25, -10, 0, 10, 25]:
+			var ball := _sim(ev, 32, spray)
+			if not ball.caught or ball.fielder in _config.ball_physics.infield:
+				continue
+			var ai := _controlled_play(ball, [-1, -1, 2], [], 7, 2)
+			check(ai.decisions.size() == 1 and ai.decisions[0].kind == "tag" and int(ai.decisions[0].to) == 4, "외야 뜬공 → 태그업 판단 하나")
+			asked += 1
+			var stay := _controlled_play(ball, [-1, -1, 2], [false], 7, 2)
+			check(stay.bases[2] == 2 and stay.scorers.is_empty() and stay.outs == 1, "남으면 3루 그대로, 타자만 아웃")
+			var go := _controlled_play(ball, [-1, -1, 2], [true], 7, 2)
+			check((2 in go.scorers and go.sac_fly) or go.outs == 2, "뛰면 희생플라이거나 홈에서 아웃 (ev %d, 방향 %d)" % [ev, spray])
+	check(asked >= 5, "태그업 판단이 나온다 (%d번)" % asked)
+
+
+func test_steal_judge() -> void:
+	var cfg := _career_cfg()
+	var phys := _config.ball_physics
+	var a := Steal.plan(cfg.steal, _rng(3))
+	var b := Steal.plan(cfg.steal, _rng(3))
+	check(a.go_ms == b.go_ms and a.feints == b.feints, "같은 시드면 같은 투수 동작")
+	check(a.go_ms >= float(cfg.steal["setMinMs"]), "세트 자세로 기다린 뒤 던진다")
+	var with_feint := 0
+	for s in 200:
+		var p := Steal.plan(cfg.steal, _rng(s))
+		with_feint += 1 if not p.feints.is_empty() else 0
+		for f in p.feints:
+			check(f + p.feint_ms <= p.go_ms and p.in_feint(f + 1.0) and not p.in_feint(p.go_ms), "견제는 투구 전에 끝난다")
+	check(with_feint > 20 and with_feint < 120, "견제 동작이 가끔 섞인다 (200번 중 %d번)" % with_feint)
+	check(Steal.judge(cfg.steal, phys, a, a.go_ms - 50.0, 1, 50, _rng(1)).kind == Steal.Kind.PICKED_OFF, "투구 전에 뛰면 견제사")
+	check(not Steal.judge(cfg.steal, phys, a, -1.0, 1, 50, _rng(1)).attempted(), "탭하지 않으면 안 뛴다")
+	check(not Steal.judge(cfg.steal, phys, a, a.end_ms() + 1.0, 1, 50, _rng(1)).attempted(), "너무 늦으면 안 뛴다")
+	var r1 := Steal.judge(cfg.steal, phys, a, a.go_ms + 200.0, 1, 50, _rng(1))
+	var r2 := Steal.judge(cfg.steal, phys, a, a.go_ms + 200.0, 1, 50, _rng(1))
+	check(r1.kind == r2.kind and r1.defense_s == r2.defense_s and absf(r1.reaction_ms - 200.0) < 0.01, "같은 시드·같은 탭이면 같은 판정")
+	check(r1.to == 2 and Steal.judge(cfg.steal, phys, a, a.go_ms + 200.0, 2, 50, _rng(1)).to == 3, "1루 → 2루, 2루 → 3루")
+	# 성공률: 주력이 높을수록, 반응이 빠를수록 높다. 평균 주자가 좋은 스타트면 절반은 넘고 무조건은 아니다
+	var rate := func(speed: int, react_ms: float, from: int) -> float:
+		var safe := 0
+		for s in 400:
+			if Steal.judge(cfg.steal, phys, a, a.go_ms + react_ms, from, speed, _rng(s)).kind == Steal.Kind.SAFE:
+				safe += 1
+		return safe / 400.0
+	var avg: float = rate.call(50, 250.0, 1)
+	var fast: float = rate.call(85, 250.0, 1)
+	var slow: float = rate.call(20, 250.0, 1)
+	var late: float = rate.call(50, 500.0, 1)
+	print("    도루 성공률 (반응 0.25초): 주력 20 %.0f%% · 50 %.0f%% · 85 %.0f%% / 주력 50 반응 0.5초 %.0f%% / 3루 도루 주력 50 %.0f%%" % [
+		slow * 100, avg * 100, fast * 100, late * 100, float(rate.call(50, 250.0, 2)) * 100])
+	check(slow < avg and avg < fast, "주력이 높을수록 잘 산다 (%.2f < %.2f < %.2f)" % [slow, avg, fast])
+	check(late < avg, "스타트가 늦으면 덜 산다 (%.2f < %.2f)" % [late, avg])
+	check(avg > 0.5 and avg < 0.95, "평균 주자의 좋은 스타트 성공률 %.2f" % avg)
+	check(fast > 0.85 and late < 0.4, "빠른 주자는 거의 살고(%.2f), 늦은 스타트는 대개 죽는다(%.2f)" % [fast, late])
+
+
+func test_steal_in_game_state() -> void:
+	var g := GameState.new(9, _career_cfg().running, _config.ball_physics)
+	g.bases = [3, -1, 7]
+	check(not g.apply_steal(1, true) and g.bases == [-1, 3, 7] and g.outs == 0, "도루 성공: 주자만 옮긴다")
+	g.bases = [-1, 3, -1]
+	check(not g.apply_steal(2, false) and g.bases == [-1, -1, -1] and g.outs == 1, "도루 실패: 주자가 빠지고 아웃 하나")
+	g.outs = 2
+	g.bases = [3, -1, -1]
+	g.batter_index[0] = 5
+	check(g.apply_steal(1, false) and not g.top and g.outs == 0 and g.bases == [-1, -1, -1], "세 번째 아웃이면 공수 교대")
+	check(g.batter_index[0] == 5, "타석이 끝나지 않았으니 타순은 그대로")
+
+
+## 주루 설정을 켠(보조·수동) 한 경기를 돌린다. mode: RunControl.ASSIST | MANUAL. steal: 도루 기회마다 넘길 결과를 만드는 함수 (Steal.Result),
+## run: 주루 판단마다 부르는 함수 (RunControl 을 받아 고른다). 돌려주는 값: [경기, 도루 기회 수, 주루 장면 수]
+func _play_interactive_game(seed_value: int, steal: Callable, run: Callable, mode: String = RunControl.ASSIST) -> Array:
+	var cfg := _career_cfg()
+	var player := PlayerData.create("테스트", cfg)
+	var srng := _rng(seed_value)
+	var mine := School.create("me", "우리고", "우리", 50.0, "balanced", cfg, srng)
+	var theirs := School.from_content(cfg.regional_schools[seed_value % cfg.regional_schools.size()], cfg, srng)
+	theirs.strength = 50.0
+	theirs.team = Team.generate(theirs.name, theirs.short, 50.0, theirs.pitcher_profile, cfg, srng)
+	var game := GameRunner.new(cfg, _config, player, mine, theirs, seed_value % 2 == 0, seed_value, true, false)
+	game.running_mode = mode
+	var rng := _rng(seed_value + 999)
+	var steals := 0
+	var runs := 0
+	var guard := 0
+	while not game.state.over and guard < 600:
+		guard += 1
+		var step := game.step()
+		match step.type:
+			"my_turn":
+				var pa := AutoPa.simulate(cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng)
+				var c: SwingJudge.Contact = null
+				if pa.ball != null:
+					c = SwingJudge.Contact.new(SwingJudge.Quality.SOLID, pa.ball.spray_deg, pa.ball.distance_m, pa.ball.batted_ball)
+					c.ball = pa.ball
+				game.apply_my_result(AtBat.Result.new(pa.outcome, SwingJudge.BattedBall.NONE, pa.pitches, c))
+			"my_steal":
+				steals += 1
+				check(int(step.from) == game.steal_base() and game.steal_base() > 0, "도루 기회는 내가 뛸 수 있는 베이스에 있을 때만")
+				game.apply_steal(steal.call(int(step.from), steals))
+			"my_run":
+				runs += 1
+				var rc: RunControl = step.control
+				check(rc.has_decisions() and rc.play.decisions[0].id == game.my_slot, "주루 장면은 내 주자의 판단이 있을 때만")
+				run.call(rc, runs)
+				check(game.finish_run().type == "auto", "주루 장면이 끝나면 그 타석이 반영된다")
+	check(game.state.over, "경기가 끝난다 (seed %d)" % seed_value)
+	return [game, steals, runs]
+
+
+func test_interactive_game_matches_and_stays_consistent() -> void:
+	var no_steal := func(from: int, _n: int) -> Steal.Result:
+		var r := Steal.Result.new()
+		r.from = from
+		r.to = from + 1
+		return r
+	var total_steals := 0
+	var total_runs := 0
+	var sb := 0
+	var cs := 0
+	for s in 40:
+		# 1) 보조에서 아무것도 누르지 않으면(도루 안 함, 주루는 코치 사인대로) 자동 경기와 완전히 같다
+		var passive: Array = _play_interactive_game(s, no_steal, func(_rc: RunControl, _n: int) -> void: pass)
+		check((passive[0] as GameRunner).log == _play_full_game(s).log, "고르지 않으면 자동 경기와 같은 중계 (seed %d)" % s)
+		# 2) 도루를 번갈아 성공·실패·견제사로, 주루 판단을 번갈아 뛴다·멈춘다로 골라도 경기 기록이 맞물린다
+		var steal := func(from: int, n: int) -> Steal.Result:
+			var r := Steal.Result.new()
+			r.from = from
+			r.to = from + 1
+			r.kind = [Steal.Kind.SAFE, Steal.Kind.CAUGHT, Steal.Kind.SAFE, Steal.Kind.PICKED_OFF][n % 4]
+			return r
+		# 번갈아 홈까지 / 가장 가까운 베이스에서 멈춤
+		var run := func(rc: RunControl, n: int) -> void:
+			rc.set_target(4 if n % 2 == 0 else rc.min_base())
+		var active: Array = _play_interactive_game(s, steal, run)
+		var game: GameRunner = active[0]
+		total_steals += int(active[1])
+		total_runs += int(active[2])
+		var st := game.state
+		var box := game.box
+		for side in 2:
+			check(box.team_runs(side) == st.score[side] and box.runs_allowed(1 - side) == st.score[side], "득점 합 = 실점 합 = 총점 (seed %d)" % s)
+		var outs_vs_away := 0
+		for p: BoxScore.PitcherLine in box.pitchers[1]:
+			outs_vs_away += p.outs
+		check(outs_vs_away == st.line[0].size() * 3, "도루 실패 아웃도 투수 기록에 들어간다 (seed %d: %d)" % [s, outs_vs_away])
+		var mine: BoxScore.BatterLine = box.batters[game.my_side][game.my_slot]
+		check(mine.sb == game.my_line.steals and mine.cs == game.my_line.caught_stealing, "내 도루 기록 = 박스스코어")
+		sb += game.my_line.steals
+		cs += game.my_line.caught_stealing
+		check((_play_interactive_game(s, steal, run)[0] as GameRunner).log == game.log, "같은 시드·같은 선택이면 같은 경기 (seed %d)" % s)
+		# 3) 수동에서 아무것도 누르지 않아도 경기 기록이 맞물린다 (내 주자는 늘 한 베이스만)
+		var manual: GameRunner = _play_interactive_game(s, no_steal, func(_rc: RunControl, _n: int) -> void: pass, RunControl.MANUAL)[0]
+		for side in 2:
+			check(manual.box.team_runs(side) == manual.state.score[side], "수동 경기도 득점 합 = 총점 (seed %d)" % s)
+	print("    40경기: 도루 기회 %d번 (성공 %d, 실패 %d), 주루 장면 %d번" % [total_steals, sb, cs, total_runs])
+	check(total_steals >= 20 and total_runs >= 10, "도루 기회 %d번, 주루 장면 %d번이 나온다" % [total_steals, total_runs])
+	check(sb > 0 and cs > 0 and sb + cs == total_steals, "도루 성공 %d + 실패 %d = 기회 %d" % [sb, cs, total_steals])
+	# 도루하면 주력이 자란다
+	var cfg := _career_cfg()
+	var p := CareerState.new(cfg, "테스트", _config).player
+	var line := PlayerData.SeasonStats.new()
+	line.steals = 3
+	var before := p.speed + float(p.progress.get("speed", 0.0))
+	Growth.from_line(cfg, p, line)
+	check(p.speed + float(p.progress.get("speed", 0.0)) > before, "도루 성공 → 주력 성장")
+	var total := PlayerData.SeasonStats.new()
+	total.merge(line)
+	check(total.steals == 3 and line.line_text().contains("3도루"), "도루도 시즌 기록에 합쳐진다")
+
+
+func test_my_at_bat_run_control() -> void:
+	# 내 타석: 외야 안타를 치면 타자 주자(나)의 "2루까지?" 판단이 생기고, 뛴다고 고르면 타석 결과가 바뀐다
+	var balance := BalanceLoader.load_balance()
+	var found := false
+	for spray in range(-40, 41, 5):
+		var s := BattingSession.new(BattingConfig.from_balance(balance), Presentation.from_balance(balance))
+		s.start_single(s.skills, s.pitcher, 7, {"bases": [-1, -1, -1], "outs": 0, "batter": 4, "control": RunControl.ASSIST})
+		var c := SwingJudge.Contact.new(SwingJudge.Quality.SOLID, float(spray), 0.0, SwingJudge.BattedBall.LINE)
+		c.ball = _sim(140, 12, spray)
+		if c.ball.caught or c.ball.fielder in _config.ball_physics.infield:
+			continue
+		var play: PlaySimulator.PlayResult = s.at_bat._run_play(c)
+		if play.decisions.is_empty() or play.decisions[0].ai:
+			continue
+		found = true
+		check(play.batter_outcome == SwingJudge.Outcome.SINGLE and play.decisions[0].id == 4 and int(play.decisions[0].to) == 2, "코치는 1루에서 멈추라고 한다")
+		s.at_bat.result = AtBat.Result.new(play.batter_outcome, c.batted_ball, 1, c)
+		s.at_bat.result.play = play
+		var again := s.at_bat.rerun_play([false])
+		check(again.bases == play.bases and again.batter_outcome == play.batter_outcome, "같은 선택으로 다시 돌리면 같은 플레이")
+		var go := s.at_bat.rerun_play([true])
+		var me: RunnerAI = go.runners[0]
+		check(s.at_bat.result.play == go and s.at_bat.result.outcome == go.batter_outcome, "타석 결과가 새 플레이로 바뀐다")
+		check(go.batter_outcome == SwingJudge.Outcome.DOUBLE or me.state == RunnerAI.State.OUT, "2루까지 뛰면 2루타거나 2루에서 아웃 (방향 %d)" % spray)
+		break
+	check(found, "타자 주자의 판단이 있는 안타를 찾았다")
+	# 연습(주자 상황 없음)에서는 조작하지 않는다
+	var practice := BattingSession.new(BattingConfig.from_balance(balance), Presentation.from_balance(balance))
+	var c2 := SwingJudge.Contact.new(SwingJudge.Quality.SOLID, 15.0, 0.0, SwingJudge.BattedBall.LINE)
+	c2.ball = _sim(140, 12, 15)
+	check((practice.at_bat._run_play(c2) as PlaySimulator.PlayResult).decisions.is_empty(), "연습 타석은 AI 주루")
+
+
+func test_settings_running_mode() -> void:
+	var path := "user://test_settings.json"
+	DirAccess.remove_absolute(path)
+	var s := Settings.load_from(path)
+	check(s.running == RunControl.AUTO, "주루 설정의 기본은 자동")
+	s.cycle_running()
+	check(s.running == RunControl.ASSIST, "자동 → 보조")
+	s.save(path)
+	check(Settings.load_from(path).running == RunControl.ASSIST, "저장한 설정을 다시 읽는다")
+	s.cycle_running()
+	s.cycle_running()
+	check(s.running == RunControl.AUTO, "보조 → 수동 → 자동")
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string("{\"running\": \"엉뚱\"}")
+	f.close()
+	check(Settings.load_from(path).running == RunControl.AUTO, "모르는 값이면 기본으로")
+	DirAccess.remove_absolute(path)
+	# 자동이면 경기가 주루 조작을 넘기지 않는다
+	var g := GameRunner.new(_career_cfg(), _config, PlayerData.create("테스트", _career_cfg()),
+		School.create("me", "우리고", "우리", 50.0, "balanced", _career_cfg(), _rng(1)), School.create("op", "상대고", "상대", 50.0, "balanced", _career_cfg(), _rng(2)), true, 1)
+	check(not g.controls_running() and g.situation()["control"] == "", "자동: 조작 없음")
+	g.running_mode = RunControl.MANUAL
+	check(g.controls_running() and g.situation()["control"] == RunControl.MANUAL, "수동: 타석에 주루 설정이 전달된다")
 
 
 func test_season_stats_details() -> void:

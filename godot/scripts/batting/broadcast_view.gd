@@ -60,8 +60,9 @@ class Cam:
 
 ## t: 공의 시각 (초, 실제 시간). us_fielding: 수비하는 쪽이 우리 팀인가 (유니폼 색)
 ## play: 주자 플레이 결과 (있으면 모든 주자·송구·판정을 그 기록대로 그린다. 없으면 타자 주자만 옛 방식으로)
+## mark_id: 머리 위에 표시할 주자의 타순 번호 (내 선수, -1 = 없음)
 static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: BattedBallSim.Result, t: float, bunt: bool,
-		us_fielding: bool = false, play: PlaySimulator.PlayResult = null) -> void:
+		us_fielding: bool = false, play: PlaySimulator.PlayResult = null, mark_id: int = -1) -> void:
 	var cam := Cam.new(rect, cfg.center_fence, cfg.line_fence, cfg.fence_height)
 	canvas.draw_rect(rect, Tokens.STANDS)
 	_draw_field(canvas, cam, cfg)
@@ -104,7 +105,7 @@ static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: 
 
 	# 주자: 플레이 기록이 있으면 모든 주자를 궤적대로, 없으면 타자 주자만 계산에 쓴 속도로
 	if play != null:
-		_draw_play_runners(canvas, cam, play, t, Tokens.UNIFORM_THEM if us_fielding else Tokens.UNIFORM_US)
+		_draw_play_runners(canvas, cam, play, t, Tokens.UNIFORM_THEM if us_fielding else Tokens.UNIFORM_US, mark_id)
 	else:
 		_draw_runner(canvas, cam, cfg, r, t)
 
@@ -174,7 +175,7 @@ static func _draw_calls(canvas: CanvasItem, cam: Cam, cfg: BattedBallSim.Config,
 
 
 ## 플레이의 모든 주자: 궤적(track)을 그 시각 그대로. 아웃·득점한 주자는 잠깐 뒤 사라진다
-static func _draw_play_runners(canvas: CanvasItem, cam: Cam, play: PlaySimulator.PlayResult, t: float, uniform: Color) -> void:
+static func _draw_play_runners(canvas: CanvasItem, cam: Cam, play: PlaySimulator.PlayResult, t: float, uniform: Color, mark_id: int = -1) -> void:
 	for runner in play.runners:
 		if runner.track.is_empty():
 			continue
@@ -184,6 +185,17 @@ static func _draw_play_runners(canvas: CanvasItem, cam: Cam, play: PlaySimulator
 			if t > gone_t + RUNNER_FADE_S:
 				continue
 		_draw_person(canvas, cam, runner.track[idx], uniform)
+		if runner.id == mark_id:
+			draw_marker(canvas, cam, runner.track[idx])
+
+
+## 내 선수 표시: 머리 위의 역삼각형
+static func draw_marker(canvas: CanvasItem, cam: Cam, at: Vector2) -> void:
+	var px := maxf(cam.scale_at(Vector3(at.x, at.y, 0)), 3.0)
+	var tip := cam.to_screen(Vector3(at.x, at.y, 2.6))
+	var tri := PackedVector2Array([tip, tip + Vector2(-px * 0.9, -px * 1.5), tip + Vector2(px * 0.9, -px * 1.5)])
+	canvas.draw_colored_polygon(tri, Tokens.WARN)
+	canvas.draw_polyline(PackedVector2Array([tri[0], tri[1], tri[2], tri[0]]), Tokens.INK, 1.0, true)
 
 
 ## 송구 기록대로 공: 잡은 자리 → (송구 중이면 날아가는 공) → 받은 베이스

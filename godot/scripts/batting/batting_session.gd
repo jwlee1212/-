@@ -93,6 +93,8 @@ var swing_since_ms := 0.0
 var swing_outcome: AtBat.PitchOutcome
 var mitt_played := false
 var last_result: AtBat.Result
+## 내 주루 조작 (경기 속 타석에서 맞은 공에 내가 고를 판단이 있을 때만, 아니면 null)
+var run_control: RunControl
 
 var callout: Callout
 var impact: Impact
@@ -218,6 +220,9 @@ func tick() -> void:
 			if e >= pitch.flight_ms + config.take_grace_ms:
 				_after_pitch(swing_outcome if swung else at_bat.take())
 		Phase.HIT:
+			# 내 주루 판단이 확정돼 플레이가 달라졌으면 결과 문구도 고친다 (last_result 는 같은 객체라 이미 바뀌어 있다)
+			if run_control != null and run_control.advance(broadcast_time()):
+				_show_result_callout(last_result)
 			if e >= hit_play_end_ms() + presentation.after_play_hold_ms:
 				# 타구가 떨어지는 순간 안타면 함성
 				var o := last_result.outcome
@@ -251,6 +256,10 @@ func tap(zone_pos: Vector2 = Vector2.INF) -> void:
 			_play_swing_sounds(o)
 			if o.call == AtBat.Call.IN_PLAY:
 				last_result = o.result
+				run_control = null
+				if not o.result.play.decisions.is_empty():
+					run_control = RunControl.new(o.result.play, at_bat.rerun_play, str(situation.get("control", "")) == RunControl.MANUAL)
+					last_result.outcome = run_control.play.batter_outcome
 				_enter(Phase.HIT)
 				_show_result_callout(o.result)
 			else:
@@ -337,7 +346,8 @@ func _show_result_callout(r: AtBat.Result) -> void:
 			# 1루 판정은 간발의 차를 함께 보여 준다
 			detail = "%s%s · 1루 %.2f초 차" % [aim_text(swing_outcome.aim), direction_text(r.contact.angle_deg), absf(ball.play_margin)]
 		# 인플레이 타구는 중계 화면에서 플레이가 끝난 뒤에 결과를 띄운다
-		delay = hit_play_end_ms() + presentation.after_play_hold_ms * 0.3
+		# (주루 판단 뒤 다시 띄울 때는 이미 흐른 시간을 뺀다)
+		delay = maxf(0.0, hit_play_end_ms() + presentation.after_play_hold_ms * 0.3 - since(phase_since_ms))
 	_set_callout(outcome_text(r.outcome), detail, tone, delay)
 
 

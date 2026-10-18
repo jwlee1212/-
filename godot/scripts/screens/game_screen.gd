@@ -2,6 +2,7 @@ class_name GameScreen
 extends Control
 ## 경기: 점수판 + 상황(주자·아웃·타자) + 문자 중계가 자동으로 흘러가다가,
 ## 내 타순이 오면 타석 화면(BattingView)으로 바뀌어 직접 친다. 결과는 주자·점수에 그대로 반영된다.
+## 내가 루상에 있으면: 도루 기회(StealView)와, 다른 타자의 타구에 내 주자가 판단할 순간(주루 장면)에도 멈춰서 조작을 받는다.
 ## 경기 중 대화: 내 타석 직전(첫 타석·승부처)과 직후(홈런·삼진)에 이벤트가 있으면 경기를 멈추고 대화 화면을 띄운다.
 
 var _app
@@ -14,6 +15,7 @@ var _batter: Label
 var _bases: BasesView
 var _log_box: VBoxContainer
 var _fast_button: Button
+var _run_button: Button
 var _done_button: Button
 var _banner: Label
 
@@ -24,6 +26,9 @@ var _view: BattingView
 var _banner_until := 0.0
 var _waiting_for_turn := false
 var _highlight: HighlightView
+## 내 주루 장면 (판단 버튼이 뜨는 하이라이트) 과 도루 화면 — 떠 있는 동안 경기가 멈춘다
+var _run_view: HighlightView
+var _steal: StealView
 ## 경기 중 대화 (떠 있는 동안 경기가 멈춘다)
 var _dialogue: DialogueView
 
@@ -34,6 +39,7 @@ func _init(app) -> void:
 
 func _ready() -> void:
 	_game = _app.career.new_game()
+	_game.running_mode = _app.settings.running
 	var col := UiKit.vbox(Tokens.SPACE_SM)
 	add_child(UiKit.fill_parent(UiKit.margin(col, Tokens.SPACE_SM)))
 
@@ -70,6 +76,10 @@ func _ready() -> void:
 	_banner = UiKit.title("", Tokens.FONT_TITLE, Tokens.ACCENT)
 	_banner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bottom.add_child(_banner)
+	# 주루 설정: 경기 중에도 바꿀 수 있다 (다음 타석부터)
+	_run_button = UiKit.button("", _cycle_running, Tokens.INK_SOFT, Tokens.FONT_CAPTION)
+	bottom.add_child(_run_button)
+	_refresh_run_button()
 	_fast_button = UiKit.button("빠르게 ▶▶", _toggle_fast, Tokens.INK_SOFT, Tokens.FONT_CAPTION)
 	bottom.add_child(_fast_button)
 	_done_button = UiKit.button("경기 결과 ▶", func() -> void: _app.show_result(_game), Tokens.ACCENT, Tokens.FONT_LABEL)
@@ -84,7 +94,7 @@ func _process(_delta: float) -> void:
 	if _session != null:
 		_session.tick()
 		return
-	if _dialogue != null or _game.state.over or _highlight != null:
+	if _dialogue != null or _game.state.over or _highlight != null or _run_view != null or _steal != null:
 		return
 	if _waiting_for_turn:
 		if _now() >= _banner_until:
@@ -103,12 +113,27 @@ func _process(_delta: float) -> void:
 			_waiting_for_turn = true
 			# 타석 전에 할 이야기가 있으면 먼저 (끝나면 배너 → 타석)
 			_show_dialogue(_app.career.game_event(_app.career.pa_moment(_game), _game))
+		"my_steal":
+			_show_steal(int(step.from))
+		"my_run":
+			_show_run(step.control, step.batter)
 		"auto":
 			_next_step_at = _now() + (_app.career_config.fast_step_ms if _fast else _app.career_config.auto_step_ms)
 			# 점수가 난 안타·홈런은 중계 화면 하이라이트로 (빠르게 모드면 건너뜀)
 			if step.highlight != null and not _fast:
 				_show_highlight(step.highlight, step.text, step.side != _game.my_side)
 	_refresh()
+
+
+func _cycle_running() -> void:
+	_app.settings.cycle_running()
+	_app.settings.save()
+	_game.running_mode = _app.settings.running
+	_refresh_run_button()
+
+
+func _refresh_run_button() -> void:
+	_run_button.text = "주루: %s" % RunControl.MODE_LABELS[_app.settings.running]
 
 
 func _toggle_fast() -> void:
@@ -125,6 +150,50 @@ func _show_highlight(play: PlaySimulator.PlayResult, text: String, us_fielding: 
 			_highlight.queue_free()
 			_highlight = null
 			_next_step_at = _now() + 300.0)
+
+
+# ---------- 내 주루 ----------
+
+## 도루 기회: 투수 동작을 보고 스타트를 끊는다. 결과(안 뛰었으면 그대로)를 경기에 반영하고 이어 간다
+func _show_steal(from: int) -> void:
+	var career: CareerState = _app.career
+	var speed: int = career.player.skills_for_game(_app.career_config).speed
+	_steal = StealView.new(_app.batting_config.ball_physics, _app.career_config.steal, _game.state.bases.duplicate(), _game.my_slot,
+		from, speed, career.steal_seed(_game), _app.batting_config.input_latency_ms)
+	_steal.sound_requested.connect(func(sfx: SoundSynth.Sfx, volume: float, pitch_scale: float) -> void:
+		_app.sound.play(sfx, volume * _app.presentation.sfx_volume, pitch_scale))
+	add_child(UiKit.fill_parent(_steal))
+	_steal.finished.connect(func(result: Steal.Result) -> void:
+		_game.apply_steal(result)
+		_steal.queue_free()
+		_steal = null
+		_next_step_at = _now() + 500.0
+		_refresh())
+
+
+## 다른 타자의 타구에 내 주자가 판단할 순간이 있다: 중계 화면으로 보여 주며 [멈춘다]/[뛴다] 를 받는다
+func _show_run(control: RunControl, batter_name: String) -> void:
+	_run_view = HighlightView.new(_app.batting_config.ball_physics, control.play, "★ 내 주루 · 타자 %s" % batter_name, _app.presentation.broadcast_speed, false)
+	_run_view.control = control
+	_run_view.mark_id = _game.my_slot
+	add_child(UiKit.fill_parent(_run_view))
+	_run_view.finished.connect(func() -> void:
+		if _run_view == null:
+			return
+		_game.finish_run()
+		_run_view.queue_free()
+		_run_view = null
+		_next_step_at = _now() + 500.0
+		_refresh())
+
+
+## 지금 떠 있는 도루 화면·주루 장면 (스크린샷 스크립트용, 없으면 null)
+func steal_view() -> StealView:
+	return _steal
+
+
+func run_view() -> HighlightView:
+	return _run_view
 
 
 # ---------- 내 타석 ----------
@@ -146,12 +215,21 @@ func _open_batting() -> void:
 	var hud := BattingHud.new(_session)
 	hud.game = _game
 	hud.show_menu = false
-	# 타석이 끝나면 _session 이 비워지므로 필요한 값은 미리 담아 둔다
-	var pitcher_name := opp_pitcher.name
-	hud.info_text = func() -> String:
+	# 타석에 들어설 때 왼쪽 아래에 미끄러져 나오는 타자 자막
+	hud.batter_card = func() -> Dictionary:
 		var l := _game.my_line
-		return "%d번 %s · 오늘 %d타수 %d안타 %d타점 · 상대 %s" % [_game.my_slot + 1, player.name, l.ab, l.hits, l.rbi, pitcher_name]
+		var s := player.season
+		return {
+			"number": str(_game.my_slot + 1),
+			"name": player.name,
+			"sub": "%d학년 · %d번 타자" % [player.grade, _game.my_slot + 1],
+			"today": "오늘 첫 타석" if l.pa == 0 else "오늘 " + l.line_text(),
+			"season": "시즌 %s · %d홈런 · %d타점" % [s.average(), s.home_runs, s.rbi] if s.pa > 0 else "",
+		}
 	_batting.add_child(hud)
+	# 내가 친 공에 내 주루 판단이 있으면 베이스 버튼이 뜬다 (타석이 끝나면 _session 이 비워지므로 세션을 담아 둔다)
+	var session := _session
+	_batting.add_child(BasePad.new(func() -> RunControl: return session.run_control if session.phase == BattingSession.Phase.HIT else null))
 
 
 func _on_at_bat_finished(result: AtBat.Result) -> void:

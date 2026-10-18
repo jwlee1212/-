@@ -42,6 +42,11 @@ const HUD_TEXT_SOFT := Color(1, 1, 1, 0.72)
 const COUNT_BALL := Color("34d399")
 const COUNT_STRIKE := Color("fbbf24")
 const COUNT_OUT := Color("f87171")
+## 중계 그래픽 (타석 스코어 버그·투수 줄·구속·타자 자막): 짙은 남색 판, 공격 팀 줄 강조, 빈 점·베이스, 모서리
+const BROADCAST_BG := Color(SCOREBOARD, 0.93)
+const BROADCAST_ROW_HI := Color(1, 1, 1, 0.08)
+const BROADCAST_EMPTY := Color(1, 1, 1, 0.22)
+const RADIUS_BROADCAST := 6
 const LCD_BG := Color("0b1220")
 const LCD_TEXT := Color("7cffb2")
 ## 구종 색 (구종이 드러났을 때 공 테두리·이름). 목록에 없는 구종은 PRIMARY

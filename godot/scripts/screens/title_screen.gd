@@ -50,7 +50,7 @@ func _ready() -> void:
 		["새 커리어", _app.show_create, ""],
 		["타격 연습", _app.show_practice, ""],
 		["기록실", _app.show_records if career != null else Callable(), "커리어를 시작하면 열려요"],
-		["설정", Callable(), "준비 중"],
+		["설정", _app.show_settings, ""],
 	]
 	# 강조는 할 수 있는 첫 항목 (커리어가 있으면 이어하기, 없으면 새 커리어)
 	var highlighted := 0 if career != null else 1
@@ -69,6 +69,9 @@ func _ready() -> void:
 		var test := UiKit.button("테스트 시작 ›", _app.show_jump, Tokens.INK_SOFT, Tokens.FONT_CAPTION)
 		test.size_flags_horizontal = Control.SIZE_SHRINK_END
 		right.add_child(test)
+		var run := UiKit.button("주루 연습 ›", _app.show_run_practice, Tokens.INK_SOFT, Tokens.FONT_CAPTION)
+		run.size_flags_horizontal = Control.SIZE_SHRINK_END
+		right.add_child(run)
 		if _app.test_mode:
 			var end := UiKit.button("테스트 끝내기 (내 저장으로)", _app.end_test, Tokens.BAD, Tokens.FONT_CAPTION)
 			end.size_flags_horizontal = Control.SIZE_SHRINK_END

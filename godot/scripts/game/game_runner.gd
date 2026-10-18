@@ -49,8 +49,16 @@ var exhibition := false
 ## 결과 고정 경기에서 라이벌의 그날 기록 (matchOverride.rivalLine, {} 이면 자동 타석으로 만든다)
 var rival_line := {}
 
+## 주루 설정 (RunControl.AUTO | ASSIST | MANUAL). 자동이 아니면 내 주자의 주루 판단("my_run")과 도루 기회("my_steal")를
+## step() 이 돌려준다. 자동(기본)이면 내 주자도 AI 가 뛰고 도루는 없다 — 화면 없이 돌릴 때(테스트·빨리 감기·튜닝 도구)도 자동
+var running_mode := RunControl.AUTO
+
 var _player: PlayerData
 var _rng: RandomNumberGenerator
+## 유저의 주루 판단을 기다리는 자동 타석 {"pa", "half", "control": RunControl}
+var _pending_run := {}
+## 도루 기회를 이미 물어본 타석 (같은 타자 때 두 번 묻지 않는다)
+var _steal_asked := ""
 var _stage := {}
 ## 장면에 도착했나
 var _stage_set := false
@@ -299,8 +307,63 @@ func run_to_end() -> void:
 		step()
 
 
-## 다음 타석. 돌려주는 값: {"type": "my_turn" | "auto" | "over", "text": 중계 한 줄,
+## 유저가 내 주자를 직접 조작하는가 (주루 설정이 보조·수동)
+func controls_running() -> bool:
+	return running_mode != RunControl.AUTO
+
+
+## 내 선수가 지금 도루할 수 있는 베이스에 있으면 그 베이스 (1·2), 아니면 0: 우리 공격, 다음 베이스가 비어 있다
+func steal_base() -> int:
+	if my_slot < 0 or state.over or state.batting_side() != my_side:
+		return 0
+	for i in 2:
+		if state.bases[i] == my_slot and state.bases[i + 1] == GameState.EMPTY:
+			return i + 1
+	return 0
+
+
+## 도루 결과를 경기에 반영한다 (안 뛰었으면 아무 일도 없다). 돌려주는 값: 중계 한 줄 ("" = 안 뛰었다)
+func apply_steal(res: Steal.Result) -> String:
+	if not res.attempted():
+		return ""
+	var def := 1 - my_side
+	var half := state.half_text()
+	var safe := res.kind == Steal.Kind.SAFE
+	var base_name := "%d루" % res.to
+	var bl: BoxScore.BatterLine = box.batters[my_side][my_slot]
+	var half_over := state.apply_steal(res.from, safe)
+	var text: String
+	if safe:
+		my_line.steals += 1
+		bl.sb += 1
+		text = "[%s] ★ %s — %s 도루 성공!" % [half, _player.name, base_name]
+	else:
+		my_line.caught_stealing += 1
+		bl.cs += 1
+		(box.pitchers[def][pitcher_index[def]] as BoxScore.PitcherLine).outs += 1
+		text = "[%s] ★ %s — %s" % [half, _player.name, "견제사" if res.kind == Steal.Kind.PICKED_OFF else base_name + " 도루 실패"]
+	log.append(text)
+	if half_over:
+		_after_pa({"half_over": true})
+	return text
+
+
+## 유저의 주루 판단이 끝났다 ("my_run" 뒤에 화면이 부른다): 그 플레이를 경기에 반영한다. 돌려주는 값은 step() 과 같다
+func finish_run() -> Dictionary:
+	assert(not _pending_run.is_empty(), "기다리는 주루 판단이 없다")
+	var p := _pending_run
+	_pending_run = {}
+	var control: RunControl = p["control"]
+	control.finish()
+	var r := _finish_auto(p["pa"], p["half"], control.play)
+	r["highlight"] = null  # 방금 화면에서 봤다
+	return r
+
+
+## 다음 타석. 돌려주는 값: {"type": "my_turn" | "auto" | "over" | "my_steal" | "my_run", "text": 중계 한 줄,
 ##   "highlight": 하이라이트로 보여 줄 플레이(PlayResult, 없으면 null), "side": 공격한 팀}
+## 주루 설정이 자동이 아닐 때만: "my_steal" {"from": 내 베이스} — 화면이 도루 화면을 띄우고 apply_steal() 뒤 다시 step(),
+##   "my_run" {"control": RunControl, "batter": 타자 이름} — 화면이 플레이를 보여 주며 판단을 받고 finish_run()
 func step() -> Dictionary:
 	if state.over:
 		return {"type": "over"}
@@ -312,13 +375,41 @@ func step() -> Dictionary:
 		_enter_as_pinch_hitter()
 	if is_my_turn():
 		return {"type": "my_turn"}
+	assert(_pending_run.is_empty(), "주루 판단을 기다리는 중이다 (finish_run 을 먼저)")
 	var side := state.batting_side()
 	var idx: int = state.batter_index[side]
+	if controls_running() and steal_base() > 0:
+		var key := "%d:%d:%d" % [state.inning, my_line.pa, idx]
+		if _steal_asked != key:
+			_steal_asked = key
+			return {"type": "my_steal", "from": steal_base(), "side": side}
 	var batter := teams[side].lineup[idx]
 	var pitcher := current_pitcher()
 	var pa := AutoPa.simulate(cfg.auto_pa, bc, batter.skills, pitcher, _rng)
 	var half := state.half_text()
-	var r := _apply(pa.outcome, pa.ball, pa.pitches, false, null)
+	var play: PlaySimulator.PlayResult = null
+	if controls_running() and pa.ball != null and side == my_side and my_slot >= 0 and my_slot in state.bases:
+		# 내가 루상에 있다: 내 주자의 판단을 유저가 고를 수 있게 플레이를 먼저 돌려 본다.
+		# 다시 돌릴 때마다 난수를 같은 자리로 되돌리므로, 판단 전까지는 언제나 똑같이 흘러간다
+		var rng_state := _rng.state
+		var ball: BattedBallSim.Result = pa.ball
+		var resim := func(choices: Array) -> PlaySimulator.PlayResult:
+			_rng.state = rng_state
+			return state.make_play(ball, idx, speed_of(side), _rng, my_slot, choices)
+		var control := RunControl.new(resim.call([]), resim, running_mode == RunControl.MANUAL)
+		if control.has_decisions():
+			_pending_run = {"pa": pa, "half": half, "control": control}
+			return {"type": "my_run", "control": control, "batter": batter.name, "side": side}
+		play = control.play
+	return _finish_auto(pa, half, play)
+
+
+## 자동 타석 하나를 경기에 반영하고 중계 한 줄을 만든다. play: 이미 진행한 플레이 (없으면 여기서 진행한다)
+func _finish_auto(pa: Dictionary, half: String, play: PlaySimulator.PlayResult) -> Dictionary:
+	var side := state.batting_side()
+	var idx: int = state.batter_index[side]
+	var batter := teams[side].lineup[idx]
+	var r := _apply(pa.outcome, pa.ball, pa.pitches, false, play)
 	var text := "[%s] %s %d번 %s — %s%s" % [half, team_short(side), idx + 1, batter.name, outcome_label(r.outcome), _runs_text(r)]
 	log.append(text)
 	_after_pa(r)
@@ -397,7 +488,8 @@ func speed_of(side: int) -> Callable:
 ## 지금 공격 팀의 주자 상황 (내 타석 화면이 플레이를 미리 진행할 때 쓴다)
 func situation() -> Dictionary:
 	var side := state.batting_side()
-	return {"bases": state.bases.duplicate(), "outs": state.outs, "batter": state.batter_index[side], "speed_of": speed_of(side)}
+	return {"bases": state.bases.duplicate(), "outs": state.outs, "batter": state.batter_index[side], "speed_of": speed_of(side),
+		"control": running_mode if controls_running() else ""}
 
 
 ## 투구 수가 차거나 많이 맞으면 다음 투수

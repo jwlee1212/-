@@ -92,8 +92,8 @@ func _summary_page() -> Control:
 		c.add_child(UiKit.label(item[1], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
 		big.add_child(c)
 	lc.add_child(big)
-	lc.add_child(UiKit.label("%d타석 %d타수 %d안타 · 2루타 %d · 3루타 %d · 볼넷 %d · 삼진 %d" % [total.pa, total.ab, total.hits, total.doubles,
-		total.triples, total.walks, total.strikeouts], Tokens.FONT_CAPTION, Tokens.INK))
+	lc.add_child(UiKit.label("%d타석 %d타수 %d안타 · 2루타 %d · 3루타 %d · 볼넷 %d · 삼진 %d · 도루 %d" % [total.pa, total.ab, total.hits, total.doubles,
+		total.triples, total.walks, total.strikeouts, total.steals], Tokens.FONT_CAPTION, Tokens.INK))
 	lc.add_child(UiKit.label("출루율 %s · 장타율 %s" % [total.obp_text(), total.slg_text()], Tokens.FONT_CAPTION, Tokens.INK))
 	row.add_child(left)
 

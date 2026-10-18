@@ -518,6 +518,11 @@ func at_bat_seed(game: GameRunner) -> int:
 	return _seed("atbat%d" % game.my_line.pa)
 
 
+## 내 도루 기회의 시드 (몇 회 · 내 몇 번째 타석 뒤 · 어느 타자 때인지로 구분)
+func steal_seed(game: GameRunner) -> int:
+	return _seed("steal%d:%d:%d" % [game.state.inning, game.my_line.pa, game.state.batter_index[game.my_side]])
+
+
 ## 경기가 끝난 뒤: 기록·성장·폼·부상·스카우트 관심도·라이벌·유망주 풀·순위표/대회 진행. 돌려주는 값: 변화 설명 목록
 func finish_game(game: GameRunner) -> Array[String]:
 	assert(not game_done, "이번 주 경기는 이미 끝났다")

@@ -143,4 +143,8 @@ static func _line_text(l: PlayerData.SeasonStats) -> String:
 		parts.append("%d볼넷" % l.walks)
 	if l.strikeouts > 0:
 		parts.append("%d삼진" % l.strikeouts)
+	if l.steals > 0:
+		parts.append("%d도루" % l.steals)
+	if l.caught_stealing > 0:
+		parts.append("%d도루실패" % l.caught_stealing)
 	return " ".join(parts)

@@ -62,8 +62,26 @@ func half_text() -> String:
 
 
 ## 맞은 공으로 플레이를 진행한다 (아직 상태는 바꾸지 않는다). speed_of: 타순 번호 → 주력(0~100)
-func make_play(ball: BattedBallSim.Result, batter: int, speed_of: Callable, rng: RandomNumberGenerator) -> PlaySimulator.PlayResult:
-	return PlaySimulator.new(_phys, ball, batter, bases.duplicate(), speed_of, outs, rng).run()
+## controlled·choices: 유저가 조작하는 주자와 그 판단 (PlaySimulator 참고)
+func make_play(ball: BattedBallSim.Result, batter: int, speed_of: Callable, rng: RandomNumberGenerator,
+		controlled: int = -1, choices: Array = []) -> PlaySimulator.PlayResult:
+	return PlaySimulator.new(_phys, ball, batter, bases.duplicate(), speed_of, outs, rng, controlled, choices).run()
+
+
+## 도루 결과를 반영한다. from: 뛰기 전 베이스(1·2), safe: 살았나. 죽으면 아웃이 하나 늘고, 3아웃이면 공수 교대
+## (타석은 끝나지 않았으므로 타순은 그대로 — 다음 이닝에 그 타자부터). 돌려주는 값: 공수가 바뀌었나
+func apply_steal(from: int, safe: bool) -> bool:
+	var runner: int = bases[from - 1]
+	assert(runner != EMPTY and bases[from] == EMPTY, "도루할 주자가 없거나 다음 베이스가 차 있다")
+	bases[from - 1] = EMPTY
+	if safe:
+		bases[from] = runner
+		return false
+	outs += 1
+	if outs >= 3:
+		_end_half()
+		return true
+	return false
 
 
 ## 플레이 결과를 상태에 반영한다. bunt: 번트였는가 (주자를 보내고 타자만 아웃이면 희생번트)

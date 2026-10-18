@@ -69,7 +69,8 @@ var pitcher: BattingConfig.PitcherProfile
 var aim_cell := -1
 ## 스윙 종류 ("normal" | "contact" | "power" | "bunt"). 바꾸면 다음 스윙부터 반영된다
 var swing_type := "normal"
-## 경기 상황 (주자·아웃). 연습이면 주자 없음. {"bases": [1·2·3루 타순 번호 또는 -1], "outs", "batter", "speed_of"}
+## 경기 상황 (주자·아웃). 연습이면 주자 없음. {"bases": [1·2·3루 타순 번호 또는 -1], "outs", "batter", "speed_of",
+##   "control": 타자 주자의 주루를 유저가 조작하면 주루 설정 ("assist" | "manual"), 아니면 "" (rerun_play 로 다시 돌린다)}
 var situation := {}
 var balls := 0
 var strikes := 0
@@ -84,6 +85,8 @@ var _rng: RandomNumberGenerator
 ## 지금 처리 중인 공을 던질 때의 카운트
 var _pitch_balls := 0
 var _pitch_strikes := 0
+## 플레이를 진행하기 직전의 난수 상태 (주루 판단을 바꿔 다시 돌릴 때 되돌린다)
+var _play_rng_state := 0
 
 
 func _init(config: BattingConfig, p_skills: BatterSkills, p_pitcher: BattingConfig.PitcherProfile, seed_value: int) -> void:
@@ -171,7 +174,18 @@ func _finish(o: PitchOutcome) -> PitchOutcome:
 	return o
 
 
-func _run_play(c: SwingJudge.Contact) -> PlaySimulator.PlayResult:
+## 내 주루 판단(choices)을 넣어 맞은 공의 플레이를 다시 진행하고 타석 결과를 고친다 (RunControl 이 부른다)
+func rerun_play(choices: Array) -> PlaySimulator.PlayResult:
+	assert(result != null and result.contact != null, "인플레이로 끝난 타석이 아니다")
+	_rng.state = _play_rng_state
+	var play := _run_play(result.contact, choices)
+	result.play = play
+	result.outcome = play.batter_outcome
+	return play
+
+
+func _run_play(c: SwingJudge.Contact, choices: Array = []) -> PlaySimulator.PlayResult:
+	_play_rng_state = _rng.state
 	var bases: Array = situation.get("bases", [-1, -1, -1])
 	var batter: int = situation.get("batter", 0)
 	var given: Callable = situation.get("speed_of", Callable())
@@ -180,7 +194,8 @@ func _run_play(c: SwingJudge.Contact) -> PlaySimulator.PlayResult:
 		if i == batter:
 			return my_speed
 		return given.call(i) if given.is_valid() else 50
-	return PlaySimulator.new(_config.ball_physics, c.ball, batter, bases, speed_of, int(situation.get("outs", 0)), _rng).run()
+	var controlled: int = batter if str(situation.get("control", "")) != "" else -1
+	return PlaySimulator.new(_config.ball_physics, c.ball, batter, bases, speed_of, int(situation.get("outs", 0)), _rng, controlled, choices).run()
 
 
 func _take_current() -> Pitch:

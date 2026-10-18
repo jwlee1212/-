@@ -1,0 +1,333 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="844" height="390" viewBox="0 0 844 390">
+  <!--
+    타석 화면 시안: 실제 야구 중계처럼 (2026-10-15)
+    카메라: 중견수 뒤 망원 (투수 등 + 홈플레이트의 타자·포수·심판)
+    그래픽: 스코어 버그(왼쪽 위) · 구속(오른쪽 위) · 투구 위치판/노려치기(오른쪽) · 타자 자막(왼쪽 아래)
+    조작: 스윙 종류(왼쪽, 왼손 엄지) · 스윙 버튼(오른쪽 아래, 오른손 엄지)
+    색은 godot/scripts/ui/tokens.gd 토큰 값 그대로
+  -->
+  <defs>
+    <style>
+      text { font-family: Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; font-variant-numeric: tabular-nums; }
+      .b { font-weight: 800; }
+      .w { fill: #ffffff; }
+      .soft { fill: #ffffff; fill-opacity: .72; }
+      .ink { stroke: #26324a; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+      .inks { stroke: #26324a; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+    </style>
+
+    <!-- 관중: 먼 줄(작게)과 가까운 줄(크게) -->
+    <pattern id="crowdFar" width="11" height="9" patternUnits="userSpaceOnUse">
+      <circle cx="2.5" cy="3" r="2" fill="#f4f1ea"/>
+      <circle cx="8" cy="2.5" r="2" fill="#ffcf6b"/>
+      <circle cx="5.5" cy="7.5" r="2" fill="#7fb2ff"/>
+      <circle cx="10.5" cy="7.5" r="2" fill="#ff7a7a"/>
+    </pattern>
+    <pattern id="crowdNear" width="16" height="13" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="4" r="3" fill="#ffcf6b"/>
+      <circle cx="12" cy="3.5" r="3" fill="#f4f1ea"/>
+      <circle cx="8" cy="10.5" r="3" fill="#9be3b0"/>
+      <circle cx="15.5" cy="10.5" r="3" fill="#7fb2ff"/>
+      <circle cx="0.5" cy="10.5" r="3" fill="#ff7a7a"/>
+    </pattern>
+    <!-- 백네트 그물 -->
+    <pattern id="net" width="8" height="8" patternUnits="userSpaceOnUse">
+      <path d="M0 0 L8 8 M8 0 L0 8" stroke="#ffffff" stroke-opacity=".10" stroke-width=".7"/>
+    </pattern>
+
+    <linearGradient id="standsShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b2333" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#1b2333" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx=".5" cy=".55" r=".75">
+      <stop offset=".6" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".28"/>
+    </radialGradient>
+    <radialGradient id="moundShade" cx=".5" cy=".2" r=".8">
+      <stop offset="0" stop-color="#eab47c"/>
+      <stop offset="1" stop-color="#c98d55"/>
+    </radialGradient>
+    <linearGradient id="capShine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="screen"><rect width="844" height="390"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#screen)">
+  <!-- ================= 경기장 ================= -->
+
+  <!-- 홈 뒤 관중석 -->
+  <rect width="844" height="114" fill="#4b5d82"/>
+  <rect y="0" width="844" height="54" fill="url(#crowdFar)"/>
+  <rect y="54" width="844" height="6" fill="#8fa3c7"/>
+  <rect y="60" width="844" height="54" fill="url(#crowdNear)"/>
+  <rect width="844" height="114" fill="url(#standsShade)"/>
+  <rect width="844" height="114" fill="url(#net)"/>
+
+  <!-- 백스톱 벽 + 전광 띠 (가상 문구만) -->
+  <rect y="112" width="844" height="34" fill="#1f6b3a"/>
+  <rect y="112" width="844" height="3" fill="#ffffff" fill-opacity=".25"/>
+  <rect x="0" y="118" width="844" height="20" fill="#0b1220"/>
+  <text x="422" y="132.5" text-anchor="middle" class="b" font-size="11" fill="#7cffb2" letter-spacing="3">FIRST PICK  ·  새싹고 화이팅  ·  FIRST PICK  ·  주말리그 전반기  ·  FIRST PICK</text>
+
+  <!-- 홈 뒤 파울 지역 잔디 -->
+  <rect y="146" width="844" height="100" fill="#3fae5c"/>
+
+  <!-- 페어 지역 잔디 줄무늬 (멀수록 얇게) -->
+  <rect y="238" width="844" height="16" fill="#4cc46a"/>
+  <rect y="254" width="844" height="20" fill="#5ed27b"/>
+  <rect y="274" width="844" height="25" fill="#4cc46a"/>
+  <rect y="299" width="844" height="30" fill="#5ed27b"/>
+  <rect y="329" width="844" height="34" fill="#4cc46a"/>
+  <rect y="363" width="844" height="30" fill="#5ed27b"/>
+
+  <!-- 홈 둘레 흙 -->
+  <ellipse cx="500" cy="216" rx="150" ry="40" fill="#e2a66b"/>
+  <ellipse cx="500" cy="222" rx="150" ry="34" fill="#000" fill-opacity=".06"/>
+
+  <!-- 파울 라인 -->
+  <path d="M500 226 L-20 318" stroke="#ffffff" stroke-width="2.4" stroke-opacity=".9"/>
+  <path d="M500 226 L864 310" stroke="#ffffff" stroke-width="2.4" stroke-opacity=".9"/>
+  <!-- 타석 박스 -->
+  <path d="M424 210 L482 210 L484 236 L420 236 Z" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-opacity=".85"/>
+  <path d="M520 210 L578 210 L582 236 L518 236 Z" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-opacity=".85"/>
+  <!-- 홈플레이트 -->
+  <path d="M492 222 L510 222 L510 226 L501 229 L492 226 Z" fill="#ffffff" class="inks" stroke-width="1"/>
+
+  <!-- 심판 (포수 뒤) -->
+  <g>
+    <path d="M490 206 Q490 184 512 182 Q534 184 534 206 Z" fill="#2a2f3a" class="inks"/>
+    <circle cx="512" cy="172" r="11" fill="#2a2f3a" class="inks"/>
+    <path d="M505 170 h14 M505 174 h14 M512 166 v12" stroke="#8a93a8" stroke-width="1"/>
+  </g>
+
+  <!-- 포수 (투수 쪽을 보고 앉음) -->
+  <g>
+    <!-- 다리·정강이 보호대 -->
+    <path d="M484 226 Q482 212 492 208 L500 212 L496 228 Z" fill="#1d3f9e" class="inks"/>
+    <path d="M528 226 Q530 212 520 208 L512 212 L516 228 Z" fill="#1d3f9e" class="inks"/>
+    <!-- 가슴 보호대 -->
+    <path d="M492 192 Q492 186 498 186 L514 186 Q520 186 520 192 L518 214 Q506 218 494 214 Z" fill="#2b3f73" class="inks"/>
+    <path d="M500 192 L512 192 M500 199 L512 199 M500 206 L512 206" stroke="#ffffff" stroke-opacity=".25" stroke-width="1.2"/>
+    <!-- 머리·마스크 -->
+    <circle cx="506" cy="180" r="11" fill="#1d3f9e" class="inks"/>
+    <rect x="499" y="176" width="14" height="11" rx="3" fill="#26324a"/>
+    <path d="M499 180 h14 M499 184 h14 M506 176 v11" stroke="#c5cbd8" stroke-width=".9"/>
+    <!-- 미트 (과녁) -->
+    <ellipse cx="494" cy="202" rx="8" ry="9" fill="#6b3f1d" class="inks"/>
+    <ellipse cx="494" cy="202" rx="4" ry="5" fill="#8b5a2b"/>
+  </g>
+
+  <!-- 타자 (내 선수, 우타자라 중계 화면에서는 홈 왼쪽) -->
+  <g>
+    <ellipse cx="452" cy="231" rx="28" ry="4.5" fill="#000" fill-opacity=".2"/>
+    <!-- 다리 -->
+    <path d="M438 200 L428 228 L444 228 L452 203 Z" fill="#f4f6fb" class="inks"/>
+    <path d="M456 203 L462 228 L478 228 L470 200 Z" fill="#f4f6fb" class="inks"/>
+    <path d="M443 213 L438 228 L444 228 Z M465 213 L470 228 L476 228 Z" fill="#dfe4ee"/>
+    <ellipse cx="436" cy="229" rx="10" ry="4" fill="#1d3f9e" class="inks"/>
+    <ellipse cx="470" cy="229" rx="10" ry="4" fill="#1d3f9e" class="inks"/>
+    <!-- 몸통 -->
+    <path d="M432 177 Q432 168 443 167 L465 167 Q476 168 476 177 L473 204 L435 204 Z" fill="#ffffff" class="inks"/>
+    <path d="M466 170 Q475 172 474 182 L472 204 L463 204 Z" fill="#dfe4ee"/>
+    <path d="M454 167 L454 204" stroke="#2f6bff" stroke-width="1.6"/>
+    <text x="446" y="186" text-anchor="middle" class="b" font-size="8" fill="#2f6bff">새싹</text>
+    <text x="463" y="193" text-anchor="middle" class="b" font-size="9" fill="#2f6bff">7</text>
+    <rect x="435" y="200" width="38" height="4.5" fill="#1d3f9e"/>
+    <!-- 팔 (손을 뒤 어깨 위로) -->
+    <path d="M436 172 Q426 174 432 160 L440 160 Q438 168 442 174 Z" fill="#2f6bff" class="inks"/>
+    <path d="M472 173 Q470 166 446 160 L442 166 Q460 170 464 178 Z" fill="#2f6bff" class="inks"/>
+    <!-- 배트 -->
+    <path d="M438 160 L414 112" stroke="#26324a" stroke-width="8" stroke-linecap="round"/>
+    <path d="M438 160 L414 112" stroke="#8b5a2b" stroke-width="5" stroke-linecap="round"/>
+    <path d="M430 145 L416 116" stroke="#c48a52" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="438" cy="161" r="5.5" fill="#ffffff" class="inks"/>
+    <!-- 머리 -->
+    <circle cx="454" cy="150" r="18" fill="#ffd2a6" class="ink"/>
+    <ellipse cx="447" cy="155" rx="2" ry="2.6" fill="#26324a"/>
+    <ellipse cx="461" cy="155" rx="2" ry="2.6" fill="#26324a"/>
+    <ellipse cx="443" cy="160" rx="3" ry="1.6" fill="#ff7a7a" fill-opacity=".45"/>
+    <ellipse cx="465" cy="160" rx="3" ry="1.6" fill="#ff7a7a" fill-opacity=".45"/>
+    <path d="M451 162 Q454 164 457 162" fill="none" stroke="#26324a" stroke-width="1.4" stroke-linecap="round"/>
+    <!-- 헬멧 + 투수 쪽 귀덮개 -->
+    <path d="M435 151 Q435 129 454 129 Q473 129 473 151 Q454 143 435 151 Z" fill="#1d3f9e" class="ink"/>
+    <path d="M440 148 Q454 141 468 148" fill="none" stroke="#26324a" stroke-width="2"/>
+    <path d="M466 147 Q476 146 476 156 Q475 163 468 162 Z" fill="#1d3f9e" class="inks"/>
+    <path d="M444 136 Q450 132 458 133" fill="none" stroke="#ffffff" stroke-opacity=".5" stroke-width="2.4" stroke-linecap="round"/>
+  </g>
+
+  <!-- 스트라이크존 겹침 (타자 앞, 지난 공 번호) -->
+  <g>
+    <rect x="484" y="168" width="32" height="38" fill="#ffffff" fill-opacity=".08" stroke="#ffffff" stroke-width="1.5" stroke-opacity=".9"/>
+    <path d="M494.7 168 V206 M505.3 168 V206 M484 180.7 H516 M484 193.3 H516" stroke="#ffffff" stroke-opacity=".35" stroke-width=".8"/>
+    <circle cx="478" cy="203" r="5.5" fill="#34d399" class="inks" stroke-width="1"/>
+    <text x="478" y="206" text-anchor="middle" class="b" font-size="7.5" fill="#0b1220">1</text>
+    <circle cx="508" cy="184" r="5.5" fill="#fbbf24" class="inks" stroke-width="1"/>
+    <text x="508" y="187" text-anchor="middle" class="b" font-size="7.5" fill="#0b1220">2</text>
+  </g>
+
+  <!-- 마운드 -->
+  <ellipse cx="394" cy="414" rx="240" ry="66" fill="url(#moundShade)"/>
+  <ellipse cx="394" cy="414" rx="240" ry="66" fill="none" stroke="#000" stroke-opacity=".08" stroke-width="6"/>
+
+  <!-- 투수 (상대, 등 쪽) — 자막에 가리지 않게 가운데로 -->
+  <g transform="translate(34,0)">
+    <!-- 다리 -->
+    <path d="M318 344 L310 394 L352 394 L358 350 Z" fill="#d9dde6" class="ink"/>
+    <path d="M364 350 L370 394 L412 394 L404 344 Z" fill="#d9dde6" class="ink"/>
+    <path d="M392 352 L398 394 L410 394 L404 346 Z" fill="#b9c0cf"/>
+    <!-- 팔 (세트 자세: 손을 가슴 앞에 모아 팔꿈치가 옆으로) -->
+    <path d="M308 280 Q282 288 278 316 Q280 330 296 326 Q300 304 316 294 Z" fill="#ff4d5e" class="ink"/>
+    <path d="M412 280 Q438 288 442 316 Q440 330 424 326 Q420 304 404 294 Z" fill="#ff4d5e" class="ink"/>
+    <ellipse cx="286" cy="322" rx="11" ry="9" fill="#6b3f1d" class="ink"/>
+    <!-- 몸통 (원정 회색 유니폼 등판) -->
+    <path d="M300 290 Q300 272 322 270 L398 270 Q420 272 420 290 L414 352 Q360 360 306 352 Z" fill="#eef1f6" class="ink"/>
+    <path d="M396 272 Q418 276 418 292 L413 350 Q404 353 394 354 Q402 310 396 272 Z" fill="#cfd6e2"/>
+    <path d="M304 290 Q302 274 322 271" fill="none" stroke="#ff4d5e" stroke-width="3"/>
+    <path d="M416 290 Q418 274 398 271" fill="none" stroke="#ff4d5e" stroke-width="3"/>
+    <text x="360" y="297" text-anchor="middle" class="b" font-size="12" fill="#ff4d5e" letter-spacing="4">하늘</text>
+    <text x="360" y="337" text-anchor="middle" class="b" font-size="36" fill="#ff4d5e" stroke="#26324a" stroke-width="2" paint-order="stroke">11</text>
+    <rect x="307" y="343" width="107" height="9" fill="#26324a"/>
+    <!-- 목·머리 -->
+    <rect x="347" y="258" width="26" height="16" fill="#ffd2a6" class="inks"/>
+    <circle cx="360" cy="236" r="37" fill="#3a2a22" class="ink"/>
+    <ellipse cx="322" cy="242" rx="6.5" ry="10" fill="#ffd2a6" class="ink"/>
+    <ellipse cx="398" cy="242" rx="6.5" ry="10" fill="#ffd2a6" class="ink"/>
+    <!-- 모자 (뒤쪽, 조절끈 구멍) -->
+    <path d="M322 236 Q322 198 360 198 Q398 198 398 236 Q360 228 322 236 Z" fill="#ff4d5e" class="ink"/>
+    <path d="M350 233 Q360 222 370 233 Z" fill="#3a2a22"/>
+    <path d="M330 222 Q336 206 356 203" fill="none" stroke="url(#capShine)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M360 199 V228" stroke="#26324a" stroke-opacity=".35" stroke-width="1.2"/>
+    <circle cx="360" cy="199" r="3" fill="#ff4d5e" class="inks" stroke-width="1.2"/>
+  </g>
+
+  <!-- 화면 가장자리 어둡게 (그래픽이 잘 읽히게) -->
+  <rect width="844" height="390" fill="url(#vignette)"/>
+
+  <!-- ================= 중계 그래픽 ================= -->
+
+  <!-- 스코어 버그 -->
+  <g transform="translate(12,12)">
+    <rect width="300" height="56" rx="6" fill="#1b2333" fill-opacity=".93" stroke="#ffffff" stroke-opacity=".18"/>
+    <!-- 원정 -->
+    <rect x="0" y="0" width="6" height="28" fill="#ff4d5e"/>
+    <text x="16" y="19.5" class="b w" font-size="14">번개</text>
+    <text x="110" y="20.5" text-anchor="end" class="b w" font-size="17">3</text>
+    <!-- 홈 (공격 중: 바탕 밝게 + 주황 표시) -->
+    <rect x="0" y="28" width="6" height="28" fill="#2f6bff"/>
+    <rect x="6" y="28" width="114" height="28" fill="#ffffff" fill-opacity=".08"/>
+    <text x="16" y="47.5" class="b w" font-size="14">새싹</text>
+    <path d="M52 38 l6 4 l-6 4 Z" fill="#ff8a1f"/>
+    <text x="110" y="48.5" text-anchor="end" class="b w" font-size="17">2</text>
+    <path d="M120 6 V50 M160 6 V50 M212 6 V50" stroke="#ffffff" stroke-opacity=".15"/>
+    <!-- 이닝 -->
+    <path d="M140 9 l5 6 h-10 Z" fill="#ffffff" fill-opacity=".25"/>
+    <text x="140" y="37" text-anchor="middle" class="b w" font-size="21">7</text>
+    <path d="M140 50 l5 -6 h-10 Z" fill="#ff8a1f"/>
+    <!-- 주자 (2루) -->
+    <rect x="181" y="11" width="10" height="10" transform="rotate(45 186 16)" fill="#fbbf24"/>
+    <rect x="169" y="23" width="10" height="10" transform="rotate(45 174 28)" fill="#ffffff" fill-opacity=".22"/>
+    <rect x="193" y="23" width="10" height="10" transform="rotate(45 198 28)" fill="#ffffff" fill-opacity=".22"/>
+    <text x="186" y="50" text-anchor="middle" class="soft" font-size="9.5">1사 2루</text>
+    <!-- B S O -->
+    <text x="222" y="17" class="b soft" font-size="10.5">B</text>
+    <circle cx="240" cy="13" r="4.5" fill="#34d399"/>
+    <circle cx="254" cy="13" r="4.5" fill="#34d399"/>
+    <circle cx="268" cy="13" r="4.5" fill="#ffffff" fill-opacity=".2"/>
+    <text x="222" y="32" class="b soft" font-size="10.5">S</text>
+    <circle cx="240" cy="28" r="4.5" fill="#fbbf24"/>
+    <circle cx="254" cy="28" r="4.5" fill="#ffffff" fill-opacity=".2"/>
+    <text x="222" y="47" class="b soft" font-size="10.5">O</text>
+    <circle cx="240" cy="43" r="4.5" fill="#f87171"/>
+    <circle cx="254" cy="43" r="4.5" fill="#ffffff" fill-opacity=".2"/>
+    <text x="290" y="47" text-anchor="end" class="soft" font-size="9">2-1</text>
+  </g>
+  <!-- 투수 줄 -->
+  <g transform="translate(12,72)">
+    <rect width="212" height="20" rx="4" fill="#1b2333" fill-opacity=".8"/>
+    <text x="9" y="14" class="b" font-size="10.5" fill="#ff8a1f">P</text>
+    <text x="22" y="14" class="b w" font-size="11">하늘</text>
+    <text x="50" y="14" class="soft" font-size="10.5">번개고 · 3학년 · 우완</text>
+    <text x="203" y="14" text-anchor="end" class="b w" font-size="11">87구</text>
+  </g>
+
+  <!-- 채널 표시 + 일시정지 -->
+  <text x="760" y="26" text-anchor="end" class="b w" font-size="11" letter-spacing="2.5" fill-opacity=".85">FIRST PICK</text>
+  <rect x="765" y="15" width="30" height="14" rx="3" fill="#ff4d5e"/>
+  <text x="780" y="25.5" text-anchor="middle" class="b w" font-size="8.5" letter-spacing=".5">LIVE</text>
+  <circle cx="818" cy="22" r="13" fill="#1b2333" fill-opacity=".8" stroke="#ffffff" stroke-opacity=".18"/>
+  <rect x="813" y="16" width="3.5" height="12" rx="1" fill="#ffffff"/>
+  <rect x="819.5" y="16" width="3.5" height="12" rx="1" fill="#ffffff"/>
+
+  <!-- 구속 (공이 지나간 뒤 표시) -->
+  <g transform="translate(704,44)">
+    <rect width="128" height="54" rx="6" fill="#1b2333" fill-opacity=".93" stroke="#ffffff" stroke-opacity=".18"/>
+    <rect width="5" height="54" fill="#2f6bff"/>
+    <text x="14" y="18" class="soft" font-size="10.5">2구 · <tspan class="b" fill="#7fb2ff" fill-opacity="1">직구</tspan></text>
+    <text x="14" y="46" class="b w" font-size="29">146</text>
+    <text x="72" y="46" class="soft" font-size="12">km/h</text>
+  </g>
+
+  <!-- 투구 위치판 = 노려치기 (지난 공 번호 + 노리는 칸) -->
+  <g transform="translate(744,104)">
+    <rect width="88" height="100" rx="6" fill="#1b2333" fill-opacity=".85" stroke="#ffffff" stroke-opacity=".18"/>
+    <text x="8" y="15" class="b soft" font-size="9" letter-spacing="1.5">노려치기</text>
+    <g transform="translate(17,24)">
+      <rect width="54" height="66" fill="#ffffff" fill-opacity=".05" stroke="#ffffff" stroke-opacity=".8" stroke-width="1.2"/>
+      <path d="M18 0 V66 M36 0 V66 M0 22 H54 M0 44 H54" stroke="#ffffff" stroke-opacity=".3" stroke-width=".8"/>
+      <!-- 노리는 칸: 가운데 위 -->
+      <rect x="18" y="0" width="18" height="22" fill="#ff8a1f" fill-opacity=".28" stroke="#ff8a1f" stroke-width="2"/>
+      <circle cx="-6" cy="60" r="6.5" fill="#34d399" class="inks" stroke-width="1"/>
+      <text x="-6" y="63.5" text-anchor="middle" class="b" font-size="8.5" fill="#0b1220">1</text>
+      <circle cx="42" cy="28" r="6.5" fill="#fbbf24" class="inks" stroke-width="1"/>
+      <text x="42" y="31.5" text-anchor="middle" class="b" font-size="8.5" fill="#0b1220">2</text>
+    </g>
+  </g>
+
+  <!-- 스윙 종류 (왼손 엄지) -->
+  <g transform="translate(12,128)">
+    <text x="2" y="0" class="b soft" font-size="9" letter-spacing="2">SWING</text>
+    <g transform="translate(0,8)">
+      <rect width="84" height="34" rx="6" fill="#2f6bff"/>
+      <rect width="4" height="34" fill="#ff8a1f"/>
+      <text x="44" y="22" text-anchor="middle" class="b w" font-size="13">밸런스</text>
+    </g>
+    <g transform="translate(0,48)">
+      <rect width="84" height="34" rx="6" fill="#1b2333" fill-opacity=".78" stroke="#ffffff" stroke-opacity=".18"/>
+      <text x="42" y="22" text-anchor="middle" class="b w" font-size="13" fill-opacity=".85">컨택</text>
+    </g>
+    <g transform="translate(0,88)">
+      <rect width="84" height="34" rx="6" fill="#1b2333" fill-opacity=".78" stroke="#ffffff" stroke-opacity=".18"/>
+      <text x="42" y="22" text-anchor="middle" class="b w" font-size="13" fill-opacity=".85">파워</text>
+    </g>
+    <g transform="translate(0,128)">
+      <rect width="84" height="34" rx="6" fill="#1b2333" fill-opacity=".78" stroke="#ffffff" stroke-opacity=".18"/>
+      <text x="42" y="22" text-anchor="middle" class="b w" font-size="13" fill-opacity=".85">번트</text>
+    </g>
+  </g>
+
+  <!-- 타자 자막 (타석 시작에 미끄러져 들어오고 투구가 시작되면 접힌다) -->
+  <g>
+    <path d="M12 318 L66 318 L58 376 L12 376 Z" fill="#2f6bff"/>
+    <path d="M66 318 L306 318 L298 376 L58 376 Z" fill="#1b2333" fill-opacity=".93"/>
+    <path d="M12 315 L306 315 L305.6 318 L12 318 Z" fill="#ff8a1f"/>
+    <text x="36" y="358" text-anchor="middle" class="b w" font-size="30">7</text>
+    <text x="74" y="341" class="b w" font-size="17">김도윤</text>
+    <text x="132" y="341" class="soft" font-size="11">좌익수 · 1학년 · 우투우타</text>
+    <text x="70" y="365" class="w" font-size="11.5">오늘 <tspan class="b">2타수 1안타</tspan></text>
+    <text x="164" y="365" class="soft" font-size="11.5">시즌 <tspan class="b w" fill-opacity="1">.312</tspan>  3홈런  18타점</text>
+  </g>
+
+  <!-- 스윙 버튼 (오른손 엄지, 주황 링 = 남은 선택 시간) -->
+  <g transform="translate(776,318)">
+    <circle r="46" fill="#1b2333" fill-opacity=".62"/>
+    <circle r="40" fill="#2f6bff"/>
+    <circle r="45" fill="none" stroke="#ffffff" stroke-opacity=".18" stroke-width="2"/>
+    <circle r="44" fill="none" stroke="#ff8a1f" stroke-width="4" stroke-linecap="round" stroke-dasharray="171 400" transform="rotate(-90)"/>
+    <path d="M-15 8 L13 -13" stroke="#ffffff" stroke-width="5.6" stroke-linecap="round"/>
+    <circle cx="-16" cy="9" r="3.4" fill="#ffffff"/>
+    <text y="27" text-anchor="middle" class="b w" font-size="12">스윙</text>
+  </g>
+  </g>
+</svg>

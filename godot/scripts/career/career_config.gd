@@ -37,6 +37,8 @@ var fast_step_ms: float
 var auto_pa: Dictionary
 var roster: Dictionary
 var running: Dictionary
+## 도루 (투수 동작·수비 시간)
+var steal: Dictionary
 
 var my_school: Dictionary
 var regional_schools: Array
@@ -99,6 +101,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.auto_pa = g["autoPa"]
 	c.roster = g["roster"]
 	c.running = g["running"]
+	c.steal = g["steal"]
 
 	c.my_school = content["mySchool"]
 	c.regional_schools = content["regionalSchools"]

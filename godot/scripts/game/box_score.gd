@@ -16,6 +16,9 @@ class BatterLine:
 	var so := 0
 	var sh := 0
 	var sf := 0
+	## 도루·도루 실패(견제사 포함)
+	var sb := 0
+	var cs := 0
 
 	func add(outcome: SwingJudge.Outcome, rbi_count: int, sac_fly: bool) -> void:
 		pa += 1

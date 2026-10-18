@@ -18,6 +18,8 @@ const MITT_RING_MS := 140.0
 ## 장면 배치 (화면 비율). 지평선(외야 담장), 마운드, 존 가운데, 타자 머리
 const HORIZON_Y := 0.40
 const MOUND_Y := 0.535
+## 투수 키 (화면 높이 비율)
+const PITCHER_HEIGHT := 0.15
 const ZONE_Y := 0.77
 const ZONE_HALF_W := 0.045
 const ZONE_HALF_H := 0.095
@@ -49,6 +51,8 @@ var _swing_progress := -1.0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	# 투수 그림은 원본보다 훨씬 작게 그려진다 — 밉맵으로 줄여야 깨지지 않는다
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	_batter = BatterSprite.new()
 	add_child(_batter)
 	_front = Control.new()
@@ -102,7 +106,8 @@ func _draw() -> void:
 	# 정타 뒤에는 야구장 전체를 비추는 중계 화면으로 바뀐다
 	var ball := _broadcast_ball()
 	if ball != null:
-		BroadcastView.draw(self, Rect2(Vector2.ZERO, size), session.config.ball_physics, ball, session.broadcast_time(), session.last_result.contact.bunt, false, session.last_result.play)
+		BroadcastView.draw(self, Rect2(Vector2.ZERO, size), session.config.ball_physics, ball, session.broadcast_time(), session.last_result.contact.bunt, false, session.last_result.play,
+			int(session.situation.get("batter", -1)) if str(session.situation.get("control", "")) != "" else -1)
 	else:
 		_draw_stadium()
 		_draw_field()
@@ -152,6 +157,9 @@ func _layout() -> void:
 	_zone_center = Vector2(size.x * 0.5, size.y * ZONE_Y)
 	_zone_half = Vector2(size.x * ZONE_HALF_W, size.y * ZONE_HALF_H)
 	_release = Vector2(size.x * 0.5 - size.y * 0.012, size.y * (MOUND_Y - 0.095))
+	if PitcherPoses.available():
+		# 공은 공 놓는 그림의 손에서 출발한다
+		_release = Vector2(size.x * 0.5, size.y * MOUND_Y) + PitcherPoses.release_hand(session.presentation.windup_ms) * (size.y * PITCHER_HEIGHT / PitcherPoses.HEIGHT)
 
 
 ## 존 좌표 → 화면
@@ -256,9 +264,22 @@ func _draw_field() -> void:
 
 # ---------- 사람 ----------
 
-## 투수: 세트 자세(선택 시간) → 다리 들기 → 팔을 뒤로 → 머리 위로 넘겨 던지기 → 팔로스루. 공을 놓는 손이 공이 출발하는 곳
+## 투수: 세트 자세(선택 시간) → 다리 들기 → 몸 돌려 모으기 → 공 놓기 → 팔로스루. 공을 놓는 손이 공이 출발하는 곳.
+## 포즈 그림(PitcherPoses)이 있으면 그 그림을, 없으면 옛 도형 투수를 그린다
 func _draw_pitcher() -> void:
 	var pres := session.presentation
+	if PitcherPoses.available():
+		var windup := 0.0
+		var since_release := -1.0
+		match session.phase:
+			BattingSession.Phase.WINDUP:
+				windup = clampf(session.since(session.phase_since_ms) / pres.windup_ms, 0.0, 1.0)
+			BattingSession.Phase.FLIGHT, BattingSession.Phase.HIT:
+				since_release = session.since(session.phase_since_ms) + (session.pitch.flight_ms if session.phase == BattingSession.Phase.HIT else 0.0)
+		var mound := Vector2(size.x * 0.5, size.y * MOUND_Y)
+		_draw_ellipse(mound, Vector2(size.y * PITCHER_HEIGHT * 0.3, size.y * PITCHER_HEIGHT * 0.07), Tokens.SHADOW)
+		PitcherPoses.draw(self, windup, since_release, pres.windup_ms, mound + _shake(), size.y * PITCHER_HEIGHT, _shake())
+		return
 	var u := size.y * 0.0042  # 투수 크기 단위
 	var t := 0.0
 	var follow := 0.0

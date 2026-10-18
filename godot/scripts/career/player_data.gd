@@ -20,6 +20,9 @@ class SeasonStats:
 	var strikeouts := 0
 	var sac_flies := 0
 	var sac_bunts := 0
+	## 도루·도루 실패(견제사 포함) — 내가 직접 뛴 것만 (다른 주자는 아직 도루하지 않는다)
+	var steals := 0
+	var caught_stealing := 0
 	## 인플레이 타구 수와 타구 속도 합 (기록실 분할 기록의 평균 타구 속도용. 타구 물리가 있는 내 타석만 센다)
 	var balls_in_play := 0
 	var ev_sum := 0.0
@@ -64,6 +67,8 @@ class SeasonStats:
 		strikeouts += o.strikeouts
 		sac_flies += o.sac_flies
 		sac_bunts += o.sac_bunts
+		steals += o.steals
+		caught_stealing += o.caught_stealing
 		balls_in_play += o.balls_in_play
 		ev_sum += o.ev_sum
 
@@ -91,6 +96,8 @@ class SeasonStats:
 		s.strikeouts = b.so
 		s.sac_flies = b.sf
 		s.sac_bunts = b.sh
+		s.steals = b.sb
+		s.caught_stealing = b.cs
 		return s
 
 	## "4타수 2안타 1홈런" 처럼 짧게
@@ -102,6 +109,8 @@ class SeasonStats:
 			parts.append("%d타점" % rbi)
 		if walks > 0:
 			parts.append("%d볼넷" % walks)
+		if steals > 0:
+			parts.append("%d도루" % steals)
 		return " ".join(parts)
 
 	## 출루율 = (안타 + 볼넷) / (타수 + 볼넷 + 희생플라이). 몸에 맞는 공은 아직 없다

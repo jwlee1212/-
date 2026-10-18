@@ -42,9 +42,17 @@ class PlayResult:
 	var double_play := false
 	var rbi := 0
 	var duration := 0.0
+	## 유저가 조작하는 주자의 판단 순간들 [{t, id, kind: "extra"|"tag", from, to, ai: AI 라면 뛰었나, go: 실제로 뛰었나}]
+	var decisions: Array = []
 
 
 var result := PlayResult.new()
+## 유저가 조작하는 주자의 타순 번호 (-1 = 없음, 모두 AI). run() 전에 정한다
+var controlled_id := -1
+## 조작 주자의 판단을 순서대로 미리 정한 값 (true = 뛴다). 모자라는 판단은 AI 대로 간다.
+## 판단 전까지의 진행은 choices 와 상관없이 같으므로(난수도 같은 만큼 쓴다), 화면은 AI 판단으로 먼저 돌려 보고
+## 유저가 다르게 고르면 그 판단까지의 choices 를 넣어 다시 돌린다 (RunControl)
+var choices: Array = []
 
 var _phys: BattedBallSim.Config
 var _run: Dictionary
@@ -68,8 +76,11 @@ var _score_log: Array = []  # [[시각, 주자]]
 
 
 ## bases: 플레이 전 1·2·3루 주자 타순 번호(-1 빈 베이스), speed_of: 타순 번호 → 주력(0~100)
+## controlled: 유저가 조작하는 주자의 타순 번호 (-1 = 없음), p_choices: 그 주자의 판단을 미리 정한 값
 func _init(phys: BattedBallSim.Config, ball: BattedBallSim.Result, batter_id: int, bases: Array, speed_of: Callable,
-		outs_before: int, rng: RandomNumberGenerator) -> void:
+		outs_before: int, rng: RandomNumberGenerator, controlled: int = -1, p_choices: Array = []) -> void:
+	controlled_id = controlled
+	choices = p_choices
 	_phys = phys
 	_run = phys.running
 	_ball = ball
@@ -145,7 +156,10 @@ func _on_caught() -> void:
 			var throw_eta := _t + _phys.transfer_s * 0.5 + BattedBallSim.outfield_to_base_s(_phys, _ball_at.length()) + float(_run["tagS"])
 			if _ball.fielder in _phys.infield:
 				throw_eta = _t  # 내야 뜬공에는 태그업하지 않는다
-			if runner_eta + _judgment() < throw_eta:
+			var go := runner_eta + _judgment() < throw_eta
+			if not (_ball.fielder in _phys.infield):
+				go = _decide(r, "tag", 4, go)
+			if go:
 				r.move_after = _t + tag
 				r.run_to(4, _t)
 
@@ -236,7 +250,10 @@ func _check_runner(r: RunnerAI) -> void:
 			# 앞 주자가 아직 다음 베이스를 정하지 않았으면 (베이스 decisionLatestM 앞까지) 기다렸다가 판단한다
 			if not _blocked_by_undecided(r) or r.remaining() < float(_run["decisionLatestM"]):
 				_decided[key] = true
-				if _can_take_extra(r):
+				var go := false
+				if _extra_allowed(r):
+					go = _decide(r, "extra", r.target + 1, _extra_in_time(r))
+				if go:
 					r.run_to(r.target + 1, _t)
 		# 접전이면 슬라이딩
 		if r.stop_at_end and r.remaining() < float(_run["slideStartM"]) and _incoming_throw(r.target) >= 0.0:
@@ -265,8 +282,18 @@ func _blocked_by_undecided(r: RunnerAI) -> bool:
 	return false
 
 
-## 한 베이스 더 갈 수 있나: 내가 다음 베이스에 닿는 시각 + 판단 오차 < 그 베이스로 오는 송구 도착(+태그)
-func _can_take_extra(r: RunnerAI) -> bool:
+## 조작 주자의 판단이면 정해 둔 값(없으면 AI 판단)을 쓰고 기록한다. 다른 주자는 AI 판단 그대로
+func _decide(r: RunnerAI, kind: String, to_base: int, ai: bool) -> bool:
+	if r.id != controlled_id:
+		return ai
+	var k := result.decisions.size()
+	var go: bool = choices[k] if k < choices.size() else ai
+	result.decisions.append({"t": _t, "id": r.id, "kind": kind, "from": to_base - 1, "to": to_base, "ai": ai, "go": go})
+	return go
+
+
+## 한 베이스 더 가는 게 허용되나 (판단할 거리가 되는가): 앞이 막혔거나 내야에서 잡힌 공이면 안 된다
+func _extra_allowed(r: RunnerAI) -> bool:
 	var next := r.target + 1
 	# 앞 주자가 거기 서 있거나 거기서 멈추려고 가는 중이면 못 간다 (추월 금지). 홈은 여럿이 들어와도 된다
 	for o in result.runners:
@@ -274,6 +301,12 @@ func _can_take_extra(r: RunnerAI) -> bool:
 			return false
 	if _ball.caught or _ball.fielder in _phys.infield:
 		return false  # 내야에서 잡힌 공은 한 베이스씩만 (병살 위험)
+	return true
+
+
+## 한 베이스 더 갈 만한가 (AI 판단): 내가 다음 베이스에 닿는 시각 + 판단 오차 < 그 베이스로 오는 송구 도착(+태그)
+func _extra_in_time(r: RunnerAI) -> bool:
+	var next := r.target + 1
 	var runner_eta := _t + r.eta_to_base(next)
 	var throw_eta := _predict_throw(next)
 	# 아웃 카운트에 따라 과감함이 다르다: 2사면 아웃돼도 잃을 게 적어 더 과감하게 돌린다

@@ -26,6 +26,12 @@ func _ready() -> void:
 	await get_tree().create_timer(0.3).timeout
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build/shots"))
 	get_viewport().get_texture().get_image().save_png("res://build/shots/batter-poses.png")
+	# 투수: 와인드업 0.7초 + 던진 뒤 0.35초를 15칸으로 나눠 한 장에 (포즈가 넘어가는 모습을 본다)
+	var strip := _PitcherStrip.new()
+	add_child(strip)
+	await get_tree().create_timer(0.3).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("res://build/shots/pitcher-strip.png")
 	for child in get_children():
 		child.queue_free()
 
@@ -84,3 +90,16 @@ func _wait_ms(ms: float) -> void:
 func _shot(shot_name: String) -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("res://build/shots/%s.png" % shot_name)
+
+
+class _PitcherStrip extends Control:
+	func _draw() -> void:
+		draw_rect(Rect2(0, 0, 844, 400), Tokens.GRASS)
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		for i in 24:
+			var ms := i * 50.0
+			var windup := minf(ms / 700.0, 1.0)
+			var since := ms - 700.0 if ms >= 700.0 else -1.0
+			var feet := Vector2(60 + (i % 8) * 100, 112 + (i / 8) * 127)
+			PitcherPoses.draw(self, windup, since, 700.0, feet, 92.0)
+			draw_string(Tokens.FONT_REGULAR, feet + Vector2(-20, 14), "%dms" % ms, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Tokens.CHALK)
