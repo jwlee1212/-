@@ -46,6 +46,12 @@ func next(pitcher: BattingConfig.PitcherProfile, balls: int, strikes: int, skill
 		var sigma := _config.scatter_at_control0 * (1.0 - pitcher.control)
 		p.target = p.intended + Vector2(rng.randfn(0.0, sigma), rng.randfn(0.0, sigma))
 
+	# 공 크기: 공이 조금이라도 존에 걸치면 스트라이크다. 위의 위치들은 "공 중심이 ±1 안이면 스트라이크"로 짠 값이라
+	# 존+공 반지름(reach) 비율로 넓혀서, 스트라이크·볼 비율은 그대로 두고 화면의 공이 판정과 맞게 한다
+	p.reach = 1.0 + _config.zone_ball_radius
+	p.intended *= p.reach
+	p.target *= p.reach
+
 	# 비행 시간: 구속 비율로 정한 기본값 + 투수 성향 보정 + 공마다 흔들림. 이 값이 궤적의 도착 시각이자 판정 기준 시각
 	var catalog := _config.catalog
 	var spec := catalog.spec(p.type)

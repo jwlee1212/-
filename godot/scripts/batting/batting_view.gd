@@ -186,16 +186,17 @@ func _aim_on_screen(zone: Vector2) -> Vector2:
 ## 공을 놓고 t_ms 뒤 공의 화면 위치(xy)와 크기 비율(z, 0~1).
 ## 공은 투수 손에서 "지금 향하는 곳"으로 원근을 따라 다가온다: 꺾이기 전엔 곧게, 꺾이면 향하는 곳이 도착점으로 미끄러진다
 func _ball(p: Pitch, t_ms: float) -> Vector3:
-	# 원근감: 가까워질수록 빨리 커지고 빨리 움직이는 것처럼. 깊이는 거리 진행률(감속 반영),
-	# 홈플레이트를 지난 뒤에는 시간대로 조금 더 다가온다
-	var t := p.trajectory.distance_fraction(t_ms) if t_ms < p.flight_ms else minf(t_ms / p.flight_ms, 1.15)
+	# 원근감: 가까워질수록 빨리 커지고 빨리 움직이는 것처럼. 깊이는 거리 진행률(감속 반영).
+	# 홈플레이트에 닿으면 미트에 멈춘다 (지나쳐 가면 판정 자리보다 아래·바깥에 보여 헷갈린다)
+	var t := p.trajectory.distance_fraction(t_ms)
 	var s := 0.25 * t + 0.75 * t * t
 	var pos := _release.lerp(_aim_on_screen(_pointing(p, t_ms)), s)
 	return Vector3(pos.x, pos.y, s)
 
 
+## 공 반지름 (원근 배율 s). 홈플레이트에서는 판정과 같은 크기 (zoneBallRadius × 존 반폭) — 존에 걸쳐 보이면 스트라이크
 func _ball_radius(s: float) -> float:
-	return 2.0 + size.y * 0.03 * s
+	return 2.0 + (_zone_half.x * session.config.zone_ball_radius - 2.0) * s
 
 
 # ---------- 경기장 ----------
@@ -428,10 +429,8 @@ func _draw_zone() -> void:
 func _draw_catcher_mitt() -> void:
 	if not session.config.catcher_hint or session.pitch == null:
 		return
-	var show := session.phase == BattingSession.Phase.WINDUP
-	if session.phase == BattingSession.Phase.FLIGHT:
-		show = session.since(session.phase_since_ms) < session.pitch.flight_ms
-	if not show:
+	# 와인드업부터 공이 미트에 꽂혀 판정이 날 때까지 계속 보인다
+	if session.phase != BattingSession.Phase.WINDUP and session.phase != BattingSession.Phase.FLIGHT:
 		return
 	# 예상 투구 위치: 공이 지금 향하는 곳 (변화구는 처음엔 "휘기 전 방향", 꺾이는 만큼 따라 움직인다).
 	# 포수는 처음엔 노린 곳(intended)에 미트를 대고 있다가 공이 다가올수록 실제로 오는 곳으로 옮긴다 → 도착 순간 공과 겹친다
@@ -439,7 +438,8 @@ func _draw_catcher_mitt() -> void:
 	var t_ms := session.since(session.phase_since_ms) if session.phase == BattingSession.Phase.FLIGHT else 0.0
 	var u := p.trajectory.time_fraction(t_ms)
 	var at := _aim_on_screen(_pointing(p, t_ms) + (p.intended - p.trajectory.aim) * (1.0 - u))
-	var r := size.y * 0.024
+	# 공을 받을 만큼 크게 (홈플레이트에서 공보다 조금 크다)
+	var r := _ball_radius(1.0) * 1.3
 	draw_circle(at, r, Color(Tokens.MITT, 0.9), true, -1.0, true)
 	draw_circle(at, r * 0.55, Color(Tokens.DIRT, 0.95), true, -1.0, true)
 
@@ -459,7 +459,7 @@ func _draw_ball_in_flight() -> void:
 		var side := -1.0 if session.swing_outcome.contact.angle_deg < 0 else 1.0
 		_draw_launched_ball(self, hit_pos, hit_pos + Vector2(side * size.x * 0.6, -size.y * 0.7), t, _ball_radius(b.z))
 		_draw_burst(self, hit_pos, session.since(session.swing_since_ms), SwingJudge.Quality.FOUL)
-	elif progress <= 1.15:
+	else:
 		var now := session.since(session.phase_since_ms)
 		var b := _ball(p, now)
 		var pos := Vector2(b.x, b.y)

@@ -92,7 +92,7 @@ func contact(pitch: Pitch, skills: BatterSkills, timing_diff_ms: float, rng: Ran
 		c.bunt = true
 		return c
 
-	var height_shift := pitch.target.y * bb.launch_per_pitch_height  # 낮은 공(y+)일수록 낮게 뜬다
+	var height_shift := pitch.target.y / pitch.reach * bb.launch_per_pitch_height  # 낮은 공(y+)일수록 낮게 뜬다
 	if q == Quality.SOLID:
 		var accuracy := 1.0 - d / solid
 		var ev := lerpf(bb.ev_at0, bb.ev_at100, skills.power / 100.0) * ((1.0 - bb.ev_quality_share) + bb.ev_quality_share * accuracy)

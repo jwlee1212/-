@@ -115,12 +115,14 @@
     "pitch_common": {
       "_note": "모든 구종 공통. decel: 감속 보정(0 이상 1 미만) — 클수록 공이 앞에서 빠르고 홈플레이트 앞에서 느려진다(도착 시각은 그대로). four_seam_flight_ms: 포심이 홈플레이트까지 걸리는 시간 = 모든 구종 비행 시간의 기준 (손맛 패널 '공 비행 시간'이 바꾼다). flight_jitter_ms: 공마다 비행 시간이 ± 이만큼 흔들린다. speed_display_spread: 화면 구속에만 쓴다(판정 무관) — 투수 보정·흔들림으로 비행 시간이 달라진 만큼 구속 숫자를 이 비율만큼만 바꾼다 (1 = 물리 그대로, 흔들림 ±30ms 면 ±11km/h 라 너무 커서 옛 speedDisplay 와 같은 0.4 쯤으로 줄여 보여 준다). location_min·location_max: 투구 위치에 따른 변화폭 배율의 범위 (구종별 location_effect 와 함께, pitch_trajectory.gd)",
       "decel": 0.06,
-      "four_seam_flight_ms": 600,
+      "four_seam_flight_ms": 840,
       "flight_jitter_ms": 30.0,
       "speed_display_spread": 0.4,
       "location_min": 0.5,
       "location_max": 1.4
     },
+    "zoneBallRadius": 0.35,
+    "_zoneBallRadius": "홈플레이트를 지날 때 공 반지름 (존 반폭 단위, 실제 공 7.4cm ÷ 존 반폭 21.6cm ≈ 0.34). 공이 조금이라도 존에 걸치면 스트라이크 — 공 중심이 ±(1 + 이 값) 안. 화면에 그리는 공 크기도 이 값이라 보이는 대로 판정된다. 볼배합의 위치(pitchCalling 의 오프셋 등)는 '공 중심 ±1 = 스트라이크' 기준으로 적고, 던질 때 (1 + 이 값) 배로 넓힌다",
     "pitchers": {
       "_note": "투수 성향. speedMs 는 모든 구종 비행 시간에 더하는 값(음수 = 빠름). mix 는 볼배합 가중치에 곱하는 배율. control 0~1 이 높을수록 미트에 정확히, mistakeChance 는 한가운데 실투 확률. hand: 던지는 손 R | L (좌투수는 변화 방향이 좌우 반대). mix 가 0 인 구종은 안 던진다(레퍼토리)",
       "balanced": {
@@ -146,7 +148,7 @@
       },
       "power": {
         "name": "강속구형",
-        "speedMs": -33,
+        "speedMs": -46,
         "hand": "R",
         "mix": {
           "four_seam": 1.2,
@@ -167,7 +169,7 @@
       },
       "finesse": {
         "name": "기교파",
-        "speedMs": 23,
+        "speedMs": 32,
         "hand": "R",
         "mix": {
           "four_seam": 0.0,

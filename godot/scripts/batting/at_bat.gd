@@ -119,7 +119,7 @@ func swing(tap_ms: float) -> PitchOutcome:
 	var aim_factor := 1.0
 	var bonus_kmh := 0.0
 	if _config.aim_enabled and aim_cell >= 0 and swing_type != "bunt":
-		if Pitch.cell_of(pitch.target) == aim_cell:
+		if Pitch.cell_of(pitch.target, pitch.reach) == aim_cell:
 			aim = Aim.HIT
 			aim_factor = _config.aim_hit_window_factor
 			bonus_kmh = _config.aim_hit_ev_bonus

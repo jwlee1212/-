@@ -52,6 +52,7 @@ func _init() -> void:
 		"test_gap_hits_more_than_center",
 		"test_speed_display",
 		"test_cell_of",
+		"test_strike_zone_counts_ball_size",
 		"test_tuning_applies_and_patches",
 		"test_tuning_reset",
 		"test_apply_patch",
@@ -567,7 +568,7 @@ func _intended_strike_share(balls: int, strikes: int) -> float:
 	var n := 0
 	for i in 2000:
 		var p := pitch_at(balls, strikes, i)
-		if absf(p.intended.x) <= 1.0 and absf(p.intended.y) <= 1.0:
+		if absf(p.intended.x) <= p.reach and absf(p.intended.y) <= p.reach:
 			n += 1
 	return n / 2000.0
 
@@ -634,7 +635,7 @@ func test_chase_pitches_are_just_outside() -> void:
 	for i in 500:
 		var p := pitch_at(0, 2, i)
 		if p.is_chase:
-			var off := maxf(absf(p.intended.x), absf(p.intended.y))
+			var off := maxf(absf(p.intended.x), absf(p.intended.y)) / p.reach
 			check(off >= _config.chase_offset.x - 1e-6 and off <= _config.chase_offset.y + 1e-6, "유인구 위치 %s" % p.intended)
 
 
@@ -654,7 +655,7 @@ func test_aim_in_at_bat() -> void:
 	for s in 50:
 		var probe := AtBat.new(_config, _average, _balanced, s)
 		var p := probe.next_pitch()
-		var cell := Pitch.cell_of(p.target)
+		var cell := Pitch.cell_of(p.target, p.reach)
 		if cell < 0:
 			continue
 		var ab := AtBat.new(_config, _average, _balanced, s)
@@ -698,6 +699,25 @@ func test_cell_of() -> void:
 	check(Pitch.cell_of(Vector2(0, 0)) == 4)
 	check(Pitch.cell_of(Vector2(0.9, 0.9)) == 8)
 	check(Pitch.cell_of(Vector2(1.2, 0)) == -1)
+	# 공 위치는 reach(존 + 공 반지름)를 3등분: 존에 걸친 공은 가장자리 칸
+	check(Pitch.cell_of(Vector2(1.2, 0), 1.35) == 5 and Pitch.cell_of(Vector2(1.4, 0), 1.35) == -1)
+
+
+func test_strike_zone_counts_ball_size() -> void:
+	# 공이 조금이라도 존에 걸치면 스트라이크: 공 중심이 ±(1 + 공 반지름) 안
+	var r := _config.zone_ball_radius
+	check(r > 0.2 and r < 0.5, "공 반지름 %.2f (실제 공 ÷ 존 반폭 ≈ 0.34)" % r)
+	for i in 400:
+		var p := pitch_at(i % 4, i % 3, i)
+		check(is_equal_approx(p.reach, 1.0 + r))
+		var edge := maxf(absf(p.target.x), absf(p.target.y))
+		check(p.is_strike() == (edge <= 1.0 + r), "판정 %s 위치 %s" % [p.is_strike(), p.target])
+	var p := Pitch.new()
+	p.reach = 1.0 + r
+	p.target = Vector2(1.0 + r * 0.5, 0.0)  # 중심은 존 밖, 몸통이 걸친다
+	check(p.is_strike(), "걸친 공은 스트라이크")
+	p.target = Vector2(0.0, 1.0 + r * 1.2)
+	check(not p.is_strike(), "완전히 벗어난 공은 볼")
 
 
 # ---------- 손맛 조절 패널 (CLAUDE.md §3-7) ----------

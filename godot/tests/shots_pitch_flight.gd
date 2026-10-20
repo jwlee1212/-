@@ -1,10 +1,10 @@
 extends Node
 ## 확인용 스크린샷: 실제 타석 화면(타격 연습)에서 구종마다 공이 날아오는 막판 한 장 → godot/build/shots/flight-<구종>.png
 ##   ~/Applications/Godot.app/Contents/MacOS/Godot --always-on-top --path godot res://tests/shots_pitch_flight.tscn
-## 구종 고정(개발 빌드 버튼과 같은 forced_pitch_type)으로 던지게 하고, 비행 60·85·97% 시점을 찍는다 → flight-<구종>-<%>.png
+## 구종 고정(개발 빌드 버튼과 같은 forced_pitch_type)으로 던지게 하고, 비행 60·85·97% 와 도착 직후(108%, 공이 미트에 멈춰 있는 모습)를 찍는다 → flight-<구종>-<%>.png
 ## (잔상으로 휘어 온 길이 보인다). 앞 공의 판정 말풍선이 사라진 뒤에 던진다
 
-const AT := [0.6, 0.85, 0.97]
+const AT := [0.6, 0.85, 0.97, 1.08]
 
 
 func _ready() -> void:

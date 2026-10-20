@@ -20,6 +20,8 @@ var target := Vector2.ZERO
 ## 포수가 미트를 댄 곳 = 투수가 노린 곳. 제구가 흔들리면 target 과 달라진다
 var intended := Vector2.ZERO
 var trajectory: PitchTrajectory
+## 스트라이크로 인정되는 공 중심의 범위 (존 반폭 단위) = 1 + 공 반지름. 공이 조금이라도 존에 걸치면 스트라이크
+var reach := 1.0
 ## 비행 진행률이 이 값을 넘으면 구종이 화면에 드러난다 (선구안)
 var reveal_fraction: float
 ## 볼배합 의도 (화면 설명·테스트용)
@@ -29,7 +31,7 @@ var is_mistake := false
 
 
 func is_strike() -> bool:
-	return absf(target.x) <= 1.0 and absf(target.y) <= 1.0
+	return absf(target.x) <= reach and absf(target.y) <= reach
 
 
 ## 공을 놓고 t_ms 뒤 공의 존 좌표
@@ -41,10 +43,11 @@ func is_revealed_at(progress: float) -> bool:
 	return progress >= reveal_fraction
 
 
-## 존 3×3 칸 번호 (0~8, 왼쪽 위부터). 존 밖이면 -1 — 노려치기 판정에 쓴다
-static func cell_of(pos: Vector2) -> int:
-	if absf(pos.x) > 1.0 or absf(pos.y) > 1.0:
+## 존 3×3 칸 번호 (0~8, 왼쪽 위부터). 존 밖이면 -1 — 노려치기 판정에 쓴다.
+## reach: 이 범위를 존 전체로 보고 3등분한다 (공 위치면 pitch.reach — 존에 걸친 공은 가장자리 칸, 화면 탭이면 1)
+static func cell_of(pos: Vector2, reach_: float = 1.0) -> int:
+	if absf(pos.x) > reach_ or absf(pos.y) > reach_:
 		return -1
-	var col := clampi(int(floor((pos.x + 1.0) / 2.0 * 3.0)), 0, 2)
-	var row := clampi(int(floor((pos.y + 1.0) / 2.0 * 3.0)), 0, 2)
+	var col := clampi(int(floor((pos.x / reach_ + 1.0) / 2.0 * 3.0)), 0, 2)
+	var row := clampi(int(floor((pos.y / reach_ + 1.0) / 2.0 * 3.0)), 0, 2)
 	return row * 3 + col
