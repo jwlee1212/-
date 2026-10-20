@@ -301,8 +301,8 @@
       },
       "trailMs": 110,
       "trailDots": 7,
-      "movementScaleX": 1.6,
-      "movementScaleY": 1.3
+      "movementScaleX": 1.0,
+      "movementScaleY": 0.9
     },
     "swingTypes": {
       "_note": "스윙 종류 (더쇼 방식). windowMul = 판정 폭 배율, evMul = 타구 속도 배율, launchShiftDeg = 발사각 평균 이동. 번트는 battedBall.bunt 의 따로 정한 타구를 낸다",

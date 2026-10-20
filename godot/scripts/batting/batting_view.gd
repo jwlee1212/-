@@ -26,9 +26,9 @@ const ZONE_HALF_H := 0.095
 ## 공이 향하는 곳은 투수 손보다 화면 높이의 이만큼은 아래 (공이 화면에서 위로 올라가지 않게)
 const MIN_DESCENT := 0.03
 ## 타자: 두 발 사이의 가로 자리, 발바닥 높이(화면 아래로 살짝 잘린다), 키 — 화면 높이 비율
-const BATTER_X := 0.27
-const BATTER_FEET_Y := 1.03
-const BATTER_HEIGHT := 0.74
+const BATTER_X := 0.3
+const BATTER_FEET_Y := 0.99
+const BATTER_HEIGHT := 0.58
 ## 맞는 순간 배트를 공 높이에 맞추려고 몸을 기울이는 한도 (도): 높은 공 쪽 / 낮은 공 쪽
 const BATTER_LEAN_UP_DEG := 6.0
 const BATTER_LEAN_DOWN_DEG := 20.0
@@ -175,6 +175,14 @@ func _pointing(p: Pitch, t_ms: float) -> Vector2:
 	return traj.aim + (traj.pointing_at(t_ms) - traj.aim) * session.presentation.movement_scale
 
 
+## 존 평면의 "향하는 곳" → 화면. 손보다 위면 공이 화면에서 솟아오르므로 손 바로 아래로 눌러 둔다 (떨어지는 공은 그냥 떨어진다).
+## 공과 포수 미트가 같은 함수를 써서 둘이 어긋나지 않는다
+func _aim_on_screen(zone: Vector2) -> Vector2:
+	var at := zone_to_screen(zone)
+	at.y = maxf(at.y, _release.y + size.y * MIN_DESCENT)
+	return at
+
+
 ## 공을 놓고 t_ms 뒤 공의 화면 위치(xy)와 크기 비율(z, 0~1).
 ## 공은 투수 손에서 "지금 향하는 곳"으로 원근을 따라 다가온다: 꺾이기 전엔 곧게, 꺾이면 향하는 곳이 도착점으로 미끄러진다
 func _ball(p: Pitch, t_ms: float) -> Vector3:
@@ -182,10 +190,7 @@ func _ball(p: Pitch, t_ms: float) -> Vector3:
 	# 홈플레이트를 지난 뒤에는 시간대로 조금 더 다가온다
 	var t := p.trajectory.distance_fraction(t_ms) if t_ms < p.flight_ms else minf(t_ms / p.flight_ms, 1.15)
 	var s := 0.25 * t + 0.75 * t * t
-	var target := zone_to_screen(_pointing(p, t_ms))
-	# 향하는 곳이 손보다 위면 공이 화면에서 솟아오른다 → 손 바로 아래로 눌러 둔다 (떨어지는 공은 그냥 떨어진다)
-	target.y = maxf(target.y, _release.y + size.y * MIN_DESCENT)
-	var pos := _release.lerp(target, s)
+	var pos := _release.lerp(_aim_on_screen(_pointing(p, t_ms)), s)
 	return Vector3(pos.x, pos.y, s)
 
 
@@ -381,7 +386,8 @@ func _pose_batter() -> void:
 ## 타자 발밑 그림자와 배트 궤적 잔상 (타자 뒤에 깔린다)
 func _draw_batter_ground() -> void:
 	var h := size.y
-	_draw_ellipse(Vector2(size.x * BATTER_X, h * 0.985), Vector2(h * 0.2, h * 0.035), Tokens.SHADOW)
+	# 그림자는 타자 키에 맞춘다 (발보다 키의 6% 위, 폭 27%·높이 4.7%)
+	_draw_ellipse(Vector2(size.x * BATTER_X, h * (BATTER_FEET_Y - BATTER_HEIGHT * 0.06)), Vector2(h * BATTER_HEIGHT * 0.27, h * BATTER_HEIGHT * 0.047), Tokens.SHADOW)
 	# 스윙 그림이 없을 때만(준비 자세로 대신하는 동안) 잔상이 스윙을 알려 준다
 	if _swing_progress >= 0.0 and _swing_progress < 1.0 and not _batter.has_frame("contact"):
 		var wedge := PackedVector2Array([_bat_hands])
@@ -427,10 +433,12 @@ func _draw_catcher_mitt() -> void:
 		show = session.since(session.phase_since_ms) < session.pitch.flight_ms
 	if not show:
 		return
-	# 예상 투구 위치: 변화구는 처음엔 "휘기 전 방향" 쪽에 있다가 공이 꺾이는 만큼 따라 움직여 미트 자리에 닿는다
+	# 예상 투구 위치: 공이 지금 향하는 곳 (변화구는 처음엔 "휘기 전 방향", 꺾이는 만큼 따라 움직인다).
+	# 포수는 처음엔 노린 곳(intended)에 미트를 대고 있다가 공이 다가올수록 실제로 오는 곳으로 옮긴다 → 도착 순간 공과 겹친다
 	var p := session.pitch
 	var t_ms := session.since(session.phase_since_ms) if session.phase == BattingSession.Phase.FLIGHT else 0.0
-	var at := zone_to_screen(p.intended + _pointing(p, t_ms) - p.trajectory.aim)
+	var u := p.trajectory.time_fraction(t_ms)
+	var at := _aim_on_screen(_pointing(p, t_ms) + (p.intended - p.trajectory.aim) * (1.0 - u))
 	var r := size.y * 0.024
 	draw_circle(at, r, Color(Tokens.MITT, 0.9), true, -1.0, true)
 	draw_circle(at, r * 0.55, Color(Tokens.DIRT, 0.95), true, -1.0, true)

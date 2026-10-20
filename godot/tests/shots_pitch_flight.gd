@@ -20,11 +20,12 @@ func _ready() -> void:
 	var s: BattingSession = app._current._session
 	for id: String in PitchCatalog.IDS:
 		s.config.forced_pitch_type = id
-		# 지금 공이 끝날 때까지 기다렸다가 새 공
-		await _until(func() -> bool: return s.phase == BattingSession.Phase.WAITING or s.phase == BattingSession.Phase.OVER)
-		if s.phase == BattingSession.Phase.OVER:
-			s.tap()
-			await _until(func() -> bool: return s.phase == BattingSession.Phase.WAITING)
+		# 지금 공이 끝날 때까지 기다렸다가 새 공 (타석이 끝났으면 넘긴다)
+		var start := Time.get_ticks_msec()
+		while s.phase != BattingSession.Phase.WAITING and Time.get_ticks_msec() - start < 20000:
+			if s.phase == BattingSession.Phase.OVER:
+				s.tap()
+			await get_tree().process_frame
 		await _until(func() -> bool: return s.callout == null, 3000)
 		s.ready_now()
 		await _until(func() -> bool: return s.phase == BattingSession.Phase.FLIGHT and s.pitch.type == id)
