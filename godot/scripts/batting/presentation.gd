@@ -12,9 +12,8 @@ var swing_ms: float
 var hit_stop_ms: float
 ## 날아오는 공 뒤 잔상: 지난 trail_ms 동안의 자리를 trail_dots 개 점으로 (0 이면 끔)
 var trail_ms: float
-## 화면에서만 휨을 과장: 휨 × movement_scale(x 좌우, y 위아래) × (원근 배율 ^ movement_perspective)
+## 화면에서만 변화(break·arc)를 과장하는 배율 (x 좌우, y 위아래)
 var movement_scale := Vector2.ONE
-var movement_perspective: float
 var trail_dots: int
 var flash_ms: float
 var burst_ms: float
@@ -54,7 +53,6 @@ static func from_balance(balance: Dictionary) -> Presentation:
 	p.hit_stop_ms = BattingConfig.num(s, "hitStopMs")
 	p.trail_ms = BattingConfig.num(s, "trailMs")
 	p.movement_scale = Vector2(BattingConfig.num(s, "movementScaleX"), BattingConfig.num(s, "movementScaleY"))
-	p.movement_perspective = BattingConfig.num(s, "movementPerspective")
 	p.trail_dots = int(BattingConfig.num(s, "trailDots"))
 	p.flash_ms = BattingConfig.num(s, "flashMs")
 	p.burst_ms = BattingConfig.num(s, "burstMs")

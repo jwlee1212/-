@@ -28,6 +28,8 @@ class Spec:
 	var arc_y: float
 	## 이 구종의 감속 (없으면 pitch_common.decel). 체인지업처럼 직구 팔 스윙으로 나와 홈 앞에서 죽는 공은 크게
 	var decel: float
+	## 투구 위치에 따른 변화폭 (0 = 어디로 던져도 같다). 휘는 방향으로 던질수록 더, 반대로 던질수록 덜 휜다
+	var location_effect: float
 	## 유인구로 던질 때 노리는 방향 ("high" | "low" | "away" | "inside", 타자 기준)
 	var chase_spots: PackedStringArray
 
@@ -39,6 +41,8 @@ var decel: float
 var four_seam_flight_ms: float
 ## 공마다 비행 시간이 ± 이만큼 흔들린다 (ms)
 var flight_jitter_ms: float
+## 투구 위치에 따른 변화폭 배율의 하한·상한 (x = location_min, y = location_max)
+var location_range := Vector2.ONE
 ## 화면 구속 전용: 비행 시간이 기본값과 다른 만큼 구속 숫자를 이 비율로만 바꾼다 (1 = 물리 그대로)
 var speed_display_spread: float
 
@@ -71,6 +75,8 @@ func validate() -> PackedStringArray:
 		errors.append("decel %.3f 이 0 이상 1 미만이 아니다 (넘으면 공이 뒤로 간다)" % decel)
 	if four_seam_flight_ms <= 0.0:
 		errors.append("four_seam_flight_ms 가 0 이하")
+	if location_range.x <= 0.0 or location_range.x > 1.0 or location_range.y < 1.0:
+		errors.append("location_min 은 0 초과 1 이하, location_max 는 1 이상이어야 한다")
 	if flight_jitter_ms < 0.0:
 		errors.append("flight_jitter_ms 가 음수")
 	var fastest := ""
@@ -83,6 +89,8 @@ func validate() -> PackedStringArray:
 			errors.append("%s break_start %.2f 가 0 이상 1 미만이 아니다" % [id, s.break_start])
 		if s.decel < 0.0 or s.decel >= 1.0:
 			errors.append("%s decel %.3f 이 0 이상 1 미만이 아니다" % [id, s.decel])
+		if s.location_effect < 0.0 or s.location_effect > 1.0:
+			errors.append("%s location_effect %.2f 가 0~1 밖" % [id, s.location_effect])
 		if s.break_pow < 1.0:
 			errors.append("%s break_pow %.2f 가 1 미만" % [id, s.break_pow])
 		if s.name_ko == "":
@@ -111,6 +119,7 @@ static func from_batting(s: Dictionary) -> PitchCatalog:
 	c.four_seam_flight_ms = BattingConfig.num(common, "four_seam_flight_ms")
 	c.flight_jitter_ms = BattingConfig.num(common, "flight_jitter_ms")
 	c.speed_display_spread = BattingConfig.num(common, "speed_display_spread")
+	c.location_range = Vector2(BattingConfig.num(common, "location_min"), BattingConfig.num(common, "location_max"))
 	var pitches: Dictionary = s["pitches"]
 	for id: String in pitches:
 		if id.begins_with("_"):
@@ -127,6 +136,7 @@ static func from_batting(s: Dictionary) -> PitchCatalog:
 		p.arc_x = float(d.get("arc_x", 0.0))
 		p.arc_y = float(d.get("arc_y", 0.0))
 		p.decel = float(d.get("decel", c.decel))
+		p.location_effect = float(d.get("location_effect", 0.0))
 		p.chase_spots = PackedStringArray(d["chase_spots"])
 		c.specs[id] = p
 	return c

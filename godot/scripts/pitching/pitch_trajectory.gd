@@ -4,7 +4,12 @@ extends RefCounted
 ## 노드·그리기·입력·소리는 다루지 않는다 (CLAUDE.md §4-1).
 ##
 ## 좌표는 존 좌표 (Pitch 와 같다): 가운데 (0, 0), 존 가장자리 ±1, y 는 아래가 +, x 는 +가 타자에게서 먼 쪽(바깥쪽).
-## 화면은 이 위치를 투수 손에서 원근으로 끌어당겨 그린다 (batting_view.gd _ball) — 그래서 start 는 기본 (0, 0)이다.
+## 화면은 pointing_at(t) — 공이 지금 존 평면 어디를 향하는가 — 을 투수 손에서 원근으로 따라가며 그린다 (batting_view.gd _ball).
+## 그래서 꺾이기 전에는 손에서 곧게 날아오고, 꺾이면 향하는 곳이 도착점으로 미끄러진다. position_at 은 옆·위에서 본 실제 길이다.
+##
+## 투구 위치에 따른 변화폭 (구종마다 location_effect): 휘는 방향으로 던질수록 더, 반대로 던질수록 덜 휜다.
+##   배율 = clamp(1 + location_effect × (aim · 휘는 방향 단위벡터), location_min, location_max)
+##   예) 우투수 슬라이더는 우타자 바깥쪽(+x)으로 휜다 → 바깥쪽 공은 크게, 몸쪽 공은 덜 휜다
 ##
 ## 계산
 ##   u    = clamp(t / flight_ms, 0, 1)
@@ -28,17 +33,26 @@ var decel := 0.0
 
 
 ## 구종 수치 → 궤적. hand 는 "R" | "L"
-static func make(spec: PitchCatalog.Spec, p_aim: Vector2, p_flight_ms: float, hand: String, p_start := Vector2.ZERO) -> PitchTrajectory:
+## location_range = (가장 작은 배율, 가장 큰 배율) — pitch_common 의 location_min·location_max
+static func make(spec: PitchCatalog.Spec, p_aim: Vector2, p_flight_ms: float, hand: String, location_range := Vector2.ONE, p_start := Vector2.ZERO) -> PitchTrajectory:
 	var t := PitchTrajectory.new()
 	t.start = p_start
 	t.aim = p_aim
-	t.break_vec = zone_break(Vector2(spec.break_x, spec.break_y), hand)
+	var full := zone_break(Vector2(spec.break_x, spec.break_y), hand)
+	t.break_vec = full * location_factor(full, p_aim, spec.location_effect, location_range)
 	t.arc_vec = zone_break(Vector2(spec.arc_x, spec.arc_y), hand)
 	t.flight_ms = p_flight_ms
 	t.break_start = spec.break_start
 	t.break_pow = spec.break_pow
 	t.decel = spec.decel
 	return t
+
+
+## 투구 위치에 따른 변화폭 배율: 휘는 방향(존 좌표)으로 던진 만큼 커지고 반대로 던진 만큼 작아진다
+static func location_factor(zone_break_vec: Vector2, p_aim: Vector2, effect: float, location_range: Vector2) -> float:
+	if zone_break_vec == Vector2.ZERO:
+		return 1.0
+	return clampf(1.0 + effect * p_aim.dot(zone_break_vec.normalized()), location_range.x, location_range.y)
 
 
 ## 투수 기준 변화량(x + = 투수 팔 쪽, y + = 위) → 존 좌표.
@@ -83,6 +97,12 @@ func line_at(t_ms: float) -> Vector2:
 ## 휨: 지금 자리가 출발→도착 직선에서 벗어난 만큼. 양 끝에서 0 (화면이 이 값만 과장해 그린다)
 func deviation_at(t_ms: float) -> Vector2:
 	return position_at(t_ms) - line_at(t_ms)
+
+
+## 공이 지금 존 평면 어디를 향하는가 (화면용): 꺾이기 전엔 raw_end, 꺾이면서 aim 으로 미끄러진다 (+ 도중 불룩함)
+## t=0 → raw_end, t=flight → aim. 포수 미트(예상 투구 위치)도 이만큼 함께 움직인다
+func pointing_at(t_ms: float) -> Vector2:
+	return aim - break_vec * (1.0 - break_fraction(t_ms)) + arc_vec * sin(PI * distance_fraction(t_ms))
 
 
 func position_at(t_ms: float) -> Vector2:

@@ -32,6 +32,8 @@ func _init() -> void:
 		"test_pitch_trajectory_break_direction",
 		"test_pitch_trajectory_monotonic",
 		"test_pitch_movement_is_visible",
+		"test_pitch_break_by_location",
+		"test_pitch_never_rises_on_screen",
 		"test_pitch_catalog_valid",
 		"test_pitch_caller_flight_and_forced_type",
 		"test_taking_ends_in_walk_or_strikeout",
@@ -241,7 +243,7 @@ func test_breaking_ball_arrives_at_target() -> void:
 
 func _trajectory(id: String, aim: Vector2, hand := "R") -> PitchTrajectory:
 	var cat := _config.catalog
-	return PitchTrajectory.make(cat.spec(id), aim, cat.flight_ms(id), hand)
+	return PitchTrajectory.make(cat.spec(id), aim, cat.flight_ms(id), hand, cat.location_range)
 
 
 func test_pitch_trajectory_endpoints() -> void:
@@ -354,7 +356,7 @@ func test_pitch_movement_is_visible() -> void:
 		biggest[id] = most
 		check(t.deviation_at(0.0).length() < 1e-4 and t.deviation_at(t.flight_ms).length() < 1e-4, "%s 휨은 양 끝에서 0" % id)
 		if id != "four_seam":
-			check(most >= 0.8, "%s 최대 휨 %.2f 가 너무 작다" % [id, most])
+			check(most >= 0.5, "%s 최대 휨 %.2f 가 너무 작다" % [id, most])
 	check(biggest["sweeper"] > biggest["slider"], "스위퍼가 슬라이더보다 크게 쓸고 간다")
 	check(biggest["forkball"] > biggest["splitter"], "포크볼이 스플리터보다 크게 떨어진다")
 	# 구종 버릇: 커브는 손을 떠나며 떠오르고(도중 불룩함 위로), 체인지업은 직구보다 감속이 크다
@@ -364,10 +366,62 @@ func test_pitch_movement_is_visible() -> void:
 	# 커브: 비행 초반에 직선보다 위(존 좌표 y −)
 	var curve := _trajectory("curve", Vector2.ZERO)
 	check(curve.deviation_at(curve.flight_ms * 0.3).y < -0.5, "커브 초반 떠오름 %.2f" % curve.deviation_at(curve.flight_ms * 0.3).y)
-	# 포크볼: 초반엔 직선 근처(직구처럼), 막판에 크게 벗어나 있다가 떨어진다
-	var fork := _trajectory("forkball", Vector2.ZERO)
-	check(absf(fork.deviation_at(fork.flight_ms * 0.3).y) < 0.5 and fork.deviation_at(fork.flight_ms * 0.85).y < -0.8,
-		"포크볼은 직구처럼 오다 뚝 (%.2f, %.2f)" % [fork.deviation_at(fork.flight_ms * 0.3).y, fork.deviation_at(fork.flight_ms * 0.85).y])
+	# 포크볼 vs 스플리터 (2026-10-21 유저): 포크볼은 느리고 늦게·크게, 스플리터는 빠르고 짧게 떨어진다
+	var fork := cat.spec("forkball")
+	var split := cat.spec("splitter")
+	check(fork.speed_kmh < split.speed_kmh and fork.break_y < split.break_y * 1.5, "포크볼 낙폭이 스플리터보다 훨씬 크다")
+	check(fork.arc_y == 0.0 and split.arc_y == 0.0, "떨어지는 공은 도중에 떠오르지 않는다")
+
+
+func test_pitch_break_by_location() -> void:
+	var cat := _config.catalog
+	# 우투수 슬라이더: 우타자 바깥쪽(+x, 휘는 방향)으로 던지면 크게, 몸쪽(−x)으로 던지면 덜 휜다
+	var away := _trajectory("slider", Vector2(0.9, 0.0))
+	var inside := _trajectory("slider", Vector2(-0.9, 0.0))
+	var middle := _trajectory("slider", Vector2.ZERO)
+	check(away.break_vec.length() > middle.break_vec.length() and middle.break_vec.length() > inside.break_vec.length(),
+		"슬라이더 바깥 %.2f > 가운데 %.2f > 몸쪽 %.2f" % [away.break_vec.length(), middle.break_vec.length(), inside.break_vec.length()])
+	check(middle.break_vec.is_equal_approx(PitchTrajectory.zone_break(Vector2(cat.spec("slider").break_x, cat.spec("slider").break_y), "R")), "가운데면 원래 변화량")
+	# 투심은 반대 (팔 쪽 = 우타자 몸쪽으로 휜다): 몸쪽 공이 더 휜다
+	check(_trajectory("two_seam", Vector2(-0.9, 0)).break_vec.length() > _trajectory("two_seam", Vector2(0.9, 0)).break_vec.length(), "투심은 몸쪽이 더 휜다")
+	# 떨어지는 공: 낮게 던질수록 더 떨어진다
+	check(_trajectory("forkball", Vector2(0, 0.9)).break_vec.y > _trajectory("forkball", Vector2(0, -0.9)).break_vec.y, "포크볼은 낮을수록 더 떨어진다")
+	# 배율은 범위 안, 방향은 그대로, 어디로 던지든 도착점은 정확히 aim
+	for id: String in PitchCatalog.IDS:
+		var base := PitchTrajectory.zone_break(Vector2(cat.spec(id).break_x, cat.spec(id).break_y), "R")
+		for aim in [Vector2(1.5, 1.5), Vector2(-1.5, -1.5), Vector2(1.4, -0.3), Vector2(-0.2, 1.3)]:
+			var t := _trajectory(id, aim)
+			var f := t.break_vec.length() / base.length() if base.length() > 0.0 else 1.0
+			check(f >= cat.location_range.x - 1e-4 and f <= cat.location_range.y + 1e-4, "%s %s 배율 %.2f" % [id, aim, f])
+			check(base.length() == 0.0 or t.break_vec.normalized().is_equal_approx(base.normalized()), "%s 휘는 방향은 그대로" % id)
+			check(t.position_at(t.flight_ms).distance_to(aim) < 1e-4 and t.pointing_at(t.flight_ms).distance_to(aim) < 1e-4, "%s %s 도착" % [id, aim])
+			check(t.pointing_at(0.0).distance_to(aim - t.break_vec) < 1e-4, "%s 처음엔 휘기 전 방향을 향한다" % id)
+
+
+## 실제 타석 화면에서 공의 화면 높이가 줄어들지(= 위로 올라가지) 않는다 — 포크볼·스플리터가 솟았다 떨어지지 않게 (2026-10-21 유저)
+func test_pitch_never_rises_on_screen() -> void:
+	var balance := BalanceLoader.load_balance()
+	var view := BattingView.new()
+	view.session = BattingSession.new(BattingConfig.from_balance(balance), Presentation.from_balance(balance))
+	view.size = Vector2(844, 390)
+	view._layout()
+	var cat := _config.catalog
+	for id: String in PitchCatalog.IDS:
+		for aim in [Vector2.ZERO, Vector2(0.5, -1.4), Vector2(-1.0, -1.0), Vector2(1.0, 1.3)]:
+			var p := Pitch.new()
+			p.type = id
+			p.flight_ms = cat.flight_ms(id)
+			p.trajectory = PitchTrajectory.make(cat.spec(id), aim, p.flight_ms, "R", cat.location_range)
+			var prev := -INF
+			var rose := 0.0
+			for i in 121:
+				var y := view._ball(p, p.flight_ms * i / 120.0).y
+				rose = maxf(rose, prev - y)
+				prev = y
+			check(rose < 0.01, "%s %s 화면에서 %.2fpx 솟는다" % [id, aim, rose])
+			var end := view._ball(p, p.flight_ms)
+			check(Vector2(end.x, end.y).distance_to(view.zone_to_screen(aim)) < 0.01, "%s %s 화면에서도 도착점에" % [id, aim])
+	view.free()
 
 
 func test_pitch_catalog_valid() -> void:
@@ -431,7 +485,7 @@ func test_pitch_caller_flight_and_forced_type() -> void:
 	var saved := lefty.hand
 	lefty.hand = "L"
 	var q := pitch_at(1, 1, 3)
-	check(q.hand == "L" and q.trajectory.break_vec.is_equal_approx(PitchTrajectory.zone_break(Vector2(cat.spec(q.type).break_x, cat.spec(q.type).break_y), "L")))
+	check(q.hand == "L" and q.trajectory.break_vec.normalized().is_equal_approx(PitchTrajectory.zone_break(Vector2(cat.spec(q.type).break_x, cat.spec(q.type).break_y), "L").normalized()), "좌투수 휘는 방향")
 	lefty.hand = saved
 
 

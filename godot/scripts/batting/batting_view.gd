@@ -23,6 +23,8 @@ const PITCHER_HEIGHT := 0.15
 const ZONE_Y := 0.77
 const ZONE_HALF_W := 0.045
 const ZONE_HALF_H := 0.095
+## 공이 향하는 곳은 투수 손보다 화면 높이의 이만큼은 아래 (공이 화면에서 위로 올라가지 않게)
+const MIN_DESCENT := 0.03
 ## 타자: 두 발 사이의 가로 자리, 발바닥 높이(화면 아래로 살짝 잘린다), 키 — 화면 높이 비율
 const BATTER_X := 0.27
 const BATTER_FEET_Y := 1.03
@@ -167,18 +169,23 @@ func zone_to_screen(z: Vector2) -> Vector2:
 	return _zone_center + Vector2(z.x * _zone_half.x, z.y * _zone_half.y)
 
 
-## 공을 놓고 t_ms 뒤 공의 화면 위치(xy)와 크기 비율(z, 0~1). 궤적(존 좌표)은 PitchTrajectory 가 정하고 여기서는 원근만 입힌다
-func _ball(p: Pitch, t_ms: float) -> Vector3:
+## 공을 놓고 t_ms 뒤 공이 향하는 존 평면 자리 — 변화(break·arc)만 화면용으로 과장한다 (도착 순간엔 정확히 aim)
+func _pointing(p: Pitch, t_ms: float) -> Vector2:
 	var traj := p.trajectory
+	return traj.aim + (traj.pointing_at(t_ms) - traj.aim) * session.presentation.movement_scale
+
+
+## 공을 놓고 t_ms 뒤 공의 화면 위치(xy)와 크기 비율(z, 0~1).
+## 공은 투수 손에서 "지금 향하는 곳"으로 원근을 따라 다가온다: 꺾이기 전엔 곧게, 꺾이면 향하는 곳이 도착점으로 미끄러진다
+func _ball(p: Pitch, t_ms: float) -> Vector3:
 	# 원근감: 가까워질수록 빨리 커지고 빨리 움직이는 것처럼. 깊이는 거리 진행률(감속 반영),
 	# 홈플레이트를 지난 뒤에는 시간대로 조금 더 다가온다
-	var t := traj.distance_fraction(t_ms) if t_ms < p.flight_ms else minf(t_ms / p.flight_ms, 1.15)
+	var t := p.trajectory.distance_fraction(t_ms) if t_ms < p.flight_ms else minf(t_ms / p.flight_ms, 1.15)
 	var s := 0.25 * t + 0.75 * t * t
-	# 손 → 도착점 직선은 원근 그대로, 휨(직선에서 벗어난 만큼)은 과장해서 얹는다. 휨은 양 끝에서 0 이라 출발·도착 자리는 그대로
-	var pres := session.presentation
-	var line := _release.lerp(zone_to_screen(traj.line_at(t_ms)), s)
-	var dev := traj.deviation_at(t_ms) * _zone_half * pres.movement_scale * pow(minf(s, 1.0), pres.movement_perspective)
-	var pos := line + dev
+	var target := zone_to_screen(_pointing(p, t_ms))
+	# 향하는 곳이 손보다 위면 공이 화면에서 솟아오른다 → 손 바로 아래로 눌러 둔다 (떨어지는 공은 그냥 떨어진다)
+	target.y = maxf(target.y, _release.y + size.y * MIN_DESCENT)
+	var pos := _release.lerp(target, s)
 	return Vector3(pos.x, pos.y, s)
 
 
@@ -420,7 +427,10 @@ func _draw_catcher_mitt() -> void:
 		show = session.since(session.phase_since_ms) < session.pitch.flight_ms
 	if not show:
 		return
-	var at := zone_to_screen(session.pitch.intended)
+	# 예상 투구 위치: 변화구는 처음엔 "휘기 전 방향" 쪽에 있다가 공이 꺾이는 만큼 따라 움직여 미트 자리에 닿는다
+	var p := session.pitch
+	var t_ms := session.since(session.phase_since_ms) if session.phase == BattingSession.Phase.FLIGHT else 0.0
+	var at := zone_to_screen(p.intended + _pointing(p, t_ms) - p.trajectory.aim)
 	var r := size.y * 0.024
 	draw_circle(at, r, Color(Tokens.MITT, 0.9), true, -1.0, true)
 	draw_circle(at, r * 0.55, Color(Tokens.DIRT, 0.95), true, -1.0, true)

@@ -53,7 +53,7 @@ func next(pitcher: BattingConfig.PitcherProfile, balls: int, strikes: int, skill
 	p.hand = pitcher.hand
 	p.flight_ms = catalog.flight_ms(p.type) + pitcher.speed_ms + catalog.flight_jitter_ms * rng.randf_range(-1.0, 1.0)
 	p.speed_kmh = catalog.speed_kmh(p.type, p.flight_ms)
-	p.trajectory = PitchTrajectory.make(spec, p.target, p.flight_ms, p.hand)
+	p.trajectory = PitchTrajectory.make(spec, p.target, p.flight_ms, p.hand, catalog.location_range)
 	p.reveal_fraction = _config.reveal_fraction(skills.eye)
 	return p
 
