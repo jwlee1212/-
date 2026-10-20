@@ -56,6 +56,14 @@ const PITCH_COLORS := {
 	"slider": ACCENT, "sweeper": BAD, "curve": Color("a55eea"),
 	"changeup": GOOD, "forkball": Color("0f8a5f"), "splitter": WARN,
 }
+## 능력치 색 (선수 탭 막대, 스케줄 칸), 휴식 칸
+const STAT_COLORS := {"contact": PRIMARY, "power": ACCENT, "eye": GOOD, "speed": Color("8a63d2")}
+const REST_COLOR := Color("4fb3d9")
+## 스케줄 결과 도장 (대성공 · 성공 · 실패)
+const OUTCOME_COLORS := {"great": ACCENT, "success": GOOD, "fail": BAD}
+## 내 방 화면: 방 그림 위에 겹치는 반투명 흰 판, 아직 안 채운 칸
+const ROOM_PANEL := Color(1, 1, 1, 0.9)
+const ROOM_EMPTY := Color(1, 1, 1, 0.55)
 ## 공·타구 그림자, 겹쳐 그리는 반투명 바탕
 ## 대화 화면: 배경 자리(그림이 없을 때), 일러스트 자리, 대사창, 지문 글자
 const DIALOGUE_BG := Color("c9d6ef")

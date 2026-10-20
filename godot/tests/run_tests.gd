@@ -125,6 +125,8 @@ func _init() -> void:
 		"test_my_at_bat_run_control",
 		"test_settings_running_mode",
 		"test_one_training_per_week",
+		"test_week_schedule",
+		"test_schedule_outcome_odds",
 		"test_launch_angle_never_backwards",
 		"test_final_count_recorded",
 		"test_season_stats_details",
@@ -1814,16 +1816,19 @@ func test_scenario_keys() -> void:
 	check(career.camp_condition_multiplier() == 1.0, "시즌 중엔 완화 없음")
 	career.phase_index = career.phases().size()
 	career.start_camp()
-	var cost := int(cfg.training.contact.condition)
+	# 한 주 = 스케줄 칸 3개, 칸마다 (훈련 컨디션 ÷ 칸 수)를 반올림해 완화 배율을 곱한다
+	var slots: int = career.schedule_slots().size()
+	var week_cost := func(cond: int, mult: float) -> int: return slots * roundi(roundi(cond / float(slots)) * mult)
+	var cost: int = week_cost.call(int(cfg.training.contact.condition), 1.0)
 	p.condition = 80
 	career.train("contact")
-	check(p.condition == 80 + cost, "집중 과제가 몸 관리가 아니면 그대로 %d" % cost)
+	check(p.condition == 80 + cost, "집중 과제가 몸 관리가 아니면 그대로 %d (%d)" % [cost, p.condition])
 	check(career.book.apply_effects(career, {"campFocus": "body"}) == ["집중 과제: %s" % body.label], "집중 과제: 몸 관리")
 	check(is_equal_approx(career.training_multiplier("contact"), float(cfg.camp.trainingMultiplier)), "몸 관리는 훈련 집중 배율이 없다")
 	career.week_training = ""
 	p.condition = 80
 	career.train("contact")
-	check(p.condition == 80 + roundi(cost * float(body.conditionMultiplier)) and p.condition > 80 + cost, "몸 관리: 컨디션 하락 ×%.1f" % float(body.conditionMultiplier))
+	check(p.condition == 80 + week_cost.call(int(cfg.training.contact.condition), float(body.conditionMultiplier)) and p.condition > 80 + cost, "몸 관리: 컨디션 하락 ×%.1f (%d)" % [float(body.conditionMultiplier), p.condition])
 	p.flags[body.reliefFlags[0]] = true
 	check(is_equal_approx(career.camp_condition_multiplier(), float(body.conditionMultiplier) * float(body.flagMultiplier)), "플래그가 있으면 더 완화")
 	career.camp_focus = "power"
@@ -1831,7 +1836,7 @@ func test_scenario_keys() -> void:
 	career.week_training = ""
 	p.condition = 50
 	career.train("rest")
-	check(p.condition == 50 + int(cfg.training.rest.condition), "오르는 컨디션은 그대로")
+	check(p.condition == 50 + week_cost.call(int(cfg.training.rest.condition), 1.0), "오르는 컨디션은 그대로 (%d)" % p.condition)
 
 
 func test_y1_story() -> void:
@@ -2646,6 +2651,89 @@ func test_one_training_per_week() -> void:
 	check(second == first and career.player.contact == after_first, "같은 주 두 번째 훈련은 무시 (%d → %d → %d)" % [before, after_first, career.player.contact])
 	career.advance_week()
 	check(career.week_training == "", "다음 주엔 다시 훈련")
+
+
+func test_week_schedule() -> void:
+	var career := CareerState.new(_career_cfg(), "테스트", _config)
+	var p := career.player
+	var n := career.schedule_slots().size()
+	check(n == 3 and not career.plan_ready(), "평일 3칸, 처음엔 비어 있다")
+	career.set_plan(0, "contact")
+	career.set_plan(1, "power")
+	check(not career.plan_ready())
+	career.set_plan(2, "rest")
+	check(career.plan_ready())
+	var cond := p.condition
+	var res := career.run_schedule()
+	check(res.size() == 3 and res[0]["id"] == "contact" and res[1]["id"] == "power" and res[2]["outcome"] == "rest", "칸 순서대로")
+	var total := 0
+	for r: Dictionary in res:
+		total += int(r["condition"])
+		if r["stat"] != "":
+			check(r["outcome"] in ["great", "success", "fail"] and float(r["amount"]) > 0.0, "훈련 칸은 결과가 있고 조금이라도 자란다")
+	check(p.condition == cond + total, "컨디션 변화 = 칸별 합 (%d → %d, %+d)" % [cond, p.condition, total])
+	check(career.week_training != "" and career.last_training.contains("타격 훈련"))
+	# 실행 뒤엔 칸을 바꿀 수 없고, 다시 실행해도 같은 결과
+	career.set_plan(0, "rest")
+	check(career.week_plan[0] == "contact" and career.run_schedule() == res, "실행 뒤엔 그대로")
+	# 저장·불러오기: 칸과 결과가 남는다
+	var loaded: CareerState = SaveGame.from_bytes(SaveGame.to_bytes(career), career.cfg, _config)["career"]
+	check(loaded.week_plan == career.week_plan and loaded.week_schedule == career.week_schedule, "스케줄 저장")
+	# 다음 주: 결과는 비고 칸은 지난주 그대로 (바꿀 칸만 고친다)
+	career.advance_week()
+	check(career.week_schedule.is_empty() and career.week_training == "" and career.plan_ready() and career.week_plan == ["contact", "power", "rest"], "지난주 스케줄 이어 쓰기")
+	# 같은 시드 = 같은 결과
+	var a := CareerState.new(_career_cfg(), "테스트", _config)
+	var b := CareerState.new(_career_cfg(), "테스트", _config)
+	a.train("eye")
+	b.train("eye")
+	check(a.week_schedule == b.week_schedule and a.player.eye == b.player.eye, "재현성")
+	# 부상 중이면 모든 칸이 휴식
+	var hurt := CareerState.new(_career_cfg(), "테스트", _config)
+	hurt.player.injury_weeks = 2
+	hurt.train("power")
+	check(hurt.week_schedule.all(func(r: Dictionary) -> bool: return r["outcome"] == "rest"), "부상 → 휴식만")
+	# 한 가지로 세 칸 = 옛 '훈련 하나' 한 주의 컨디션 (칸마다 반올림이라 ±2)
+	var rest := CareerState.new(_career_cfg(), "테스트", _config)
+	rest.player.condition = 40
+	rest.train("rest")
+	check(absi(rest.player.condition - 40 - int(rest.cfg.training["rest"]["condition"])) <= 2, "휴식 세 칸 ≈ 옛 휴식 한 주 (%d)" % rest.player.condition)
+
+
+func test_schedule_outcome_odds() -> void:
+	var cfg := _career_cfg()
+	var career := CareerState.new(cfg, "테스트", _config)
+	var fresh := career.slot_chances("contact", 95)
+	var tired := career.slot_chances("contact", 20)
+	check(float(fresh["great"]) > float(tired["great"]) and float(tired["fail"]) > float(fresh["fail"]), "지치면 실패가 늘고 대성공이 준다")
+	check(career.slot_chances("rest", 10)["fail"] == 0.0, "휴식은 실패하지 않는다")
+	for c in [0, 30, 50, 70, 100]:
+		var ch := career.slot_chances("power", c)
+		check(float(ch["great"]) >= 0.0 and float(ch["fail"]) >= 0.0 and float(ch["great"]) + float(ch["fail"]) <= 1.0, "확률 범위 (컨디션 %d)" % c)
+	# 실제로 굴려 본 비율이 확률과 맞다 (컨디션 80 에서 첫 칸)
+	var want := career.slot_chances("contact", 80)
+	var counts := {"great": 0, "success": 0, "fail": 0}
+	var runs := 600
+	for i in runs:
+		var c := CareerState.new(cfg, "테스트", _config)
+		c.week = 1 + i  # 주마다 시드가 다르다
+		c.player.condition = 80
+		c.train("contact")
+		counts[c.week_schedule[0]["outcome"]] += 1
+	var great: float = counts["great"] / float(runs)
+	var fail: float = counts["fail"] / float(runs)
+	check(absf(great - float(want["great"])) < 0.05 and absf(fail - float(want["fail"])) < 0.04, "대성공 %.2f (기대 %.2f), 실패 %.2f (기대 %.2f)" % [great, want["great"], fail, want["fail"]])
+	# 대성공은 성공보다, 성공은 실패보다 많이 자란다 (같은 상태에서)
+	var amounts := {}
+	for i in runs:
+		var c := CareerState.new(cfg, "테스트", _config)
+		c.week = 1 + i
+		c.player.condition = 80
+		c.train("contact")
+		amounts[c.week_schedule[0]["outcome"]] = c.week_schedule[0]["amount"]
+		if amounts.size() == 3:
+			break
+	check(amounts.size() == 3 and amounts["great"] > amounts["success"] and amounts["success"] > amounts["fail"], "성장량 %s" % amounts)
 
 
 func test_final_count_recorded() -> void:

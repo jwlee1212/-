@@ -390,6 +390,35 @@
         "condition": 22
       }
     },
+    "schedule": {
+      "_note": "주간 스케줄 (러브딜리버리식, 2026-10-21). 평일을 slots 칸으로 나눠 칸마다 training 하나를 넣고 [스케줄 시작]으로 칸씩 실행, 주말은 경기. 한 칸 = training 의 gain·condition 을 칸 수로 나눈 만큼 (세 칸 모두 같은 훈련 = 옛 '훈련 하나' 한 주). 휴식이 아닌 칸은 대성공·성공·실패를 굴린다: 대성공 확률 = greatChance + (컨디션 − greatPivot) × greatPerPoint (pivot 위에서만 늘어남), 실패 확률 = failChance + (failPivot − 컨디션) × failPerPoint (pivot 아래에서만 늘어남). 칸을 차례로 실행하므로 앞 칸에서 깎인 컨디션이 뒤 칸 확률에 들어간다. gainMul: 그 결과일 때 성장 배율 (실패해도 컨디션은 그대로 깎인다). revealSec: 화면에서 칸 하나 결과를 보여 주는 시간",
+      "slots": [
+        "월·화",
+        "수·목",
+        "금"
+      ],
+      "greatChance": 0.15,
+      "greatPivot": 70,
+      "greatPerPoint": 0.004,
+      "failChance": 0.08,
+      "failPivot": 50,
+      "failPerPoint": 0.012,
+      "outcomes": {
+        "great": {
+          "label": "대성공",
+          "gainMul": 1.6
+        },
+        "success": {
+          "label": "성공",
+          "gainMul": 1.0
+        },
+        "fail": {
+          "label": "실패",
+          "gainMul": 0.3
+        }
+      },
+      "revealSec": 0.75
+    },
     "conditionEffect": {
       "_note": "컨디션이 판정에 주는 영향: 유효 능력치 = 능력치 + (컨디션 - pivot) × perPoint",
       "pivot": 70,

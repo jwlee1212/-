@@ -6,7 +6,8 @@ extends RefCounted
 ## 겨울 캠프 (시즌 결산 뒤, 1·2학년): camp.weeks 주 동안 매주 훈련(보너스) + 이벤트, 일부 주차엔 연습경기.
 ## 캠프 중엔 camp_week 가 1부터 오르고 시즌 주차(week)는 멈춘다. 연습경기는 순위·시즌 기록에 넣지 않는다.
 ##
-## 한 주 = (주 시작 이야기) → 훈련 고르기(유저 결정 1개) → 경기 → 결과·성장 → 이벤트. 이벤트는 한 주에 0~2개 (EventBook).
+## 한 주 = (주 시작 이야기) → 평일 스케줄(칸 3개에 훈련·휴식, 칸마다 대성공·성공·실패) → 주말 경기 → 결과·성장 → 이벤트.
+## 스케줄은 지난주 것을 그대로 이어 쓰므로 바꾸고 싶은 칸만 고치면 된다. 이벤트는 한 주에 0~2개 (EventBook).
 ## 한 시즌 = 주말리그 전반기(권역 학교와 한 번씩) → 전국대회(16강 토너먼트, 지면 탈락) → 주말리그 후반기 → 전국대회.
 ## 모든 난수는 커리어 시드 + 시즌 + 주차로 만든다 — 같은 선택이면 같은 결과다 (원칙 2).
 
@@ -26,8 +27,13 @@ var results: Array[int] = []
 var total_week := 1
 ## 이번 주에 고른 훈련 (경기 결과 화면 설명용)
 var last_training := ""
-## 이번 주 훈련 결과 문구 ("" = 아직 안 함). 한 주에 훈련은 하나 — 홈 화면을 다시 열어도 유지된다
+## 이번 주 스케줄 결과 요약 ("" = 아직 안 함). 스케줄은 한 주에 한 번 — 홈 화면을 다시 열어도 유지된다
 var week_training := ""
+## 평일 스케줄 칸마다 넣은 훈련 id (cfg.schedule.slots 칸 수, "" = 빈 칸). 다음 주에도 그대로 남는다
+var week_plan: Array = []
+## 이번 주 스케줄 실행 결과 (칸마다): {"slot", "id", "label", "outcome" ("great"|"success"|"fail"|"rest"), "outcome_label",
+##   "stat", "amount" (오른 성장량, 소수), "raised" (실제로 오른 칸), "condition" (컨디션 변화)}
+var week_schedule: Array = []
 
 var my_school: School
 var schools := {}  # id -> School (권역 + 전국)
@@ -253,6 +259,7 @@ func start_camp() -> void:
 	news.clear()
 	book.reset_week()
 	week_training = ""
+	week_schedule = []
 	_week_training_id = ""
 	week_social = ""
 	week_services.clear()
@@ -396,27 +403,115 @@ static func _slot(result: int) -> int:
 
 # ---------- 주간 ----------
 
-## 훈련. 돌려주는 값: 결과 설명 한 줄 (부상 중이면 휴식만)
+## 평일 칸 이름 ("월·화" …)
+func schedule_slots() -> Array:
+	return cfg.schedule["slots"]
+
+
+## 스케줄 칸에 훈련을 넣는다 (실행 전만)
+func set_plan(slot: int, id: String) -> void:
+	assert(cfg.training.has(id), "모르는 훈련: %s" % id)
+	_fill_plan_size()
+	if week_training == "":
+		week_plan[slot] = id
+
+
+## 모든 칸이 찼나
+func plan_ready() -> bool:
+	_fill_plan_size()
+	return not week_plan.has("")
+
+
+func _fill_plan_size() -> void:
+	var n := schedule_slots().size()
+	while week_plan.size() < n:
+		week_plan.append("")
+	week_plan.resize(n)
+
+
+## 이 훈련 칸 하나의 컨디션 변화 (한 주 몫 ÷ 칸 수, 캠프 완화 반영)
+func slot_condition(id: String) -> int:
+	return _eased(roundi(float(cfg.training[id]["condition"]) / schedule_slots().size()))
+
+
+## 이 훈련 칸이 대성공·실패할 확률 (지금 컨디션 기준): {"great", "fail"}. 휴식은 둘 다 0
+func slot_chances(id: String, condition: int = -1) -> Dictionary:
+	if cfg.training[id]["stat"] == "":
+		return {"great": 0.0, "fail": 0.0}
+	var c := cfg.schedule
+	var cond := player.condition if condition < 0 else condition
+	var great: float = float(c["greatChance"]) + maxf(0.0, cond - float(c["greatPivot"])) * float(c["greatPerPoint"])
+	var fail: float = float(c["failChance"]) + maxf(0.0, float(c["failPivot"]) - cond) * float(c["failPerPoint"])
+	fail = clampf(fail, 0.0, 1.0)
+	return {"great": clampf(great, 0.0, 1.0 - fail), "fail": fail}
+
+
+## 스케줄 실행: 칸을 차례로 (앞 칸의 컨디션 변화가 뒤 칸 확률에 들어간다). 부상 중이면 모든 칸이 휴식.
+## 돌려주는 값: 칸별 결과 (week_schedule). 이미 했으면 그 결과를 그대로
+func run_schedule() -> Array:
+	if week_training != "":
+		return week_schedule
+	assert(plan_ready(), "스케줄 칸이 비었다")
+	var slots := schedule_slots()
+	var share := 1.0 / slots.size()
+	var rng := _rng("schedule")
+	week_schedule = []
+	var labels := []
+	var sums := {}  # 능력치 -> 오른 성장량 합
+	var cond_total := 0
+	for i in slots.size():
+		var id: String = "rest" if player.is_injured() else week_plan[i]
+		var t: Dictionary = cfg.training[id]
+		var stat: String = t["stat"]
+		var r := {"slot": slots[i], "id": id, "label": t["label"], "outcome": "rest", "outcome_label": "",
+			"stat": stat, "amount": 0.0, "raised": 0, "condition": 0}
+		if stat != "":
+			var ch := slot_chances(id)
+			var roll := rng.randf()
+			var outcome := "fail" if roll < ch["fail"] else ("great" if roll < ch["fail"] + ch["great"] else "success")
+			var o: Dictionary = cfg.schedule["outcomes"][outcome]
+			var base := float(t["gain"]) * share * training_multiplier(id) * float(o["gainMul"])
+			r["outcome"] = outcome
+			r["outcome_label"] = o["label"]
+			r["amount"] = Growth.amount(cfg, player.stat(stat), player.potential[stat], base, player.grade)
+			r["raised"] = Growth.apply(cfg, player, stat, base)
+			sums[stat] = float(sums.get(stat, 0.0)) + float(r["amount"])
+			_week_training_id = id
+		var cond := slot_condition(id)
+		player.add_condition(cond)
+		r["condition"] = cond
+		cond_total += cond
+		week_schedule.append(r)
+		labels.append(t["label"])
+	last_training = " · ".join(labels)
+	var parts := []
+	for st: String in sums:
+		parts.append("%s +%.1f" % [PlayerData.STAT_LABELS[st], sums[st]])
+	var greats := week_schedule.filter(func(x: Dictionary) -> bool: return x["outcome"] == "great").size()
+	var fails := week_schedule.filter(func(x: Dictionary) -> bool: return x["outcome"] == "fail").size()
+	# 캠프 보너스가 붙은 칸이 있으면 알려 준다
+	for id: String in week_plan:
+		var mult := training_multiplier(id)
+		if mult != 1.0 and not player.is_injured():
+			parts.append("%s ×%.1f" % ["집중 과제" if cfg.training[id]["stat"] == camp_focus else "캠프 보너스", mult])
+			break
+	if greats > 0:
+		parts.append("대성공 %d" % greats)
+	if fails > 0:
+		parts.append("실패 %d" % fails)
+	parts.append("컨디션 %+d" % cond_total)
+	week_training = "%s: %s" % [last_training, ", ".join(parts)]
+	return week_schedule
+
+
+## 한 주를 한 가지 훈련으로 채우고 바로 실행 (자동 진행·테스트용 지름길). 돌려주는 값: 결과 요약 한 줄
 func train(id: String) -> String:
 	if week_training != "":
 		return week_training
-	if player.is_injured():
-		id = "rest"
-	var t: Dictionary = cfg.training[id]
-	_week_training_id = id
-	last_training = t["label"]
-	var parts := []
-	var stat: String = t["stat"]
-	if stat != "":
-		var mult := training_multiplier(id)
-		var raised := Growth.apply(cfg, player, stat, float(t["gain"]) * mult)
-		parts.append("%s %s" % [PlayerData.STAT_LABELS[stat], "+%d" % raised if raised > 0 else "조금 성장"])
-		if mult != 1.0:
-			parts.append("%s ×%.1f" % ["집중 과제" if stat == camp_focus else "캠프 보너스", mult])
-	var cond := _eased(int(t["condition"]))
-	player.add_condition(cond)
-	parts.append("컨디션 %+d" % cond)
-	week_training = "%s: %s" % [t["label"], ", ".join(parts)]
+	_fill_plan_size()
+	for i in week_plan.size():
+		week_plan[i] = id
+	run_schedule()
 	return week_training
 
 
@@ -898,6 +993,7 @@ func advance_week() -> void:
 		week += 1
 	total_week += 1
 	week_training = ""
+	week_schedule = []
 	_week_training_id = ""
 	week_social = ""
 	week_services.clear()
@@ -957,6 +1053,7 @@ func start_next_season() -> void:
 	phase_log.clear()
 	week = 1
 	week_training = ""
+	week_schedule = []
 	_week_training_id = ""
 	week_social = ""
 	week_services.clear()

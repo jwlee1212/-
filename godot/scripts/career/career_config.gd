@@ -28,6 +28,8 @@ var shop: Dictionary
 var romance: Dictionary
 ## 겨울 캠프 (주 수, 연습경기 주차, 훈련 보너스)
 var camp: Dictionary
+## 주간 스케줄 (평일 칸, 대성공·성공·실패 확률)
+var schedule: Dictionary
 ## 폰 (한 주 문자 수, 답장 기한, 말풍선 연출 시간)
 var phone: Dictionary
 
@@ -92,6 +94,8 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.shop = car["shop"]
 	c.romance = car["romance"]
 	c.camp = car["camp"]
+	c.schedule = car["schedule"]
+	assert(not (c.schedule["slots"] as Array).is_empty(), "balance.json: career.schedule.slots 가 비었다")
 	c.phone = car["phone"]
 
 	var g: Dictionary = balance["game"]

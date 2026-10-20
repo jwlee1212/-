@@ -31,11 +31,30 @@ func _ready() -> void:
 	view.skip()
 	await _frames(10)
 	await _shot("menu-hub")
-	_app._current._show_tab("훈련")
+	# 남은 주 시작 이야기(입학식 날 등)를 첫 선택지로 넘긴다
+	while _app._current.story_view() != null:
+		var sv: DialogueView = _app._current.story_view()
+		sv.choose(0)
+		await _wait(0.2)
+		sv.skip()
+		await _wait(0.2)
 	await _frames(10)
-	await _shot("menu-hub-training")
-	_app._current._train("contact")
+	await _shot("menu-hub-room")
+	# 스케줄: 칸 고르기 판 → 칸 채우기 → 시작 (도장이 하나씩 찍히는 중) → 다 찍힘
+	_app._current._open_picker(0)
 	await _frames(10)
+	await _shot("menu-hub-picker")
+	_app.career.set_plan(0, "contact")
+	_app.career.set_plan(1, "power")
+	_app.career.set_plan(2, "rest")
+	_app._current._close_picker()
+	_app._current._rebuild()
+	await _frames(10)
+	await _shot("menu-hub-plan")
+	_app._current._start_schedule()
+	await _wait(float(_app.career.cfg.schedule["revealSec"]) * 1.2)
+	await _shot("menu-hub-revealing")
+	await _wait(float(_app.career.cfg.schedule["revealSec"]) * 3.0)
 	await _shot("menu-hub-trained")
 	_app._current._show_tab("선수")
 	await _frames(10)
@@ -244,8 +263,8 @@ func _auto_week(career: CareerState) -> void:
 
 ## 로비에 갔다 와도 이번 주 훈련은 한 번뿐
 func check_trained() -> void:
-	var trained: bool = _app._current._trained()
-	print("다시 연 허브: 훈련함=%s, 훈련 버튼 %s" % [trained, "없음(홈 탭)" if _app._current._training_buttons.is_empty() else "있음"])
+	var trained: bool = _app._current._ran()
+	print("다시 연 허브: 스케줄 함=%s, 칸 결과 %d개" % [trained, _app.career.week_schedule.size()])
 
 
 ## 고를 수 있는 첫 선택지

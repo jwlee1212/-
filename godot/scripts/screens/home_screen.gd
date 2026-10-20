@@ -1,14 +1,20 @@
 class_name HomeScreen
 extends Control
-## 커리어 허브 (이번 주). 레이아웃은 유저가 준 시안(2026-10-07)을 따르고 색은 밝은 톤 토큰 그대로.
-## 위: 로고 · 탭(홈 · 폰 · 선수 · 훈련 · 상점 · 스카우트 · 기록) · 학년/주차
+## 커리어 허브 (이번 주). 탭 레이아웃은 유저가 준 시안(2026-10-07), 홈 탭은 러브딜리버리식 "내 방" (2026-10-21 유저 요청).
+## 위: 로고 · 탭(홈 · 폰 · 선수 · 상점 · 스카우트 · 기록) · 학년/주차
 ## 인물과의 문자·관계·교류는 폰(PhoneView)에 있다. 폰 탭을 누르면 허브 위에 폰이 뜬다.
 ## 안 읽은 문자가 있으면 폰 탭 오른쪽 아래에 빨간 원 + 흰 숫자, 새 문자가 오면 오른쪽 위에 알림 띠가 미끄러져 들어왔다 나간다
-## 홈 탭: 다음 경기 | 종합 능력치 + 시즌 기록 | 스카우트 리포트 + 받은 소식, 아래: 컨디션 · 폼 · 평판 · 행동 / 다음 주
+## 홈 탭: 내 방 그림(art/backgrounds/room.png, 없으면 home.png) 위에 내 선수 일러스트,
+##   왼쪽 능력치·소식, 오른쪽 주간 달력(평일 칸 3개 + 주말 경기). 칸을 눌러 훈련·휴식을 넣고 [스케줄 시작]을 누르면
+##   칸마다 대성공·성공·실패 도장이 하나씩 찍힌다. 아래: 컨디션 · 폼 · 평판 · 지갑 · 스케줄 / 다음 주
 ## 주 시작 이야기(EventBook timing start)가 있으면 화면 가운데 겹쳐 먼저 보여 준다.
 ## 경기를 마친 주(불러온 커리어)면 남은 경기 뒤 이야기를 보여 주고 [다음 주]로 넘어간다. 그릴 때마다 저장한다
 
-const TABS := ["홈", "폰", "선수", "훈련", "상점", "스카우트", "기록"]
+const TABS := ["홈", "폰", "선수", "상점", "스카우트", "기록"]
+## 내 방 그림 (없으면 우리 집 그림), 내 선수 일러스트
+const ROOM_ART := "res://art/backgrounds/room.png"
+const ROOM_FALLBACK := "res://art/backgrounds/home.png"
+const PLAYER_ART := "res://art/portraits/player.png"
 ## 누르면 페이지가 바뀌는 대신 폰이 뜨는 탭
 const PHONE_TAB := "폰"
 ## 지금 있는 탭
@@ -19,8 +25,15 @@ var _tab := "홈"
 var _tab_buttons := {}
 var _page_host: Control
 var _bottom: HBoxContainer
-## 훈련 버튼 (스크린샷 스크립트가 _train 을 직접 부른다)
-var _training_buttons: Array[Button] = []
+## 내 방 그림 (홈 탭에서만 보인다)
+var _room_bg: Control
+## 스케줄 칸을 고르는 판 (없으면 null)
+var _picker: Control
+## 스케줄 결과를 몇 칸까지 보여 줬나 (-1 = 다 보여 줌). 실행 직후 0 부터 revealSec 마다 하나씩 는다
+var _revealed := -1
+var _reveal_tween: Tween
+## 결과 도장이 뜰 때 일러스트 위로 떠오르는 글자 자리
+var _float_host: Control
 ## 주 시작 이야기 대화 화면 (없으면 null)
 var _overlay: Control
 ## 상점에서 마지막으로 쓴 서비스 결과
@@ -36,16 +49,26 @@ func _init(app) -> void:
 
 
 func _ready() -> void:
+	var path := ROOM_ART if ResourceLoader.exists(ROOM_ART) else ROOM_FALLBACK
+	_room_bg = Control.new()
+	_room_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if ResourceLoader.exists(path):
+		var art := TextureRect.new()
+		art.texture = load(path)
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_room_bg.add_child(UiKit.fill_parent(art))
+	add_child(UiKit.fill_parent(_room_bg))
 	var root := UiKit.vbox(Tokens.SPACE_SM)
 	add_child(UiKit.fill_parent(UiKit.margin(root, Tokens.SPACE_MD)))
-	root.add_child(_top_bar())
-	root.add_child(UiKit.divider())
+	root.add_child(_on_room_panel(_top_bar()))
 	_page_host = PanelContainer.new()
 	_page_host.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	_page_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(_page_host)
 	_bottom = UiKit.hbox(Tokens.SPACE_LG)
-	root.add_child(_bottom)
+	root.add_child(_on_room_panel(_bottom))
 	_rebuild()
 	_next_story()
 
@@ -222,12 +245,11 @@ func _style_tabs() -> void:
 func _rebuild() -> void:
 	for c in _page_host.get_children():
 		c.queue_free()
-	_training_buttons.clear()
+	_close_picker()
+	_room_bg.visible = _tab == "홈"
 	match _tab:
 		"선수":
 			_page_host.add_child(_player_page())
-		"훈련":
-			_page_host.add_child(_training_page())
 		"상점":
 			_page_host.add_child(_shop_page())
 		"스카우트":
@@ -241,22 +263,358 @@ func _rebuild() -> void:
 	_app.save_career()
 
 
+## 내 방: 왼쪽 능력치·소식 | 가운데 내 선수 일러스트 | 오른쪽 주간 달력 + 진행 버튼
 func _home_page() -> Control:
 	var row := UiKit.hbox(Tokens.SPACE_SM)
-	var c1 := UiKit.vbox(0)
-	c1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	c1.size_flags_stretch_ratio = 1.15
-	c1.add_child(_match_card())
-	c1.add_child(_go_button())
-	row.add_child(c1)
-	for pair: Array in [[_overall_card(), _season_card()], [_scout_card(), _inbox_card()]]:
-		var col := UiKit.vbox(Tokens.SPACE_SM)
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		for c: Control in pair:
-			c.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			col.add_child(c)
-		row.add_child(col)
+	var left := UiKit.vbox(Tokens.SPACE_SM)
+	left.custom_minimum_size.x = 196
+	left.add_child(_status_card())
+	var news := _inbox_card()
+	news.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	news.visible = news.get_meta("count", 0) > 0  # 소식이 없으면 방이 더 보이게
+	left.add_child(news)
+	row.add_child(left)
+	var middle := Control.new()
+	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	middle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if ResourceLoader.exists(PLAYER_ART):
+		var me := TextureRect.new()
+		me.texture = load(PLAYER_ART)
+		me.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		me.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		me.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		middle.add_child(UiKit.fill_parent(me))
+	_float_host = UiKit.fill_parent(Control.new())
+	_float_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	middle.add_child(_float_host)
+	row.add_child(middle)
+	var right := UiKit.vbox(Tokens.SPACE_SM)
+	right.custom_minimum_size.x = 352
+	var cal := _calendar_card()
+	cal.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(cal)
+	right.add_child(_go_button())
+	row.add_child(right)
 	return row
+
+
+## 이름·종합 능력치·능력치 막대·컨디션 (반투명 흰 판)
+func _status_card() -> Control:
+	var career: CareerState = _app.career
+	var p: PlayerData = career.player
+	var card := _room_card()
+	var col := UiKit.vbox(2)
+	card.add_child(col)
+	var head := UiKit.hbox(Tokens.SPACE_SM)
+	var names := UiKit.vbox(0)
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	names.add_child(UiKit.label(p.name, Tokens.FONT_BODY, Tokens.INK, Tokens.FONT_BOLD))
+	names.add_child(UiKit.label("%s %d학년" % [career.my_school.short, p.grade], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	head.add_child(names)
+	var ovr := UiKit.vbox(0)
+	var k := UiKit.kicker("OVR")
+	k.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	ovr.add_child(k)
+	var v := UiKit.title(str(p.overall()), Tokens.FONT_TITLE)
+	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	ovr.add_child(v)
+	head.add_child(ovr)
+	col.add_child(head)
+	for st: String in PlayerData.STATS:
+		col.add_child(_mini_bar(PlayerData.STAT_LABELS[st], p.stat(st), Tokens.STAT_COLORS[st]))
+	col.add_child(_mini_bar("컨디션", p.condition, Tokens.WARN, 100))
+	return card
+
+
+# ---------- 주간 달력 ----------
+
+## 이번 주 달력: 평일 칸(cfg.schedule.slots) + 주말(경기). 실행 전엔 칸을 눌러 바꾸고, 실행 뒤엔 결과 도장
+func _calendar_card() -> Control:
+	var career: CareerState = _app.career
+	var card := _room_card()
+	var col := UiKit.vbox(Tokens.SPACE_SM)
+	card.add_child(col)
+	var head := UiKit.hbox(Tokens.SPACE_SM)
+	var when := "WINTER CAMP · %d/%d주" % [career.camp_week, int(career.cfg.camp["weeks"])] if career.in_camp() else "SCHEDULE · %d주차" % career.week
+	var kick := UiKit.kicker(when, Tokens.PRIMARY if career.in_camp() else Tokens.INK_SOFT)
+	kick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(kick)
+	var hint := "결과" if _ran() else ("부상 — 이번 주는 모두 휴식" if career.player.is_injured() else "칸을 눌러 바꾼다")
+	head.add_child(UiKit.label(hint, Tokens.FONT_CAPTION, Tokens.BAD if career.player.is_injured() and not _ran() else Tokens.INK_SOFT))
+	col.add_child(head)
+	var cells := UiKit.hbox(Tokens.SPACE_XS)
+	cells.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var slots := career.schedule_slots()
+	career.plan_ready()  # 칸 수를 맞춘다
+	for i in slots.size():
+		cells.add_child(_slot_cell(i))
+	cells.add_child(_weekend_cell())
+	col.add_child(cells)
+	if career.in_camp() and career.camp_focus != "":
+		col.add_child(UiKit.label("캠프 집중 과제 · %s" % career.camp_focus_label(), Tokens.FONT_CAPTION, Tokens.ACCENT, Tokens.FONT_BOLD))
+	elif _ran() and _revealed < 0:
+		var sum := UiKit.label(career.week_training, Tokens.FONT_CAPTION, Tokens.INK, Tokens.FONT_BOLD)
+		sum.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(sum)
+	return card
+
+
+## 평일 칸 하나: 요일 · 훈련 이름 · 오르는 능력치/컨디션 · (실행 전) 실패 확률 / (실행 뒤) 결과 도장
+func _slot_cell(i: int) -> Control:
+	var career: CareerState = _app.career
+	var ran := _ran()
+	var shown := ran and (_revealed < 0 or i < _revealed)
+	var id: String = career.week_schedule[i]["id"] if ran else career.week_plan[i]
+	var color: Color = Tokens.ROOM_EMPTY
+	var col := UiKit.vbox(2)
+	col.add_child(UiKit.label(career.schedule_slots()[i], Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD))
+	if id == "":
+		col.add_child(UiKit.label("비어 있음", Tokens.FONT_CAPTION + 1, Tokens.INK_SOFT, Tokens.FONT_BOLD))
+		col.add_child(UiKit.label("눌러서 고르기", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	else:
+		var t: Dictionary = career.cfg.training[id]
+		var stat: String = t["stat"]
+		color = Tokens.STAT_COLORS.get(stat, Tokens.REST_COLOR)
+		var name := UiKit.label(t["label"], Tokens.FONT_CAPTION + 1, Tokens.INK, Tokens.FONT_BOLD)
+		name.clip_text = true
+		col.add_child(name)
+		if shown:
+			var r: Dictionary = career.week_schedule[i]
+			col.add_child(UiKit.label(_slot_gain_text(r), Tokens.FONT_CAPTION, Tokens.INK))
+			col.add_child(UiKit.label("컨디션 %+d" % r["condition"], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+		else:
+			col.add_child(UiKit.label("%s ▲" % PlayerData.STAT_LABELS[stat] if stat != "" else "회복", Tokens.FONT_CAPTION, Tokens.INK))
+			col.add_child(UiKit.label("컨디션 %+d" % career.slot_condition(id), Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	col.add_child(UiKit.spacer())
+	if shown:
+		var r: Dictionary = career.week_schedule[i]
+		var stamp := _stamp(r)
+		col.add_child(stamp)
+		if i == _revealed - 1:
+			_pop(stamp)
+	elif id != "" and not ran:
+		var fail := float(career.slot_chances(id, _expected_condition(i))["fail"])
+		if fail > 0.0:
+			col.add_child(UiKit.label("실패 %d%%" % roundi(fail * 100.0), Tokens.FONT_CAPTION, Tokens.BAD if fail >= 0.2 else Tokens.INK_SOFT))
+	var cell := _cell(col, color, id == "")
+	if not ran and not career.game_done:
+		var hit := Button.new()
+		hit.flat = true
+		hit.focus_mode = Control.FOCUS_NONE
+		hit.pressed.connect(func() -> void: _open_picker(i))
+		cell.add_child(hit)
+	return cell
+
+
+## 칸 i 를 시작할 때 예상 컨디션 (앞 칸들의 컨디션 변화를 더한다 — 실제 실행과 같은 순서)
+func _expected_condition(i: int) -> int:
+	var career: CareerState = _app.career
+	var cond := career.player.condition
+	for j in i:
+		var id: String = career.week_plan[j]
+		if id != "":
+			cond = clampi(cond + career.slot_condition(id), 0, 100)
+	return cond
+
+
+## 주말 칸: 경기 상대 (캠프 훈련 주면 경기 없음)
+func _weekend_cell() -> Control:
+	var career: CareerState = _app.career
+	var col := UiKit.vbox(2)
+	col.add_child(UiKit.label("토·일", Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD))
+	var has_game := not career.in_camp() or career.camp_has_game()
+	if has_game:
+		var opp := career.opponent()
+		col.add_child(UiKit.label("연습경기" if career.in_camp() else "경기", Tokens.FONT_CAPTION + 1, Tokens.INK, Tokens.FONT_BOLD))
+		col.add_child(UiKit.label("vs %s" % opp.short, Tokens.FONT_CAPTION, Tokens.UNIFORM_THEM, Tokens.FONT_BOLD))
+		col.add_child(UiKit.label(career.round_text() if not career.in_camp() else "기록 안 남음", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	else:
+		col.add_child(UiKit.label("쉬는 날", Tokens.FONT_CAPTION + 1, Tokens.INK, Tokens.FONT_BOLD))
+		col.add_child(UiKit.label("캠프 훈련 주", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	col.add_child(UiKit.spacer())
+	col.add_child(UiKit.label("끝" if career.game_done else "눌러서 자세히", Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD))
+	var cell := _cell(col, Tokens.UNIFORM_THEM if has_game else Tokens.REST_COLOR, false)
+	# 누르면 다음 경기 카드 (상대 선발·타순·내 출전)
+	var hit := Button.new()
+	hit.flat = true
+	hit.focus_mode = Control.FOCUS_NONE
+	hit.pressed.connect(func() -> void:
+		var card := _match_card()
+		card.custom_minimum_size = Vector2(440, 250)
+		_open_popup(card))
+	cell.add_child(hit)
+	return cell
+
+
+## 칸 바탕: 흰 판 + 위쪽 색 띠
+func _cell(content: Control, color: Color, empty: bool) -> PanelContainer:
+	var cell := PanelContainer.new()
+	var s := StyleBoxFlat.new()
+	s.bg_color = Tokens.ROOM_EMPTY if empty else Tokens.SURFACE
+	s.border_color = color
+	s.border_width_top = 4
+	if empty:
+		s.set_border_width_all(1)
+		s.border_color = Tokens.DIVIDER
+	s.set_corner_radius_all(Tokens.SPACE_SM)
+	s.set_content_margin_all(Tokens.SPACE_SM)
+	s.anti_aliasing = true
+	cell.add_theme_stylebox_override("panel", s)
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cell.size_flags_stretch_ratio = 1.0
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.add_child(content)
+	return cell
+
+
+## 결과 도장 ("대성공!" · "성공" · "실패" · 휴식은 "회복")
+func _stamp(r: Dictionary) -> Control:
+	var outcome: String = r["outcome"]
+	var text: String = "회복" if outcome == "rest" else (r["outcome_label"] + ("!" if outcome == "great" else ""))
+	var color: Color = Tokens.OUTCOME_COLORS.get(outcome, Tokens.REST_COLOR)
+	var box := PanelContainer.new()
+	var s := StyleBoxFlat.new()
+	s.bg_color = color
+	s.set_corner_radius_all(Tokens.RADIUS_BUBBLE)
+	s.content_margin_left = Tokens.SPACE_SM
+	s.content_margin_right = Tokens.SPACE_SM
+	box.add_theme_stylebox_override("panel", s)
+	var l := UiKit.label(text, Tokens.FONT_CAPTION + 1, Tokens.SURFACE, Tokens.FONT_BOLD)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(l)
+	return box
+
+
+## 칸 결과의 성장 글자 ("컨택 +0.4", 칸이 오르면 "컨택 +1칸")
+func _slot_gain_text(r: Dictionary) -> String:
+	if r["stat"] == "":
+		return "푹 쉬었다"
+	var label: String = PlayerData.STAT_LABELS[r["stat"]]
+	if int(r["raised"]) > 0:
+		return "%s +%d칸" % [label, r["raised"]]
+	return "%s +%.1f" % [label, r["amount"]]
+
+
+## 방금 찍힌 도장: 크게 떴다가 제자리로 + 일러스트 위로 성장 글자가 떠오른다
+func _pop(stamp: Control) -> void:
+	var r: Dictionary = _app.career.week_schedule[_revealed - 1]
+	stamp.pivot_offset = Vector2(30, 10)
+	stamp.scale = Vector2.ONE * 1.8
+	stamp.modulate.a = 0.0
+	var tw := stamp.create_tween().set_parallel()
+	tw.tween_property(stamp, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(stamp, "modulate:a", 1.0, 0.12)
+	if _float_host == null:
+		return
+	var text: String = ("%s!  " % r["outcome_label"] if r["outcome"] == "great" else "") + _slot_gain_text(r)
+	var color: Color = Tokens.OUTCOME_COLORS.get(r["outcome"], Tokens.REST_COLOR)
+	var l := UiKit.label(text, Tokens.FONT_TITLE, color, Tokens.FONT_BOLD)
+	l.add_theme_color_override("font_outline_color", Tokens.SURFACE)
+	l.add_theme_constant_override("outline_size", 6)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# 얼굴을 가리지 않게 일러스트 위쪽 가장자리에서 떠오른다
+	l.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	l.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	l.position.y = Tokens.SPACE_SM
+	_float_host.add_child(l)
+	var y := l.position.y
+	var ft := l.create_tween()
+	ft.tween_property(l, "position:y", y - 40.0, 0.7).set_ease(Tween.EASE_OUT)
+	ft.parallel().tween_property(l, "modulate:a", 0.0, 0.7).set_delay(0.3)
+	ft.tween_callback(l.queue_free)
+
+
+## 화면 가운데에 카드를 띄운다 (바깥을 누르면 닫힌다)
+func _open_popup(card: Control) -> void:
+	_close_picker()
+	var cover := ColorRect.new()
+	cover.color = Tokens.SCRIM
+	_picker = UiKit.fill_parent(cover)
+	add_child(_picker)
+	var back := Button.new()
+	back.flat = true
+	back.focus_mode = Control.FOCUS_NONE
+	back.pressed.connect(_close_picker)
+	cover.add_child(UiKit.fill_parent(back))
+	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	card.grow_vertical = Control.GROW_DIRECTION_BOTH
+	cover.add_child(card)
+
+
+## 칸에 넣을 훈련을 고르는 판
+func _open_picker(slot: int) -> void:
+	var career: CareerState = _app.career
+	var card := UiKit.card()
+	card.custom_minimum_size.x = 420
+	_open_popup(card)
+	var col := UiKit.vbox(Tokens.SPACE_XS)
+	card.add_child(col)
+	col.add_child(UiKit.kicker("%s · 무엇을 할까" % career.schedule_slots()[slot]))
+	for id: String in career.cfg.training:
+		var t: Dictionary = career.cfg.training[id]
+		var stat: String = t["stat"]
+		var parts := ["%s ▲" % PlayerData.STAT_LABELS[stat] if stat != "" else "회복", "컨디션 %+d" % career.slot_condition(id)]
+		var mult := career.training_multiplier(id)
+		if mult != 1.0:
+			parts.append("캠프 ×%.1f" % mult)
+		var ch := career.slot_chances(id, _expected_condition(slot))
+		if stat != "":
+			parts.append("대성공 %d%% · 실패 %d%%" % [roundi(float(ch["great"]) * 100.0), roundi(float(ch["fail"]) * 100.0)])
+		var b := UiKit.button("%s   %s" % [t["label"], " · ".join(parts)], func() -> void:
+			career.set_plan(slot, id)
+			_rebuild(), Tokens.STAT_COLORS.get(stat, Tokens.REST_COLOR), Tokens.FONT_CAPTION + 1)
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.disabled = career.player.is_injured() and stat != ""
+		col.add_child(b)
+	col.add_child(UiKit.label("앞 칸에서 컨디션이 깎이면 뒤 칸의 실패 확률이 오른다", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+
+
+func _close_picker() -> void:
+	if _picker != null:
+		_picker.queue_free()
+		_picker = null
+
+
+## 지금 떠 있는 칸 고르기 판 (스크린샷 스크립트용, 없으면 null)
+func picker() -> Control:
+	return _picker
+
+
+## [스케줄 시작]: 결과는 한 번에 정해 저장하고, 화면은 revealSec 마다 칸 하나씩 도장을 찍는다
+func _start_schedule() -> void:
+	_app.career.run_schedule()
+	_app.save_career()
+	_revealed = 0
+	_rebuild()
+	_reveal_next()
+
+
+func _reveal_next() -> void:
+	if _revealed < 0:
+		return
+	if _revealed >= _app.career.week_schedule.size():
+		_revealed = -1
+		_rebuild()
+		return
+	_revealed += 1
+	_rebuild()
+	_reveal_tween = create_tween()
+	_reveal_tween.tween_interval(float(_app.career.cfg.schedule["revealSec"]))
+	_reveal_tween.tween_callback(_reveal_next)
+
+
+## 결과 연출 건너뛰기
+func _skip_reveal() -> void:
+	if _reveal_tween != null:
+		_reveal_tween.kill()
+	_revealed = -1
+	_rebuild()
+
+
+## 이번 주 스케줄을 실행했나
+func _ran() -> bool:
+	return _app.career.week_training != ""
 
 
 ## 다음 경기: 대회·라운드, 우리 학교 vs 상대 (방패 + 순위), 상대 선발
@@ -384,64 +742,37 @@ func _rank_text(school_name: String, kind: String) -> String:
 	return "-"
 
 
-## 경기 준비 버튼: 이번 주 훈련을 아직 안 골랐으면 훈련 탭으로, 골랐으면 경기로
+## 진행 버튼: 스케줄 시작 → (결과 도장) → 경기 준비 / 캠프 훈련 주면 주 마치기 → 다음 주
 func _go_button() -> Button:
-	var p := _app.career.player as PlayerData
-	if _app.career.game_done:
+	var career: CareerState = _app.career
+	var p := career.player
+	if career.game_done:
 		return _wide_button("다음 주  ›", _app.next_week)
-	var camp_training_week: bool = _app.career.in_camp() and not _app.career.camp_has_game()
-	if not _trained():
-		return _wide_button("훈련 고르기  ›" if camp_training_week else "훈련 고르고 경기 준비  ›", func() -> void: _show_tab("훈련"))
-	if camp_training_week:
+	if not _ran():
+		var b := _wide_button("스케줄 시작  ›", _start_schedule)
+		b.disabled = not career.plan_ready()
+		return b
+	if _revealed >= 0:
+		return _wide_button("건너뛰기  ›", _skip_reveal, Tokens.INK_SOFT)
+	if career.in_camp() and not career.camp_has_game():
 		return _wide_button("이번 주 마치기  ›", _finish_camp_week)
-	return _wide_button("경기 보기 (결장)  ›" if p.is_injured() else ("경기 결과 보기 (벤치)  ›" if _app.career.next_role() == "bench" else "경기 준비  ›"), _app.show_game)
+	return _wide_button("경기 보기 (결장)  ›" if p.is_injured() else ("경기 결과 보기 (벤치)  ›" if career.next_role() == "bench" else "경기 준비  ›"), _app.show_game)
 
 
-func _wide_button(text: String, on_press: Callable) -> Button:
-	var b := UiKit.button(text, on_press, Tokens.ACCENT, Tokens.FONT_TITLE)
+func _wide_button(text: String, on_press: Callable, color: Color = Tokens.ACCENT) -> Button:
+	var b := UiKit.button(text, on_press, color, Tokens.FONT_TITLE)
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	return b
 
 
-## 종합 능력치 (네 능력치 평균) + 잠재력 범위(임시) + 능력치 막대
-func _overall_card() -> Control:
-	var career: CareerState = _app.career
-	var p: PlayerData = career.player
-	var card := _card(true)
-	var col := UiKit.vbox(2)
-	card.add_child(col)
-	var head := UiKit.hbox()
-	var l := UiKit.vbox(0)
-	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	l.add_child(UiKit.kicker("OVERALL"))
-	l.add_child(UiKit.title(str(p.overall()), Tokens.FONT_NUMBER))
-	head.add_child(l)
-	var r := UiKit.vbox(0)
-	var pk := UiKit.kicker("POTENTIAL")
-	pk.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	r.add_child(pk)
-	var pv := UiKit.title(career.scouting.potential_range(career.cfg, p), Tokens.FONT_TITLE, Tokens.INK_SOFT)
-	pv.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	r.add_child(pv)
-	head.add_child(r)
-	col.add_child(head)
-	var weeks := int(career.cfg.scouting["deltaWeeks"])
-	var d := Scouting.delta(career.scouting.overall_history, weeks)
-	var dt := ("▲ %d" % d if d > 0 else ("▼ %d" % -d if d < 0 else "― 0")) + " 최근 %d주" % weeks
-	col.add_child(UiKit.label(dt, Tokens.FONT_CAPTION, Tokens.GOOD if d > 0 else (Tokens.BAD if d < 0 else Tokens.INK_SOFT), Tokens.FONT_BOLD))
-	for s: String in PlayerData.STATS:
-		col.add_child(_mini_bar(PlayerData.STAT_LABELS[s], p.stat(s)))
-	return card
-
-
-func _mini_bar(name: String, value: int) -> Control:
+func _mini_bar(name: String, value: int, color: Color = Tokens.PRIMARY, max_value: int = 99) -> Control:
 	var row := UiKit.hbox(Tokens.SPACE_SM)
 	var n := UiKit.label(name, Tokens.FONT_CAPTION, Tokens.INK_SOFT)
 	n.custom_minimum_size.x = 40
 	row.add_child(n)
 	var bar := ProgressBar.new()
-	bar.max_value = 99
+	bar.max_value = max_value
 	bar.value = value
 	bar.show_percentage = false
 	bar.custom_minimum_size.y = 5
@@ -450,7 +781,7 @@ func _mini_bar(name: String, value: int) -> Control:
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Tokens.DIVIDER
 	var fill := StyleBoxFlat.new()
-	fill.bg_color = Tokens.PRIMARY
+	fill.bg_color = color
 	bar.add_theme_stylebox_override("background", bg)
 	bar.add_theme_stylebox_override("fill", fill)
 	row.add_child(bar)
@@ -461,86 +792,22 @@ func _mini_bar(name: String, value: int) -> Control:
 	return row
 
 
-## 시즌 기록: 타율 · OPS · OPS+ (고교 평균 = 100) · 유망주 랭킹 (최근 변화)
-func _season_card() -> Control:
-	var career: CareerState = _app.career
-	var st: PlayerData.SeasonStats = career.player.season
-	var card := _card()
-	var col := UiKit.vbox(2)
-	card.add_child(col)
-	col.add_child(UiKit.kicker("SEASON"))
-	var row := UiKit.hbox(Tokens.SPACE_LG)
-	var plus := st.ops_plus(career.cfg.league_avg)
-	for item: Array in [[st.average(), "AVG", Tokens.INK], [st.ops(), "OPS", Tokens.INK], [str(plus) if plus >= 0 else "-", "OPS+", Tokens.ACCENT]]:
-		var c := UiKit.vbox(0)
-		c.add_child(UiKit.title(item[0], Tokens.FONT_TITLE, item[2]))
-		c.add_child(UiKit.label(item[1], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
-		row.add_child(c)
-	col.add_child(row)
-	var rank := UiKit.hbox(Tokens.SPACE_XS)
-	rank.add_child(UiKit.label("유망주 랭킹 %d위" % career.prospect_rank(), Tokens.FONT_CAPTION, Tokens.INK_SOFT))
-	var rd := -Scouting.delta(career.scouting.rank_history, int(career.cfg.scouting["deltaWeeks"]))
-	if rd != 0:
-		rank.add_child(UiKit.label("%s%d" % ["▲" if rd > 0 else "▼", absi(rd)], Tokens.FONT_CAPTION, Tokens.GOOD if rd > 0 else Tokens.BAD, Tokens.FONT_BOLD))
-	col.add_child(rank)
-	return card
-
-
-## 스카우트 리포트: 예상 지명·주목 구단·스카우트 관심도
-func _scout_card() -> Control:
-	var career: CareerState = _app.career
-	var p: PlayerData = career.player
-	var proj := career.projection()
-	var teams := career.scouting.interested_teams(career.cfg, p.scout_interest, p.grade)
-	var card := _card()
-	var col := UiKit.vbox(Tokens.SPACE_XS)
-	card.add_child(col)
-	col.add_child(UiKit.kicker("SCOUT REPORT"))
-	var head := UiKit.hbox(Tokens.SPACE_XS)
-	head.add_child(UiKit.title(proj["big"], Tokens.FONT_NUMBER - 8))
-	var suffix := UiKit.label(proj["suffix"], Tokens.FONT_BODY, Tokens.INK_SOFT)
-	suffix.size_flags_vertical = Control.SIZE_SHRINK_END
-	head.add_child(suffix)
-	col.add_child(head)
-	var boxes := UiKit.hbox(Tokens.SPACE_XS)
-	for t: Dictionary in teams.slice(0, 5):
-		boxes.add_child(_letter_box(t["short"]))
-	if teams.size() > 5:
-		boxes.add_child(UiKit.label("+%d" % (teams.size() - 5), Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD))
-	col.add_child(boxes)
-	var note := "%d개 구단 주목 중" % teams.size() if not teams.is_empty() else "아직 지켜보는 구단 없음"
-	col.add_child(UiKit.label("%s · 관심도 %d" % [note, p.scout_interest], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
-	return card
-
-
-func _letter_box(t: String) -> Control:
-	var box := PanelContainer.new()
-	var s := StyleBoxFlat.new()
-	s.bg_color = Color(0, 0, 0, 0)
-	s.border_color = Tokens.INK_SOFT
-	s.set_border_width_all(1)
-	s.set_corner_radius_all(Tokens.SPACE_XS)
-	s.content_margin_left = Tokens.SPACE_SM
-	s.content_margin_right = Tokens.SPACE_SM
-	box.add_theme_stylebox_override("panel", s)
-	box.add_child(UiKit.label(t, Tokens.FONT_CAPTION, Tokens.INK, Tokens.FONT_BOLD))
-	return box
-
-
 ## 받은 소식: 이번 주 훈련 + 지난 경기 뒤 소식 (라이벌 기록·유망주 랭킹·구단 관심)
 func _inbox_card() -> Control:
 	var career: CareerState = _app.career
-	var items: Array = ["훈련 · " + career.week_training if _trained() else "%s · 이번 주는 뭘 할래? (훈련 하나)" % career.people.person("coach").call]
+	var items: Array = [] if _ran() else ["%s · 이번 주 스케줄을 짜 보자" % career.people.person("coach").call]
 	var unread := career.phone.total_unread()
 	if unread > 0:
 		items.append("폰 · 안 읽은 문자가 있다 (%d)" % unread)
 	items.append_array(career.news)
-	var card := _card()
+	var card := _room_card()
 	var col := UiKit.vbox(Tokens.SPACE_XS)
 	card.add_child(col)
 	col.add_child(UiKit.kicker("INBOX · %d" % items.size()))
 	for i in items.size():
 		col.add_child(_inbox_line(items[i], i == 0))
+	card.clip_contents = true
+	card.set_meta("count", items.size())
 	return card
 
 
@@ -562,7 +829,7 @@ func _rebuild_bottom() -> void:
 	for c in _bottom.get_children():
 		c.queue_free()
 	var p: PlayerData = _app.career.player
-	for item: Array in [["컨디션", str(p.condition)], ["폼", _form_text(p.form)], ["평판", str(p.reputation)], ["지갑", PlayerData.money_text(p.money)], ["행동", "%d/1" % (1 if _trained() else 0)]]:
+	for item: Array in [["컨디션", str(p.condition)], ["폼", _form_text(p.form)], ["평판", str(p.reputation)], ["지갑", PlayerData.money_text(p.money)], ["스케줄", "%d/1" % (1 if _ran() else 0)]]:
 		var c := UiKit.vbox(0)
 		c.add_child(UiKit.label(item[0], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
 		c.add_child(UiKit.label(item[1], Tokens.FONT_BODY, Tokens.INK, Tokens.FONT_BOLD))
@@ -577,50 +844,13 @@ func _rebuild_bottom() -> void:
 	_bottom.add_child(next)
 
 
-# ---------- 훈련 탭 ----------
+# ---------- 자동 진행 ----------
 
-func _training_page() -> Control:
-	var career: CareerState = _app.career
-	var p := career.player
-	var card := _card()
-	var col := UiKit.vbox(Tokens.SPACE_SM)
-	card.add_child(col)
-	var camp_note := " · 겨울 캠프 보너스" if career.in_camp() else ""
-	col.add_child(UiKit.kicker("TRAINING · 이번 주 하나" + camp_note))
-	if p.is_injured():
-		col.add_child(UiKit.label("%s (%d주 남음) — 이번 주는 쉬어야 한다" % [p.injury_label if p.injury_label != "" else "부상 중", p.injury_weeks], Tokens.FONT_BODY, Tokens.BAD, Tokens.FONT_BOLD))
-	else:
-		col.add_child(UiKit.label("감독: 이번 주는 뭘 할래? (하나만)", Tokens.FONT_BODY, Tokens.INK, Tokens.FONT_BOLD))
-	var grid := GridContainer.new()
-	grid.columns = career.cfg.training.size()
-	grid.add_theme_constant_override("h_separation", Tokens.SPACE_XS)
-	for id: String in career.cfg.training:
-		var t: Dictionary = career.cfg.training[id]
-		var mult := career.training_multiplier(id)
-		var text: String = t["label"] if mult == 1.0 else "%s ×%.1f" % [t["label"], mult]
-		var focused: bool = career.in_camp() and t["stat"] != "" and t["stat"] == career.camp_focus
-		var b := UiKit.button(text, func() -> void: _train(id), Tokens.GOOD if id == "rest" else (Tokens.ACCENT if focused else Tokens.PRIMARY), Tokens.FONT_CAPTION)
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.disabled = _trained() or (p.is_injured() and id != "rest")
-		grid.add_child(b)
-		_training_buttons.append(b)
-	col.add_child(grid)
-	if _trained():
-		col.add_child(UiKit.label(_app.career.week_training, Tokens.FONT_BODY, Tokens.GOOD, Tokens.FONT_BOLD))
-	col.add_child(UiKit.spacer())
-	if _trained():
-		col.add_child(_go_button())
-	return card
-
-
+## 모든 칸을 한 훈련으로 채우고 결과 연출 없이 바로 실행 (스크린샷 스크립트용)
 func _train(id: String) -> void:
 	_app.career.train(id)
+	_revealed = -1
 	_rebuild()
-
-
-## 이번 주 훈련을 했나 (CareerState 가 기억한다)
-func _trained() -> bool:
-	return _app.career.week_training != ""
 
 
 # ---------- 선수 탭 ----------
@@ -637,9 +867,8 @@ func _player_page() -> Control:
 	col.add_child(head)
 	var role := "이번 경기 벤치 대기 (대타)" if p.bench_next else p.role_text()
 	col.add_child(UiKit.label("%s %d학년 · 외야수 · %s" % [career.my_school.name, p.grade, role], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
-	var colors := {"contact": Tokens.PRIMARY, "power": Tokens.ACCENT, "eye": Tokens.GOOD, "speed": Tokens.INK_SOFT}
 	for s in PlayerData.STATS:
-		col.add_child(UiKit.stat_bar(PlayerData.STAT_LABELS[s], p.stat(s), 99, colors[s]))
+		col.add_child(UiKit.stat_bar(PlayerData.STAT_LABELS[s], p.stat(s), 99, Tokens.STAT_COLORS[s]))
 	col.add_child(UiKit.stat_bar("컨디션", p.condition, 100, Tokens.WARN))
 	col.add_child(UiKit.stat_bar("스카우트", p.scout_interest, 100, Tokens.BAD))
 	# 코치의 성장 여력 한마디 (정확한 잠재력은 숨김)
@@ -816,6 +1045,30 @@ func _records_page() -> Control:
 
 
 # ---------- 공통 ----------
+
+## 방 그림 위 반투명 흰 판
+func _room_card() -> PanelContainer:
+	var card := _card()
+	var s := card.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
+	s.bg_color = Tokens.ROOM_PANEL
+	card.add_theme_stylebox_override("panel", s)
+	return card
+
+
+## 위·아래 막대를 반투명 흰 띠 위에 (홈 탭에서 방 그림 위에 글자가 읽히게)
+func _on_room_panel(c: Control) -> Control:
+	var panel := PanelContainer.new()
+	var s := StyleBoxFlat.new()
+	s.bg_color = Tokens.ROOM_PANEL
+	s.set_corner_radius_all(Tokens.SPACE_SM)
+	s.content_margin_left = Tokens.SPACE_SM
+	s.content_margin_right = Tokens.SPACE_SM
+	s.content_margin_top = 2
+	s.content_margin_bottom = 2
+	panel.add_theme_stylebox_override("panel", s)
+	panel.add_child(c)
+	return panel
+
 
 ## 흰 카드 (모서리 작게). stripe 면 왼쪽에 강조 띠
 func _card(stripe: bool = false) -> PanelContainer:
