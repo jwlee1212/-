@@ -1,11 +1,14 @@
 class_name TitleScreen
 extends Control
-## 로비: 뒤에는 컴퓨터 타자가 혼자 치는 타석 장면(LobbyDemo), 오른쪽 판에 로고(가제) + 번호 메뉴
+## 로비: 화면 전체에 일러스트(art/backgrounds/lobby.png, 없으면 학교 운동장 임시 그림), 오른쪽 판에 로고(가제) + 번호 메뉴
 ## (이어하기 · 새 커리어 · 타격 연습 · 기록실 · 설정) + 내 선수 요약.
-## 메뉴 구성은 유저가 준 시안(2026-10-07)을 따르고, 2026-10-18 에 정적인 실루엣 대신 움직이는 데모 장면으로 바꿨다.
+## 메뉴 구성은 유저가 준 시안(2026-10-07)을 따르고, 2026-10-21 에 도형 실루엣 대신 일러스트를 깔았다 (유저 결정).
 ## 판은 오른쪽에서 미끄러져 들어오고 메뉴 줄은 하나씩 나타난다.
 
-## 오른쪽 판이 시작하는 가로 자리 (화면 너비 비율) — 데모 장면의 타자(왼쪽)·투수(가운데)를 가리지 않는 곳
+## 로비 일러스트. 없으면 FALLBACK 을 쓴다
+const ART := "res://art/backgrounds/lobby.png"
+const FALLBACK := "res://art/backgrounds/field.png"
+## 오른쪽 판이 시작하는 가로 자리 (화면 너비 비율) — 일러스트 왼쪽 60% 가량이 보인다
 const PANEL_LEFT := 0.57
 ## 판 왼쪽 모서리를 비스듬히 자르는 폭 (위쪽이 이만큼 오른쪽으로 들어간다)
 const PANEL_SLANT := 36.0
@@ -22,7 +25,14 @@ func _ready() -> void:
 	var career: CareerState = _app.career
 	var pres: Presentation = _app.presentation
 
-	add_child(UiKit.fill_parent(LobbyDemo.new(_app.batting_config, pres, career.player.lineup_slot if career != null else 7)))
+	var path := ART if ResourceLoader.exists(ART) else FALLBACK
+	if ResourceLoader.exists(path):
+		var art := TextureRect.new()
+		art.texture = load(path)
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(UiKit.fill_parent(art))
 
 	# 오른쪽 판 (비스듬한 왼쪽 모서리)
 	var panel := Control.new()
@@ -81,7 +91,7 @@ func _ready() -> void:
 		who.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		foot.add_child(who)
 
-	# 개발 빌드: 원하는 시점부터 시작하는 테스트 (진짜 저장은 건드리지 않는다) — 왼쪽 위 데모 장면 위
+	# 개발 빌드: 원하는 시점부터 시작하는 테스트 (진짜 저장은 건드리지 않는다) — 왼쪽 위 일러스트 위
 	if OS.is_debug_build():
 		var dev := UiKit.vbox(Tokens.SPACE_XS)
 		add_child(dev)

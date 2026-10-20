@@ -185,13 +185,7 @@
       "batterCardMs": 2400,
       "batterCardSlideMs": 280,
       "lobby": {
-        "_note": "로비 배경의 데모 타석 (화면 연출 전용, 기록에 안 남는다). contact·power·eye: 컴퓨터 타자 능력치. 스트라이크가 오면 공이 도착하는 순간 + tapBiasMs ± tapSpreadMs 에 친다 (벌어질수록 파울·빗맞음이 섞인다). overHoldMs: 타석이 끝나고 다음 타석까지. menuSlideMs: 메뉴 판이 오른쪽에서 미끄러져 들어오는 시간, menuStaggerMs: 메뉴 줄이 하나씩 나타나는 간격",
-        "contact": 85,
-        "power": 90,
-        "eye": 70,
-        "tapBiasMs": 0,
-        "tapSpreadMs": 30,
-        "overHoldMs": 1200,
+        "_note": "로비 화면 연출. menuSlideMs: 메뉴 판이 오른쪽에서 미끄러져 들어오는 시간, menuStaggerMs: 메뉴 줄이 하나씩 나타나는 간격",
         "menuSlideMs": 420,
         "menuStaggerMs": 60
       }

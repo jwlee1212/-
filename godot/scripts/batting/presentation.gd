@@ -32,11 +32,6 @@ var select_ms: float
 ## 타석이 시작될 때 왼쪽 아래 타자 자막이 떠 있는 시간 (첫 공을 던지면 그 전이라도 들어간다), 미끄러져 나오고 들어가는 시간
 var batter_card_ms: float
 var batter_card_slide_ms: float
-## 로비 배경의 데모 타석: 컴퓨터 타자 능력치, 스트라이크를 치는 타이밍(공 도착 + 치우침 ± 흔들림), 타석 사이 쉬는 시간
-var lobby_skills: BatterSkills
-var lobby_tap_bias_ms: float
-var lobby_tap_spread_ms: float
-var lobby_over_hold_ms: float
 ## 로비 메뉴 판이 미끄러져 들어오는 시간, 메뉴 줄이 하나씩 나타나는 간격
 var lobby_menu_slide_ms: float
 var lobby_menu_stagger_ms: float
@@ -67,10 +62,6 @@ static func from_balance(balance: Dictionary) -> Presentation:
 	p.select_ms = BattingConfig.num(s, "selectMs")
 	p.batter_card_ms = BattingConfig.num(s, "batterCardMs")
 	p.batter_card_slide_ms = BattingConfig.num(s, "batterCardSlideMs")
-	p.lobby_skills = BatterSkills.new(int(BattingConfig.num(s, "lobby.contact")), int(BattingConfig.num(s, "lobby.power")), int(BattingConfig.num(s, "lobby.eye")))
-	p.lobby_tap_bias_ms = BattingConfig.num(s, "lobby.tapBiasMs")
-	p.lobby_tap_spread_ms = BattingConfig.num(s, "lobby.tapSpreadMs")
-	p.lobby_over_hold_ms = BattingConfig.num(s, "lobby.overHoldMs")
 	p.lobby_menu_slide_ms = BattingConfig.num(s, "lobby.menuSlideMs")
 	p.lobby_menu_stagger_ms = BattingConfig.num(s, "lobby.menuStaggerMs")
 	return p

@@ -1,5 +1,5 @@
 extends Node
-## 로비 확인용 스크린샷: 판이 들어오는 중 · 다 들어온 뒤 · 데모 타자가 치는 순간 · 맞은 뒤 중계 화면 → godot/build/shots/lobby-*.png
+## 로비 확인용 스크린샷: 판이 들어오는 중 · 다 들어온 뒤 · 이어하기가 있는 로비 → godot/build/shots/lobby-*.png
 ##   ~/Applications/Godot.app/Contents/MacOS/Godot --path godot res://tests/shots_lobby.tscn
 
 var _app: Control
@@ -19,30 +19,12 @@ func _ready() -> void:
 	await _shot("lobby-1-slide")
 	await _wait_ms(1200)
 	await _shot("lobby-2-menu")
-	var demo: LobbyDemo = _find_demo()
-	var s: BattingSession = demo._session
-	# 치는 순간 (맞은 공) → 중계 화면
-	await _until(func() -> bool: return s.phase == BattingSession.Phase.HIT, 60000)
-	await _wait_ms(s.presentation.hit_stop_ms * 0.5)
-	await _shot("lobby-3-hit")
-	await _wait_ms(s.presentation.hit_stop_ms + s.presentation.launch_ms + 600)
-	await _shot("lobby-4-broadcast")
 	# 이어하기가 있는 로비 (커리어를 하나 만든 뒤)
 	_app.start_career("김도윤")
 	_app.show_title()
 	await _wait_ms(1500)
-	await _shot("lobby-5-continue")
+	await _shot("lobby-3-continue")
 	get_tree().quit()
-
-
-func _find_demo() -> LobbyDemo:
-	for c in _app._current.get_children():
-		if c is LobbyDemo:
-			return c
-		for cc in c.get_children():
-			if cc is LobbyDemo:
-				return cc
-	return null
 
 
 func _until(cond: Callable, timeout_ms: int = 20000) -> void:
