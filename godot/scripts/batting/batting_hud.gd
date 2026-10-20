@@ -161,7 +161,7 @@ func _refresh_speed() -> void:
 	var revealed := p.is_revealed_at(progress)
 	_speed.type_label = p.label if revealed else ""
 	_speed.type_color = Tokens.PITCH_COLORS.get(p.type, Tokens.HUD_TEXT) if revealed else Tokens.HUD_BORDER
-	_speed.speed = str(session.config.speed_kmh(p.flight_ms)) if progress >= 1.0 else ""
+	_speed.speed = str(p.speed_kmh) if progress >= 1.0 else ""
 
 
 # ---------- 위 가운데: 스윙 고르는 시간 ----------

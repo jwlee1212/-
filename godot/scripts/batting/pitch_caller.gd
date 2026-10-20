@@ -21,17 +21,17 @@ func next(pitcher: BattingConfig.PitcherProfile, balls: int, strikes: int, skill
 
 	if strikes >= 2 and rng.randf() < _config.two_strike_putaway_chance:
 		# 결정구: 그 투수의 주무기를 유인구 자리로
-		p.type = pitcher.putaway_pitch
+		p.type = _forced_or(pitcher.putaway_pitch, rng)
 		p.intended = _chase_spot(pitcher.putaway_spot, rng)
 		p.is_putaway = true
 		p.is_chase = true
 	else:
-		p.type = _pick_type(situation, pitcher, rng)
+		p.type = _forced_or(_pick_type(situation, pitcher, rng), rng)
 		if rng.randf() < situation.strike_chance:
 			var r := situation.strike_radius
 			p.intended = Vector2(rng.randf_range(-r, r), rng.randf_range(-r, r))
 		elif rng.randf() < situation.chase_share:
-			var spots: PackedStringArray = (_config.pitches[p.type] as BattingConfig.PitchSpec).chase_spots
+			var spots: PackedStringArray = _config.catalog.spec(p.type).chase_spots
 			p.intended = _chase_spot(spots[rng.randi_range(0, spots.size() - 1)], rng)
 			p.is_chase = true
 		else:
@@ -46,13 +46,26 @@ func next(pitcher: BattingConfig.PitcherProfile, balls: int, strikes: int, skill
 		var sigma := _config.scatter_at_control0 * (1.0 - pitcher.control)
 		p.target = p.intended + Vector2(rng.randfn(0.0, sigma), rng.randfn(0.0, sigma))
 
-	var spec: BattingConfig.PitchSpec = _config.pitches[p.type]
-	p.label = spec.label
-	p.flight_ms = spec.flight_ms + pitcher.speed_ms + spec.flight_jitter_ms * rng.randf_range(-1.0, 1.0)
-	p.break_vec = spec.break_vec
-	p.break_start = _config.break_start_fraction
+	# 비행 시간: 구속 비율로 정한 기본값 + 투수 성향 보정 + 공마다 흔들림. 이 값이 궤적의 도착 시각이자 판정 기준 시각
+	var catalog := _config.catalog
+	var spec := catalog.spec(p.type)
+	p.label = spec.name_ko
+	p.hand = pitcher.hand
+	p.flight_ms = catalog.flight_ms(p.type) + pitcher.speed_ms + catalog.flight_jitter_ms * rng.randf_range(-1.0, 1.0)
+	p.speed_kmh = catalog.speed_kmh(p.type, p.flight_ms)
+	p.trajectory = PitchTrajectory.make(spec, p.target, p.flight_ms, p.hand, catalog.decel)
 	p.reveal_fraction = _config.reveal_fraction(skills.eye)
 	return p
+
+
+## 개발 빌드의 구종 버튼으로 고른 구종이 있으면 그것, 아니면 볼배합이 고른 구종
+func _forced_or(type: String, rng: RandomNumberGenerator) -> String:
+	var forced := _config.forced_pitch_type
+	if forced == "":
+		return type
+	if forced == "random":
+		return PitchCatalog.IDS[rng.randi_range(0, PitchCatalog.IDS.size() - 1)]
+	return forced
 
 
 ## 상황별 가중치 × 투수 배율로 구종을 고른다

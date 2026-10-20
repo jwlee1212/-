@@ -49,8 +49,13 @@ const BROADCAST_EMPTY := Color(1, 1, 1, 0.22)
 const RADIUS_BROADCAST := 6
 const LCD_BG := Color("0b1220")
 const LCD_TEXT := Color("7cffb2")
-## 구종 색 (구종이 드러났을 때 공 테두리·이름). 목록에 없는 구종은 PRIMARY
-const PITCH_COLORS := {"fastball": PRIMARY, "slider": ACCENT, "changeup": GOOD}
+## 구종 색 (구종이 드러났을 때 공 테두리·이름, 궤적 스크린샷). 목록에 없는 구종은 PRIMARY.
+## 빠른 공은 파랑 계열, 옆으로 휘는 공은 주황 계열, 떨어지는 공은 초록·보라 계열
+const PITCH_COLORS := {
+	"four_seam": PRIMARY, "two_seam": Color("38b6ff"),
+	"slider": ACCENT, "sweeper": BAD, "curve": Color("a55eea"),
+	"changeup": GOOD, "forkball": Color("0f8a5f"), "splitter": WARN,
+}
 ## 공·타구 그림자, 겹쳐 그리는 반투명 바탕
 ## 대화 화면: 배경 자리(그림이 없을 때), 일러스트 자리, 대사창, 지문 글자
 const DIALOGUE_BG := Color("c9d6ef")

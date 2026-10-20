@@ -26,6 +26,13 @@ func _init() -> void:
 		"test_early_pulls_late_pushes",
 		"test_power_increases_distance",
 		"test_breaking_ball_arrives_at_target",
+		"test_pitch_trajectory_endpoints",
+		"test_pitch_trajectory_reproducible",
+		"test_pitch_trajectory_straight_before_break",
+		"test_pitch_trajectory_break_direction",
+		"test_pitch_trajectory_monotonic",
+		"test_pitch_catalog_valid",
+		"test_pitch_caller_flight_and_forced_type",
 		"test_taking_ends_in_walk_or_strikeout",
 		"test_foul_with_two_strikes_is_not_strikeout",
 		"test_same_seed_same_result",
@@ -220,13 +227,174 @@ func test_power_increases_distance() -> void:
 
 
 func test_breaking_ball_arrives_at_target() -> void:
-	for type: String in _config.pitches:
-		var s := 0
-		var p := pitch_at(0, 0, s)
-		while p.type != type:
-			s += 1
-			p = pitch_at(0, 0, s)
-		check(p.zone_position_at(1.0).distance_to(p.target) < 1e-6, type)
+	# 볼배합이 실제로 만든 공도 비행 시간에 정확히 미트(실제 도착점)에 온다
+	for s in 300:
+		var p := pitch_at(s % 3, s % 3, s)
+		check(p.position_at(p.flight_ms).distance_to(p.target) < 1e-4, "%s %s" % [p.type, p.position_at(p.flight_ms)])
+		check(p.trajectory.flight_ms == p.flight_ms, "궤적 도착 시각 = 판정 기준 시각")
+
+
+# ---------- 투구 궤적 (pitching/) ----------
+
+func _trajectory(id: String, aim: Vector2, hand := "R") -> PitchTrajectory:
+	var cat := _config.catalog
+	return PitchTrajectory.make(cat.spec(id), aim, cat.flight_ms(id), hand, cat.decel)
+
+
+func test_pitch_trajectory_endpoints() -> void:
+	for id: String in PitchCatalog.IDS:
+		for aim in [Vector2.ZERO, Vector2(0.8, -0.6), Vector2(-1.2, 1.1)]:
+			var t := _trajectory(id, aim)
+			check(t.position_at(t.flight_ms).distance_to(aim) < 1e-4, "%s 도착 %s ≠ %s" % [id, t.position_at(t.flight_ms), aim])
+			check(t.position_at(0.0).distance_to(t.start) < 1e-4, "%s 출발 %s" % [id, t.position_at(0.0)])
+			check(t.position_at(t.flight_ms * 2.0).distance_to(aim) < 1e-4, "%s 도착 뒤에는 aim 에 머문다" % id)
+
+
+func test_pitch_trajectory_reproducible() -> void:
+	for id: String in PitchCatalog.IDS:
+		var a := _trajectory(id, Vector2(0.3, 0.4))
+		var b := _trajectory(id, Vector2(0.3, 0.4))
+		# 순서를 섞어 불러도 같은 값 — 앞서 부른 값에 의존하지 않는 순수 함수
+		var ts := [0.0, 37.5, 120.0, a.flight_ms * 0.5, 401.2, a.flight_ms * 0.93, a.flight_ms]
+		var first := []
+		for t_ms: float in ts:
+			first.append(a.position_at(t_ms))
+		ts.reverse()
+		for i in ts.size():
+			var t_ms: float = ts[i]
+			check(b.position_at(t_ms) == first[ts.size() - 1 - i], "%s t=%.1f" % [id, t_ms])
+			check(a.position_at(t_ms) == b.position_at(t_ms))
+
+
+func test_pitch_trajectory_straight_before_break() -> void:
+	for id: String in PitchCatalog.IDS:
+		var t := _trajectory(id, Vector2(0.4, 0.2))
+		var raw_end := t.aim - t.break_vec
+		# break_start 에 닿는 시각 직전까지 여러 점이 start → raw_end 직선 위에 있다
+		for i in 20:
+			var t_ms := t.flight_ms * i / 20.0
+			if t.distance_fraction(t_ms) >= t.break_start:
+				break
+			var pos := t.position_at(t_ms)
+			check(t.break_fraction(t_ms) == 0.0, "%s 휘기 전 s=0" % id)
+			check(pos.distance_to(t.start.lerp(raw_end, t.distance_fraction(t_ms))) < 1e-6, "%s t=%.0f 직선 밖" % [id, t_ms])
+			# 직선 위인지: start→raw_end 방향과 start→pos 방향의 외적이 0
+			var d := raw_end - t.start
+			var e := pos - t.start
+			check(absf(d.cross(e)) < 1e-6, "%s 외적 %f" % [id, d.cross(e)])
+		check(t.break_fraction(t.flight_ms) == 1.0)
+
+
+## 도착 직전(비행의 95%) 투수 기준 편차: x + = 팔 쪽, y + = 위. 존 좌표에서 직선(안 휜 길)과의 차이를 투수 기준으로 되돌린다
+func _late_deviation(id: String, hand: String) -> Vector2:
+	var t := _trajectory(id, Vector2.ZERO, hand)
+	var t_ms := t.flight_ms * 0.95
+	var dev := t.position_at(t_ms) - t.straight_at(t_ms)
+	var side := 1.0 if hand == "R" else -1.0
+	return Vector2(-dev.x * side, -dev.y)
+
+
+func test_pitch_trajectory_break_direction() -> void:
+	check(_late_deviation("slider", "R").x < 0.0, "우투수 슬라이더는 글러브 쪽")
+	check(_late_deviation("sweeper", "R").x < 0.0, "우투수 스위퍼는 글러브 쪽")
+	check(_late_deviation("two_seam", "R").x > 0.0, "우투수 투심은 팔 쪽")
+	check(_late_deviation("curve", "R").y < 0.0 and _late_deviation("forkball", "R").y < 0.0, "커브·포크볼은 떨어진다")
+	# 우타자 기준 존 좌표: 우투수 슬라이더는 바깥쪽(+x)으로, 투심은 몸쪽(-x)으로
+	check(_trajectory("slider", Vector2.ZERO).break_vec.x > 0.0 and _trajectory("two_seam", Vector2.ZERO).break_vec.x < 0.0)
+	check(_trajectory("sweeper", Vector2.ZERO).break_vec.x > _trajectory("slider", Vector2.ZERO).break_vec.x, "스위퍼가 슬라이더보다 옆으로 더 휜다")
+	# 좌투수: 같은 공을 좌우 거울에 비춘 것. 도착점도 거울에 비추면 x 만 정확히 반대, y 는 같다
+	for id: String in PitchCatalog.IDS:
+		var r := _trajectory(id, Vector2(0.35, 0.2), "R")
+		var l := _trajectory(id, Vector2(-0.35, 0.2), "L")
+		for i in 11:
+			var t_ms := r.flight_ms * i / 10.0
+			var a := r.position_at(t_ms)
+			var b := l.position_at(t_ms)
+			check(is_equal_approx(a.x, -b.x) and is_equal_approx(a.y, b.y), "%s 좌우 반전 %s / %s" % [id, a, b])
+		check(is_equal_approx(_late_deviation(id, "R").x, _late_deviation(id, "L").x), "%s 투수 기준 편차는 손과 무관" % id)
+
+
+func test_pitch_trajectory_monotonic() -> void:
+	var cat := _config.catalog
+	check(cat.decel >= 0.0 and cat.decel < 1.0, "decel %.3f 범위" % cat.decel)
+	for decel in [0.0, cat.decel, 0.5, 0.99]:
+		var t := _trajectory("curve", Vector2.ZERO)
+		t.decel = decel
+		var prev := -1.0
+		for i in 201:
+			var u_w := t.distance_fraction(t.flight_ms * i / 200.0)
+			check(u_w >= prev, "decel %.2f 에서 u_w 가 줄었다 (%d)" % [decel, i])
+			prev = u_w
+		check(is_equal_approx(prev, 1.0))
+	# 감속: 앞이 빠르다 → 비행 절반에 거리는 절반보다 많이 갔다
+	var t2 := _trajectory("four_seam", Vector2.ZERO)
+	check(cat.decel == 0.0 or t2.distance_fraction(t2.flight_ms * 0.5) > 0.5)
+	# 범위 밖 decel 은 검증에서 걸린다
+	var bad := PitchCatalog.from_batting(BalanceLoader.load_balance()["batting"])
+	bad.decel = 1.0
+	check(not bad.validate().is_empty(), "decel 1 은 실패해야 한다")
+
+
+func test_pitch_catalog_valid() -> void:
+	var cat := _config.catalog
+	check(cat.validate().is_empty(), "; ".join(cat.validate()))
+	for id: String in PitchCatalog.IDS:
+		check(cat.specs.has(id), "%s 없음" % id)
+		var s := cat.spec(id)
+		check(s.speed_kmh >= 90 and s.speed_kmh <= 170, "%s 구속" % id)
+		check(s.break_start >= 0.0 and s.break_start < 1.0, "%s break_start" % id)
+		check(s.break_pow >= 1.0, "%s break_pow" % id)
+		check(s.name_ko != "", "%s 이름" % id)
+		check(cat.flight_ms(id) >= cat.flight_ms("four_seam") and cat.flight_ms(id) <= cat.flight_ms("curve"), "%s 비행 시간이 포심~커브 사이" % id)
+		check(cat.speed_kmh(id, cat.flight_ms(id)) == roundi(s.speed_kmh), "%s 기본 비행 시간이면 구속 그대로" % id)
+	# 포크볼 vs 스플리터: 포크볼이 느리고 늦게·크게 떨어진다
+	var fork := cat.spec("forkball")
+	var split := cat.spec("splitter")
+	check(fork.speed_kmh < split.speed_kmh and fork.break_y < split.break_y and fork.break_start > split.break_start, "포크볼·스플리터 차이 유지")
+	# 데이터가 망가지면 검증이 잡는다
+	var balance := BalanceLoader.load_balance()
+	var broken := balance.duplicate(true)
+	(broken["batting"]["pitches"] as Dictionary).erase("sweeper")
+	check(not PitchCatalog.from_batting(broken["batting"]).validate().is_empty(), "구종이 빠지면 실패")
+	var slow_fb := balance.duplicate(true)
+	slow_fb["batting"]["pitches"]["four_seam"]["speed_kmh"] = 120
+	check(not PitchCatalog.from_batting(slow_fb["batting"]).validate().is_empty(), "포심이 가장 빠르지 않으면 실패")
+	var bad_pow := balance.duplicate(true)
+	bad_pow["batting"]["pitches"]["slider"]["break_pow"] = 0.5
+	check(not PitchCatalog.from_batting(bad_pow["batting"]).validate().is_empty(), "break_pow < 1 이면 실패")
+
+
+func test_pitch_caller_flight_and_forced_type() -> void:
+	var cat := _config.catalog
+	# 비행 시간 = 공식 + 투수 보정 ± 흔들림
+	for s in 300:
+		var p := pitch_at(s % 4, s % 3, s)
+		var base := cat.flight_ms(p.type) + _balanced.speed_ms
+		check(absf(p.flight_ms - base) <= cat.flight_jitter_ms + 1e-6, "%s %.1f vs %.1f" % [p.type, p.flight_ms, base])
+		check(p.hand == "R" and p.label == cat.spec(p.type).name_ko)
+	# 구종 고정 (개발 빌드 버튼): 볼배합이 안 던지는 구종도 나온다
+	for id: String in PitchCatalog.IDS:
+		_config.forced_pitch_type = id
+		for s in 5:
+			check(pitch_at(0, 2, s).type == id, "구종 고정 %s" % id)
+	_config.forced_pitch_type = "random"
+	var seen := {}
+	for s in 400:
+		seen[pitch_at(1, 1, s).type] = true
+	check(seen.size() == PitchCatalog.IDS.size(), "랜덤이면 8개 다 나온다 (%d)" % seen.size())
+	# 랜덤도 시드가 같으면 같다
+	check(pitch_at(1, 1, 77).type == pitch_at(1, 1, 77).type)
+	_config.forced_pitch_type = ""
+	# 볼배합대로면 레퍼토리 밖 구종은 안 나온다 (표준형은 스위퍼 0)
+	for s in 500:
+		check(pitch_at(1, 1, s).type != "sweeper")
+	# 좌투수 프로필이면 궤적도 좌투수
+	var lefty: BattingConfig.PitcherProfile = _balanced
+	var saved := lefty.hand
+	lefty.hand = "L"
+	var q := pitch_at(1, 1, 3)
+	check(q.hand == "L" and q.trajectory.break_vec.is_equal_approx(PitchTrajectory.zone_break(Vector2(cat.spec(q.type).break_x, cat.spec(q.type).break_y), "L")))
+	lefty.hand = saved
 
 
 func test_taking_ends_in_walk_or_strikeout() -> void:
@@ -347,9 +515,9 @@ func _type_share(pitcher: BattingConfig.PitcherProfile, type: String) -> float:
 
 
 func test_pitcher_mix_differs() -> void:
-	var power := _type_share(_config.pitchers["power"], "fastball")
-	var finesse := _type_share(_config.pitchers["finesse"], "fastball")
-	check(power > finesse + 0.15, "강속구형 직구 %.2f, 기교파 직구 %.2f" % [power, finesse])
+	var power := _type_share(_config.pitchers["power"], "four_seam")
+	var finesse := _type_share(_config.pitchers["finesse"], "four_seam")
+	check(power > finesse + 0.15, "강속구형 포심 %.2f, 기교파 포심 %.2f" % [power, finesse])
 	check(_type_share(_config.pitchers["finesse"], "changeup") > _type_share(_config.pitchers["power"], "changeup"))
 
 
@@ -425,12 +593,12 @@ func test_gap_hits_more_than_center() -> void:
 
 
 func test_speed_display() -> void:
-	check(_config.speed_kmh(300.0) > _config.speed_kmh(400.0), "빠를수록 구속이 높다")
-	var fb: float = (_config.pitches["fastball"] as BattingConfig.PitchSpec).flight_ms
-	check(_config.speed_kmh(fb) == roundi(_config.speed_ref_kmh), "직구는 기준 구속")
-	for id: String in _config.pitches:
-		var kmh := _config.speed_kmh((_config.pitches[id] as BattingConfig.PitchSpec).flight_ms)
-		check(kmh >= 115 and kmh <= 155, "%s 구속 %d km/h 가 현실 범위 밖" % [id, kmh])
+	var cat := _config.catalog
+	check(cat.speed_kmh("four_seam", 300.0) > cat.speed_kmh("four_seam", 400.0), "빠를수록 구속이 높다")
+	check(cat.speed_kmh("four_seam", cat.four_seam_flight_ms) == roundi(cat.spec("four_seam").speed_kmh), "포심 기본 비행 시간이면 포심 구속")
+	for s in 300:
+		var p := pitch_at(s % 4, s % 3, s, _config.pitchers.values()[s % _config.pitchers.size()])
+		check(p.speed_kmh >= 105 and p.speed_kmh <= 165, "%s 구속 %d km/h 가 현실 범위 밖" % [p.type, p.speed_kmh])
 
 
 func test_cell_of() -> void:
@@ -447,7 +615,7 @@ func test_tuning_applies_and_patches() -> void:
 	var config := BattingConfig.from_balance(balance)
 	var pres := Presentation.from_balance(balance)
 	var base_solid := config.solid_window
-	var base_fast: float = (config.pitches["fastball"] as BattingConfig.PitchSpec).flight_ms
+	var base_fast: float = config.catalog.flight_ms("curve")
 	var t := Tuning.new(config, pres)
 	check(not t.is_changed())
 	check(t.to_patch(config, pres).is_empty(), "안 바꾸면 저장할 것도 없다")
@@ -455,10 +623,10 @@ func test_tuning_applies_and_patches() -> void:
 	t.set_value("flight", 1.2, config, pres)
 	t.set_value("hitstop", 120.0, config, pres)
 	check(config.solid_window.is_equal_approx(base_solid * 1.5), "판정 폭 배율이 바로 적용된다")
-	check(is_equal_approx((config.pitches["fastball"] as BattingConfig.PitchSpec).flight_ms, base_fast * 1.2))
+	check(is_equal_approx(config.catalog.flight_ms("curve"), base_fast * 1.2), "모든 구종 비행 시간이 같은 배율로")
 	check(pres.hit_stop_ms == 120.0)
 	var patch := t.to_patch(config, pres)
-	check(patch.has("batting.timing.solidWindowMsAt0") and patch.has("batting.pitches.fastball.flightMs") and patch["batting.presentation.hitStopMs"] == 120)
+	check(patch.has("batting.timing.solidWindowMsAt0") and patch.has("batting.pitch_common.four_seam_flight_ms") and patch["batting.presentation.hitStopMs"] == 120)
 	check(not patch.has("batting.timing.inputLatencyMs"), "안 건드린 항목은 저장하지 않는다")
 	# patch 의 모든 경로가 실제 balance.json 에 있어야 한다
 	var copy := balance.duplicate(true)

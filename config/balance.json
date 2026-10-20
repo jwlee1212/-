@@ -4,55 +4,122 @@
     "status": "draft",
     "_note": "타격 수치 (G1). 시간 ms, 거리 m, 존 좌표는 스트라이크존 가로·세로 반폭 = 1 (y 는 아래가 +, x 는 +가 타자에게서 먼 쪽 = 바깥쪽). 능력치 0/100 쌍(At0/At100)은 사이를 선형 보간. 튜닝 안내는 docs/dev-log.md.",
     "pitches": {
-      "_note": "구종. breakX/breakY 는 막판에 휘는 양(+x 바깥쪽, +y 아래). chaseSpots 는 유인구를 던질 때 노리는 방향(high/low/away/inside).",
-      "fastball": {
-        "label": "직구",
-        "flightMs": 388,
-        "flightJitterMs": 30.0,
-        "breakX": -0.08,
-        "breakY": -0.05,
-        "chaseSpots": [
+      "_note": "구종 8개 (pitching/pitch_catalog.gd). 변화량은 투수 기준: break_x + = 투수 팔 쪽(우투수면 우타자 몸쪽), - = 글러브 쪽, break_y + = 위, - = 아래. 단위는 존 반폭 = 1. 좌투수는 break_x 부호가 뒤집힌다. 비행 시간 = pitch_common.four_seam_flight_ms × (포심 speed_kmh / 이 구종 speed_kmh). break_start: 거리 진행률이 이 값을 넘어야 휘기 시작(0~1 미만, 클수록 늦게 꺾임). break_pow: 클수록 막판에 몰아서 꺾임(1 이상). chase_spots: 유인구로 던질 때 노리는 방향(high/low/away/inside, 타자 기준). 포크볼은 느리고 늦게 크게 떨어지고, 스플리터는 빠르고 낙차가 작다",
+      "four_seam": {
+        "name_ko": "포심",
+        "speed_kmh": 145,
+        "break_x": 0.1,
+        "break_y": 0.1,
+        "break_start": 0.5,
+        "break_pow": 1.5,
+        "chase_spots": [
           "high",
           "inside"
         ]
       },
+      "two_seam": {
+        "name_ko": "투심",
+        "speed_kmh": 142,
+        "break_x": 0.4,
+        "break_y": -0.15,
+        "break_start": 0.45,
+        "break_pow": 1.8,
+        "chase_spots": [
+          "inside",
+          "low"
+        ]
+      },
       "slider": {
-        "label": "슬라이더",
-        "flightMs": 446,
-        "flightJitterMs": 30.0,
-        "breakX": 0.75,
-        "breakY": 0.3,
-        "chaseSpots": [
+        "name_ko": "슬라이더",
+        "speed_kmh": 133,
+        "break_x": -0.55,
+        "break_y": -0.25,
+        "break_start": 0.55,
+        "break_pow": 2.2,
+        "chase_spots": [
           "away",
           "low"
         ]
       },
+      "curve": {
+        "name_ko": "커브",
+        "speed_kmh": 117,
+        "break_x": -0.25,
+        "break_y": -0.95,
+        "break_start": 0.3,
+        "break_pow": 1.7,
+        "chase_spots": [
+          "low"
+        ]
+      },
       "changeup": {
-        "label": "체인지업",
-        "flightMs": 505,
-        "flightJitterMs": 35.0,
-        "breakX": -0.2,
-        "breakY": 0.65,
-        "chaseSpots": [
+        "name_ko": "체인지업",
+        "speed_kmh": 128,
+        "break_x": 0.35,
+        "break_y": -0.4,
+        "break_start": 0.5,
+        "break_pow": 2.0,
+        "chase_spots": [
+          "low",
+          "away"
+        ]
+      },
+      "sweeper": {
+        "name_ko": "스위퍼",
+        "speed_kmh": 124,
+        "break_x": -1.0,
+        "break_y": -0.2,
+        "break_start": 0.4,
+        "break_pow": 1.6,
+        "chase_spots": [
+          "away"
+        ]
+      },
+      "forkball": {
+        "name_ko": "포크볼",
+        "speed_kmh": 130,
+        "break_x": 0.05,
+        "break_y": -0.85,
+        "break_start": 0.7,
+        "break_pow": 3.0,
+        "chase_spots": [
+          "low"
+        ]
+      },
+      "splitter": {
+        "name_ko": "스플리터",
+        "speed_kmh": 138,
+        "break_x": 0.15,
+        "break_y": -0.55,
+        "break_start": 0.65,
+        "break_pow": 2.6,
+        "chase_spots": [
           "low"
         ]
       }
     },
-    "speedDisplay": {
-      "_note": "화면에 보여 줄 구속. 게임은 타이밍 구분을 위해 구종 간 속도 차를 실제보다 크게 벌려 두었고, 전체 속도도 손맛에 맞춰 바뀌므로 직구 비행 시간에 대한 비율로 환산한다: km/h = refKmh + (1 - 비행시간 / 직구 비행시간) × kmhPerRatio",
-      "refKmh": 145,
-      "kmhPerRatio": 55
+    "pitch_common": {
+      "_note": "모든 구종 공통. decel: 감속 보정(0 이상 1 미만) — 클수록 공이 앞에서 빠르고 홈플레이트 앞에서 느려진다(도착 시각은 그대로). four_seam_flight_ms: 포심이 홈플레이트까지 걸리는 시간 = 모든 구종 비행 시간의 기준 (손맛 패널 '공 비행 시간'이 바꾼다). flight_jitter_ms: 공마다 비행 시간이 ± 이만큼 흔들린다. speed_display_spread: 화면 구속에만 쓴다(판정 무관) — 투수 보정·흔들림으로 비행 시간이 달라진 만큼 구속 숫자를 이 비율만큼만 바꾼다 (1 = 물리 그대로, 흔들림 ±30ms 면 ±11km/h 라 너무 커서 옛 speedDisplay 와 같은 0.4 쯤으로 줄여 보여 준다)",
+      "decel": 0.06,
+      "four_seam_flight_ms": 388,
+      "flight_jitter_ms": 30.0,
+      "speed_display_spread": 0.4
     },
-    "breakStartFraction": 0.55,
     "pitchers": {
-      "_note": "투수 성향. speedMs 는 모든 구종 비행 시간에 더하는 값(음수 = 빠름). mix 는 볼배합 가중치에 곱하는 배율. control 0~1 이 높을수록 미트에 정확히, mistakeChance 는 한가운데 실투 확률",
+      "_note": "투수 성향. speedMs 는 모든 구종 비행 시간에 더하는 값(음수 = 빠름). mix 는 볼배합 가중치에 곱하는 배율. control 0~1 이 높을수록 미트에 정확히, mistakeChance 는 한가운데 실투 확률. hand: 던지는 손 R | L (좌투수는 변화 방향이 좌우 반대). mix 가 0 인 구종은 안 던진다(레퍼토리)",
       "balanced": {
         "name": "표준형",
         "speedMs": 0,
+        "hand": "R",
         "mix": {
-          "fastball": 1.0,
-          "slider": 1.0,
-          "changeup": 1.0
+          "four_seam": 1.0,
+          "two_seam": 0.0,
+          "slider": 0.6,
+          "curve": 0.4,
+          "changeup": 1.0,
+          "sweeper": 0.0,
+          "forkball": 0.0,
+          "splitter": 0.0
         },
         "putaway": {
           "pitch": "slider",
@@ -64,13 +131,19 @@
       "power": {
         "name": "강속구형",
         "speedMs": -26,
+        "hand": "R",
         "mix": {
-          "fastball": 1.6,
+          "four_seam": 1.2,
+          "two_seam": 0.4,
           "slider": 1.0,
-          "changeup": 0.4
+          "curve": 0.0,
+          "changeup": 0.0,
+          "sweeper": 0.0,
+          "forkball": 0.0,
+          "splitter": 0.4
         },
         "putaway": {
-          "pitch": "fastball",
+          "pitch": "four_seam",
           "spot": "high"
         },
         "control": 0.6,
@@ -79,10 +152,16 @@
       "finesse": {
         "name": "기교파",
         "speedMs": 18,
+        "hand": "R",
         "mix": {
-          "fastball": 0.7,
-          "slider": 1.2,
-          "changeup": 1.5
+          "four_seam": 0.0,
+          "two_seam": 0.7,
+          "slider": 0.0,
+          "curve": 0.6,
+          "changeup": 1.0,
+          "sweeper": 0.6,
+          "forkball": 0.5,
+          "splitter": 0.0
         },
         "putaway": {
           "pitch": "changeup",
@@ -99,9 +178,14 @@
         "strikeRadius": 0.95,
         "chaseShare": 0.85,
         "mix": {
-          "fastball": 0.4,
+          "four_seam": 0.4,
+          "two_seam": 0.4,
           "slider": 0.35,
-          "changeup": 0.25
+          "curve": 0.35,
+          "changeup": 0.25,
+          "sweeper": 0.35,
+          "forkball": 0.25,
+          "splitter": 0.25
         }
       },
       "even": {
@@ -109,9 +193,14 @@
         "strikeRadius": 0.85,
         "chaseShare": 0.6,
         "mix": {
-          "fastball": 0.5,
+          "four_seam": 0.5,
+          "two_seam": 0.5,
           "slider": 0.3,
-          "changeup": 0.2
+          "curve": 0.3,
+          "changeup": 0.2,
+          "sweeper": 0.3,
+          "forkball": 0.2,
+          "splitter": 0.2
         }
       },
       "behind": {
@@ -119,9 +208,14 @@
         "strikeRadius": 0.6,
         "chaseShare": 0.3,
         "mix": {
-          "fastball": 0.7,
+          "four_seam": 0.7,
+          "two_seam": 0.7,
           "slider": 0.2,
-          "changeup": 0.1
+          "curve": 0.2,
+          "changeup": 0.1,
+          "sweeper": 0.2,
+          "forkball": 0.1,
+          "splitter": 0.1
         }
       },
       "twoStrikePutawayChance": 0.45,

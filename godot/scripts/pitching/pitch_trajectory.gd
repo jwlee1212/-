@@ -1,0 +1,70 @@
+class_name PitchTrajectory
+extends RefCounted
+## 공 하나의 궤적. "릴리스 후 경과 시간 t(ms)"만으로 위치를 계산하는 순수 함수다 — 어느 프레임에서 불러도 같은 값.
+## 노드·그리기·입력·소리는 다루지 않는다 (CLAUDE.md §4-1).
+##
+## 좌표는 존 좌표 (Pitch 와 같다): 가운데 (0, 0), 존 가장자리 ±1, y 는 아래가 +, x 는 +가 타자에게서 먼 쪽(바깥쪽).
+## 화면은 이 위치를 투수 손에서 원근으로 끌어당겨 그린다 (batting_view.gd _ball) — 그래서 start 는 기본 (0, 0)이다.
+##
+## 계산
+##   u    = clamp(t / flight_ms, 0, 1)
+##   u_w  = u + decel · u · (1 - u)        감속: 앞이 빠르고 뒤가 느리다 (u=0 → 0, u=1 → 1)
+##   base = lerp(start, raw_end, u_w)       raw_end = aim - break (안 휘었다면 갔을 곳)
+##   s    = ((u_w - break_start) / (1 - break_start)) ^ break_pow   (break_start 전에는 0)
+##   pos  = base + break · s                u_w = 1 이면 정확히 aim
+
+var start := Vector2.ZERO
+## 도착점. 항상 여기에 도착한다
+var aim := Vector2.ZERO
+## 존 좌표로 바꾼 변화량 (투수 손 반영이 끝난 값)
+var break_vec := Vector2.ZERO
+var flight_ms := 1.0
+var break_start := 0.5
+var break_pow := 2.0
+var decel := 0.0
+
+
+## 구종 수치 → 궤적. hand 는 "R" | "L"
+static func make(spec: PitchCatalog.Spec, p_aim: Vector2, p_flight_ms: float, hand: String, p_decel: float, p_start := Vector2.ZERO) -> PitchTrajectory:
+	var t := PitchTrajectory.new()
+	t.start = p_start
+	t.aim = p_aim
+	t.break_vec = zone_break(Vector2(spec.break_x, spec.break_y), hand)
+	t.flight_ms = p_flight_ms
+	t.break_start = spec.break_start
+	t.break_pow = spec.break_pow
+	t.decel = p_decel
+	return t
+
+
+## 투수 기준 변화량(x + = 투수 팔 쪽, y + = 위) → 존 좌표.
+## 타자는 지금 우타자 하나라 우투수의 팔 쪽 = 몸쪽 = 존 좌표 -x. 좌투수는 x 부호가 뒤집힌다. 존 좌표는 y 아래가 + 라 y 도 뒤집는다
+static func zone_break(pitcher_break: Vector2, hand: String) -> Vector2:
+	var side := 1.0 if hand == "R" else -1.0
+	return Vector2(-pitcher_break.x * side, -pitcher_break.y)
+
+
+## 시간 진행률 u (0~1)
+func time_fraction(t_ms: float) -> float:
+	return clampf(t_ms / flight_ms, 0.0, 1.0)
+
+
+## 거리 진행률 u_w (0~1). 감속 때문에 시간보다 앞서 간다. 화면의 원근(공 크기)도 이 값으로 정한다
+func distance_fraction(t_ms: float) -> float:
+	var u := time_fraction(t_ms)
+	return u + decel * u * (1.0 - u)
+
+
+## 휘는 정도 s (0~1)
+func break_fraction(t_ms: float) -> float:
+	var k := clampf((distance_fraction(t_ms) - break_start) / (1.0 - break_start), 0.0, 1.0)
+	return pow(k, break_pow)
+
+
+## 안 휘었다면 있었을 자리 (start → raw_end 직선 위)
+func straight_at(t_ms: float) -> Vector2:
+	return start.lerp(aim - break_vec, distance_fraction(t_ms))
+
+
+func position_at(t_ms: float) -> Vector2:
+	return straight_at(t_ms) + break_vec * break_fraction(t_ms)

@@ -232,6 +232,9 @@ func _add_tuning_panel() -> void:
 		_tuning.reset(batting_config, presentation)
 		_panel.show_values(_tuning.values)
 		_panel.set_status("처음 값으로 되돌림"))
+	_panel.pitch_forced.connect(func(id: String) -> void:
+		batting_config.forced_pitch_type = id
+		_panel.set_status("구종: %s" % ("볼배합대로" if id == "" else "랜덤" if id == "random" else batting_config.catalog.spec(id).name_ko)))
 	_panel.save_requested.connect(_save_tuning)
 	_panel.reload_requested.connect(_reload)
 
@@ -239,6 +242,12 @@ func _add_tuning_panel() -> void:
 func _reset_tuning() -> void:
 	_tuning = Tuning.new(batting_config, presentation)
 	_panel.show_values(_tuning.values)
+	# 구종 버튼: 수치를 새로 읽으면 config 가 새것이라 고른 구종을 다시 넣는다
+	batting_config.forced_pitch_type = _panel.forced_pitch if batting_config.pitches.has(_panel.forced_pitch) or _panel.forced_pitch == "random" else ""
+	var names := []
+	for id: String in batting_config.pitches:
+		names.append([id, batting_config.catalog.spec(id).name_ko])
+	_panel.set_pitches(names)
 	_panel.set_status("수치 출처: %s" % _source.last_origin)
 
 

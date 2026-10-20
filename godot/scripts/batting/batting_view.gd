@@ -167,11 +167,12 @@ func zone_to_screen(z: Vector2) -> Vector2:
 	return _zone_center + Vector2(z.x * _zone_half.x, z.y * _zone_half.y)
 
 
-## 진행률 progress 에서 공의 화면 위치(xy)와 크기 비율(z, 0~1)
-func _ball(p: Pitch, progress: float) -> Vector3:
-	var target := zone_to_screen(p.zone_position_at(progress))
-	# 원근감: 가까워질수록 빨리 커지고 빨리 움직이는 것처럼
-	var t := minf(progress, 1.15)
+## 공을 놓고 t_ms 뒤 공의 화면 위치(xy)와 크기 비율(z, 0~1). 궤적(존 좌표)은 PitchTrajectory 가 정하고 여기서는 원근만 입힌다
+func _ball(p: Pitch, t_ms: float) -> Vector3:
+	var target := zone_to_screen(p.position_at(t_ms))
+	# 원근감: 가까워질수록 빨리 커지고 빨리 움직이는 것처럼. 깊이는 거리 진행률(감속 반영),
+	# 홈플레이트를 지난 뒤에는 시간대로 조금 더 다가온다
+	var t := p.trajectory.distance_fraction(t_ms) if t_ms < p.flight_ms else minf(t_ms / p.flight_ms, 1.15)
 	var s := 0.25 * t + 0.75 * t * t
 	var pos := _release.lerp(target, s)
 	return Vector3(pos.x, pos.y, s)
@@ -354,7 +355,7 @@ func _pose_batter() -> void:
 	# (낮은 공엔 숙이고 높은 공엔 선다). 팔로스루로 넘어가면 바로 선다
 	var lean := 0.0
 	if not bunt and swing_progress >= 0.0 and swing_progress < BatterSprite.FOLLOW_FROM and _batter.has_frame("contact"):
-		var b := _ball(session.pitch, session.swing_at_ms / session.pitch.flight_ms)
+		var b := _ball(session.pitch, session.swing_at_ms)
 		var to_ball := Vector2(b.x, b.y) - feet
 		lean = clampf(angle_difference(BatterSprite.CONTACT_BARREL.angle(), to_ball.angle()), deg_to_rad(-BATTER_LEAN_UP_DEG), deg_to_rad(BATTER_LEAN_DOWN_DEG))
 	_batter.rotation = lean
@@ -430,26 +431,26 @@ func _draw_ball_in_flight() -> void:
 	var foul := session.swung and session.swing_outcome.call == AtBat.Call.FOUL
 	if foul:
 		# 파울: 맞은 자리에서 옆·뒤로 튕겨 나간다
-		var b := _ball(p, session.swing_at_ms / p.flight_ms)
+		var b := _ball(p, session.swing_at_ms)
 		var hit_pos := Vector2(b.x, b.y)
 		var t := clampf(session.since(session.swing_since_ms) / FOUL_FLIGHT_MS, 0.0, 1.0)
 		var side := -1.0 if session.swing_outcome.contact.angle_deg < 0 else 1.0
 		_draw_launched_ball(self, hit_pos, hit_pos + Vector2(side * size.x * 0.6, -size.y * 0.7), t, _ball_radius(b.z))
 		_draw_burst(self, hit_pos, session.since(session.swing_since_ms), SwingJudge.Quality.FOUL)
 	elif progress <= 1.15:
-		var b := _ball(p, progress)
+		var b := _ball(p, session.since(session.phase_since_ms))
 		var pos := Vector2(b.x, b.y)
 		var r := _ball_radius(b.z)
 		# 구종이 드러나면 테두리가 구종 색이 되고, 직구가 아니면 공도 그 색으로 물든다
 		var revealed := p.is_revealed_at(progress)
 		var type_color := _pitch_color(p.type)
-		var offspeed := revealed and p.type != "fastball"
+		var offspeed := revealed and p.type != "four_seam"
 		draw_circle(pos + Vector2(r * 0.3, r * 0.5), r, Tokens.SHADOW, true, -1.0, true)
 		draw_circle(pos, r, type_color if offspeed else Tokens.CHALK, true, -1.0, true)
 		draw_circle(pos, r, type_color if revealed else Tokens.INK, false, 1.5, true)
 	# 미트에 꽂힌 순간 작은 링
 	if session.mitt_played and progress < 1.0 + MITT_RING_MS / p.flight_ms:
-		var end := _ball(p, 1.0)
+		var end := _ball(p, p.flight_ms)
 		var t := clampf((progress - 1.0) * p.flight_ms / MITT_RING_MS, 0.0, 1.0)
 		draw_circle(Vector2(end.x, end.y), _ball_radius(end.z) * (1.2 + t * 1.5), Color(Tokens.CHALK, 1.0 - t), false, 2.0, true)
 
@@ -459,7 +460,7 @@ func _draw_hit_launch(canvas: CanvasItem) -> void:
 	if session.phase != BattingSession.Phase.HIT:
 		return
 	var pres := session.presentation
-	var b := _ball(session.pitch, session.swing_at_ms / session.pitch.flight_ms)
+	var b := _ball(session.pitch, session.swing_at_ms)
 	var hit_pos := Vector2(b.x, b.y)
 	var c := session.last_result.contact
 	var e := session.since(session.phase_since_ms)

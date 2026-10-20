@@ -8,23 +8,12 @@ extends RefCounted
 const SECTION := "batting"
 
 
-## 구종 하나의 수치
-class PitchSpec:
-	var id: String
-	var label: String
-	## 투수 손을 떠나 홈플레이트까지 걸리는 시간 (ms)
-	var flight_ms: float
-	var flight_jitter_ms: float
-	## 막판에 휘는 양 (존 반폭 단위, +x 바깥쪽, +y 아래)
-	var break_vec: Vector2
-	## 유인구로 던질 때 노리는 방향 ("high" | "low" | "away" | "inside")
-	var chase_spots: PackedStringArray
-
-
 ## 투수 성향
 class PitcherProfile:
 	var id: String
 	var name: String
+	## 던지는 손 "R" | "L" (좌투수는 변화 방향이 좌우 반대)
+	var hand: String
 	## 모든 구종 비행 시간에 더하는 값 (음수 = 빠름)
 	var speed_ms: float
 	## 볼배합 가중치에 곱하는 배율 (구종 id -> 배율)
@@ -85,11 +74,11 @@ class BallParams:
 	var bunt_spray_max: float
 
 
-var pitches: Dictionary = {}  # 구종 id -> PitchSpec (json 순서 유지)
-var speed_ref_kmh: float
-var speed_kmh_per_ratio: float
-## 공이 날아가는 동안 이 비율을 지나야 휘기 시작한다 (0~1)
-var break_start_fraction: float
+## 구종 데이터 (pitching/pitch_catalog.gd)
+var catalog: PitchCatalog
+var pitches: Dictionary = {}  # 구종 id -> PitchCatalog.Spec (json 순서 유지, catalog.specs 와 같은 것)
+## 개발 빌드의 구종 버튼: "" = 볼배합대로, 구종 id = 늘 그 구종, "random" = 8개 중 아무거나 (balance.json 에는 없다)
+var forced_pitch_type := ""
 var pitchers: Dictionary = {}  # 투수 id -> PitcherProfile
 var situations: Dictionary = {}  # "ahead" | "even" | "behind" -> Situation
 var two_strike_putaway_chance: float
@@ -140,14 +129,6 @@ func foul_window_ms(contact: int) -> float:
 
 
 
-
-## 비행 시간 → 화면에 보여 줄 구속 (km/h). 게임 속 속도 차는 실제보다 크게 벌려 두었고 전체 속도도 손맛에 맞춰 바뀌므로,
-## 직구(표준) 비행 시간에 대한 비율로 현실적인 숫자를 만든다
-func speed_kmh(flight_ms: float) -> int:
-	var fastball: float = (pitches["fastball"] as PitchSpec).flight_ms if pitches.has("fastball") else flight_ms
-	return roundi(speed_ref_kmh + (1.0 - flight_ms / fastball) * speed_kmh_per_ratio)
-
-
 func swing_type(id: String) -> SwingType:
 	return swing_types.get(id, swing_types["normal"])
 
@@ -164,13 +145,10 @@ static func situation_key(balls: int, strikes: int) -> String:
 static func from_balance(balance: Dictionary) -> BattingConfig:
 	var s: Dictionary = balance[SECTION]
 	var c := BattingConfig.new()
-	for id: String in _dict(s, "pitches"):
-		if id.begins_with("_"):
-			continue
-		c.pitches[id] = _pitch_spec(id, _dict(s, "pitches." + id))
-	c.speed_ref_kmh = num(s, "speedDisplay.refKmh")
-	c.speed_kmh_per_ratio = num(s, "speedDisplay.kmhPerRatio")
-	c.break_start_fraction = num(s, "breakStartFraction")
+	c.catalog = PitchCatalog.from_batting(s)
+	var errors := c.catalog.validate()
+	assert(errors.is_empty(), "balance.json 구종: " + "; ".join(errors))
+	c.pitches = c.catalog.specs
 	for id: String in _dict(s, "pitchers"):
 		if id.begins_with("_"):
 			continue
@@ -267,21 +245,12 @@ static func _pair(s: Dictionary, path: String) -> Vector2:
 	return Vector2(num(s, path + "At0"), num(s, path + "At100"))
 
 
-static func _pitch_spec(id: String, d: Dictionary) -> PitchSpec:
-	var p := PitchSpec.new()
-	p.id = id
-	p.label = d["label"]
-	p.flight_ms = num(d, "flightMs")
-	p.flight_jitter_ms = num(d, "flightJitterMs")
-	p.break_vec = Vector2(num(d, "breakX"), num(d, "breakY"))
-	p.chase_spots = PackedStringArray(d["chaseSpots"])
-	return p
-
-
 static func _pitcher(id: String, d: Dictionary, pitches: Dictionary) -> PitcherProfile:
 	var p := PitcherProfile.new()
 	p.id = id
 	p.name = d["name"]
+	p.hand = d.get("hand", "R")
+	assert(p.hand in ["R", "L"], "balance.json: 투수 %s 의 hand 는 R 또는 L" % id)
 	p.speed_ms = num(d, "speedMs")
 	p.mix = _mix(_dict(d, "mix"), pitches, "pitchers.%s.mix" % id)
 	p.putaway_pitch = _at(d, "putaway.pitch")

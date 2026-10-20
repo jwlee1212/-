@@ -8,12 +8,17 @@ signal changed(id: String, value: float)
 signal save_requested
 signal reload_requested
 signal reset_requested
+## 구종 버튼: "" = 볼배합대로, "random" = 아무거나, 그 밖 = 그 구종만
+signal pitch_forced(id: String)
 
 var _panel: PanelContainer
 var _sliders := {}
 var _value_labels := {}
 var _status: Label
 var _gear: Button
+var _pitch_row: HFlowContainer
+## 지금 고른 구종 버튼 ("" = 볼배합대로). 수치를 다시 읽어도 유지된다
+var forced_pitch := ""
 ## 끌기: 누른 채인가, 누른 뒤 움직인 거리(이만큼 넘으면 누르기가 아니라 끌기), 누른 곳(버튼 안 좌표)
 const DRAG_START_PX := 8.0
 var _gear_down := false
@@ -56,6 +61,10 @@ func _ready() -> void:
 	col.add_child(_label("손맛 조절 (다음 공부터 반영)", Tokens.FONT_LABEL, Tokens.INK, Tokens.FONT_BOLD))
 	for knob: Dictionary in Tuning.KNOBS:
 		col.add_child(_knob_row(knob))
+	_pitch_row = HFlowContainer.new()
+	_pitch_row.add_theme_constant_override("h_separation", Tokens.SPACE_XS)
+	_pitch_row.add_theme_constant_override("v_separation", Tokens.SPACE_XS)
+	col.add_child(_pitch_row)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", Tokens.SPACE_XS)
 	for b in [["저장", save_requested], ["다시 읽기", reload_requested], ["되돌리기", reset_requested]]:
@@ -100,6 +109,30 @@ func show_values(values: Dictionary) -> void:
 		var s: HSlider = _sliders[knob.id]
 		s.set_value_no_signal(values[knob.id])
 		_value_labels[knob.id].text = knob.fmt % values[knob.id]
+
+
+## 구종 버튼 줄을 만든다. names = [[id, 표시 이름], …] (구종 목록은 balance.json 에서 온다)
+func set_pitches(names: Array) -> void:
+	for child in _pitch_row.get_children():
+		child.queue_free()
+	# 줄 하나 아끼려고 제목도 버튼과 같은 줄에 (폰 가로 화면 높이가 빠듯하다)
+	var title := _label("구종 고정", Tokens.FONT_CAPTION, Tokens.INK, Tokens.FONT_BOLD)
+	title.custom_minimum_size.x = 112
+	_pitch_row.add_child(title)
+	var group := ButtonGroup.new()
+	for pair: Array in [["", "볼배합"], ["random", "랜덤"]] + names:
+		var id: String = pair[0]
+		var btn := Button.new()
+		btn.text = pair[1]
+		btn.toggle_mode = true
+		btn.button_group = group
+		btn.button_pressed = id == forced_pitch
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.add_theme_font_size_override("font_size", Tokens.FONT_CAPTION)
+		btn.pressed.connect(func() -> void:
+			forced_pitch = id
+			pitch_forced.emit(id))
+		_pitch_row.add_child(btn)
 
 
 func set_status(text: String) -> void:

@@ -3,19 +3,23 @@ extends RefCounted
 ## 공 하나.
 ##
 ## 좌표는 스트라이크존 기준: 가운데가 (0, 0), 존 가장자리가 ±1, y 는 아래가 +, x 는 +가 바깥쪽(타자에게서 먼 쪽).
-## 공은 휘기 전 직선으로 오다가 break_start 이후 휘어서 마지막에 target 에 도착한다.
-## 그래서 막판에 휘는 공은 일찍 판단하기 어렵다.
+## 공의 움직임은 trajectory(PitchTrajectory)가 정한다: 구종마다 휘기 시작하는 때·꺾이는 모양이 달라
+## 막판에 휘는 공은 일찍 판단하기 어렵다. 어떻게 휘든 flight_ms 에 정확히 target 에 도착한다.
 
-## 구종 id (balance.json pitches 의 키: "fastball", "slider", "changeup" …)
+## 구종 id (balance.json batting.pitches 의 키: "four_seam", "slider", "curve" …)
 var type: String
 var label: String
+## 투수 손을 떠나 홈플레이트까지 걸리는 시간 (ms) = 타이밍 판정 기준 시각
 var flight_ms: float
+## 화면에 보여 줄 구속
+var speed_kmh: int
+## 던진 손 "R" | "L"
+var hand := "R"
 ## 실제로 도착하는 곳
 var target := Vector2.ZERO
 ## 포수가 미트를 댄 곳 = 투수가 노린 곳. 제구가 흔들리면 target 과 달라진다
 var intended := Vector2.ZERO
-var break_vec := Vector2.ZERO
-var break_start: float
+var trajectory: PitchTrajectory
 ## 비행 진행률이 이 값을 넘으면 구종이 화면에 드러난다 (선구안)
 var reveal_fraction: float
 ## 볼배합 의도 (화면 설명·테스트용)
@@ -28,14 +32,9 @@ func is_strike() -> bool:
 	return absf(target.x) <= 1.0 and absf(target.y) <= 1.0
 
 
-## 진행률 progress(0=투수 손, 1=홈플레이트)에서 공의 존 좌표
-func zone_position_at(progress: float) -> Vector2:
-	var p := clampf(progress, 0.0, 1.0)
-	var bend := 0.0
-	if p > break_start:
-		var k := (p - break_start) / (1.0 - break_start)
-		bend = k * k
-	return (target - break_vec) * p + break_vec * bend
+## 공을 놓고 t_ms 뒤 공의 존 좌표
+func position_at(t_ms: float) -> Vector2:
+	return trajectory.position_at(t_ms)
 
 
 func is_revealed_at(progress: float) -> bool:

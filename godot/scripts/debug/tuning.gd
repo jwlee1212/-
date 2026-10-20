@@ -23,11 +23,9 @@ var _base := {}
 func _init(config: BattingConfig, pres: Presentation) -> void:
 	_base = {
 		"solid": config.solid_window, "weak": config.weak_window, "foul": config.foul_window,
-		"flights": {}, "speeds": {},
+		"four_seam_flight": config.catalog.four_seam_flight_ms, "speeds": {},
 		"shake": Vector3(pres.shake_solid_px, pres.shake_weak_px, pres.shake_home_run_px),
 	}
-	for id: String in config.pitches:
-		_base.flights[id] = (config.pitches[id] as BattingConfig.PitchSpec).flight_ms
 	for id: String in config.pitchers:
 		_base.speeds[id] = (config.pitchers[id] as BattingConfig.PitcherProfile).speed_ms
 	values = {
@@ -58,8 +56,8 @@ func apply(config: BattingConfig, pres: Presentation) -> void:
 	config.solid_window = _base.solid * values.window
 	config.weak_window = _base.weak * values.window
 	config.foul_window = _base.foul * values.window
-	for id: String in config.pitches:
-		(config.pitches[id] as BattingConfig.PitchSpec).flight_ms = _base.flights[id] * values.flight
+	# 모든 구종 비행 시간은 포심 비행 시간에 비례하므로 포심 하나만 바꾸면 된다
+	config.catalog.four_seam_flight_ms = _base.four_seam_flight * values.flight
 	for id: String in config.pitchers:
 		(config.pitchers[id] as BattingConfig.PitcherProfile).speed_ms = _base.speeds[id] * values.flight
 	pres.hit_stop_ms = values.hitstop
@@ -81,8 +79,7 @@ func to_patch(config: BattingConfig, pres: Presentation) -> Dictionary:
 			p[b + "timing.%sWindowMsAt0" % pair[0]] = snappedf(pair[1].x, 0.1)
 			p[b + "timing.%sWindowMsAt100" % pair[0]] = snappedf(pair[1].y, 0.1)
 	if values.flight != _start.flight:
-		for id: String in config.pitches:
-			p[b + "pitches.%s.flightMs" % id] = roundi((config.pitches[id] as BattingConfig.PitchSpec).flight_ms)
+		p[b + "pitch_common.four_seam_flight_ms"] = roundi(config.catalog.four_seam_flight_ms)
 		for id: String in config.pitchers:
 			p[b + "pitchers.%s.speedMs" % id] = roundi((config.pitchers[id] as BattingConfig.PitcherProfile).speed_ms)
 	if values.hitstop != _start.hitstop:

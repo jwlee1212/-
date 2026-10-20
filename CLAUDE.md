@@ -75,17 +75,18 @@ $G --headless --path godot --script res://tests/calibrate.gd   # 가상 타자�
 ## 5. 폴더 구조
 
 ```
-config/balance.json        밸런스·손맛 수치 원본
+config/balance.json        밸런스·손맛 수치 원본 (구종 8개는 batting.pitches · batting.pitch_common)
 config/content.json        콘텐츠 원본 (학교·이름·이벤트·대사·폰 문자)
 godot/                     Godot 프로젝트
 ├─ project.godot, export_presets.cfg
 ├─ scenes/                 장면 (화면은 가능한 한 코드로 조립한다)
 ├─ scripts/
-│  ├─ batting/             타격: 설정·투구·판정·타석(로직) / 세션·뷰(화면)
+│  ├─ batting/             타격: 설정·볼배합·판정·타석(로직) / 세션·뷰(화면)
+│  ├─ pitching/            투구: 구종 데이터(pitch_catalog)·궤적(pitch_trajectory — 경과 시간만으로 위치를 내는 순수 함수) (로직)
 │  ├─ audio/               효과음 합성·재생
 │  ├─ ui/                  디자인 토큰
 │  ├─ characters/          캐릭터: 포즈별 그림을 갈아 끼운다 (batter_sprite: 타자 뒷모습, pitcher_poses: 투수 앞모습)
-│  ├─ debug/               손맛 조절 패널, 테스트 시작(원하는 시점까지 빨리 감기) (개발 빌드 전용)
+│  ├─ debug/               손맛 조절 패널(구종 고정 버튼 포함), 테스트 시작(원하는 시점까지 빨리 감기) (개발 빌드 전용)
 │  ├─ career/              커리어: 선수·주간 루프·성장·인물·라이벌·스카우트 평가·기록실 (로직)
 │  ├─ events/              돌발 이벤트·스토리 엔진: 조건·효과(event_book) + 대본을 한 걸음씩 읽는 대화 진행(dialogue_run) (로직, 정의는 content.json)
 │  ├─ phone/               폰 문자: 도착·답장·만료·대화방 기록 (로직, 정의는 content.json messages — 조건·효과는 events 와 같은 검사기·처리기)
@@ -98,7 +99,7 @@ godot/                     Godot 프로젝트
 ├─ art/characters/         SD 캐릭터 포즈 그림 (`batter/stance.png`, `pitcher/set.png` …). 각 폴더의 `source/` 는 초록 배경 원본(Godot 는 안 읽는다)
 ├─ art/portraits/, backgrounds/  대화 화면 일러스트·배경 (파일 목록은 art/README.md, 없으면 자리만 보인다)
 ├─ fonts/                  Pretendard (OFL)
-├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_lobby 로비 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_steal 도루·주루 버튼 · shots_run_game 실제 경기 화면에서 내 주루 · shots_run_practice 주루 연습 · shots_batter 타자 포즈 · shots_effects 타격 이펙트 · shots_hud 타석 중계 그래픽), calibrate.gd(가상 타자 튜닝 도구), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
+├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_lobby 로비 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_steal 도루·주루 버튼 · shots_run_game 실제 경기 화면에서 내 주루 · shots_run_practice 주루 연습 · shots_batter 타자 포즈 · shots_effects 타격 이펙트 · shots_hud 타석 중계 그래픽 · shots_pitches 8개 구종 궤적), calibrate.gd(가상 타자 튜닝 도구), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
 └─ data/                   빌드 때 복사되는 balance.json (저장소에 넣지 않음)
 scripts/godot-web.sh       웹 빌드(개발용) + 개발 서버 실행
 scripts/dev_server.py      개발 서버: 웹 빌드 + 원본 balance.json 실시간 제공·저장
@@ -133,7 +134,7 @@ licenses/                  글꼴 라이선스, assets.md(에셋 출처)
 | 테스트 | 기준 |
 |---|---|
 | 판정 | 타이밍·능력치·볼배합·노려치기 → 기획대로, 손맛 조절 패널의 저장 경로 |
-| 경기·커리어 | 주루 규칙, 9이닝 진행·끝내기, 200경기 점수 합 일치·평균 득점 범위, 훈련·성장·이벤트·시즌 기록실(경기별·대회별·분할 기록 합 = 시즌 기록) 저장·불러오기(불러온 뒤 진행 = 원래 진행) 겨울 캠프 · 이벤트 대타 · 시나리오용 조건·효과 · 1학년 시나리오 흐름 · 실제 콘텐츠만으로 3년 진행 · 폰 문자(도착·답장·만료·저장·`Phone.validate`) · 내 주루 조작(주루 설정 자동·보조·수동, 베이스 버튼·태그업·도루: 보조에서 안 누르면 자동 경기와 같은 결과) (테스트 전체 107건) |
+| 경기·커리어 | 주루 규칙, 9이닝 진행·끝내기, 200경기 점수 합 일치·평균 득점 범위, 훈련·성장·이벤트·시즌 기록실(경기별·대회별·분할 기록 합 = 시즌 기록) 저장·불러오기(불러온 뒤 진행 = 원래 진행) 겨울 캠프 · 이벤트 대타 · 시나리오용 조건·효과 · 1학년 시나리오 흐름 · 실제 콘텐츠만으로 3년 진행 · 폰 문자(도착·답장·만료·저장·`Phone.validate`) · 내 주루 조작(주루 설정 자동·보조·수동, 베이스 버튼·태그업·도루: 보조에서 안 누르면 자동 경기와 같은 결과) · 투구 궤적(도착점·직선 구간·변화 방향·좌우 반전·감속 단조성)·구종 데이터 검증 (테스트 전체 114건) |
 | 재현성 | 같은 시드·같은 입력 → 완전히 같은 결과 |
 | 경기 무결성 | (G4~) 자동 시뮬레이션 경기에서 점수·아웃·주자 수가 맞는다 |
 | 이벤트 무결성 | (G6~) `EventBook.validate` 통과, 모든 선택지가 유효한 결과로 이어지고, 고교 3년 자동 진행에서 스토리가 다 나온다 |
