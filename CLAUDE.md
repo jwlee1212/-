@@ -99,7 +99,7 @@ godot/                     Godot 프로젝트
 ├─ art/characters/         SD 캐릭터 포즈 그림 (`batter/stance.png`, `pitcher/set.png` …). 각 폴더의 `source/` 는 초록 배경 원본(Godot 는 안 읽는다)
 ├─ art/portraits/, backgrounds/  대화 화면 일러스트·배경 (파일 목록은 art/README.md, 없으면 자리만 보인다)
 ├─ fonts/                  Pretendard (OFL)
-├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_lobby 로비 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_steal 도루·주루 버튼 · shots_run_game 실제 경기 화면에서 내 주루 · shots_run_practice 주루 연습 · shots_batter 타자 포즈 · shots_effects 타격 이펙트 · shots_hud 타석 중계 그래픽 · shots_pitches 8개 구종 궤적), calibrate.gd(가상 타자 튜닝 도구), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
+├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_lobby 로비 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_steal 도루·주루 버튼 · shots_run_game 실제 경기 화면에서 내 주루 · shots_run_practice 주루 연습 · shots_batter 타자 포즈 · shots_effects 타격 이펙트 · shots_hud 타석 중계 그래픽 · shots_pitches 8개 구종 궤적 · shots_pitch_flight 실제 타석 화면에서 구종별 날아오는 공), calibrate.gd(가상 타자 튜닝 도구), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
 └─ data/                   빌드 때 복사되는 balance.json (저장소에 넣지 않음)
 scripts/godot-web.sh       웹 빌드(개발용) + 개발 서버 실행
 scripts/dev_server.py      개발 서버: 웹 빌드 + 원본 balance.json 실시간 제공·저장
@@ -134,7 +134,7 @@ licenses/                  글꼴 라이선스, assets.md(에셋 출처)
 | 테스트 | 기준 |
 |---|---|
 | 판정 | 타이밍·능력치·볼배합·노려치기 → 기획대로, 손맛 조절 패널의 저장 경로 |
-| 경기·커리어 | 주루 규칙, 9이닝 진행·끝내기, 200경기 점수 합 일치·평균 득점 범위, 훈련·성장·이벤트·시즌 기록실(경기별·대회별·분할 기록 합 = 시즌 기록) 저장·불러오기(불러온 뒤 진행 = 원래 진행) 겨울 캠프 · 이벤트 대타 · 시나리오용 조건·효과 · 1학년 시나리오 흐름 · 실제 콘텐츠만으로 3년 진행 · 폰 문자(도착·답장·만료·저장·`Phone.validate`) · 내 주루 조작(주루 설정 자동·보조·수동, 베이스 버튼·태그업·도루: 보조에서 안 누르면 자동 경기와 같은 결과) · 투구 궤적(도착점·직선 구간·변화 방향·좌우 반전·감속 단조성)·구종 데이터 검증 · 주간 스케줄(칸 순서·컨디션 합·이어 쓰기·대성공/실패 비율) (테스트 전체 116건) |
+| 경기·커리어 | 주루 규칙, 9이닝 진행·끝내기, 200경기 점수 합 일치·평균 득점 범위, 훈련·성장·이벤트·시즌 기록실(경기별·대회별·분할 기록 합 = 시즌 기록) 저장·불러오기(불러온 뒤 진행 = 원래 진행) 겨울 캠프 · 이벤트 대타 · 시나리오용 조건·효과 · 1학년 시나리오 흐름 · 실제 콘텐츠만으로 3년 진행 · 폰 문자(도착·답장·만료·저장·`Phone.validate`) · 내 주루 조작(주루 설정 자동·보조·수동, 베이스 버튼·태그업·도루: 보조에서 안 누르면 자동 경기와 같은 결과) · 투구 궤적(도착점·직선 구간·변화 방향·좌우 반전·감속 단조성)·구종 데이터 검증 · 주간 스케줄(칸 순서·컨디션 합·이어 쓰기·대성공/실패 비율) (테스트 전체 117건) |
 | 재현성 | 같은 시드·같은 입력 → 완전히 같은 결과 |
 | 경기 무결성 | (G4~) 자동 시뮬레이션 경기에서 점수·아웃·주자 수가 맞는다 |
 | 이벤트 무결성 | (G6~) `EventBook.validate` 통과, 모든 선택지가 유효한 결과로 이어지고, 고교 3년 자동 진행에서 스토리가 다 나온다 |

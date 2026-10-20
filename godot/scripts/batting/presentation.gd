@@ -10,6 +10,12 @@ var hit_flight_ms: float
 var swing_ms: float
 ## 맞는 순간 화면을 멈추는 시간 (히트스톱)
 var hit_stop_ms: float
+## 날아오는 공 뒤 잔상: 지난 trail_ms 동안의 자리를 trail_dots 개 점으로 (0 이면 끔)
+var trail_ms: float
+## 화면에서만 휨을 과장: 휨 × movement_scale(x 좌우, y 위아래) × (원근 배율 ^ movement_perspective)
+var movement_scale := Vector2.ONE
+var movement_perspective: float
+var trail_dots: int
 var flash_ms: float
 var burst_ms: float
 var burst_home_run_ms: float
@@ -46,6 +52,10 @@ static func from_balance(balance: Dictionary) -> Presentation:
 	p.hit_flight_ms = BattingConfig.num(s, "hitFlightMs")
 	p.swing_ms = BattingConfig.num(s, "swingMs")
 	p.hit_stop_ms = BattingConfig.num(s, "hitStopMs")
+	p.trail_ms = BattingConfig.num(s, "trailMs")
+	p.movement_scale = Vector2(BattingConfig.num(s, "movementScaleX"), BattingConfig.num(s, "movementScaleY"))
+	p.movement_perspective = BattingConfig.num(s, "movementPerspective")
+	p.trail_dots = int(BattingConfig.num(s, "trailDots"))
 	p.flash_ms = BattingConfig.num(s, "flashMs")
 	p.burst_ms = BattingConfig.num(s, "burstMs")
 	p.burst_home_run_ms = BattingConfig.num(s, "burstHomeRunMs")

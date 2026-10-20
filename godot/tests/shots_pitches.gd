@@ -43,7 +43,7 @@ func _pitch(id: String) -> Pitch:
 	p.type = id
 	p.hand = _hand
 	p.flight_ms = _catalog.flight_ms(id)
-	p.trajectory = PitchTrajectory.make(_catalog.spec(id), Vector2.ZERO, p.flight_ms, _hand, _catalog.decel)
+	p.trajectory = PitchTrajectory.make(_catalog.spec(id), Vector2.ZERO, p.flight_ms, _hand)
 	return p
 
 

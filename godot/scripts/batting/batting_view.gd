@@ -169,12 +169,16 @@ func zone_to_screen(z: Vector2) -> Vector2:
 
 ## 공을 놓고 t_ms 뒤 공의 화면 위치(xy)와 크기 비율(z, 0~1). 궤적(존 좌표)은 PitchTrajectory 가 정하고 여기서는 원근만 입힌다
 func _ball(p: Pitch, t_ms: float) -> Vector3:
-	var target := zone_to_screen(p.position_at(t_ms))
+	var traj := p.trajectory
 	# 원근감: 가까워질수록 빨리 커지고 빨리 움직이는 것처럼. 깊이는 거리 진행률(감속 반영),
 	# 홈플레이트를 지난 뒤에는 시간대로 조금 더 다가온다
-	var t := p.trajectory.distance_fraction(t_ms) if t_ms < p.flight_ms else minf(t_ms / p.flight_ms, 1.15)
+	var t := traj.distance_fraction(t_ms) if t_ms < p.flight_ms else minf(t_ms / p.flight_ms, 1.15)
 	var s := 0.25 * t + 0.75 * t * t
-	var pos := _release.lerp(target, s)
+	# 손 → 도착점 직선은 원근 그대로, 휨(직선에서 벗어난 만큼)은 과장해서 얹는다. 휨은 양 끝에서 0 이라 출발·도착 자리는 그대로
+	var pres := session.presentation
+	var line := _release.lerp(zone_to_screen(traj.line_at(t_ms)), s)
+	var dev := traj.deviation_at(t_ms) * _zone_half * pres.movement_scale * pow(minf(s, 1.0), pres.movement_perspective)
+	var pos := line + dev
 	return Vector3(pos.x, pos.y, s)
 
 
@@ -438,13 +442,23 @@ func _draw_ball_in_flight() -> void:
 		_draw_launched_ball(self, hit_pos, hit_pos + Vector2(side * size.x * 0.6, -size.y * 0.7), t, _ball_radius(b.z))
 		_draw_burst(self, hit_pos, session.since(session.swing_since_ms), SwingJudge.Quality.FOUL)
 	elif progress <= 1.15:
-		var b := _ball(p, session.since(session.phase_since_ms))
+		var now := session.since(session.phase_since_ms)
+		var b := _ball(p, now)
 		var pos := Vector2(b.x, b.y)
 		var r := _ball_radius(b.z)
 		# 구종이 드러나면 테두리가 구종 색이 되고, 직구가 아니면 공도 그 색으로 물든다
 		var revealed := p.is_revealed_at(progress)
 		var type_color := _pitch_color(p.type)
 		var offspeed := revealed and p.type != "four_seam"
+		# 잔상: 지난 자리들을 흐리게 — 휘는 길이 눈에 보인다 (궤적이 시간만의 함수라 지난 자리를 그대로 다시 구한다)
+		var dots := pres.trail_dots
+		for i in range(dots, 0, -1):
+			var t_ms := now - pres.trail_ms * i / dots
+			if t_ms <= 0.0 or t_ms >= p.flight_ms:
+				continue
+			var tb := _ball(p, t_ms)
+			var fade := 1.0 - float(i) / (dots + 1)
+			draw_circle(Vector2(tb.x, tb.y), _ball_radius(tb.z) * (0.45 + 0.45 * fade), Color(type_color if offspeed else Tokens.CHALK, 0.45 * fade), true, -1.0, true)
 		draw_circle(pos + Vector2(r * 0.3, r * 0.5), r, Tokens.SHADOW, true, -1.0, true)
 		draw_circle(pos, r, type_color if offspeed else Tokens.CHALK, true, -1.0, true)
 		draw_circle(pos, r, type_color if revealed else Tokens.INK, false, 1.5, true)

@@ -23,6 +23,11 @@ class Spec:
 	var break_start: float
 	## 클수록 막판에 몰아서 꺾인다 (1 = 휘기 시작부터 고르게)
 	var break_pow: float
+	## 날아오는 도중에만 불룩한 정도 (투수 기준, 도착점은 그대로). 커브가 손을 떠나며 떠오르는 것 같은 구종 버릇
+	var arc_x: float
+	var arc_y: float
+	## 이 구종의 감속 (없으면 pitch_common.decel). 체인지업처럼 직구 팔 스윙으로 나와 홈 앞에서 죽는 공은 크게
+	var decel: float
 	## 유인구로 던질 때 노리는 방향 ("high" | "low" | "away" | "inside", 타자 기준)
 	var chase_spots: PackedStringArray
 
@@ -76,6 +81,8 @@ func validate() -> PackedStringArray:
 			errors.append("%s 구속 %.0f 가 %.0f~%.0f 밖" % [id, s.speed_kmh, SPEED_MIN_KMH, SPEED_MAX_KMH])
 		if s.break_start < 0.0 or s.break_start >= 1.0:
 			errors.append("%s break_start %.2f 가 0 이상 1 미만이 아니다" % [id, s.break_start])
+		if s.decel < 0.0 or s.decel >= 1.0:
+			errors.append("%s decel %.3f 이 0 이상 1 미만이 아니다" % [id, s.decel])
 		if s.break_pow < 1.0:
 			errors.append("%s break_pow %.2f 가 1 미만" % [id, s.break_pow])
 		if s.name_ko == "":
@@ -117,6 +124,9 @@ static func from_batting(s: Dictionary) -> PitchCatalog:
 		p.break_y = BattingConfig.num(d, "break_y")
 		p.break_start = BattingConfig.num(d, "break_start")
 		p.break_pow = BattingConfig.num(d, "break_pow")
+		p.arc_x = float(d.get("arc_x", 0.0))
+		p.arc_y = float(d.get("arc_y", 0.0))
+		p.decel = float(d.get("decel", c.decel))
 		p.chase_spots = PackedStringArray(d["chase_spots"])
 		c.specs[id] = p
 	return c

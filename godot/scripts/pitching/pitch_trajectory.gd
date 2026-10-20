@@ -8,16 +8,19 @@ extends RefCounted
 ##
 ## 계산
 ##   u    = clamp(t / flight_ms, 0, 1)
-##   u_w  = u + decel · u · (1 - u)        감속: 앞이 빠르고 뒤가 느리다 (u=0 → 0, u=1 → 1)
+##   u_w  = u + decel · u · (1 - u)        감속: 앞이 빠르고 뒤가 느리다 (u=0 → 0, u=1 → 1). 구종마다 다르다 (체인지업은 크게)
 ##   base = lerp(start, raw_end, u_w)       raw_end = aim - break (안 휘었다면 갔을 곳)
+##   arc  = arc_vec · sin(π · u_w)          구종의 "버릇": 날아오는 도중에만 불룩 (커브가 손을 떠나며 떠오르는 것). 양 끝에서 0
 ##   s    = ((u_w - break_start) / (1 - break_start)) ^ break_pow   (break_start 전에는 0)
-##   pos  = base + break · s                u_w = 1 이면 정확히 aim
+##   pos  = base + arc + break · s          u_w = 1 이면 정확히 aim
 
 var start := Vector2.ZERO
 ## 도착점. 항상 여기에 도착한다
 var aim := Vector2.ZERO
 ## 존 좌표로 바꾼 변화량 (투수 손 반영이 끝난 값)
 var break_vec := Vector2.ZERO
+## 존 좌표로 바꾼 도중 불룩함 (투수 손 반영이 끝난 값)
+var arc_vec := Vector2.ZERO
 var flight_ms := 1.0
 var break_start := 0.5
 var break_pow := 2.0
@@ -25,15 +28,16 @@ var decel := 0.0
 
 
 ## 구종 수치 → 궤적. hand 는 "R" | "L"
-static func make(spec: PitchCatalog.Spec, p_aim: Vector2, p_flight_ms: float, hand: String, p_decel: float, p_start := Vector2.ZERO) -> PitchTrajectory:
+static func make(spec: PitchCatalog.Spec, p_aim: Vector2, p_flight_ms: float, hand: String, p_start := Vector2.ZERO) -> PitchTrajectory:
 	var t := PitchTrajectory.new()
 	t.start = p_start
 	t.aim = p_aim
 	t.break_vec = zone_break(Vector2(spec.break_x, spec.break_y), hand)
+	t.arc_vec = zone_break(Vector2(spec.arc_x, spec.arc_y), hand)
 	t.flight_ms = p_flight_ms
 	t.break_start = spec.break_start
 	t.break_pow = spec.break_pow
-	t.decel = p_decel
+	t.decel = spec.decel
 	return t
 
 
@@ -66,5 +70,20 @@ func straight_at(t_ms: float) -> Vector2:
 	return start.lerp(aim - break_vec, distance_fraction(t_ms))
 
 
+## 꺾이기 전 길 = 직선 + 도중 불룩함 (break_start 전에는 공이 이 위를 난다)
+func base_at(t_ms: float) -> Vector2:
+	return straight_at(t_ms) + arc_vec * sin(PI * distance_fraction(t_ms))
+
+
+## 출발점 → 도착점 직선 위 자리 (거리 진행률 기준)
+func line_at(t_ms: float) -> Vector2:
+	return start.lerp(aim, distance_fraction(t_ms))
+
+
+## 휨: 지금 자리가 출발→도착 직선에서 벗어난 만큼. 양 끝에서 0 (화면이 이 값만 과장해 그린다)
+func deviation_at(t_ms: float) -> Vector2:
+	return position_at(t_ms) - line_at(t_ms)
+
+
 func position_at(t_ms: float) -> Vector2:
-	return straight_at(t_ms) + break_vec * break_fraction(t_ms)
+	return base_at(t_ms) + break_vec * break_fraction(t_ms)

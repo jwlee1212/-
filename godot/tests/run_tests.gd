@@ -31,6 +31,7 @@ func _init() -> void:
 		"test_pitch_trajectory_straight_before_break",
 		"test_pitch_trajectory_break_direction",
 		"test_pitch_trajectory_monotonic",
+		"test_pitch_movement_is_visible",
 		"test_pitch_catalog_valid",
 		"test_pitch_caller_flight_and_forced_type",
 		"test_taking_ends_in_walk_or_strikeout",
@@ -240,7 +241,7 @@ func test_breaking_ball_arrives_at_target() -> void:
 
 func _trajectory(id: String, aim: Vector2, hand := "R") -> PitchTrajectory:
 	var cat := _config.catalog
-	return PitchTrajectory.make(cat.spec(id), aim, cat.flight_ms(id), hand, cat.decel)
+	return PitchTrajectory.make(cat.spec(id), aim, cat.flight_ms(id), hand)
 
 
 func test_pitch_trajectory_endpoints() -> void:
@@ -272,18 +273,22 @@ func test_pitch_trajectory_straight_before_break() -> void:
 	for id: String in PitchCatalog.IDS:
 		var t := _trajectory(id, Vector2(0.4, 0.2))
 		var raw_end := t.aim - t.break_vec
-		# break_start 에 닿는 시각 직전까지 여러 점이 start → raw_end 직선 위에 있다
+		# break_start 에 닿는 시각 직전까지: 꺾임은 0 이고 공은 "직선 + 도중 불룩함(arc)" 위에 있다.
+		# arc 가 없는 구종은 start → raw_end 직선 위 그대로
+		var no_arc := t.arc_vec == Vector2.ZERO
 		for i in 20:
 			var t_ms := t.flight_ms * i / 20.0
 			if t.distance_fraction(t_ms) >= t.break_start:
 				break
 			var pos := t.position_at(t_ms)
 			check(t.break_fraction(t_ms) == 0.0, "%s 휘기 전 s=0" % id)
-			check(pos.distance_to(t.start.lerp(raw_end, t.distance_fraction(t_ms))) < 1e-6, "%s t=%.0f 직선 밖" % [id, t_ms])
-			# 직선 위인지: start→raw_end 방향과 start→pos 방향의 외적이 0
-			var d := raw_end - t.start
-			var e := pos - t.start
-			check(absf(d.cross(e)) < 1e-6, "%s 외적 %f" % [id, d.cross(e)])
+			check(pos.distance_to(t.base_at(t_ms)) < 1e-6, "%s t=%.0f 꺾이기 전 길 밖" % [id, t_ms])
+			if no_arc:
+				check(pos.distance_to(t.start.lerp(raw_end, t.distance_fraction(t_ms))) < 1e-6, "%s t=%.0f 직선 밖" % [id, t_ms])
+				# 직선 위인지: start→raw_end 방향과 start→pos 방향의 외적이 0
+				var d := raw_end - t.start
+				var e := pos - t.start
+				check(absf(d.cross(e)) < 1e-6, "%s 외적 %f" % [id, d.cross(e)])
 		check(t.break_fraction(t.flight_ms) == 1.0)
 
 
@@ -337,6 +342,34 @@ func test_pitch_trajectory_monotonic() -> void:
 	check(not bad.validate().is_empty(), "decel 1 은 실패해야 한다")
 
 
+func test_pitch_movement_is_visible() -> void:
+	# 2026-10-21 유저 "속도 차이만 있지 각의 변화가 없다" → 움직임을 과장. 화면 존 반폭 ≈ 38px 이라
+	# 직선(손 → 도착점)에서 가장 멀리 벗어나는 정도가 반폭 0.8 은 넘어야 눈에 보인다 (포심 제외)
+	var biggest := {}
+	for id: String in PitchCatalog.IDS:
+		var t := _trajectory(id, Vector2.ZERO)
+		var most := 0.0
+		for i in 101:
+			most = maxf(most, t.deviation_at(t.flight_ms * i / 100.0).length())
+		biggest[id] = most
+		check(t.deviation_at(0.0).length() < 1e-4 and t.deviation_at(t.flight_ms).length() < 1e-4, "%s 휨은 양 끝에서 0" % id)
+		if id != "four_seam":
+			check(most >= 0.8, "%s 최대 휨 %.2f 가 너무 작다" % [id, most])
+	check(biggest["sweeper"] > biggest["slider"], "스위퍼가 슬라이더보다 크게 쓸고 간다")
+	check(biggest["forkball"] > biggest["splitter"], "포크볼이 스플리터보다 크게 떨어진다")
+	# 구종 버릇: 커브는 손을 떠나며 떠오르고(도중 불룩함 위로), 체인지업은 직구보다 감속이 크다
+	var cat := _config.catalog
+	check(cat.spec("curve").arc_y > 0.0, "커브는 떠올랐다 떨어진다")
+	check(cat.spec("changeup").decel > cat.spec("four_seam").decel, "체인지업은 홈 앞에서 죽는다")
+	# 커브: 비행 초반에 직선보다 위(존 좌표 y −)
+	var curve := _trajectory("curve", Vector2.ZERO)
+	check(curve.deviation_at(curve.flight_ms * 0.3).y < -0.5, "커브 초반 떠오름 %.2f" % curve.deviation_at(curve.flight_ms * 0.3).y)
+	# 포크볼: 초반엔 직선 근처(직구처럼), 막판에 크게 벗어나 있다가 떨어진다
+	var fork := _trajectory("forkball", Vector2.ZERO)
+	check(absf(fork.deviation_at(fork.flight_ms * 0.3).y) < 0.5 and fork.deviation_at(fork.flight_ms * 0.85).y < -0.8,
+		"포크볼은 직구처럼 오다 뚝 (%.2f, %.2f)" % [fork.deviation_at(fork.flight_ms * 0.3).y, fork.deviation_at(fork.flight_ms * 0.85).y])
+
+
 func test_pitch_catalog_valid() -> void:
 	var cat := _config.catalog
 	check(cat.validate().is_empty(), "; ".join(cat.validate()))
@@ -361,6 +394,9 @@ func test_pitch_catalog_valid() -> void:
 	var slow_fb := balance.duplicate(true)
 	slow_fb["batting"]["pitches"]["four_seam"]["speed_kmh"] = 120
 	check(not PitchCatalog.from_batting(slow_fb["batting"]).validate().is_empty(), "포심이 가장 빠르지 않으면 실패")
+	var bad_decel := balance.duplicate(true)
+	bad_decel["batting"]["pitches"]["changeup"]["decel"] = 1.2
+	check(not PitchCatalog.from_batting(bad_decel["batting"]).validate().is_empty(), "구종 decel 이 1 이상이면 실패")
 	var bad_pow := balance.duplicate(true)
 	bad_pow["batting"]["pitches"]["slider"]["break_pow"] = 0.5
 	check(not PitchCatalog.from_batting(bad_pow["batting"]).validate().is_empty(), "break_pow < 1 이면 실패")
