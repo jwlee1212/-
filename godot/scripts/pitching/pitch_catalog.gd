@@ -28,6 +28,10 @@ class Spec:
 	var arc_y: float
 	## 이 구종의 감속 (없으면 pitch_common.decel). 체인지업처럼 직구 팔 스윙으로 나와 홈 앞에서 죽는 공은 크게
 	var decel: float
+	## 손을 떠난 직후 위로 튀어 오르는 높이 (존 반폭 단위, 0 = 없음). 커브의 "뽕" — 화면에서 손 위로 솟았다가 떨어진다
+	var pop: float
+	## 튀어 오름이 가장 높은 때 (거리 진행률, 0 초과 1 미만)
+	var pop_peak: float
 	## 투구 위치에 따른 변화폭 (0 = 어디로 던져도 같다). 휘는 방향으로 던질수록 더, 반대로 던질수록 덜 휜다
 	var location_effect: float
 	## 유인구로 던질 때 노리는 방향 ("high" | "low" | "away" | "inside", 타자 기준)
@@ -89,6 +93,8 @@ func validate() -> PackedStringArray:
 			errors.append("%s break_start %.2f 가 0 이상 1 미만이 아니다" % [id, s.break_start])
 		if s.decel < 0.0 or s.decel >= 1.0:
 			errors.append("%s decel %.3f 이 0 이상 1 미만이 아니다" % [id, s.decel])
+		if s.pop < 0.0 or s.pop_peak <= 0.0 or s.pop_peak >= 1.0:
+			errors.append("%s pop %.2f · pop_peak %.2f 범위 밖 (pop ≥ 0, 0 < pop_peak < 1)" % [id, s.pop, s.pop_peak])
 		if s.location_effect < 0.0 or s.location_effect > 1.0:
 			errors.append("%s location_effect %.2f 가 0~1 밖" % [id, s.location_effect])
 		if s.break_pow < 1.0:
@@ -137,6 +143,8 @@ static func from_batting(s: Dictionary) -> PitchCatalog:
 		p.arc_y = float(d.get("arc_y", 0.0))
 		p.decel = float(d.get("decel", c.decel))
 		p.location_effect = float(d.get("location_effect", 0.0))
+		p.pop = float(d.get("pop", 0.0))
+		p.pop_peak = float(d.get("pop_peak", 0.3))
 		p.chase_spots = PackedStringArray(d["chase_spots"])
 		c.specs[id] = p
 	return c

@@ -4,7 +4,7 @@
     "status": "draft",
     "_note": "타격 수치 (G1). 시간 ms, 거리 m, 존 좌표는 스트라이크존 가로·세로 반폭 = 1 (y 는 아래가 +, x 는 +가 타자에게서 먼 쪽 = 바깥쪽). 능력치 0/100 쌍(At0/At100)은 사이를 선형 보간. 튜닝 안내는 docs/dev-log.md.",
     "pitches": {
-      "_note": "구종 8개 (pitching/pitch_catalog.gd). 변화량은 투수 기준: break_x + = 투수 팔 쪽(우투수면 우타자 몸쪽), - = 글러브 쪽, break_y + = 위, - = 아래. 단위는 존 반폭 = 1 (화면에서 존 반폭 ≈ 38px 이라 1 미만이면 거의 안 보인다 — 2026-10-21 유저 요청으로 과장된 값). 좌투수는 x 부호가 뒤집힌다. 비행 시간 = pitch_common.four_seam_flight_ms × (포심 speed_kmh / 이 구종 speed_kmh). break_start: 거리 진행률이 이 값을 넘어야 휘기 시작(0~1 미만). break_pow: 클수록 막판에 몰아서 꺾임(1 이상). 2026-10-31 유저 '다 직구처럼 오다 갑자기 꺾여 아케이드 같다' → 손을 떠난 직후(0~0.2)부터 고르게(1.2~1.8) 휘게 바꿈 — 타자가 날아오는 도중에 구종을 알아볼 수 있게. arc_x/arc_y(없으면 0): 날아오는 도중에만 불룩한 정도 — 양 끝은 그대로라 도착점은 안 바뀐다 (커브가 손을 떠나며 떠오르는 것). decel(없으면 pitch_common.decel): 이 구종의 감속, 클수록 앞이 빠르고 홈 앞에서 느려진다 (체인지업). chase_spots: 유인구 방향(타자 기준) location_effect(없으면 0): 투구 위치에 따른 변화폭 — 휘는 방향으로 던질수록 더(최대 pitch_common.location_max 배), 반대쪽으로 던질수록 덜(최소 location_min 배) 휜다.",
+      "_note": "구종 8개 (pitching/pitch_catalog.gd). 변화량은 투수 기준: break_x + = 투수 팔 쪽(우투수면 우타자 몸쪽), - = 글러브 쪽, break_y + = 위, - = 아래. 단위는 존 반폭 = 1 (화면에서 존 반폭 ≈ 38px 이라 1 미만이면 거의 안 보인다 — 2026-10-21 유저 요청으로 과장된 값). 좌투수는 x 부호가 뒤집힌다. 비행 시간 = pitch_common.four_seam_flight_ms × (포심 speed_kmh / 이 구종 speed_kmh). break_start: 거리 진행률이 이 값을 넘어야 휘기 시작(0~1 미만). break_pow: 클수록 막판에 몰아서 꺾임(1 이상). 2026-10-31 유저 '다 직구처럼 오다 갑자기 꺾여 아케이드 같다' → 손을 떠난 직후(0~0.2)부터 고르게(1.2~1.8) 휘게 바꿈 — 타자가 날아오는 도중에 구종을 알아볼 수 있게. arc_x/arc_y(없으면 0): 날아오는 도중에만 불룩한 정도 — 양 끝은 그대로라 도착점은 안 바뀐다 (커브가 손을 떠나며 떠오르는 것). decel(없으면 pitch_common.decel): 이 구종의 감속, 클수록 앞이 빠르고 홈 앞에서 느려진다 (체인지업). chase_spots: 유인구 방향(타자 기준) location_effect(없으면 0): 투구 위치에 따른 변화폭 — 휘는 방향으로 던질수록 더(최대 pitch_common.location_max 배), 반대쪽으로 던질수록 덜(최소 location_min 배) 휜다. pop·pop_peak(없으면 0·0.3): 손을 떠난 직후 위로 튀어 오르는 높이(존 반폭)와 가장 높은 때(거리 진행률) — 커브의 '뽕'. 화면에서 손 위로 솟을 수 있는 건 이것뿐이다 (다른 휨은 손 아래로 눌러 둔다).",
       "four_seam": {
         "name_ko": "포심",
         "speed_kmh": 145,
@@ -52,7 +52,8 @@
         "break_y": -2.2,
         "break_start": 0.0,
         "break_pow": 1.2,
-        "arc_y": 0.3,
+        "pop": 1.0,
+        "pop_peak": 0.25,
         "decel": 0.1,
         "location_effect": 0.3,
         "chase_spots": [

@@ -18,6 +18,8 @@ extends RefCounted
 ##   arc  = arc_vec · sin(π · u_w)          구종의 "버릇": 날아오는 도중에만 불룩 (커브가 손을 떠나며 떠오르는 것). 양 끝에서 0
 ##   s    = ((u_w - break_start) / (1 - break_start)) ^ break_pow   (break_start 전에는 0)
 ##   pos  = base + arc + break · s          u_w = 1 이면 정확히 aim
+##   pop  = pop · hump(u_w)                 커브의 "뽕": 손을 떠난 직후 위로 튀어 오르는 높이 (존 반폭, 위가 +).
+##                                          hump 는 pop_peak 에서 1, 양 끝에서 0 인 부드러운 혹 — 도착점은 그대로
 
 var start := Vector2.ZERO
 ## 도착점. 항상 여기에 도착한다
@@ -30,6 +32,8 @@ var flight_ms := 1.0
 var break_start := 0.5
 var break_pow := 2.0
 var decel := 0.0
+var pop := 0.0
+var pop_peak := 0.3
 
 
 ## 구종 수치 → 궤적. hand 는 "R" | "L"
@@ -45,6 +49,8 @@ static func make(spec: PitchCatalog.Spec, p_aim: Vector2, p_flight_ms: float, ha
 	t.break_start = spec.break_start
 	t.break_pow = spec.break_pow
 	t.decel = spec.decel
+	t.pop = spec.pop
+	t.pop_peak = spec.pop_peak
 	return t
 
 
@@ -103,6 +109,15 @@ func deviation_at(t_ms: float) -> Vector2:
 ## t=0 → raw_end, t=flight → aim. 포수 미트(예상 투구 위치)도 이만큼 함께 움직인다
 func pointing_at(t_ms: float) -> Vector2:
 	return aim - break_vec * (1.0 - break_fraction(t_ms)) + arc_vec * sin(PI * distance_fraction(t_ms))
+
+
+## 튀어 오른 높이 (존 반폭, 위가 +). 0 → pop_peak 까지 사인으로 올라 1, 그 뒤 코사인으로 내려 도착 때 0
+func pop_at(t_ms: float) -> float:
+	if pop == 0.0:
+		return 0.0
+	var d := distance_fraction(t_ms)
+	var hump := sin(PI * 0.5 * d / pop_peak) if d <= pop_peak else cos(PI * 0.5 * (d - pop_peak) / (1.0 - pop_peak))
+	return pop * maxf(hump, 0.0)
 
 
 func position_at(t_ms: float) -> Vector2:

@@ -202,6 +202,8 @@ func _ball(p: Pitch, t_ms: float) -> Vector3:
 	var t := p.trajectory.distance_fraction(t_ms)
 	var s := 0.25 * t + 0.75 * t * t
 	var pos := _release.lerp(_aim_on_screen(_pointing(p, t_ms)), s)
+	# 커브의 "뽕": 손을 떠난 직후 화면에서 위로 튀어 올랐다가 떨어진다 (손 아래 보정과 따로 얹는다 — 구종이 정한 만큼만 솟는다)
+	pos.y -= p.trajectory.pop_at(t_ms) * _zone_half.y * session.presentation.movement_scale.y
 	return Vector3(pos.x, pos.y, s)
 
 

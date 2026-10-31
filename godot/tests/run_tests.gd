@@ -393,7 +393,11 @@ func test_pitch_movement_is_visible() -> void:
 		check(t.deviation_at(0.0).length() < 1e-4 and t.deviation_at(t.flight_ms).length() < 1e-4, "%s 휨은 양 끝에서 0" % id)
 	# 구종 버릇: 커브는 손을 떠나며 떠오르고(도중 불룩함 위로), 체인지업은 직구보다 감속이 크다
 	var cat := _config.catalog
-	check(cat.spec("curve").arc_y > 0.0, "커브는 떠올랐다 떨어진다")
+	check(cat.spec("curve").pop > 0.0, "커브는 손을 떠나며 튀어 올랐다 떨어진다")
+	for id: String in ["forkball", "splitter"]:
+		check(cat.spec(id).pop == 0.0, "%s 는 튀어 오르지 않는다 (커브와 다르게)" % id)
+	var curve := _trajectory("curve", Vector2.ZERO)
+	check(curve.pop_at(0.0) == 0.0 and absf(curve.pop_at(curve.flight_ms)) < 1e-6 and curve.pop_at(curve.flight_ms * 0.25) > 0.0, "튀어 오름은 양 끝에서 0")
 	check(cat.spec("changeup").decel > cat.spec("four_seam").decel, "체인지업은 홈 앞에서 죽는다")
 	# 포크볼 vs 스플리터 (2026-10-21 유저): 포크볼은 느리고 크게, 스플리터는 빠르고 짧게 떨어진다
 	var fork := cat.spec("forkball")
@@ -427,7 +431,8 @@ func test_pitch_break_by_location() -> void:
 			check(t.pointing_at(0.0).distance_to(aim - t.break_vec) < 1e-4, "%s 처음엔 휘기 전 방향을 향한다" % id)
 
 
-## 실제 타석 화면에서 공의 화면 높이가 줄어들지(= 위로 올라가지) 않는다 — 포크볼·스플리터가 솟았다 떨어지지 않게 (2026-10-21 유저)
+## 실제 타석 화면에서 공의 화면 높이가 줄어들지(= 위로 올라가지) 않는다 — 포크볼·스플리터가 솟았다 떨어지지 않게 (2026-10-21 유저).
+## 튀어 오름(pop)이 있는 구종(커브)만 예외: 손 위로 솟았다가 떨어져야 한다
 func test_pitch_never_rises_on_screen() -> void:
 	var balance := BalanceLoader.load_balance()
 	var view := BattingView.new()
@@ -443,11 +448,21 @@ func test_pitch_never_rises_on_screen() -> void:
 			p.trajectory = PitchTrajectory.make(cat.spec(id), aim, p.flight_ms, "R", cat.location_range)
 			var prev := -INF
 			var rose := 0.0
+			var y0 := view._ball(p, 0.0).y
+			var top := y0
+			var top_at := 0.0
 			for i in 121:
 				var y := view._ball(p, p.flight_ms * i / 120.0).y
 				rose = maxf(rose, prev - y)
 				prev = y
-			check(rose < 0.01, "%s %s 화면에서 %.2fpx 솟는다" % [id, aim, rose])
+				if y < top:
+					top = y
+					top_at = i / 120.0
+			if cat.spec(id).pop > 0.0:
+				# 커브의 "뽕" (2026-10-31 유저): 손을 떠난 직후 손보다 눈에 띄게 위로 솟았다가, 비행 앞쪽에서 꼭대기를 찍고 떨어진다
+				check(y0 - top >= 10.0 and top_at <= 0.4, "%s %s 튀어 오름 %.1fpx (꼭대기 %.0f%%)" % [id, aim, y0 - top, top_at * 100.0])
+			else:
+				check(rose < 0.01, "%s %s 화면에서 %.2fpx 솟는다" % [id, aim, rose])
 			var end := view._ball(p, p.flight_ms)
 			check(Vector2(end.x, end.y).distance_to(view.zone_to_screen(aim)) < 0.01, "%s %s 화면에서도 도착점에" % [id, aim])
 	view.free()
