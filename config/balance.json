@@ -266,7 +266,10 @@
       "foulWindowMsAt0": 111.8,
       "foulWindowMsAt100": 151.4,
       "outOfZoneWindowFactor": 0.45,
-      "takeGraceMs": 150
+      "outOfZoneEdgeFactor": 0.85,
+      "outOfZoneFarDistance": 0.6,
+      "takeGraceMs": 150,
+      "_outOfZone": "존 밖 공의 판정 폭 배율 (2026-10-31 유저 '존 밖이면 거의 무조건 정타가 안 나온다'): 존 바로 밖 = outOfZoneEdgeFactor, 공이 스트라이크 범위에서 outOfZoneFarDistance(존 반폭 단위) 이상 벗어나면 outOfZoneWindowFactor, 그 사이는 거리에 비례"
     },
     "spray": {
       "solidMaxAngleDeg": 30,

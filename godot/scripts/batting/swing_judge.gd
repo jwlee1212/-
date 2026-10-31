@@ -48,8 +48,16 @@ static func is_hit(outcome: Outcome) -> bool:
 
 ## 판정 폭 배율: 존 밖 공은 좁아지고, 노려치기·스윙 종류 배율을 곱한다
 func window_factor(pitch: Pitch, aim_factor: float, swing_type: String = "normal") -> float:
-	var zone := 1.0 if pitch.is_strike() else _config.out_of_zone_window_factor
-	return zone * aim_factor * _config.swing_type(swing_type).window_mul
+	return zone_factor(pitch) * aim_factor * _config.swing_type(swing_type).window_mul
+
+
+## 존 밖 공의 판정 폭 배율: 존 바로 밖이면 out_of_zone_edge_factor, 벗어난 거리가 out_of_zone_far_distance 이상이면
+## out_of_zone_window_factor, 그 사이는 거리에 비례 (존에 거의 걸칠 뻔한 공은 칠 만하고, 크게 빠진 공은 정타가 어렵다)
+func zone_factor(pitch: Pitch) -> float:
+	if pitch.is_strike():
+		return 1.0
+	var k := clampf(pitch.outside_distance() / _config.out_of_zone_far_distance, 0.0, 1.0)
+	return lerpf(_config.out_of_zone_edge_factor, _config.out_of_zone_window_factor, k)
 
 
 ## 타이밍 차이로 등급을 정한다

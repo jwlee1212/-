@@ -210,7 +210,21 @@ func test_timing_decides_quality() -> void:
 func test_out_of_zone_is_worse() -> void:
 	var diff := _config.solid_window_ms(50) * 0.9
 	check(_judge.quality(strike_pitch(), _average, diff) == SwingJudge.Quality.SOLID)
-	check(_judge.quality(ball_pitch(), _average, diff) != SwingJudge.Quality.SOLID)
+	# 존 밖 공은 벗어난 거리만큼 판정 폭이 줄어든다 (2026-10-31 유저 "존 밖이면 거의 무조건 정타가 안 나온다")
+	var p := Pitch.new()
+	p.reach = 1.0 + _config.zone_ball_radius
+	p.target = Vector2(p.reach + 0.02, 0.0)  # 존 바로 밖
+	var edge := _judge.zone_factor(p)
+	check(is_equal_approx(edge, lerpf(_config.out_of_zone_edge_factor, _config.out_of_zone_window_factor, 0.02 / _config.out_of_zone_far_distance)), "존 바로 밖 배율 %.2f" % edge)
+	check(_judge.quality(p, _average, _config.solid_window_ms(50) * 0.7) == SwingJudge.Quality.SOLID, "존 바로 밖 공은 정타가 나온다")
+	p.target = Vector2(p.reach + _config.out_of_zone_far_distance * 0.5, 0.0)
+	var mid := _judge.zone_factor(p)
+	p.target = Vector2(p.reach + _config.out_of_zone_far_distance * 2.0, p.reach + 1.0)
+	var far := _judge.zone_factor(p)
+	check(edge > mid and mid > far and is_equal_approx(far, _config.out_of_zone_window_factor), "멀수록 좁다 %.2f > %.2f > %.2f" % [edge, mid, far])
+	check(_judge.quality(p, _average, diff) != SwingJudge.Quality.SOLID, "크게 빠진 공은 정타가 어렵다")
+	p.target = Vector2(0.3, -0.2)
+	check(_judge.zone_factor(p) == 1.0 and p.outside_distance() == 0.0, "스트라이크는 그대로")
 
 
 func test_early_pulls_late_pushes() -> void:
@@ -557,7 +571,7 @@ func test_foul_with_two_strikes_is_not_strikeout() -> void:
 		if ab.strikes < 2:
 			ab.swing(p.flight_ms + _config.foul_window_ms(50) * 3)  # 확실한 헛스윙
 		else:
-			var factor := 1.0 if p.is_strike() else _config.out_of_zone_window_factor
+			var factor := _judge.zone_factor(p)
 			var foul_diff := (_config.weak_window_ms(50) + _config.foul_window_ms(50)) / 2.0 * factor
 			var o := ab.swing(p.flight_ms + _config.input_latency_ms + foul_diff)
 			check(o.call == AtBat.Call.FOUL)

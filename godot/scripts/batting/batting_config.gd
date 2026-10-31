@@ -100,7 +100,10 @@ var input_latency_ms: float
 var solid_window := Vector2.ZERO  # x = At0, y = At100
 var weak_window := Vector2.ZERO
 var foul_window := Vector2.ZERO
+## 존 밖 공의 판정 폭 배율: 크게 빠진 공(window_factor) ~ 존 바로 밖(edge_factor), far_distance(존 반폭 단위) 이상 벗어나면 크게 빠진 공
 var out_of_zone_window_factor: float
+var out_of_zone_edge_factor: float
+var out_of_zone_far_distance: float
 ## 홈플레이트를 지날 때 공 반지름 (존 반폭 단위). 공 중심이 ±(1 + 이 값) 안이면 스트라이크, 화면의 공 크기도 이 값
 var zone_ball_radius: float
 ## 공이 홈플레이트를 지나고 이만큼 더 기다려도 탭이 없으면 "안 침"으로 본다
@@ -174,6 +177,8 @@ static func from_balance(balance: Dictionary) -> BattingConfig:
 	c.weak_window = _pair(s, "timing.weakWindowMs")
 	c.foul_window = _pair(s, "timing.foulWindowMs")
 	c.out_of_zone_window_factor = num(s, "timing.outOfZoneWindowFactor")
+	c.out_of_zone_edge_factor = num(s, "timing.outOfZoneEdgeFactor")
+	c.out_of_zone_far_distance = num(s, "timing.outOfZoneFarDistance")
 	c.zone_ball_radius = num(s, "zoneBallRadius")
 	c.take_grace_ms = num(s, "timing.takeGraceMs")
 	c.solid_max_angle_deg = num(s, "spray.solidMaxAngleDeg")

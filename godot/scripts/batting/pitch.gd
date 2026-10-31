@@ -34,6 +34,11 @@ func is_strike() -> bool:
 	return absf(target.x) <= reach and absf(target.y) <= reach
 
 
+## 공이 스트라이크 범위(reach)에서 벗어난 거리 (존 반폭 단위, 스트라이크면 0). 모서리 밖이면 두 축을 합친 직선 거리
+func outside_distance() -> float:
+	return Vector2(maxf(absf(target.x) - reach, 0.0), maxf(absf(target.y) - reach, 0.0)).length()
+
+
 ## 공을 놓고 t_ms 뒤 공의 존 좌표
 func position_at(t_ms: float) -> Vector2:
 	return trajectory.position_at(t_ms)
