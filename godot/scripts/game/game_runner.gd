@@ -397,7 +397,7 @@ func step() -> Dictionary:
 			_rng.state = rng_state
 			return state.make_play(ball, idx, speed_of(side), _rng, my_slot, choices)
 		var control := RunControl.new(resim.call([]), resim, running_mode == RunControl.MANUAL)
-		if control.has_decisions():
+		if control.has_choices():
 			_pending_run = {"pa": pa, "half": half, "control": control}
 			return {"type": "my_run", "control": control, "batter": batter.name, "side": side}
 		play = control.play

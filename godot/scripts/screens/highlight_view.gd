@@ -27,6 +27,9 @@ func _init(phys: BattedBallSim.Config, play: PlaySimulator.PlayResult, caption: 
 
 
 func _ready() -> void:
+	# 도트 경기장·선수는 칸이 번지지 않게
+	if PixelArt.on():
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_start_ms = Time.get_ticks_usec() / 1000.0
 	var chip := UiKit.glass_panel()
@@ -63,7 +66,8 @@ func _process(_delta: float) -> void:
 
 
 func _t() -> float:
-	return (Time.get_ticks_usec() / 1000.0 - _start_ms) / 1000.0 * _speed
+	# 내 주자의 런다운은 느리게 (판단할 틈)
+	return _play.play_time((Time.get_ticks_usec() / 1000.0 - _start_ms) / 1000.0 * _speed)
 
 
 func _draw() -> void:

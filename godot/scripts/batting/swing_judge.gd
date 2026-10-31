@@ -46,9 +46,10 @@ static func is_hit(outcome: Outcome) -> bool:
 	return outcome in HITS
 
 
-## 판정 폭 배율: 존 밖 공은 좁아지고, 노려치기·스윙 종류 배율을 곱한다
+## 판정 폭 배율: 존 밖 공은 좁아지고, 실투는 넓어지고, 노려치기·스윙 종류 배율을 곱한다
 func window_factor(pitch: Pitch, aim_factor: float, swing_type: String = "normal") -> float:
-	return zone_factor(pitch) * aim_factor * _config.swing_type(swing_type).window_mul
+	var mistake := _config.mistake_window_factor if pitch.is_mistake else 1.0
+	return zone_factor(pitch) * mistake * aim_factor * _config.swing_type(swing_type).window_mul
 
 
 ## 존 밖 공의 판정 폭 배율: 존 바로 밖이면 out_of_zone_edge_factor, 벗어난 거리가 out_of_zone_far_distance 이상이면
@@ -73,7 +74,7 @@ func quality(pitch: Pitch, skills: BatterSkills, timing_diff_ms: float, aim_fact
 	return Quality.MISS
 
 
-## 타구 만들기. aim_factor: 노려치기 판정 폭 배율, ev_bonus_kmh: 노린 공을 정타로 쳤을 때 더해지는 타구 속도
+## 타구 만들기. aim_factor: 노려치기 판정 폭 배율, ev_bonus_kmh: 노린 공·실투를 정타로 쳤을 때 더해지는 타구 속도
 func contact(pitch: Pitch, skills: BatterSkills, timing_diff_ms: float, rng: RandomNumberGenerator,
 		aim_factor: float = 1.0, ev_bonus_kmh: float = 0.0, swing_type: String = "normal") -> Contact:
 	var factor := window_factor(pitch, aim_factor, swing_type)

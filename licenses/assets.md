@@ -29,4 +29,12 @@ AI 생성 에셋: 위 인물 일러스트 11장, 배경 6장, 타자·투수 캐
 ## 도트 시험판 (2026-10-30)
 | 파일 | 출처 | 상업 이용 |
 |---|---|---|
-| `godot/art/pixel/*.png` (경기장·타자·투수·포수·미트) | 이 저장소의 `scripts/make_pixel_art.py` 가 코드로 찍어 만든 그림 (AI 생성 아님, 외부 에셋 없음) | 가능 (자체 제작) |
+| `godot/art/pixel/*.png` (경기장·타자·투수·포수·미트·수비 화면 선수) | 이 저장소의 `scripts/make_pixel_art.py` 가 코드로 찍어 만든 그림 (AI 생성 아님, 외부 에셋 없음) | 가능 (자체 제작) |
+
+## 배경음악 (2026-10-31)
+| 파일 | 출처 | 상업 이용 |
+|---|---|---|
+| `godot/audio/bgm/lobby.wav` `home.wav` `game.wav` | 이 저장소의 `scripts/make_bgm.py` 가 사인파·펄스파·톱니파·잡음을 코드로 합성한 곡 (관중 목소리도 톱니파 + 모음 공명 필터로 합성, 녹음 없음) (작곡·합성 모두 자체, AI 생성 아님, 샘플·외부 음원 없음). 기존 곡의 멜로디를 옮기지 않았다 | 가능 (자체 제작) |
+| 효과음 (타격음·미트·바람·함성) | `godot/scripts/audio/sound_synth.gd` 가 실행 중에 코드로 합성 (파일 없음, 녹음·AI 생성 아님) | 가능 (자체 제작) |
+| 관중 함성 `godot/audio/sfx/cheer_small.wav` `cheer_big.wav` | `scripts/make_bgm.py` 가 목소리 수십 개(톱니파 + 모음 공명 필터)·휘파람·박수를 코드로 합성 (녹음·AI 생성 아님) | 가능 (자체 제작) |
+| 심판 콜 `godot/audio/sfx/call_strike.wav` `call_strikeout.wav` | `scripts/make_bgm.py` 가 포먼트 합성(성대 펄스 + 공명 4개를 시간에 따라 옮김)으로 만든 목소리 (녹음·TTS·AI 생성 아님) | 가능 (자체 제작) |

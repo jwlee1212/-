@@ -46,6 +46,8 @@ func _init() -> void:
 		"test_two_strikes_bring_putaway",
 		"test_pitcher_mix_differs",
 		"test_control_scatter",
+		"test_mistakes_by_count",
+		"test_mistake_hangs_and_rewards",
 		"test_chase_pitches_are_just_outside",
 		"test_aim_hit_widens_miss_narrows",
 		"test_aim_in_at_bat",
@@ -110,6 +112,7 @@ func _init() -> void:
 		"test_play_end_covers_the_play",
 		"test_my_at_bat_carries_runners",
 		"test_select_window_before_pitch",
+		"test_home_run_play_can_be_skipped",
 		"test_runner_two_outs_always_run",
 		"test_runner_ground_ball_force_and_tag",
 		"test_runner_fly_ball_halfway_return_tag_up",
@@ -123,6 +126,12 @@ func _init() -> void:
 		"test_relay_play",
 		"test_run_control_overrides_my_runner",
 		"test_run_control_tag_up",
+		"test_run_control_no_passing",
+		"test_run_control_batter_choices",
+		"test_run_control_change_mid_run",
+		"test_runner_fatigue",
+		"test_rundown",
+		"test_run_control_rundown",
 		"test_steal_judge",
 		"test_steal_in_game_state",
 		"test_interactive_game_matches_and_stays_consistent",
@@ -140,6 +149,7 @@ func _init() -> void:
 		"test_save_roundtrip",
 		"test_save_then_continue_is_same",
 		"test_save_file_and_errors",
+		"test_bgm_tracks",
 	]:
 		var only := OS.get_environment("ONLY")
 		if only != "" and not test.contains(only):
@@ -516,10 +526,10 @@ func test_pitch_catalog_valid() -> void:
 
 func test_pitch_caller_flight_and_forced_type() -> void:
 	var cat := _config.catalog
-	# 비행 시간 = 공식 + 투수 보정 ± 흔들림
+	# 비행 시간 = 공식 + 투수 보정 (+ 실투면 느려짐) ± 흔들림
 	for s in 300:
 		var p := pitch_at(s % 4, s % 3, s)
-		var base := cat.flight_ms(p.type) + _balanced.speed_ms
+		var base := cat.flight_ms(p.type) + _balanced.speed_ms + (_config.mistake_slow_ms if p.is_mistake else 0.0)
 		check(absf(p.flight_ms - base) <= cat.flight_jitter_ms + 1e-6, "%s %.1f vs %.1f" % [p.type, p.flight_ms, base])
 		check(p.hand == "R" and p.label == cat.spec(p.type).name_ko)
 	# 구종 고정 (개발 빌드 버튼): 볼배합이 안 던지는 구종도 나온다
@@ -602,7 +612,7 @@ func test_result_record() -> void:
 
 func test_sound_synthesis() -> void:
 	var sounds := SoundSynth.all()
-	check(sounds.size() == SoundSynth.Sfx.size(), "모든 효과음이 있다")
+	check(sounds.size() == SoundSynth.Sfx.size() - SoundSynth.FILE_ONLY.size(), "파일로만 있는 소리 말고 모든 효과음이 합성된다")
 	for sfx: SoundSynth.Sfx in sounds:
 		var samples: PackedFloat32Array = sounds[sfx]
 		var peak := 0.0
@@ -611,6 +621,9 @@ func test_sound_synthesis() -> void:
 			peak = maxf(peak, absf(v))
 		check(samples.size() > 0 and peak >= 0.05 and peak <= 1.0, "%s 최대 진폭 %.2f" % [SoundSynth.Sfx.keys()[sfx], peak])
 	check(SoundSynth.all()[SoundSynth.Sfx.CRACK_SOLID] == sounds[SoundSynth.Sfx.CRACK_SOLID], "같은 소리는 매번 똑같다")
+	# 관중 함성은 미리 만든 파일 (scripts/make_bgm.py)
+	for sfx in [SoundSynth.Sfx.CHEER_SMALL, SoundSynth.Sfx.CHEER_BIG] + SoundSynth.FILE_ONLY:
+		check(SoundPlayer.file_stream(sfx) != null, "%s 파일" % SoundSynth.Sfx.keys()[sfx])
 
 
 # ---------- G1: 볼배합·노려치기·방향 ----------
@@ -688,6 +701,42 @@ func test_control_scatter() -> void:
 	check(finesse < power, "제구 좋은 투수가 미트에 더 가깝다: 기교파 %.2f, 강속구형 %.2f" % [finesse, power])
 
 
+func _mistake_share(balls: int, strikes: int) -> float:
+	var n := 0
+	for i in 4000:
+		if pitch_at(balls, strikes, i).is_mistake:
+			n += 1
+	return n / 4000.0
+
+
+func test_mistakes_by_count() -> void:
+	# 불리한 카운트일수록 실투가 잦다: 투수 실투 확률 × 카운트 배율
+	var behind := _mistake_share(3, 0)
+	var ahead := _mistake_share(0, 2)
+	var expected := _balanced.mistake_chance * float(_config.mistake_count_factor["behind"])
+	check(absf(behind - expected) < 0.025, "3-0 실투 비율 %.3f (기대 %.3f)" % [behind, expected])
+	check(behind > ahead * 2.0, "불리 %.3f, 유리 %.3f" % [behind, ahead])
+
+
+func test_mistake_hangs_and_rewards() -> void:
+	var s := 0
+	var p := pitch_at(3, 0, s)
+	while not (p.is_mistake and p.type == "slider"):
+		s += 1
+		p = pitch_at(3, 0, s)
+	# 한가운데 높게: 스트라이크이고 존 가운데보다 위쪽으로 치우친다
+	check(p.is_strike(), "실투는 스트라이크 %s" % p.target)
+	check(p.target.y / p.reach <= _config.mistake_radius - _config.mistake_high_shift + 1e-6, "높게 몰린다 %s" % p.target)
+	# 행잉: 변화가 breakFactor 만큼만 남고, 도착점은 그대로
+	var spec: PitchCatalog.Spec = _config.catalog.spec("slider")
+	var full := PitchTrajectory.make(spec, p.target, p.flight_ms, p.hand, _config.catalog.location_range)
+	check(absf(p.trajectory.break_vec.length() - full.break_vec.length() * _config.mistake_break_factor) < 1e-4, "덜 꺾인다")
+	check(p.position_at(p.flight_ms).distance_to(p.target) < 1e-4, "도착점 그대로")
+	# 실투는 판정 폭이 넓다
+	var normal := strike_pitch()
+	check(_judge.window_factor(p, 1.0) > _judge.window_factor(normal, 1.0), "실투는 판정 폭이 넓다")
+
+
 func test_chase_pitches_are_just_outside() -> void:
 	for i in 500:
 		var p := pitch_at(0, 2, i)
@@ -763,7 +812,7 @@ func test_cell_of() -> void:
 func test_strike_zone_counts_ball_size() -> void:
 	# 공이 조금이라도 존에 걸치면 스트라이크: 공 중심이 ±(1 + 공 반지름) 안
 	var r := _config.zone_ball_radius
-	check(r > 0.2 and r < 0.5, "공 반지름 %.2f (실제 공 ÷ 존 반폭 ≈ 0.34)" % r)
+	check(r > 0.1 and r < 0.5, "공 반지름 %.2f (실제 공 반지름 ÷ 존 반폭 ≈ 0.17, 화면에서 보이게 키워 씀)" % r)
 	for i in 400:
 		var p := pitch_at(i % 4, i % 3, i)
 		check(is_equal_approx(p.reach, 1.0 + r))
@@ -2490,6 +2539,26 @@ func test_my_at_bat_carries_runners() -> void:
 	check(play.runners.size() == 3 and 1 in origins and 3 in origins, "타자 + 1·3루 주자가 플레이에 있다 (%s)" % [origins])
 
 
+func test_home_run_play_can_be_skipped() -> void:
+	# 홈런 뒤 베이스 도는 장면은 탭으로 건너뛴다. 친 직후의 탭은 무시하고, 홈런이 아니면 건너뛰지 않는다
+	var balance := BalanceLoader.load_balance()
+	var s := BattingSession.new(BattingConfig.from_balance(balance), Presentation.from_balance(balance))
+	s.last_result = AtBat.Result.new(SwingJudge.Outcome.HOME_RUN, SwingJudge.BattedBall.FLY, 1, null)
+	s.phase = BattingSession.Phase.HIT
+	s.phase_since_ms = BattingSession.now_ms()
+	check(not s.can_skip_play(), "친 직후엔 못 건너뛴다")
+	s.tap()
+	check(s.since(s.phase_since_ms) < s.presentation.skip_after_ms, "친 직후 탭은 무시")
+	s.phase_since_ms = BattingSession.now_ms() - s.presentation.skip_after_ms - 10.0
+	check(s.can_skip_play(), "조금 지나면 건너뛸 수 있다")
+	s.tap()
+	check(s.since(s.phase_since_ms) >= s.hit_play_end_ms() - 1.0, "탭하면 플레이 끝으로")
+	check(not s.can_skip_play(), "끝난 뒤엔 더 건너뛸 게 없다")
+	s.last_result = AtBat.Result.new(SwingJudge.Outcome.DOUBLE, SwingJudge.BattedBall.LINE, 1, null)
+	s.phase_since_ms = BattingSession.now_ms() - s.presentation.skip_after_ms - 10.0
+	check(not s.can_skip_play(), "홈런이 아니면 못 건너뛴다")
+
+
 # ---------- 투구 전 선택 시간 ----------
 
 func test_select_window_before_pitch() -> void:
@@ -2941,6 +3010,19 @@ func _controlled_play(ball: BattedBallSim.Result, bases: Array, choices: Array, 
 	return PlaySimulator.new(_config.ball_physics, ball, 4, bases, func(_i: int) -> int: return 50, 0, _rng(seed_value), controlled, choices).run()
 
 
+## 플레이의 판단 중 k 번째를 v 로, 그 앞은 기록된 대로 고른 선택 목록
+func _choices_until(p: PlaySimulator.PlayResult, k: int, v: bool) -> Array:
+	var ch: Array = []
+	for i in k:
+		ch.append(bool(p.decisions[i].go))
+	ch.append(v)
+	return ch
+
+
+func _extras(p: PlaySimulator.PlayResult) -> Array:
+	return p.decisions.filter(func(x: Dictionary) -> bool: return x.kind == "extra")
+
+
 func test_run_control_overrides_my_runner() -> void:
 	var asked := 0
 	var went_home := 0
@@ -2954,14 +3036,16 @@ func test_run_control_overrides_my_runner() -> void:
 			var ai := _controlled_play(ball, [-1, 1, -1], [])
 			check(ai.bases == plain.bases and ai.scorers == plain.scorers and ai.outs == plain.outs and ai.batter_outcome == plain.batter_outcome,
 				"조작 주자를 정해도 고르지 않으면 AI 와 같은 결과 (ev %d, 방향 %d)" % [ev, spray])
-			if ai.decisions.is_empty():
+			check(ai.decisions.all(func(x: Dictionary) -> bool: return x.go == x.ai), "안 고르면 모든 판단이 AI 대로")
+			if _extras(ai).is_empty():
 				continue
 			asked += 1
-			var d: Dictionary = ai.decisions[0]
-			check(d.id == 1 and d.kind == "extra" and d.go == d.ai, "판단 기록: 내 주자, AI 판단대로")
-			var go := _controlled_play(ball, [-1, 1, -1], [true])
-			var stop := _controlled_play(ball, [-1, 1, -1], [false])
-			check(go.decisions[0].go and not stop.decisions[0].go, "고른 대로 기록된다")
+			var d: Dictionary = _extras(ai)[0]
+			var k := ai.decisions.find(d)
+			check(d.id == 1 and d.go == d.ai, "판단 기록: 내 주자, AI 판단대로")
+			var go := _controlled_play(ball, [-1, 1, -1], _choices_until(ai, k, true))
+			var stop := _controlled_play(ball, [-1, 1, -1], _choices_until(ai, k, false))
+			check(go.decisions[k].go and not stop.decisions[k].go, "고른 대로 기록된다")
 			# 판단 전까지는 어떤 선택이든 똑같이 흘러간다
 			var n := int(float(d.t) / PlaySimulator.DT) - 1
 			var same := true
@@ -2978,38 +3062,38 @@ func test_run_control_overrides_my_runner() -> void:
 			# RunControl (보조): 베이스를 누르면 판단 시각에 거기까지 가도록 확정된다. 안 누르면 코치 사인대로
 			var resim := func(choices: Array) -> PlaySimulator.PlayResult: return _controlled_play(ball, [-1, 1, -1], choices)
 			var rc := RunControl.new(resim.call([]), resim)
-			check(rc.has_decisions() and rc.min_base() == int(d.from) and rc.coach_base() == (int(d.to) if d.ai else int(d.from)), "누를 수 있는 베이스와 코치 사인")
-			rc.set_target(int(d.from) - 1)
+			check(rc.has_choices() and rc.active() and rc.min_base() <= int(d.from) and rc.coach_base() == (int(d.to) if d.ai else int(d.from)), "누를 수 있는 베이스와 코치 사인")
+			rc.set_target(rc.min_base() - 1)
 			check(rc.target == -1, "이미 지난 베이스는 누를 수 없다")
 			rc.set_target(int(d.from) if d.ai else int(d.to))
 			check(not rc.advance(float(d.t) - 0.1), "판단 시각 전에는 그대로")
-			check(rc.advance(float(d.t)) and rc.play.decisions[0].go == (not d.ai), "코치와 다른 베이스를 누르면 플레이가 다시 계산된다")
+			check(rc.advance(float(d.t)) and rc.play.decisions[k].go == (not d.ai), "코치와 다른 베이스를 누르면 플레이가 다시 계산된다")
 			var rc2 := RunControl.new(resim.call([]), resim)
-			check(not rc2.advance(float(d.t)) and rc2.play.decisions[0].go == d.ai, "안 누르면 코치 사인대로 (다시 계산 없음)")
+			check(not rc2.advance(float(d.t)) and rc2.play.decisions[k].go == d.ai, "안 누르면 코치 사인대로 (다시 계산 없음)")
 			rc2.finish()
 			check(rc2.pending().is_empty() and rc2.min_base() == -1, "끝내면 남은 판단이 없다")
 			# 홈을 누르면 판단이 몇 번이든 끝까지 뛴다, 가장 가까운 베이스를 누르면 바로 멈춘다
 			var rc3 := RunControl.new(resim.call([]), resim)
 			rc3.set_target(4)
 			rc3.finish()
-			check(rc3.play.decisions.all(func(x: Dictionary) -> bool: return x.go), "홈을 누르면 모든 판단에서 뛴다")
+			check(_extras(rc3.play).all(func(x: Dictionary) -> bool: return x.go), "홈을 누르면 모든 판단에서 뛴다")
 			var rc4 := RunControl.new(resim.call([]), resim)
 			rc4.set_target(int(d.from))
 			rc4.finish()
-			check(rc4.play.decisions.size() == 1 and not rc4.play.decisions[0].go, "가장 가까운 베이스를 누르면 거기서 멈춘다")
+			check(_extras(rc4.play).size() == 1 and not _extras(rc4.play)[0].go, "가장 가까운 베이스를 누르면 거기서 멈춘다")
 			# 수동: 안 누르면 멈춘다 (처음 보여 줄 플레이부터), 코치 사인이 없다
 			var rm := RunControl.new(resim.call([]), resim, true)
-			check(not rm.play.decisions[0].go and rm.coach_base() == -1, "수동은 처음부터 멈추는 그림, 코치 사인 없음")
+			check(not _extras(rm.play)[0].go and rm.coach_base() == -1, "수동은 처음부터 멈추는 그림, 코치 사인 없음")
 			rm.finish()
-			check(rm.play.decisions.size() == 1 and not rm.play.decisions[0].go and rm.play.bases[int(d.from) - 1] == 1, "수동에서 안 누르면 %d루에 선다" % int(d.from))
+			check(_extras(rm.play).size() == 1 and not _extras(rm.play)[0].go and rm.play.bases[int(d.from) - 1] == 1, "수동에서 안 누르면 %d루에 선다" % int(d.from))
 			var rm2 := RunControl.new(resim.call([]), resim, true)
 			rm2.set_target(int(d.to))
 			rm2.finish()
-			check(rm2.play.decisions[0].go, "수동에서 누르면 뛴다")
+			check(_extras(rm2.play)[0].go, "수동에서 누르면 뛴다")
 	check(asked >= 5, "외야 안타에 내 주자의 판단이 나온다 (%d번)" % asked)
 	check(held > 0 and went_home > 0, "홈 승부 %d번 중 뛰어서 득점 %d번" % [held, went_home])
-	# 내야 땅볼·잡힌 공에는 묻지 않는다
-	check(_controlled_play(_sim(130, -8, -10), [-1, 1, -1], []).decisions.is_empty(), "내야 땅볼에는 판단이 없다")
+	# 루상 주자에게 내야 땅볼은 한 베이스 더 판단이 없다 (달리는 중 방향 바꾸기만)
+	check(_extras(_controlled_play(_sim(130, -8, -10), [-1, 1, -1], [])).is_empty(), "내야 땅볼에는 한 베이스 더 판단이 없다")
 
 
 func test_run_control_tag_up() -> void:
@@ -3028,6 +3112,260 @@ func test_run_control_tag_up() -> void:
 			var go := _controlled_play(ball, [-1, -1, 2], [true], 7, 2)
 			check((2 in go.scorers and go.sac_fly) or go.outs == 2, "뛰면 희생플라이거나 홈에서 아웃 (ev %d, 방향 %d)" % [ev, spray])
 	check(asked >= 5, "태그업 판단이 나온다 (%d번)" % asked)
+
+
+## 내 주자를 무조건 앞으로 보낸 플레이들 중 런다운이 난 것 [[타구, 베이스, 조작 주자, 플레이]]
+func _rundown_cases() -> Array:
+	var out: Array = []
+	for ev in range(115, 165, 10):
+		for la in [-5, 8, 14, 20]:
+			for spray in range(-40, 41, 10):
+				var ball := _sim(ev, la, spray)
+				if ball.home_run:
+					continue
+				for setup: Array in [[[-1, -1, -1], 4], [[-1, 1, -1], 1], [[1, -1, -1], 1]]:
+					var p := _controlled_play(ball, setup[0], [true], 7, setup[1])
+					if not p.rundowns.is_empty() and int(p.rundowns[0].runner) == int(setup[1]):
+						out.append([ball, setup[0], setup[1], p])
+	return out
+
+
+## 주자 순서가 지켜졌나: 살아 있는 주자는 원래 앞에 있던 주자를 넘지 않고, 한 베이스에 한 명
+func _order_kept(p: PlaySimulator.PlayResult) -> bool:
+	var alive := p.runners.filter(func(r: RunnerAI) -> bool: return r.state == RunnerAI.State.SAFE)
+	for x: RunnerAI in alive:
+		for y: RunnerAI in alive:
+			if x != y and x.origin < y.origin and x.base >= y.base:
+				return false
+	return true
+
+
+func test_run_control_no_passing() -> void:
+	# 내 주자(타자)가 무조건 홈까지 가려 해도 앞 주자를 넘지 않는다. 판단 기록에는 갈 수 있는 끝(limit)이 남는다
+	var limited := 0
+	for ev in range(120, 165, 8):
+		for spray in range(-40, 41, 8):
+			var ball := _sim(ev, 12, spray)
+			if ball.home_run or ball.caught:
+				continue
+			for bases: Array in [[1, -1, -1], [-1, 1, -1], [1, 2, -1]]:
+				var all_go := _controlled_play(ball, bases, [true, true, true, true], 7, 4)
+				check(_order_kept(all_go), "다 뛰어도 추월하지 않는다 (ev %d, 방향 %d, %s)" % [ev, spray, bases])
+				for d: Dictionary in all_go.decisions:
+					if d.kind == "extra":
+						check(int(d.limit) >= int(d.to), "limit 은 가려는 베이스 이상")
+				var ai := _controlled_play(ball, bases, [], 7, 4)
+				for d: Dictionary in ai.decisions:
+					if d.kind != "extra" or int(d.limit) >= 4:
+						continue
+					limited += 1
+					var resim := func(ch: Array) -> PlaySimulator.PlayResult: return _controlled_play(ball, bases, ch, 7, 4)
+					var rc := RunControl.new(resim.call([]), resim)
+					if rc.pending() != d:
+						continue
+					rc.set_target(int(d.limit) + 1)
+					check(rc.target == -1 and rc.max_base() == int(d.limit), "앞 주자 너머 베이스는 누를 수 없다")
+					rc.set_target(int(d.limit))
+					check(rc.target == int(d.limit), "앞 주자 바로 뒤 베이스는 누를 수 있다")
+	check(limited > 0, "앞 주자에 막힌 판단이 나온다 (%d번)" % limited)
+
+
+func test_run_control_batter_choices() -> void:
+	# 내가 친 타구: 내야 땅볼이어도 1루 앞에서 "멈춘다 / 2루로" 를 고른다. 외야 안타면 1루·2루·3루 어디서 멈출지 고른다
+	var infield := 0
+	var outfield := 0
+	for ev in range(100, 165, 8):
+		for la in [-8, 2, 12]:
+			for spray in range(-40, 41, 8):
+				var ball := _sim(ev, la, spray)
+				if ball.home_run or ball.caught:
+					continue
+				var ai := _controlled_play(ball, [-1, -1, -1], [], 7, 4)
+				var ex := _extras(ai)
+				if ex.is_empty():
+					continue
+				var d: Dictionary = ex[0]
+				check(int(d.from) == 1 and int(d.to) == 2, "첫 판단은 1루에서 멈출지 2루로 갈지")
+				var k := ai.decisions.find(d)
+				var me := func(p: PlaySimulator.PlayResult) -> RunnerAI: return p.runners[0]
+				var stop := _controlled_play(ball, [-1, -1, -1], _choices_until(ai, k, false), 7, 4)
+				var go := _controlled_play(ball, [-1, -1, -1], _choices_until(ai, k, true), 7, 4)
+				var r_stop: RunnerAI = me.call(stop)
+				var r_go: RunnerAI = me.call(go)
+				check(r_stop.state == RunnerAI.State.OUT or r_stop.base == 1, "멈추면 1루 (또는 1루에서 아웃)")
+				check(r_go.state == RunnerAI.State.OUT or r_go.base >= 2 or (not go.rundowns.is_empty() and go.rundowns[0].outcome == "back"), "가면 2루 이상 (또는 아웃, 런다운에서 1루로 귀루)")
+				if ball.fielder in _config.ball_physics.infield:
+					infield += 1
+					check(not d.ai, "내야 타구에 AI(코치)는 1루에서 멈춘다")
+				else:
+					outfield += 1
+	check(infield >= 3, "내야 안타에도 1루 앞 판단이 나온다 (%d번)" % infield)
+	check(outfield >= 5, "외야 안타에 판단이 나온다 (%d번)" % outfield)
+
+
+func test_run_control_change_mid_run() -> void:
+	# 달리는 중에도 판단(dir)이 자주 열린다: 지나온 베이스를 누르면 돌아서고, 다시 앞을 누르면 다시 간다. 추월은 여전히 없다
+	var retreated := 0
+	var checked := 0
+	for ev in range(130, 165, 6):
+		for spray in range(-40, 41, 10):
+			var ball := _sim(ev, 12, spray)
+			if ball.home_run or ball.caught or ball.fielder in _config.ball_physics.infield:
+				continue
+			for bases: Array in [[-1, -1, -1], [1, -1, -1]]:
+				var resim := func(ch: Array) -> PlaySimulator.PlayResult: return _controlled_play(ball, bases, ch, 7, 4)
+				var rc := RunControl.new(resim.call([]), resim)
+				# 2루를 눌러 두고, 1루를 밟은 뒤 달리는 중에 1루를 다시 누른다
+				rc.set_target(2)
+				var t := 0.0
+				var pressed := false
+				while t < 15.0:
+					t += 0.05
+					rc.advance(t)
+					check(rc.active() or rc.pending().is_empty(), "고를 게 남았으면 버튼이 떠 있다")
+					var d := rc.pending()
+					if not pressed and not d.is_empty() and d.kind == "dir" and int(d.from) == 1 and float(d.show) <= t:
+						rc.set_target(1)
+						pressed = true
+				rc.finish()
+				var me: RunnerAI = rc.play.runners[0]
+				checked += 1
+				check(_order_kept(rc.play), "방향을 바꿔도 추월 없음")
+				if pressed:
+					retreated += 1
+					check(me.state == RunnerAI.State.OUT or me.base == 1, "달리다 1루를 누르면 1루로 돌아간다 (ev %d, 방향 %d)" % [ev, spray])
+					check(me.history.any(func(h: Array) -> bool: return h[1] == RunnerAI.State.RETURNING), "돌아서는 기록")
+				check(not rc.active(), "끝나면 버튼이 사라진다")
+	check(retreated >= 3, "달리는 중 돌아서기 (%d/%d)" % [retreated, checked])
+
+
+func test_runner_fatigue() -> void:
+	var phys := _config.ball_physics
+	var r := RunnerAI.new(1, 0, 50, phys)
+	var lap := 4.0 * phys.base_distance
+	r.run_dist = lap
+	check(is_equal_approx(r.speed_cap(), r.top_speed), "한 바퀴까지는 지치지 않는다")
+	r.run_dist = lap + 20.0
+	check(r.speed_cap() < r.top_speed * 0.95 and r.speed_cap() > r.top_speed * 0.8, "한 바퀴를 20m 넘기면 조금 느려진다 (%.2f → %.2f)" % [r.top_speed, r.speed_cap()])
+	r.run_dist = lap + 1000.0
+	check(is_equal_approx(r.speed_cap(), r.top_speed * float(phys.running["fatigueMinFactor"])), "아무리 달려도 최저 배율 아래로는 안 떨어진다")
+	# 달린 거리는 실제로 쌓인다: 3루타 타자는 세 베이스 거리 안팎
+	for spray in range(-40, 41, 5):
+		var p := _run_play(150, 14, spray, [-1, -1, -1], 0)
+		if p.batter_outcome == SwingJudge.Outcome.TRIPLE:
+			var b: RunnerAI = p.runners[0]
+			check(b.run_dist > 3.0 * phys.base_distance and b.run_dist < lap, "3루타 달린 거리 %.1fm" % b.run_dist)
+			break
+	# 런다운에서 왔다 갔다 하면 지쳐서 결국 끝난다: 무조건 방향을 계속 바꿔도 maxS 전에 끝나는 경우가 많다
+	var ended := 0
+	var all := 0
+	for c: Array in _rundown_cases():
+		var p: PlaySimulator.PlayResult = c[3]
+		var ch: Array = []
+		for i in 80:
+			ch.append(true if i == 0 else (i / 3) % 2 == 0)
+		var q := _controlled_play(c[0], c[1], ch, 7, c[2])
+		if q.rundowns.is_empty():
+			continue
+		all += 1
+		var rd: Dictionary = q.rundowns[0]
+		ended += 1 if float(rd.end) - float(rd.start) < float(phys.running["rundown"]["maxS"]) - 0.05 else 0
+	check(all > 0 and ended == all, "런다운이 maxS 안에 끝난다 (%d/%d)" % [ended, all])
+
+
+func test_rundown() -> void:
+	var cases := _rundown_cases()
+	check(cases.size() >= 10, "무리하게 뛰면 런다운이 난다 (%d번)" % cases.size())
+	var outs := 0
+	var safe := 0
+	for c: Array in cases:
+		var p: PlaySimulator.PlayResult = c[3]
+		var rd: Dictionary = p.rundowns[0]
+		var me: RunnerAI = p.runners.filter(func(r: RunnerAI) -> bool: return r.id == int(c[2]))[0]
+		check(int(rd.fwd) == int(rd.back) + 1 and float(rd.end) > float(rd.start), "두 베이스 사이, 끝난 시각이 뒤")
+		check(p.calls.any(func(x: Dictionary) -> bool: return x.text == "런다운!"), "런다운 알림")
+		match str(rd.outcome):
+			"out":
+				outs += 1
+				check(me.state == RunnerAI.State.OUT, "런다운 아웃이면 주자가 빠진다")
+			"back":
+				safe += 1
+				check(me.state == RunnerAI.State.SAFE and me.base == int(rd.back) and p.bases[int(rd.back) - 1] == me.id, "뒤 베이스로 살아 돌아간다")
+			"fwd":
+				safe += 1
+				check(me.state == RunnerAI.State.SCORED or (me.state == RunnerAI.State.SAFE and me.base == int(rd.fwd)), "앞 베이스로 산다")
+		# 기록이 맞물린다: 아웃 수 = 빠진 주자 수, 추월 없음
+		var gone := p.runners.filter(func(r: RunnerAI) -> bool: return r.state == RunnerAI.State.OUT).size()
+		check(gone == p.outs and _order_kept(p), "아웃 수·주자 순서가 맞다")
+		# 수비수·공 기록이 런다운 길이만큼 있다
+		for tr: PackedVector2Array in (rd.tracks as Dictionary).values():
+			check(tr.size() == (rd.ball as PackedVector3Array).size() and tr.size() >= 5, "수비수·공 궤적 기록 (%d, %d, %s)" % [tr.size(), (rd.ball as PackedVector3Array).size(), (rd.tracks as Dictionary).keys()])
+		# 같은 입력이면 같은 런다운
+		var again := _controlled_play(c[0], c[1], [true], 7, c[2])
+		check(again.rundowns[0].ball == rd.ball and again.rundowns[0].outcome == rd.outcome, "같은 입력 같은 런다운")
+		# 내 주자의 런다운은 느리게 보여 준다: 화면 시각 ↔ 플레이 시각이 서로 맞는다
+		check(p.slow.size() == 1 and float(p.slow[0][0]) == float(rd.start), "내 런다운은 느린 구간")
+		for x in [0.5, float(rd.start) + 0.3, float(rd.end) + 1.0]:
+			check(absf(p.play_time(p.wall_time(x)) - x) < 0.0001, "느린 구간 시각 변환이 맞물린다")
+		check(p.wall_time(float(rd.end)) > float(rd.end), "느린 구간만큼 화면이 길다")
+	var rate := float(outs) / maxi(outs + safe, 1)
+	print("    런다운 %d번: 아웃 %d · 세이프 %d (아웃 %.0f%%)" % [cases.size(), outs, safe, rate * 100.0])
+	check(rate >= 0.6 and rate <= 0.99, "런다운은 대부분 아웃이지만 살 때도 있다 (%.0f%%)" % (rate * 100.0))
+	check(safe > 0, "런다운에서 사는 경우가 있다")
+	# AI 끼리의 플레이는 무리하게 뛰지 않아 런다운이 드물다
+	var ai_rd := 0
+	for c: Array in cases:
+		ai_rd += _controlled_play(c[0], c[1], [], 7, c[2]).rundowns.size()
+	check(ai_rd < cases.size() / 2, "코치 사인대로 뛰면 런다운이 드물다 (%d/%d)" % [ai_rd, cases.size()])
+
+
+func test_run_control_rundown() -> void:
+	var tried := 0
+	for c: Array in _rundown_cases():
+		var p: PlaySimulator.PlayResult = c[3]
+		var rdecs := p.decisions.filter(func(d: Dictionary) -> bool: return d.kind == "rundown")
+		if rdecs.is_empty():
+			continue
+		var d: Dictionary = rdecs[0]
+		var k := p.decisions.find(d)
+		var rd: Dictionary = p.rundowns[0]
+		check(int(d.from) == int(rd.back) and int(d.to) == int(rd.fwd) and float(d.show) <= float(d.t) and float(d.since) == float(rd.start), "런다운 판단 기록")
+		# 판단 시각 전까지는 어느 쪽을 골라도 똑같다
+		var base_ch: Array = [true]
+		while base_ch.size() < k:
+			base_ch.append(bool(p.decisions[base_ch.size()].go))
+		var fwd_p := _controlled_play(c[0], c[1], base_ch + [true], 7, c[2])
+		var back_p := _controlled_play(c[0], c[1], base_ch + [false], 7, c[2])
+		var n := int(float(d.t) / PlaySimulator.DT) - 1
+		var same := true
+		for i in fwd_p.runners.size():
+			same = same and fwd_p.runners[i].track.slice(0, n) == back_p.runners[i].track.slice(0, n)
+		check(same, "런다운 판단 전 궤적은 선택과 무관")
+		# RunControl: 런다운이 벌어지기 전엔 버튼이 안 보이고, 벌어지면 갇힌 두 베이스만 누를 수 있다
+		var resim := func(ch: Array) -> PlaySimulator.PlayResult: return _controlled_play(c[0], c[1], ch, 7, c[2])
+		var rc := RunControl.new(resim.call([true]), resim)
+		rc.set_target(4)  # 런다운 전에 홈을 눌러 뒀다
+		rc.advance(float(d.since) - 0.05)
+		check(rc.pending().is_empty() or rc.pending().kind != "rundown", "런다운 판단은 벌어지기 전엔 숨는다")
+		rc.advance(float(d.show))
+		if rc.pending().get("kind", "") != "rundown":
+			continue
+		tried += 1
+		check(rc.in_rundown() and rc.min_base() == int(d.from) and rc.max_base() == int(d.to), "갇힌 두 베이스만")
+		check(not rc.target_counts(), "런다운 전에 누른 목표는 쓰지 않는다")
+		rc.set_target(int(d.to) + 1)
+		check(rc.target == 4 and not rc.target_counts(), "갇힌 베이스 밖은 누를 수 없다")
+		var want_fwd := not bool(d.ai)
+		rc.set_target(int(d.to) if want_fwd else int(d.from))
+		check(rc.target_counts() and rc.going() == (int(d.to) if want_fwd else int(d.from)), "누른 쪽으로 간다")
+		rc.advance(float(d.t))
+		check(bool(rc.play.decisions[k].go) == want_fwd, "코치와 반대로 누르면 그쪽으로 뛴다")
+		# 보조에서 안 누르면 AI(코치)대로 도망친다
+		var rc2 := RunControl.new(resim.call([true]), resim)
+		rc2.set_target(4)
+		rc2.finish()
+		check(bool(rc2.play.decisions[k].go) == bool(d.ai), "런다운 전 목표는 무시하고 코치 사인대로")
+	check(tried >= 3, "런다운 판단을 RunControl 로 고른다 (%d번)" % tried)
 
 
 func test_steal_judge() -> void:
@@ -3222,18 +3560,18 @@ func test_settings_running_mode() -> void:
 	var path := "user://test_settings.json"
 	DirAccess.remove_absolute(path)
 	var s := Settings.load_from(path)
-	check(s.running == RunControl.AUTO, "주루 설정의 기본은 자동")
+	check(s.running == RunControl.ASSIST, "주루 설정의 기본은 보조")
 	s.cycle_running()
-	check(s.running == RunControl.ASSIST, "자동 → 보조")
+	check(s.running == RunControl.MANUAL, "보조 → 수동")
 	s.save(path)
-	check(Settings.load_from(path).running == RunControl.ASSIST, "저장한 설정을 다시 읽는다")
+	check(Settings.load_from(path).running == RunControl.MANUAL, "저장한 설정을 다시 읽는다")
 	s.cycle_running()
 	s.cycle_running()
-	check(s.running == RunControl.AUTO, "보조 → 수동 → 자동")
+	check(s.running == RunControl.ASSIST, "수동 → 자동 → 보조")
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	f.store_string("{\"running\": \"엉뚱\"}")
 	f.close()
-	check(Settings.load_from(path).running == RunControl.AUTO, "모르는 값이면 기본으로")
+	check(Settings.load_from(path).running == RunControl.ASSIST, "모르는 값이면 기본으로")
 	DirAccess.remove_absolute(path)
 	# 자동이면 경기가 주루 조작을 넘기지 않는다
 	var g := GameRunner.new(_career_cfg(), _config, PlayerData.create("테스트", _career_cfg()),
@@ -3570,3 +3908,20 @@ func test_phone_content() -> void:
 			c.phone.reply(c, Phone.room_of(m), i)
 			for line: Dictionary in c.phone.lines(Phone.room_of(m)):
 				check(line.text != "" and not line.text.contains("{"), "%s 답장 %d: %s" % [m.id, i, line.text])
+
+
+func test_bgm_tracks() -> void:
+	# 곡 파일 3개가 있고 (scripts/make_bgm.py), 루프로 돌고, 크기 수치가 있다
+	var pres := Presentation.from_balance(BalanceLoader.load_balance())
+	var music := MusicPlayer.new()
+	music._ready()
+	for id in MusicPlayer.TRACKS:
+		check(music._streams.has(id), "곡 파일 %s" % id)
+		if not music._streams.has(id):
+			continue
+		var wav: AudioStreamWAV = music._streams[id]
+		check(wav.get_length() > 20.0, "%s 길이 %.1f초" % [id, wav.get_length()])
+		check(wav.loop_mode == AudioStreamWAV.LOOP_FORWARD, "%s 루프" % id)
+		var v: float = pres.bgm_volumes[id]
+		check(v > 0.0 and v <= 1.0, "%s 크기 %.2f" % [id, v])
+	music.free()

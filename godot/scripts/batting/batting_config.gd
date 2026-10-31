@@ -86,6 +86,13 @@ var chase_offset := Vector2.ZERO  # x = 최소, y = 최대
 var wild_offset := Vector2.ZERO
 var scatter_at_control0: float
 var mistake_radius: float
+## 실투 (pitchCalling.mistake): 카운트 배율("ahead" | "even" | "behind" -> 배율)·높게 몰리는 정도·남는 변화 비율·느려지는 시간·치는 쪽 보너스
+var mistake_count_factor: Dictionary = {}
+var mistake_high_shift: float
+var mistake_break_factor: float
+var mistake_slow_ms: float
+var mistake_window_factor: float
+var mistake_ev_bonus: float
 
 var aim_enabled: bool
 var aim_hit_window_factor: float
@@ -165,6 +172,13 @@ static func from_balance(balance: Dictionary) -> BattingConfig:
 	c.wild_offset = Vector2(num(s, "pitchCalling.wildOffsetMin"), num(s, "pitchCalling.wildOffsetMax"))
 	c.scatter_at_control0 = num(s, "pitchCalling.scatterAtControl0")
 	c.mistake_radius = num(s, "pitchCalling.mistakeRadius")
+	for key in ["ahead", "even", "behind"]:
+		c.mistake_count_factor[key] = num(s, "pitchCalling.mistake.countFactor." + key)
+	c.mistake_high_shift = num(s, "pitchCalling.mistake.highShift")
+	c.mistake_break_factor = num(s, "pitchCalling.mistake.breakFactor")
+	c.mistake_slow_ms = num(s, "pitchCalling.mistake.slowMs")
+	c.mistake_window_factor = num(s, "pitchCalling.mistake.windowFactor")
+	c.mistake_ev_bonus = num(s, "pitchCalling.mistake.evBonusKmh")
 	c.aim_enabled = _bool(s, "aim.enabled")
 	c.aim_hit_window_factor = num(s, "aim.hitWindowFactor")
 	c.aim_miss_window_factor = num(s, "aim.missWindowFactor")

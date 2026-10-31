@@ -21,3 +21,7 @@ const CATCHER_FEET := Vector2(32, 44)
 ## 포수 그림에서 헬멧 꼭대기 (발 자리 기준)
 const CATCHER_TOP := -40.0
 const MITT_SIZE := Vector2(13, 13)
+## 수비 화면 선수: 칸 크기·발 자리, 칸 순서 (팀마다 서기·달리기 둘, 우리 팀 먼저)
+const FIELDER_CELL := Vector2(5, 8)
+const FIELDER_FEET := Vector2(2, 7)
+const FIELDER_FRAMES := 3

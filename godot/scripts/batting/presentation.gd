@@ -24,6 +24,13 @@ var shake_weak_px: float
 var shake_home_run_px: float
 var confetti_ms: float
 var sfx_volume: float
+## 배경음악 크기 (곡 id -> 0~1, MusicPlayer.TRACKS) · 곡 바꿀 때 크로스페이드 시간
+var bgm_volumes := {}
+var bgm_fade_ms: float
+## 심판 콜 크기 (0~1, 효과음 크기에 곱한다): 그냥 보낸 스트라이크 · 루킹 삼진 · 헛스윙 삼진
+var umpire_strike_volume: float
+var umpire_strikeout_looking_volume: float
+var umpire_strikeout_swinging_volume: float
 ## 타이밍이 완벽할수록 타격음이 이만큼 높아진다 (재생 속도 비율)
 var crack_pitch_spread: float
 ## 정타 뒤 투구 화면에서 공이 튀어 나가는 시간 (그다음 중계 화면)
@@ -42,6 +49,8 @@ var batter_card_slide_ms: float
 var stride_land_at: float
 ## 공이 끝난 뒤 멈춰 있던 타자가(pitchIntervalMs 동안) 준비 자세로 돌아가는 시간
 var batter_recover_ms: float
+## 홈런 뒤 이만큼(ms) 지나면 탭으로 베이스 도는 장면을 건너뛸 수 있다
+var skip_after_ms: float
 var lobby_menu_slide_ms: float
 var lobby_menu_stagger_ms: float
 
@@ -67,6 +76,12 @@ static func from_balance(balance: Dictionary) -> Presentation:
 	p.shake_home_run_px = BattingConfig.num(s, "shakeHomeRunPx")
 	p.confetti_ms = BattingConfig.num(s, "confettiMs")
 	p.sfx_volume = BattingConfig.num(s, "sfxVolume")
+	for id in MusicPlayer.TRACKS:
+		p.bgm_volumes[id] = BattingConfig.num(s, "bgm." + id)
+	p.bgm_fade_ms = BattingConfig.num(s, "bgm.fadeMs")
+	p.umpire_strike_volume = BattingConfig.num(s, "umpireCall.strike")
+	p.umpire_strikeout_looking_volume = BattingConfig.num(s, "umpireCall.strikeoutLooking")
+	p.umpire_strikeout_swinging_volume = BattingConfig.num(s, "umpireCall.strikeoutSwinging")
 	p.crack_pitch_spread = BattingConfig.num(s, "crackPitchSpread")
 	p.launch_ms = BattingConfig.num(s, "launchMs")
 	p.broadcast_speed = BattingConfig.num(s, "broadcastSpeed")
@@ -78,4 +93,5 @@ static func from_balance(balance: Dictionary) -> Presentation:
 	p.lobby_menu_stagger_ms = BattingConfig.num(s, "lobby.menuStaggerMs")
 	p.stride_land_at = BattingConfig.num(s, "strideLandAt")
 	p.batter_recover_ms = BattingConfig.num(s, "batterRecoverMs")
+	p.skip_after_ms = BattingConfig.num(s, "skipAfterMs")
 	return p

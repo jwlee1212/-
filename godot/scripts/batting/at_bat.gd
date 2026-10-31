@@ -126,6 +126,8 @@ func swing(tap_ms: float) -> PitchOutcome:
 		else:
 			aim = Aim.MISS
 			aim_factor = _config.aim_miss_window_factor
+	if pitch.is_mistake:
+		bonus_kmh += _config.mistake_ev_bonus  # 실투는 제대로 맞으면 더 멀리 간다 (판정 폭은 swing_judge 에서 넓힌다)
 	var c := _judge.contact(pitch, skills, diff, _rng, aim_factor, bonus_kmh, swing_type)
 	var o: PitchOutcome
 	match c.quality:

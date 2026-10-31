@@ -10,10 +10,12 @@ const CAM_BACK := 28.0
 const CAM_HEIGHT := 34.0
 const LOOK_AT := 62.0
 ## 화면 맞춤: 홈플레이트와 가운데 담장이 놓일 세로 위치 (화면 높이 비율)
-const HOME_Y := 0.93
-const FENCE_Y := 0.2
+const HOME_Y := 0.97
+const FENCE_Y := 0.1
 ## 판정 말풍선이 떠 있는 시간, 아웃·득점한 주자가 사라지기까지 (초)
 const CALL_SHOW_S := 1.4
+## 좌우 담장 끝이 화면 가운데에서 가로 폭의 몇 배 거리에 오나 (0.5 = 딱 가장자리, 크면 경기장이 커지고 끝이 잘린다)
+const FIT_WIDTH := 0.62
 const RUNNER_FADE_S := 0.6
 
 
@@ -25,7 +27,7 @@ class Cam:
 	var cos_p: float
 	var sin_p: float
 
-	## 화면에 맞추기: 홈플레이트가 아래 HOME_Y, 가운데 담장 꼭대기가 위 FENCE_Y 에 오게, 좌우 담장 끝은 가로 폭 안에
+	## 화면에 맞추기: 홈플레이트가 아래 HOME_Y, 가운데 담장 꼭대기가 위 FENCE_Y 에 오게. 좌우 담장 끝(파울 폴)은 화면 밖으로 조금 나가도 된다(FIT_WIDTH)
 	func _init(r: Rect2, fence_center: float, fence_line: float, fence_h: float) -> void:
 		rect = r
 		var pitch := atan2(CAM_HEIGHT, LOOK_AT + CAM_BACK)
@@ -37,7 +39,7 @@ class Cam:
 		var fence := to_screen(Vector3(0, fence_center, fence_h))
 		var corner := to_screen(Vector3(BattedBallSim.polar(45, fence_line).x, BattedBallSim.polar(45, fence_line).y, 0))
 		var by_height := r.size.y * (HOME_Y - FENCE_Y) / maxf(home.y - fence.y, 0.0001)
-		var by_width := r.size.x * 0.49 / maxf(absf(corner.x), 0.0001)
+		var by_width := r.size.x * FIT_WIDTH / maxf(absf(corner.x), 0.0001)
 		focal = minf(by_height, by_width)
 		center = Vector2(r.get_center().x, r.position.y + r.size.y * HOME_Y - home.y * focal)
 
@@ -64,7 +66,8 @@ class Cam:
 static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: BattedBallSim.Result, t: float, bunt: bool,
 		us_fielding: bool = false, play: PlaySimulator.PlayResult = null, mark_id: int = -1) -> void:
 	var cam := Cam.new(rect, cfg.center_fence, cfg.line_fence, cfg.fence_height)
-	canvas.draw_rect(rect, Tokens.STANDS)
+	if not PixelArt.on():
+		canvas.draw_rect(rect, Tokens.STANDS)
 	_draw_field(canvas, cam, cfg)
 
 	var duration := r.duration()
@@ -76,32 +79,13 @@ static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: 
 	# 나머지는 공 쪽으로 조금씩 움직인다
 	var positions := BattedBallSim.fielder_positions(cfg, bunt)
 	var uniform := Tokens.UNIFORM_US if us_fielding else Tokens.UNIFORM_THEM
-	var bag := cfg.base_pos(1)
 	var cover := _cover_assignments(play)
+	var bag := cfg.base_pos(1)
 	for name: String in positions:
-		var at: Vector2 = positions[name]
-		if name == r.fielder:
-			var k := clampf((t - r.fielder_reaction) / maxf(r.fielder_arrive - r.fielder_reaction, 0.01), 0.0, 1.0)
-			at = r.fielder_from.lerp(r.fielder_to, k)
-			if play != null:
-				# 공을 쥐고 직접 베이스를 밟으러 간다
-				at = _carry_pos(cfg, play, t, at)
-			elif r.self_putout and t > r.receiver_reaction:
-				# 1루수가 직접 잡아 베이스로 뛴다
-				var k2 := clampf((t - r.receiver_reaction) / maxf(r.receiver_arrive - r.receiver_reaction, 0.01), 0.0, 1.0)
-				at = r.fielder_to.lerp(bag, k2)
-		elif name == r.receiver and r.is_first_base_play():
-			var k := clampf((t - r.receiver_reaction) / maxf(r.receiver_arrive - r.receiver_reaction, 0.01), 0.0, 1.0)
-			at = r.receiver_from.lerp(bag, k)
-		elif cover.has(name):
-			# 송구 받을 베이스(또는 중계 자리)로 들어간다 (판정에 쓴 시각 그대로: react 에 출발해 ready 에 도착)
-			var c: Dictionary = cover[name]
-			var k := clampf((t - float(c.react)) / maxf(float(c.ready) - float(c.react), 0.01), 0.0, 1.0)
-			at = at.lerp(c.to, k)
-		elif name != "C":
-			var drift := clampf((t - 0.5) / 2.0, 0.0, 1.0) * 3.0
-			at = at.move_toward(Vector2(ball.x, ball.y), drift)
-		_draw_person(canvas, cam, at, uniform)
+		var at := _fielder_at(name, positions, cfg, r, play, cover, t)
+		# 조금 전 자리와 비교해 움직이는 중인지 (도트 선수가 달리는 칸을 쓴다)
+		var vel := cam.ground(at) - cam.ground(_fielder_at(name, positions, cfg, r, play, cover, t - 0.06))
+		_draw_person(canvas, cam, at, uniform, vel, t)
 
 	# 주자: 플레이 기록이 있으면 모든 주자를 궤적대로, 없으면 타자 주자만 계산에 쓴 속도로
 	if play != null:
@@ -153,6 +137,42 @@ static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: 
 		canvas.draw_string(Tokens.FONT_REGULAR, Vector2(box.position.x, at.y + Tokens.FONT_CAPTION + Tokens.SPACE_XS), detail, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, Tokens.FONT_CAPTION, Tokens.INK_SOFT)
 
 
+## 수비수 한 명의 자리 (t 초): 잡으러 가는 한 명은 반응 시간 뒤 목표로 달려가고, 1루에서 받는 사람은 베이스로 간다.
+## 나머지는 공 쪽으로 조금씩 움직인다
+static func _fielder_at(name: String, positions: Dictionary, cfg: BattedBallSim.Config, r: BattedBallSim.Result, play: PlaySimulator.PlayResult, cover: Dictionary, t: float) -> Vector2:
+	# 런다운에 들어간 수비수는 그 기록대로 (끝난 뒤에는 마지막 자리)
+	if play != null:
+		for rd: Dictionary in play.rundowns:
+			var tr: PackedVector2Array = (rd.tracks as Dictionary).get(name, PackedVector2Array())
+			if not tr.is_empty() and t >= float(rd.t0):
+				return tr[clampi(int((t - float(rd.t0)) / BattedBallSim.DT), 0, tr.size() - 1)]
+	var at: Vector2 = positions[name]
+	var bag := cfg.base_pos(1)
+	if name == r.fielder:
+		var k := clampf((t - r.fielder_reaction) / maxf(r.fielder_arrive - r.fielder_reaction, 0.01), 0.0, 1.0)
+		at = r.fielder_from.lerp(r.fielder_to, k)
+		if play != null:
+			# 공을 쥐고 직접 베이스를 밟으러 간다
+			at = _carry_pos(cfg, play, t, at)
+		elif r.self_putout and t > r.receiver_reaction:
+			# 1루수가 직접 잡아 베이스로 뛴다
+			var k2 := clampf((t - r.receiver_reaction) / maxf(r.receiver_arrive - r.receiver_reaction, 0.01), 0.0, 1.0)
+			at = r.fielder_to.lerp(bag, k2)
+	elif name == r.receiver and r.is_first_base_play():
+		var k := clampf((t - r.receiver_reaction) / maxf(r.receiver_arrive - r.receiver_reaction, 0.01), 0.0, 1.0)
+		at = r.receiver_from.lerp(bag, k)
+	elif cover.has(name):
+		# 송구 받을 베이스(또는 중계 자리)로 들어간다 (판정에 쓴 시각 그대로: react 에 출발해 ready 에 도착)
+		var c: Dictionary = cover[name]
+		var k := clampf((t - float(c.react)) / maxf(float(c.ready) - float(c.react), 0.01), 0.0, 1.0)
+		at = at.lerp(c.to, k)
+	elif name != "C":
+		var ball := r.path[clampi(int(clampf(t, 0.0, r.duration()) / BattedBallSim.DT), 0, r.path.size() - 1)]
+		var drift := clampf((t - 0.5) / 2.0, 0.0, 1.0) * 3.0
+		at = at.move_toward(Vector2(ball.x, ball.y), drift)
+	return at
+
+
 ## 판정 말풍선: 판정 시각부터 CALL_SHOW_S 동안 그 베이스 위에
 static func _draw_calls(canvas: CanvasItem, cam: Cam, cfg: BattedBallSim.Config, play: PlaySimulator.PlayResult, t: float) -> void:
 	for c: Dictionary in play.calls:
@@ -160,7 +180,7 @@ static func _draw_calls(canvas: CanvasItem, cam: Cam, cfg: BattedBallSim.Config,
 		if since < 0.0 or since > CALL_SHOW_S:
 			continue
 		var b: int = c.base
-		var p := Vector2.ZERO if b <= 0 or b >= 4 else cfg.base_pos(b)
+		var p: Vector2 = c.get("at", Vector2.ZERO if b <= 0 or b >= 4 else cfg.base_pos(b))
 		var text: String = c.text
 		var at := cam.ground(p) + Vector2(0, -cam.scale_at(Vector3(p.x, p.y, 0)) * 6.0)
 		var font := Tokens.FONT_BOLD
@@ -171,7 +191,8 @@ static func _draw_calls(canvas: CanvasItem, cam: Cam, cfg: BattedBallSim.Config,
 		pill.anti_aliasing = true
 		var box := Rect2(at - Vector2(w / 2.0 + Tokens.SPACE_SM, Tokens.FONT_LABEL + Tokens.SPACE_XS), Vector2(w + Tokens.SPACE_SM * 2, Tokens.FONT_LABEL + Tokens.SPACE_SM * 2))
 		canvas.draw_style_box(pill, box)
-		canvas.draw_string(font, Vector2(box.position.x, at.y), text, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, Tokens.FONT_LABEL, Tokens.BAD if c.out else Tokens.GOOD)
+		var color := Tokens.WARN if c.get("warn", false) else (Tokens.BAD if c.out else Tokens.GOOD)
+		canvas.draw_string(font, Vector2(box.position.x, at.y), text, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, Tokens.FONT_LABEL, color)
 
 
 ## 플레이의 모든 주자: 궤적(track)을 그 시각 그대로. 아웃·득점한 주자는 잠깐 뒤 사라진다
@@ -184,7 +205,8 @@ static func _draw_play_runners(canvas: CanvasItem, cam: Cam, play: PlaySimulator
 			var gone_t: float = runner.history[runner.history.size() - 1][0]
 			if t > gone_t + RUNNER_FADE_S:
 				continue
-		_draw_person(canvas, cam, runner.track[idx], uniform)
+		var prev: Vector2 = runner.track[maxi(idx - 2, 0)]
+		_draw_person(canvas, cam, runner.track[idx], uniform, cam.ground(runner.track[idx]) - cam.ground(prev), t)
 		if runner.id == mark_id:
 			draw_marker(canvas, cam, runner.track[idx])
 
@@ -215,6 +237,17 @@ static func _play_ball(cfg: BattedBallSim.Config, r: BattedBallSim.Result, play:
 			continue
 		at = Vector3(from.x, from.y, 1.5).lerp(Vector3(to.x, to.y, 1.3), k)
 		at.z += sin(k * PI) * minf(3.0, from.distance_to(to) * 0.08)
+	# 런다운 중이면 공은 그 기록대로, 끝난 뒤 다음 송구 전까지는 마지막 자리
+	for rd: Dictionary in play.rundowns:
+		var bt: PackedVector3Array = rd.ball
+		if bt.is_empty() or t < float(rd.t0):
+			continue
+		var thrown_after := false
+		for th: Dictionary in play.throws:
+			if float(th.release) > float(rd.end) and t >= float(th.release):
+				thrown_after = true
+		if not thrown_after:
+			at = bt[clampi(int((t - float(rd.t0)) / BattedBallSim.DT), 0, bt.size() - 1)]
 	return at
 
 
@@ -241,6 +274,11 @@ static func _cover_assignments(play: PlaySimulator.PlayResult) -> Dictionary:
 		if c.is_empty() or out.has(c.name):
 			continue
 		out[c.name] = c
+	# 런다운의 뒤 베이스를 맡으러 들어간 수비수
+	for rd: Dictionary in play.rundowns:
+		var c: Dictionary = rd.partner_cover
+		if not c.is_empty() and not out.has(c.name):
+			out[c.name] = c
 	return out
 
 
@@ -253,8 +291,11 @@ static func _draw_ball(canvas: CanvasItem, cam: Cam, p: Vector3) -> void:
 	canvas.draw_circle(s, radius, Tokens.INK, false, 1.0, true)
 
 
-## 사람 (SD 느낌의 단순 도형: 그림자 + 몸통 + 머리)
-static func _draw_person(canvas: CanvasItem, cam: Cam, at: Vector2, uniform: Color) -> void:
+## 사람 (SD 느낌의 단순 도형: 그림자 + 몸통 + 머리). 도트면 PixelArt 선수 — vel(화면에서 움직이는 방향)이 있으면 달리는 칸
+static func _draw_person(canvas: CanvasItem, cam: Cam, at: Vector2, uniform: Color, vel: Vector2 = Vector2.ZERO, t: float = 0.0) -> void:
+	if PixelArt.on():
+		PixelArt.draw_fielder(canvas, cam, at, uniform == Tokens.UNIFORM_US, vel, t)
+		return
 	var base := Vector3(at.x, at.y, 0)
 	var px := cam.scale_at(base)
 	var feet := cam.ground(at)
@@ -297,10 +338,14 @@ static func _draw_runner(canvas: CanvasItem, cam: Cam, cfg: BattedBallSim.Config
 	var from := cfg.base_pos(leg) if leg > 0 else Vector2.ZERO
 	var to := cfg.base_pos(leg + 1) if leg < 3 else Vector2.ZERO
 	var at := from.lerp(to, (dist - leg * cfg.base_distance) / cfg.base_distance)
-	_draw_person(canvas, cam, at, Tokens.UNIFORM_US)
+	var running := t > r.runner_start and dist < limit
+	_draw_person(canvas, cam, at, Tokens.UNIFORM_US, (cam.ground(to) - cam.ground(from)).normalized() if running else Vector2.ZERO, t)
 
 
 static func _draw_field(canvas: CanvasItem, cam: Cam, cfg: BattedBallSim.Config) -> void:
+	if PixelArt.on():
+		PixelArt.draw_broadcast_field(canvas, cam, cfg)
+		return
 	# 파울 지역 (넓게) → 페어 지역 잔디 → 담장 → 내야 흙 → 베이스
 	var foul := PackedVector2Array()
 	for deg in range(-60, 61, 5):

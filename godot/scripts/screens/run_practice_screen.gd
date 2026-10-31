@@ -167,7 +167,7 @@ func _start_play(tag: bool) -> void:
 			r.seed = play_seed
 			return PlaySimulator.new(phys, ball, BATTER, bases, speed_of, outs, r, ME, choices).run()
 		var control := RunControl.new(resim.call([]), resim, _manual)
-		if not control.has_decisions():
+		if not control.has_choices():
 			continue
 		_control = control
 		var caption := "★ 주루 연습 · %s %d루 주자" % ["%d사" % outs if outs > 0 else "무사", from]

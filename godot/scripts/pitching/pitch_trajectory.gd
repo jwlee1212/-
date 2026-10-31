@@ -54,6 +54,13 @@ static func make(spec: PitchCatalog.Spec, p_aim: Vector2, p_flight_ms: float, ha
 	return t
 
 
+## 실투(행잉): 변화·불룩함·튀어 오름을 factor 배로 줄인다. 도착점은 그대로 — 덜 꺾인 채 한가운데로 들어온다
+func hang(factor: float) -> void:
+	break_vec *= factor
+	arc_vec *= factor
+	pop *= factor
+
+
 ## 투구 위치에 따른 변화폭 배율: 휘는 방향(존 좌표)으로 던진 만큼 커지고 반대로 던진 만큼 작아진다
 static func location_factor(zone_break_vec: Vector2, p_aim: Vector2, effect: float, location_range: Vector2) -> float:
 	if zone_break_vec == Vector2.ZERO:

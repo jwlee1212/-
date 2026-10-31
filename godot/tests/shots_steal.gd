@@ -1,5 +1,5 @@
 extends Node
-## 내 주루 확인용: 도루 화면(세트 → 견제 → 투구 → 달리는 중 → 판정)과 주루 판단 버튼을 찍는다 → godot/build/shots/steal-*.png, runctl-*.png
+## 내 주루 확인용: 도루 화면(세트 → 견제 → 투구 → 달리는 중 → 판정)과 주루 판단 버튼, 런다운을 찍는다 → godot/build/shots/steal-*.png, runctl-*.png, rundown-*.png
 ##   ~/Applications/Godot.app/Contents/MacOS/Godot --path godot res://tests/shots_steal.tscn
 
 
@@ -60,7 +60,7 @@ func _ready() -> void:
 			rng.seed = 7
 			return PlaySimulator.new(phys, ball, 5, [-1, 4, -1], func(_i: int) -> int: return 50, 0, rng, 4, choices).run()
 		var control := RunControl.new(resim.call([]), resim)
-		if not control.has_decisions():
+		if not control.has_choices():
 			continue
 		var d: Dictionary = control.play.decisions[0]
 		for shot: Array in [["1-prompt", float(d.t) - 0.5, -1], ["2-picked", float(d.t) - 0.2, 1]]:
@@ -73,6 +73,43 @@ func _ready() -> void:
 				h.control.set_target(int(d.from) if d.ai else int(d.to))
 			h._start_ms = Time.get_ticks_usec() / 1000.0 - float(shot[1]) / 1.5 * 1000.0
 			await _shot("runctl-%s" % shot[0])
+			h.queue_free()
+			await get_tree().process_frame
+		break
+
+	# 런다운: 2루 주자(나)가 무리하게 홈까지 가다가 3루-홈 사이에 갇힌다 (홈을 눌러 둔 채, 런다운은 코치 사인대로)
+	for k in 200:
+		var bases: Array = [[-1, 4, -1], [4, -1, -1]][k % 2]
+		var ball := BattedBallSim.simulate(phys, 120 + (k / 2) % 5 * 10, [8, 14, 20][(k / 10) % 3], -40 + (k / 30) * 12, 50)
+		if ball.home_run:
+			continue
+		var resim := func(choices: Array) -> PlaySimulator.PlayResult:
+			var rng := RandomNumberGenerator.new()
+			rng.seed = 7
+			return PlaySimulator.new(phys, ball, 5, bases, func(_i: int) -> int: return 50, 0, rng, 4, choices).run()
+		var probe := RunControl.new(resim.call([]), resim)
+		probe.set_target(4)
+		probe.finish()
+		if probe.play.rundowns.is_empty():
+			continue
+		var rd: Dictionary = probe.play.rundowns[0]
+		var mid := float(rd.start) + (float(rd.end) - float(rd.start)) * 0.55
+		for shot: Array in [["1-start", float(rd.start) + 0.15], ["2-chase", mid], ["3-call", float(rd.end) + 0.3]]:
+			var control := RunControl.new(resim.call([]), resim)
+			control.set_target(4)
+			# 화면처럼 시간을 조금씩 흘려 판단을 확정해 둔다 (한 번에 건너뛰면 느린 구간을 모른다)
+			var x := 0.0
+			while x < float(shot[1]):
+				control.advance(x)
+				x += 0.05
+			var h := HighlightView.new(phys, control.play, "★ 내 주루 · 타자 박서준", 1.5, false)
+			h.control = control
+			h.mark_id = 4
+			add_child(UiKit.fill_parent(h))
+			await get_tree().process_frame
+			var at: float = shot[1]
+			h._start_ms = Time.get_ticks_usec() / 1000.0 - probe.play.wall_time(at) / 1.5 * 1000.0
+			await _shot("rundown-%s" % shot[0])
 			h.queue_free()
 			await get_tree().process_frame
 		break

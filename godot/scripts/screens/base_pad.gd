@@ -1,8 +1,10 @@
 class_name BasePad
 extends Control
-## 베이스 버튼: 내 주자가 판단할 일이 있는 플레이 동안 화면 오른쪽 아래에 다이아몬드 모양으로 1루·2루·3루·홈 버튼이 뜬다.
-## 누른 베이스까지 내 주자가 뛴다 (그 베이스에서 멈춘다). 판단은 RunControl(로직)이 하고, 여기는 버튼만 보여 준다.
+## 베이스 버튼: 내 주자가 뛰는 동안 내내 화면 오른쪽 아래에 다이아몬드 모양으로 1루·2루·3루·홈 버튼이 뜬다.
+## 누른 베이스까지 내 주자가 뛴다 (그 베이스에서 멈춘다). 달리는 중에 바꿔 누르면 바로 그쪽으로 — 지나온 베이스를 누르면 돌아선다. 판단은 RunControl(로직)이 하고, 여기는 버튼만 보여 준다.
 ## 타석 화면(내가 친 타구)과 경기 화면의 주루 장면(내가 루상에 있을 때) 양쪽에서 쓴다.
+## 앞 주자가 막은 베이스 너머는 꺼진다 (추월 금지). 런다운에 갇히면 갇힌 두 베이스만 켜진다.
+## 키보드: 1·2·3 = 1·2·3루, 4·H = 홈 (맥에서 해 볼 때)
 
 ## 버튼 크기, 다이아몬드 한 변의 절반 (가운데에서 버튼 중심까지), 버튼 모서리 (px)
 const BUTTON := 58.0
@@ -78,22 +80,57 @@ func _pick(base: int) -> void:
 
 func _process(_delta: float) -> void:
 	var c: RunControl = control_of.call()
-	var d: Dictionary = c.pending() if c != null else {}
-	_set_shown(not d.is_empty())
-	if d.is_empty():
+	# 내 주자가 뛰는 동안 내내 떠 있다 (지금 고를 게 없으면 버튼만 꺼진다)
+	var on := c != null and c.active()
+	_set_shown(on)
+	if not on:
 		_shown = ""
 		return
-	var key := "%s:%s:%s:%s" % [d.kind, c.min_base(), c.target, c.coach_base()]
+	var d := c.pending()
+	if d.is_empty():
+		var idle := "idle:%s" % c.target
+		if _shown != idle:
+			_shown = idle
+			_title.text = "★ 내 주루"
+			for base: int in _buttons:
+				_style(_buttons[base], false, base == c.target, false)
+		return
+	var key := "%s:%s:%s:%s:%s:%s" % [d.kind, c.min_base(), c.max_base(), c.target, c.target_counts(), c.coach_base()]
 	if key == _shown:
 		return
 	_shown = key
 	var coach := c.coach_base()
-	var sign := "" if coach < 0 else " · 코치: %s" % (base_name(coach) + ("까지" if coach > c.min_base() else "에서 멈춰"))
-	_title.text = ("★ 태그업 — 베이스를 누르세요" if d.kind == "tag" else "★ 달릴 베이스를 누르세요") + sign
+	var rundown := str(d.kind) == "rundown"
+	var sign := ""
+	if coach >= 0:
+		if rundown:
+			sign = " · 코치: %s로" % base_name(coach)
+		else:
+			sign = " · 코치: %s" % (base_name(coach) + ("까지" if coach > c.min_base() else "에서 멈춰"))
+	var lead := ""
+	if not rundown and c.max_base() < 4:
+		lead = " · 앞 주자 때문에 %s까지" % base_name(c.max_base())
+	if rundown:
+		_title.text = "★ 런다운! 도망칠 베이스를 누르세요" + sign
+	elif d.kind == "tag":
+		_title.text = "★ 태그업 — 베이스를 누르세요" + sign
+	else:
+		_title.text = "★ 달릴 베이스를 누르세요" + sign + lead
 	# 지금대로면 어디까지 가나: 누른 베이스, 안 눌렀으면 보조는 코치 사인·수동은 가장 가까운 베이스
-	var going := c.target if c.target >= 0 else (c.min_base() if coach < 0 else coach)
+	var going := c.going()
 	for base: int in _buttons:
-		_style(_buttons[base], base >= c.min_base(), base == going, c.target < 0)
+		_style(_buttons[base], base >= c.min_base() and base <= c.max_base(), base == going, not c.target_counts())
+
+
+## 키보드로도 누른다 (맥·웹에서 해 볼 때)
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not _pad.visible or not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	var keys := {KEY_1: 1, KEY_2: 2, KEY_3: 3, KEY_4: 4, KEY_H: 4}
+	var k: Key = (event as InputEventKey).keycode
+	if keys.has(k):
+		_pick(keys[k])
+		get_viewport().set_input_as_handled()
 
 
 ## 버튼 모양: 못 누르는 베이스는 흐리게, 지금 목표는 채워서 (아직 안 눌렀으면 = 코치 사인이면 테두리만 강조)

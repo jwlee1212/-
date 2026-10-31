@@ -42,8 +42,45 @@ class PlayResult:
 	var double_play := false
 	var rbi := 0
 	var duration := 0.0
-	## 유저가 조작하는 주자의 판단 순간들 [{t, id, kind: "extra"|"tag", from, to, ai: AI 라면 뛰었나, go: 실제로 뛰었나}]
+	## 유저가 조작하는 주자의 판단 순간들 [{t, id, kind: "extra"|"tag"|"rundown"|"dir", from, to, ai: AI 라면 뛰었나, go: 실제로 뛰었나,
+	## (dir = 베이스 사이를 달리는 중 앞/뒤, AI 값은 지금 방향 그대로)
+	## limit?: 앞 주자에 막혀 갈 수 있는 가장 먼 베이스, show?·since?: 런다운 판단이 생긴 시각·런다운 시작 시각}]
 	var decisions: Array = []
+	## 런다운 기록 (Rundown.to_record) — 화면이 수비수·공을 그대로 그린다
+	var rundowns: Array = []
+	## 느리게 보여 줄 구간 [[시작, 끝, 배속]] (플레이 시각, 시작 순) — 내 주자가 런다운에 갇혔을 때 판단할 틈
+	var slow: Array = []
+
+	## 화면 시각(느린 구간을 모르는 흐른 시간) → 플레이 시각
+	func play_time(w: float) -> float:
+		var t := 0.0
+		var wall := 0.0
+		for s: Array in slow:
+			if w <= wall + (float(s[0]) - t):
+				return t + (w - wall)
+			wall += float(s[0]) - t
+			t = float(s[0])
+			var span := (float(s[1]) - t) / float(s[2])
+			if w <= wall + span:
+				return t + (w - wall) * float(s[2])
+			wall += span
+			t = float(s[1])
+		return t + (w - wall)
+
+	## 플레이 시각 → 화면 시각 (play_time 의 반대)
+	func wall_time(p: float) -> float:
+		var t := 0.0
+		var wall := 0.0
+		for s: Array in slow:
+			if p <= float(s[0]):
+				break
+			wall += float(s[0]) - t
+			var e := minf(p, float(s[1]))
+			wall += (e - float(s[0])) / float(s[2])
+			t = e
+			if p <= float(s[1]):
+				return wall
+		return wall + (p - t)
 
 
 var result := PlayResult.new()
@@ -73,6 +110,8 @@ var _relay_men: Array = []  # 중계맨으로 나간 수비수 이름 (커버로
 var _decided := {}  # 주자별로 이미 판단한 베이스 (같은 베이스를 두 번 판단하지 않게)
 var _out_log: Array = []  # [[시각, 포스 아웃인가 또는 타자 1루 전 아웃인가]]
 var _score_log: Array = []  # [[시각, 주자]]
+var _rd: Rundown = null  # 진행 중인 런다운 (공은 그 안에 있다)
+var _poll := {}  # 조작 주자의 열려 있는 방향 판단 {t: 확정 시각, show, from, to}
 
 
 ## bases: 플레이 전 1·2·3루 주자 타순 번호(-1 빈 베이스), speed_of: 타순 번호 → 주력(0~100)
@@ -129,13 +168,19 @@ func run() -> PlayResult:
 					_on_cut(th)
 				else:
 					_on_throw_arrived(th)
+		# 런다운: 공은 그 안에 있다
+		if _rd != null:
+			_rd.step(DT, _t)
+			if _rd.done:
+				_end_rundown()
 		# 공을 받은 야수가 다시 판단: 더 가려는 주자를 잡을 수 있으면 던진다
-		if _secured and _pending.is_empty() and _t >= _ball_free_t:
+		if _secured and _pending.is_empty() and _t >= _ball_free_t and _rd == null:
 			_defense_followup()
 		# 주자
 		for r in result.runners:
 			r.step(DT, _t)
 			_check_runner(r)
+		_poll_controlled()
 		if _total_outs() >= 3 or (_all_settled() and _pending.is_empty() and _secured):
 			break
 	_finish()
@@ -173,12 +218,18 @@ func _on_throw_arrived(th: Dictionary) -> void:
 		if not r.is_on_field() or r.state == RunnerAI.State.SAFE:
 			continue
 		# 이미 그 베이스를 밟고 지나간 주자(1루 오버런 등)는 아웃이 아니다
-		var heading := (r.state == RunnerAI.State.RUN or r.state == RunnerAI.State.SLIDING) and r.target == b and r.base < b
+		# 그 베이스로 오는 주자, 또는 아직 밟지 않은 그 베이스를 지나 더 가려는 주자 (밟아야 하니 결국 거기서 태그된다)
+		var heading := (r.state == RunnerAI.State.RUN or r.state == RunnerAI.State.SLIDING) and r.target >= b and r.base < b
 		var returning := r.state == RunnerAI.State.RETURNING and r.base == b
+		# 여럿이면 베이스에 가장 가까운 주자가 태그된다
 		if (heading or returning) and not r.arrived():
-			victim = r
-			break
+			if victim == null or r.pos.distance_to(_base_xy(b)) < victim.pos.distance_to(_base_xy(b)):
+				victim = r
 	var name := "홈" if b == 4 or b == 0 else "%d루" % b
+	if victim != null and _total_outs() < 3 and _rundown_ok(victim, b, th):
+		# 송구가 한참 먼저 왔다: 베이스에서 태그되는 대신 두 베이스 사이에 갇힌다
+		_start_rundown(victim, b)
+		return
 	if victim != null and _total_outs() < 3:
 		victim.set_out(_t)
 		var force: bool = th.get("force", false) or (victim.is_batter() and b == 1)
@@ -240,19 +291,25 @@ func _defense_followup(delay: float = 0.0) -> bool:
 
 ## 매 간격: 주자가 목적지에 닿았는지, 한 베이스 더 갈지, 접전 슬라이딩
 func _check_runner(r: RunnerAI) -> void:
-	if not r.is_on_field() or r.state == RunnerAI.State.SAFE:
+	if not r.is_on_field() or r.state == RunnerAI.State.SAFE or r.state == RunnerAI.State.RUNDOWN:
 		return
 	r.touch_passed_bases()
 	if r.state == RunnerAI.State.RUN or r.state == RunnerAI.State.SLIDING:
 		# 한 베이스 더? (멈출 베이스 decisionDistanceM 앞에서 한 번 판단)
 		var key := "%d:%d" % [r.id, r.target]
-		if r.stop_at_end and r.target < 4 and r.remaining() < float(_run["decisionDistanceM"]) and not _decided.has(key):
+		# 내가 친 내야 타구도 1루 앞에서 판단한다 (1루를 지나쳐 달릴지 2루로 갈지) — AI 타자는 내야 타구엔 무조건 1루 오버런
+		var my_overrun := r.id == controlled_id and r.is_batter() and r.target == 1 and not r.stop_at_end
+		var to_stop := r.remaining() if r.stop_at_end else r.pos.distance_to(r.base_pos(r.target))
+		if (r.stop_at_end or my_overrun) and r.target < 4 and to_stop < float(_run["decisionDistanceM"]) and not _decided.has(key):
 			# 앞 주자가 아직 다음 베이스를 정하지 않았으면 (베이스 decisionLatestM 앞까지) 기다렸다가 판단한다
-			if not _blocked_by_undecided(r) or r.remaining() < float(_run["decisionLatestM"]):
+			if not _blocked_by_undecided(r) or to_stop < float(_run["decisionLatestM"]):
 				_decided[key] = true
 				var go := false
 				if _extra_allowed(r):
-					go = _decide(r, "extra", r.target + 1, _extra_in_time(r))
+					go = _decide(r, "extra", r.target + 1, _extra_in_time(r), {"limit": _reach_limit(r, r.target + 1)})
+				elif r.id == controlled_id and r.is_batter() and _may_try_extra(r):
+					# 내가 친 내야 타구: AI 라면 멈추지만(병살 위험·송구가 가깝다) 유저는 더 갈 수 있다
+					go = _decide(r, "extra", r.target + 1, false, {"limit": _reach_limit(r, r.target + 1)})
 				if go:
 					r.run_to(r.target + 1, _t)
 		# 접전이면 슬라이딩
@@ -282,14 +339,181 @@ func _blocked_by_undecided(r: RunnerAI) -> bool:
 	return false
 
 
-## 조작 주자의 판단이면 정해 둔 값(없으면 AI 판단)을 쓰고 기록한다. 다른 주자는 AI 판단 그대로
-func _decide(r: RunnerAI, kind: String, to_base: int, ai: bool) -> bool:
+## 조작 주자의 판단이면 정해 둔 값(없으면 AI 판단)을 쓰고 기록한다. 다른 주자는 AI 판단 그대로. extra: 기록에 더할 값
+func _decide(r: RunnerAI, kind: String, to_base: int, ai: bool, extra: Dictionary = {}) -> bool:
 	if r.id != controlled_id:
 		return ai
 	var k := result.decisions.size()
 	var go: bool = choices[k] if k < choices.size() else ai
-	result.decisions.append({"t": _t, "id": r.id, "kind": kind, "from": to_base - 1, "to": to_base, "ai": ai, "go": go})
+	var d := {"t": _t, "id": r.id, "kind": kind, "from": to_base - 1, "to": to_base, "ai": ai, "go": go}
+	d.merge(extra)
+	result.decisions.append(d)
 	return go
+
+
+## 앞 주자를 추월하지 않고 갈 수 있는 가장 먼 베이스 (next 부터 앞으로, 다른 주자가 서 있거나 가는 베이스 바로 뒤까지). 홈은 막히지 않는다
+func _reach_limit(r: RunnerAI, next: int) -> int:
+	var limit := next
+	while limit < 3:
+		if _taken(limit + 1, r):
+			return limit
+		limit += 1
+	return 4
+
+
+# ---------- 런다운 ----------
+
+## 베이스에 먼저 온 송구에 걸린 주자가 런다운이 되나: 포스 플레이가 아니고(포스면 베이스만 밟으면 아웃),
+## 한 베이스를 밟고 다음 베이스로 가던 중이며, 아직 triggerM 넘게 남았을 때 (가까우면 그냥 태그 아웃)
+func _rundown_ok(r: RunnerAI, b: int, th: Dictionary) -> bool:
+	if _rd != null or b < 2 or th.get("force", false):
+		return false
+	if r.state != RunnerAI.State.RUN and r.state != RunnerAI.State.SLIDING:
+		return false
+	if r.forced and r.target == r.origin + 1:
+		return false
+	if r.base != b - 1:
+		return false
+	return r.remaining() >= float(_run["rundown"]["triggerM"])
+
+
+## 런다운 시작: 앞 베이스에서 공을 받은 수비수와 뒤 베이스를 맡은 수비수가 주자를 사이에 둔다
+func _start_rundown(r: RunnerAI, b: int) -> void:
+	var a := b - 1
+	var holder_name: String = _assigned[b].name if _assigned.has(b) else _ball.fielder
+	var pc := _cover_info(a)
+	if pc.is_empty() or pc.name == holder_name:
+		var busy := _busy_names()
+		busy.append(holder_name)
+		pc = BattedBallSim.base_cover(_phys, _ball, a, busy)
+	var partner := {"name": pc.get("name", "P"), "pos": _base_xy(a)}
+	if pc.has("from"):
+		# 아직 들어오는 중이면 화면과 같은 식으로 지금 자리를 낸다 (런다운 전에는 커버 기록대로 그려진다)
+		var k := clampf((_t - float(pc.react)) / maxf(float(pc.ready) - float(pc.react), 0.01), 0.0, 1.0)
+		partner.pos = (pc.from as Vector2).lerp(pc.to, k)
+		partner.cover = pc
+	_assigned[a] = pc
+	var to_base := b
+	var decide := func(rr: RunnerAI, ai: bool, show: float, since: float) -> bool:
+		return _decide(rr, "rundown", to_base, ai, {"show": show, "since": since})
+	_rd = Rundown.new(r, a, b, _base_xy(a), _base_xy(b), {"name": holder_name, "pos": _base_xy(b)}, partner,
+		_t, _run["rundown"], _rng, decide, r.id == controlled_id)
+	_ball_free_t = INF
+	result.calls.append({"base": b, "t": _t, "out": false, "warn": true, "text": "런다운!", "at": r.pos})
+	# 수비가 런다운에 묶인 틈에 뒤 주자는 한 베이스 더 간다 (갇힌 주자가 돌아갈 베이스는 비워 둔다)
+	for o in result.runners:
+		if o != r and o.state == RunnerAI.State.SAFE and o.base >= 1 and o.base + 1 < a and not _taken(o.base + 1, o):
+			o.run_to(o.base + 1, _t)
+
+
+## 런다운이 끝났다: 아웃·세이프·득점을 반영하고, 공을 쥔 수비수가 다른 주자를 볼 수 있게 한다
+func _end_rundown() -> void:
+	var rd := _rd
+	_rd = null
+	var r := rd.runner
+	var mine := r.id == controlled_id
+	result.rundowns.append(rd.to_record(mine))
+	if mine:
+		result.slow.append([rd.start_t, rd.end_t, float(_run["rundown"]["slowMo"])])
+	match rd.outcome:
+		"out":
+			r.set_out(_t)
+			_add_out(false)
+			result.calls.append({"base": rd.back, "t": _t, "out": true, "text": "태그 아웃!", "at": r.pos})
+		"back":
+			r.target = rd.back
+			r.set_safe(_t)
+			result.calls.append({"base": rd.back, "t": _t, "out": false, "text": "%s 세이프!" % _base_name(rd.back)})
+			_reclaim_base(r, rd.back)
+		"fwd":
+			if rd.fwd >= 4:
+				r.set_scored(_t)
+				_score_log.append([_t, r.id])
+			else:
+				r.target = rd.fwd
+				r.set_safe(_t)
+			result.calls.append({"base": rd.fwd, "t": _t, "out": false, "text": "%s 세이프!" % _base_name(rd.fwd)})
+	_ball_at = rd.ball_pos()
+	_ball_thrower_infield = true
+	_ball_free_t = _t + float(_run["pivotS"])
+
+
+## 런다운에서 뒤 베이스로 살아 돌아왔는데 뒤 주자가 거기 와 있으면: 베이스는 앞 주자 것이다 (야구 규칙).
+## 서 있던 뒤 주자는 태그 아웃, 오는 중이던 뒤 주자는 자기 베이스로 돌아간다
+func _reclaim_base(r: RunnerAI, b: int) -> void:
+	for o in result.runners:
+		if o == r or not o.is_on_field():
+			continue
+		if o.state == RunnerAI.State.SAFE and o.base == b and _total_outs() < 3:
+			o.set_out(_t)
+			_add_out(false)
+			result.calls.append({"base": b, "t": _t, "out": true, "text": "태그 아웃!"})
+		elif (o.state == RunnerAI.State.RUN or o.state == RunnerAI.State.SLIDING) and o.target == b and o.base < b:
+			o.return_to_base(_t)
+
+
+static func _base_name(b: int) -> String:
+	return "홈" if b <= 0 or b >= 4 else "%d루" % b
+
+
+## 내가 친 내야 타구에서 한 베이스 더 시도할 수 있나: 잡힌 공이 아니고 앞이 비었으면 (추월 금지)
+func _may_try_extra(r: RunnerAI) -> bool:
+	var next := r.target + 1
+	return not _ball.caught and (next >= 4 or not _taken(next, r))
+
+
+# ---------- 내 주자의 방향 바꾸기 ----------
+
+## 조작 주자가 베이스 사이를 달리는 동안 pollS 마다 "앞으로 / 뒤로" 판단을 연다 (베이스 버튼을 주루 내내 바꿀 수 있게).
+## AI 값은 "지금 방향 그대로"라서 아무것도 누르지 않으면 AI 주루와 똑같다. 다르게 고르면 돌아서거나(귀루) 다시 앞으로 간다
+func _poll_controlled() -> void:
+	if controlled_id < 0:
+		return
+	var r: RunnerAI = null
+	for o in result.runners:
+		if o.id == controlled_id:
+			r = o
+	if r == null:
+		return
+	var ok := _dir_eligible(r)
+	if not _poll.is_empty():
+		if not ok or int(_poll.from) != r.base:
+			_poll = {}
+		elif _t >= float(_poll.t):
+			var ai := _heading_forward(r)
+			var to: int = _poll.to
+			var go := _decide(r, "dir", to, ai, {"show": _poll.show, "limit": _reach_limit(r, to)})
+			_poll = {}
+			if go and not ai:
+				# 돌아서서 다시 앞으로 (반응 시간 뒤 멈춘 자리에서 출발)
+				r.run_to(to, _t)
+				r.speed = 0.0
+				r.move_after = _t + float(_run["returnReactionS"])
+			elif ai and not go:
+				r.return_to_base(_t)
+			ok = _dir_eligible(r)
+	if _poll.is_empty() and ok:
+		_poll = {"t": _t + float(_run["pollS"]), "show": _t, "from": r.base, "to": r.base + 1}
+
+
+## 앞 베이스로 가는 중인가 (마지막으로 밟은 베이스보다 먼 곳을 향해 달린다)
+func _heading_forward(r: RunnerAI) -> bool:
+	return (r.state == RunnerAI.State.RUN or r.state == RunnerAI.State.SLIDING) and r.target > r.base
+
+
+## 방향을 바꿀 수 있는 때인가: 베이스 사이를 달리는 중이고(1루를 밟은 뒤), 앞·뒤 베이스가 다 비어 있고(추월 금지·한 베이스 한 명),
+## 밀려나는 주자가 아니고, 잡힌 뜬공이 아닐 때 (그땐 귀루·태그업 규칙을 따른다)
+func _dir_eligible(r: RunnerAI) -> bool:
+	if _ball.caught or not r.is_on_field() or r.base < 1 or r.base >= 4:
+		return false
+	if r.state != RunnerAI.State.RUN and r.state != RunnerAI.State.SLIDING and r.state != RunnerAI.State.RETURNING:
+		return false
+	if r.forced and r.base == r.origin and r.target == r.origin + 1:
+		return false
+	var to := r.base + 1
+	if (to < 4 and _taken(to, r)) or _taken(r.base, r):
+		return false
+	return true
 
 
 ## 한 베이스 더 가는 게 허용되나 (판단할 거리가 되는가): 앞이 막혔거나 내야에서 잡힌 공이면 안 된다
@@ -624,6 +848,11 @@ func _home_run() -> PlayResult:
 
 
 func _finish() -> void:
+	# 세 번째 아웃으로 끝나 런다운이 도중에 멈췄으면 거기까지 기록한다 (주자는 아래에서 정리)
+	if _rd != null:
+		_rd.end_t = _t
+		result.rundowns.append(_rd.to_record(false))
+		_rd = null
 	# 남은 주자 정리: 멈춰 있던 주자는 그 베이스에 산다
 	for r in result.runners:
 		if r.is_on_field() and r.state != RunnerAI.State.SAFE:

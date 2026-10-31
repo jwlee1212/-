@@ -122,8 +122,8 @@
       "location_min": 0.5,
       "location_max": 1.4
     },
-    "zoneBallRadius": 0.35,
-    "_zoneBallRadius": "홈플레이트를 지날 때 공 반지름 (존 반폭 단위, 실제 공 7.4cm ÷ 존 반폭 21.6cm ≈ 0.34). 공이 조금이라도 존에 걸치면 스트라이크 — 공 중심이 ±(1 + 이 값) 안. 화면에 그리는 공 크기도 이 값이라 보이는 대로 판정된다. 볼배합의 위치(pitchCalling 의 오프셋 등)는 '공 중심 ±1 = 스트라이크' 기준으로 적고, 던질 때 (1 + 이 값) 배로 넓힌다",
+    "zoneBallRadius": 0.31,
+    "_zoneBallRadius": "홈플레이트를 지날 때 공 반지름 (존 반폭 단위, 실제 공 반지름 3.7cm ÷ 존 반폭 21.6cm ≈ 0.17 — 2026-10-31 전에는 지름으로 계산해 0.35, 공이 두 배로 컸다. 실제(0.17)는 화면에서 너무 작아 약 1.8배인 0.31 로 쓴다). 공이 조금이라도 존에 걸치면 스트라이크 — 공 중심이 ±(1 + 이 값) 안. 화면에 그리는 공 크기도 이 값이라 보이는 대로 판정된다. 볼배합의 위치(pitchCalling 의 오프셋 등)는 '공 중심 ±1 = 스트라이크' 기준으로 적고, 던질 때 (1 + 이 값) 배로 넓힌다",
     "pitchers": {
       "_note": "투수 성향. speedMs 는 모든 구종 비행 시간에 더하는 값(음수 = 빠름). mix 는 볼배합 가중치에 곱하는 배율. control 0~1 이 높을수록 미트에 정확히, mistakeChance 는 한가운데 실투 확률. hand: 던지는 손 R | L (좌투수는 변화 방향이 좌우 반대). mix 가 0 인 구종은 안 던진다(레퍼토리)",
       "balanced": {
@@ -193,7 +193,7 @@
     "pitchCalling": {
       "_note": "볼카운트별 볼배합. ahead = 스트라이크 > 볼(투수 유리), behind = 볼 > 스트라이크. strikeRadius 는 스트라이크로 던질 때 노리는 범위(작을수록 한가운데). 볼 중 chaseShare 만큼은 존 바로 밖 유인구, 나머지는 크게 빠지는 공",
       "ahead": {
-        "strikeChance": 0.38,
+        "strikeChance": 0.42,
         "strikeRadius": 0.95,
         "chaseShare": 0.85,
         "mix": {
@@ -208,7 +208,7 @@
         }
       },
       "even": {
-        "strikeChance": 0.48,
+        "strikeChance": 0.52,
         "strikeRadius": 0.85,
         "chaseShare": 0.6,
         "mix": {
@@ -223,7 +223,7 @@
         }
       },
       "behind": {
-        "strikeChance": 0.62,
+        "strikeChance": 0.66,
         "strikeRadius": 0.6,
         "chaseShare": 0.3,
         "mix": {
@@ -243,7 +243,20 @@
       "wildOffsetMin": 1.3,
       "wildOffsetMax": 1.8,
       "scatterAtControl0": 0.6,
-      "mistakeRadius": 0.3
+      "mistakeRadius": 0.3,
+      "mistake": {
+        "_note": "실투: 투수 mistakeChance × 카운트 배율(countFactor) 확률로, 노린 곳과 상관없이 한가운데(mistakeRadius 안)에서 highShift 만큼 높게 몰린다. 변화는 breakFactor 배만 남고(행잉 — 커브·슬라이더가 덜 꺾이고 포크가 안 떨어진다) 비행 시간이 slowMs 늘어난다(힘 빠진 공). 실투를 치면 판정 폭 × windowFactor, 정타 타구 속도 + evBonusKmh. 불리한 카운트(behind)일수록 스트라이크를 넣으려다 몰린다",
+        "countFactor": {
+          "ahead": 0.6,
+          "even": 1.0,
+          "behind": 1.8
+        },
+        "highShift": 0.25,
+        "breakFactor": 0.35,
+        "slowMs": 20,
+        "windowFactor": 1.2,
+        "evBonusKmh": 6
+      }
     },
     "aim": {
       "_note": "노려치기: 투구 전 존 3×3 칸 하나를 탭. 그 칸에 오면 판정 폭 × hitWindowFactor·타구 속도 + hitEvBonusKmh, 다른 데로 오면 판정 폭 × missWindowFactor. catcherHint: 포수 미트(투수가 노린 곳·공이 향하는 곳) 표시 — 2026-10-31 유저 '볼·스트라이크 판독이 너무 쉽다'로 끔 (false)",
@@ -277,7 +290,7 @@
       "foulAngleDeg": 60
     },
     "presentation": {
-      "_note": "화면 연출·소리. 판정에는 영향 없음. crackPitchSpread: 타이밍이 완벽할수록 타격음이 이만큼 높고 맑아진다. 정타 뒤: 히트스톱 → launchMs 동안 투구 화면에서 공이 튀어 나감 → 타구 중계 화면(실제 시간 × broadcastSpeed 배속) → 플레이가 끝나고 afterPlayHoldMs 뒤 결과. selectMs: 투수가 세트 자세로 기다리며 유저가 스윙 종류를 고르는 시간 (스윙 버튼을 누르면 바로 던진다). batterCardMs: 타석 시작에 왼쪽 아래 타자 자막(오늘·시즌 기록)이 떠 있는 시간 — 첫 공을 던지면 더 일찍 들어간다, batterCardSlideMs: 자막이 미끄러져 나오고 들어가는 시간. strideLandAt: 타자가 앞발을 내디뎌 땅을 딛는 때 (공이 날아오는 시간 중 비율, 0~1) — 그 전에 로드 → 스트라이드, 그 뒤에는 발사 자세로 기다린다. 공이 끝나면 타자는 그 자세(휘둘렀으면 팔로스루 마무리, 안 휘둘렀으면 랜딩)로 pitchIntervalMs 동안 멈춰 있다가 batterRecoverMs 동안 준비 자세로 돌아간다. trailMs·trailDots: 날아오는 공 뒤 잔상 — 이만큼 지난 시간의 자리들을 점 trailDots 개로 흐리게 그린다 (휘는 길이 보이게, 0 이면 끔). movementScaleX·movementScaleY: 화면에서만 변화(break·arc)를 과장하는 배율 (판정·도착점 무관). 화면의 공은 투수 손에서 '지금 향하는 곳'(PitchTrajectory.pointing_at × 배율)으로 원근을 따라 날아오고, 향하는 곳은 손보다 위로 올라가지 않는다 (공이 화면에서 솟아 보이지 않게)",
+      "_note": "화면 연출·소리. 판정에는 영향 없음. crackPitchSpread: 타이밍이 완벽할수록 타격음이 이만큼 높고 맑아진다. 정타 뒤: 히트스톱 → launchMs 동안 투구 화면에서 공이 튀어 나감 → 타구 중계 화면(실제 시간 × broadcastSpeed 배속) → 플레이가 끝나고 afterPlayHoldMs 뒤 결과. selectMs: 투수가 세트 자세로 기다리며 유저가 스윙 종류를 고르는 시간 (스윙 버튼을 누르면 바로 던진다). batterCardMs: 타석 시작에 왼쪽 아래 타자 자막(오늘·시즌 기록)이 떠 있는 시간 — 첫 공을 던지면 더 일찍 들어간다, batterCardSlideMs: 자막이 미끄러져 나오고 들어가는 시간. strideLandAt: 타자가 앞발을 내디뎌 땅을 딛는 때 (공이 날아오는 시간 중 비율, 0~1) — 그 전에 로드 → 스트라이드, 그 뒤에는 발사 자세로 기다린다. 공이 끝나면 타자는 그 자세(휘둘렀으면 팔로스루 마무리, 안 휘둘렀으면 랜딩)로 pitchIntervalMs 동안 멈춰 있다가 batterRecoverMs 동안 준비 자세로 돌아간다. skipAfterMs: 홈런 뒤 이만큼 지나면 화면을 탭해 베이스 도는 장면을 건너뛸 수 있다 (친 탭이 그대로 건너뛰지 않게 조금 기다린다). trailMs·trailDots: 날아오는 공 뒤 잔상 — 이만큼 지난 시간의 자리들을 점 trailDots 개로 흐리게 그린다 (휘는 길이 보이게, 0 이면 끔). movementScaleX·movementScaleY: 화면에서만 변화(break·arc)를 과장하는 배율 (판정·도착점 무관). 화면의 공은 투수 손에서 '지금 향하는 곳'(PitchTrajectory.pointing_at × 배율)으로 원근을 따라 날아오고, 향하는 곳은 손보다 위로 올라가지 않는다 (공이 화면에서 솟아 보이지 않게)",
       "windupMs": 1250,
       "pitchIntervalMs": 900,
       "resultHoldMs": 1400,
@@ -293,6 +306,19 @@
       "shakeHomeRunPx": 34.9,
       "confettiMs": 1800,
       "sfxVolume": 0.9,
+      "umpireCall": {
+        "_note": "심판 콜 크기 0~1 (sfxVolume 에 곱한다). 소리 파일은 scripts/make_bgm.py call 로 코드 합성 (audio/sfx/call_*.wav). 볼·볼넷은 말없이 넘어간다",
+        "strike": 0.7,
+        "strikeoutLooking": 1.0,
+        "strikeoutSwinging": 0.5
+      },
+      "bgm": {
+        "_note": "배경음악 크기 0~1 (곡 파일은 scripts/make_bgm.py 로 만든다). game 은 음악 없이 경기장 소리(관중 웅성거림·떼창 응원가) — 타격음·미트 소리를 가리지 않게 작게. fadeMs: 화면이 바뀔 때 앞 곡이 줄고 새 곡이 커지는 시간",
+        "lobby": 0.6,
+        "home": 0.5,
+        "game": 0.4,
+        "fadeMs": 800
+      },
       "crackPitchSpread": 0.08,
       "launchMs": 280,
       "broadcastSpeed": 1.5,
@@ -302,6 +328,7 @@
       "batterCardSlideMs": 280,
       "strideLandAt": 0.45,
       "batterRecoverMs": 300,
+      "skipAfterMs": 700,
       "lobby": {
         "_note": "로비 화면 연출. menuSlideMs: 메뉴 판이 오른쪽에서 미끄러져 들어오는 시간, menuStaggerMs: 메뉴 줄이 하나씩 나타나는 간격",
         "menuSlideMs": 420,
@@ -768,7 +795,7 @@
     "autoStepMs": 650,
     "fastStepMs": 120,
     "running": {
-      "_note": "주루 (주자 FSM, game/running). 주자는 리드(leadOffM) 상태에서 시작해 가속(accelMps2)·최고 속도(topSpeedAt0/At100)로 달린다. 베이스를 돌아 계속 뛸 땐 바깥으로 둥글게(roundingBulgeM) 돌고 속도가 roundingSpeedFactor 배, 멈출 베이스 앞에선 decelMps2 로 줄이고, 송구와 closePlayS 안쪽 승부면 slideStartM 앞에서 슬라이딩. 뜬공이면 무사·1사에서 다음 베이스의 halfwayMaxShare 지점까지 가서 기다렸다가, 잡히면 귀루(반응 returnReactionS)·3루 주자는 태그업, 떨어지면 진루. 2사면 맞는 순간 무조건 질주. 땅볼 태그 플레이는 타구 방향과 주자 진행 방향의 내적이 groundHoldDot 보다 크면(정면) 멈춘다. 한 베이스 더 갈지는 '내가 거기 닿는 시간 + 판단 오차(judgmentErrorSdS) < 예상 송구 도착'으로 정한다. 홈런은 trotFactor 속도로 돈다. 예전 확률(…Chance)·시간 비교 값(leadStartS 등)은 타구 물리 결과가 없는 경우의 예비값. 루상 주자는 투구 때 2차 리드로 이미 움직이고 있어 secondaryLeadSpeedMps 속도에서 출발한다. 못 잡는 뜬공·라이너는 주자가 땅에 닿기 hitReadLeadS 초 전에 읽고 뛴다(최소 hitReadMinS). 병살 첫 송구(2루 토스)는 송구 준비 대신 feedTransferS(+멀리 뛰었을 때 벌점)로 빠르게, 2루에서 받아 1루로 다시 던지는 피벗은 pivotS. 공을 잡은 수비수가 송구보다 직접 뛰어가는 게 빠르면 selfGatherS(공을 쥐고 출발) 뒤 직접 베이스를 밟는다. 홈에서 infieldDepthM 안쪽 뜬공·라이너는 주자가 베이스로 돌아가 붙는다. 외야 라이너는 제자리 멈춤. 하프웨이 거리는 '잡히면 송구보다 halfwaySafetyS 초 먼저 돌아올 수 있는 만큼'(최대 halfwayMaxShare). 한 베이스 더 판단 여유 sendMarginByOutsS[아웃 수] (음수 = 2사엔 과감), 외야 송구 도착은 |N(0, outfieldThrowSdS)| 만큼 늦는다. 타자 주자는 batterExtraMarginS, 3루 도전은 thirdBaseExtraMarginS 만큼 더 신중. 라운딩은 베이스 roundingStartM 앞에서 벌리기 시작, 한 베이스 더 판단은 decisionDistanceM 앞(앞 주자 미정이면 decisionLatestM 까지 대기). 땅볼이 infieldDepthM 을 지나면 주자에게 '빠졌다'",
+      "_note": "주루 (주자 FSM, game/running). 주자는 리드(leadOffM) 상태에서 시작해 가속(accelMps2)·최고 속도(topSpeedAt0/At100)로 달린다. 베이스를 돌아 계속 뛸 땐 바깥으로 둥글게(roundingBulgeM) 돌고 속도가 roundingSpeedFactor 배, 멈출 베이스 앞에선 decelMps2 로 줄이고, 송구와 closePlayS 안쪽 승부면 slideStartM 앞에서 슬라이딩. 뜬공이면 무사·1사에서 다음 베이스의 halfwayMaxShare 지점까지 가서 기다렸다가, 잡히면 귀루(반응 returnReactionS)·3루 주자는 태그업, 떨어지면 진루. 2사면 맞는 순간 무조건 질주. 땅볼 태그 플레이는 타구 방향과 주자 진행 방향의 내적이 groundHoldDot 보다 크면(정면) 멈춘다. 한 베이스 더 갈지는 '내가 거기 닿는 시간 + 판단 오차(judgmentErrorSdS) < 예상 송구 도착'으로 정한다. 홈런은 trotFactor 속도로 돈다. 예전 확률(…Chance)·시간 비교 값(leadStartS 등)은 타구 물리 결과가 없는 경우의 예비값. 루상 주자는 투구 때 2차 리드로 이미 움직이고 있어 secondaryLeadSpeedMps 속도에서 출발한다. 못 잡는 뜬공·라이너는 주자가 땅에 닿기 hitReadLeadS 초 전에 읽고 뛴다(최소 hitReadMinS). 병살 첫 송구(2루 토스)는 송구 준비 대신 feedTransferS(+멀리 뛰었을 때 벌점)로 빠르게, 2루에서 받아 1루로 다시 던지는 피벗은 pivotS. 공을 잡은 수비수가 송구보다 직접 뛰어가는 게 빠르면 selfGatherS(공을 쥐고 출발) 뒤 직접 베이스를 밟는다. 홈에서 infieldDepthM 안쪽 뜬공·라이너는 주자가 베이스로 돌아가 붙는다. 외야 라이너는 제자리 멈춤. 하프웨이 거리는 '잡히면 송구보다 halfwaySafetyS 초 먼저 돌아올 수 있는 만큼'(최대 halfwayMaxShare). 한 베이스 더 판단 여유 sendMarginByOutsS[아웃 수] (음수 = 2사엔 과감), 외야 송구 도착은 |N(0, outfieldThrowSdS)| 만큼 늦는다. 타자 주자는 batterExtraMarginS, 3루 도전은 thirdBaseExtraMarginS 만큼 더 신중. 라운딩은 베이스 roundingStartM 앞에서 벌리기 시작, 한 베이스 더 판단은 decisionDistanceM 앞(앞 주자 미정이면 decisionLatestM 까지 대기). 땅볼이 infieldDepthM 을 지나면 주자에게 '빠졌다'. 한 플레이에서 한 바퀴(4 × 베이스 간 거리 ≈ 110m)를 넘게 달리면 넘은 1m 마다 최고 속도가 fatigueSlowPerM 씩 줄어든다(최저 fatigueMinFactor 배) — 런다운에서 왔다 갔다 하면 지친다. 내 주자는 베이스 사이를 달리는 동안 pollS 마다 방향(앞/뒤)을 바꿀 수 있다",
       "leadStartS": 0.55,
       "tagUpS": 0.25,
       "pivotS": 0.4,
@@ -814,7 +841,29 @@
       "thirdBaseExtraMarginS": 0.3,
       "roundingStartM": 6.0,
       "decisionDistanceM": 6.0,
-      "decisionLatestM": 1.5
+      "decisionLatestM": 1.5,
+      "fatigueSlowPerM": 0.006,
+      "fatigueMinFactor": 0.6,
+      "pollS": 0.25,
+      "rundown": {
+        "_note": "런다운(협살). 송구가 베이스에 먼저 닿았을 때 그리로 가던 주자(포스 아님)가 아직 triggerM 넘게 남았으면 바로 아웃 대신 두 베이스 사이에 갇힌다. 주자는 공 반대쪽 베이스로 도망치고, 방향을 바꿀 땐 reactS 뒤 reverseDecelMps2 로 멈췄다 다시 가속한다. 공을 쥔 수비수는 chaseMps(가속 fielderAccelMps2)로 달려들고, 주자가 반대편 수비수(베이스에서 readyM 안) throwAtM 안으로 몰리면 그에게 던진다(throwMps, 받기 catchS). 공 없는 수비수는 베이스에서 closeInM 까지 앞으로 나온다. tagReachM 안이면 태그 아웃. 송구마다 errorChance 로 공을 놓쳐 errorRecoverS 동안 태그 못 한다. maxS 가 넘으면 아웃. 내 주자의 런다운은 slowMo 배속으로 느리게 보여 주고, 내 주자는 pollS 마다 방향을 바꿀 수 있다(누른 베이스 쪽으로)",
+        "triggerM": 8.0,
+        "reactS": 0.3,
+        "reverseDecelMps2": 11.0,
+        "chaseMps": 7.0,
+        "fielderAccelMps2": 7.0,
+        "throwMps": 20.0,
+        "catchS": 0.1,
+        "throwAtM": 5.0,
+        "readyM": 3.0,
+        "closeInM": 2.0,
+        "tagReachM": 1.3,
+        "errorChance": 0.08,
+        "errorRecoverS": 1.4,
+        "maxS": 8.0,
+        "slowMo": 0.5,
+        "pollS": 0.25
+      }
     },
     "steal": {
       "_note": "도루 (내 주자만, 경기 화면에서만). 투수가 세트 자세로 setMinMs~setMaxMs 기다리다 던진다. 그 전에 feintChance 확률로 견제 동작(feintMs, 최대 maxFeints 번)을 섞는다. 투구 동작이 시작된 뒤 lateMs 안에 탭하면 스타트 — 반응이 빠를수록 유리. 투구 전에 탭하면 견제사, lateMs 를 넘기면 안 뛴다. 판정: 반응 + 달리는 시간(리드 leadOffM 뒤 정지 출발, 주력) < 투구(deliveryS) + 포수 송구(popSecondS/popThirdS) + 태그(running.tagS) + N(0, defenseSdS). 3루 도루는 리드가 extraLeadSecondM 더 길다. 수비 시간을 늘리면 도루가 쉬워진다. resultHoldMs: 판정 뒤 화면을 붙잡는 시간",

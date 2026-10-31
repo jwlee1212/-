@@ -116,6 +116,7 @@ func _draw() -> void:
 	else:
 		if PixelArt.on():
 			PixelArt.draw_field(self, size)
+			_draw_pixel_defense()
 			_draw_pitcher()
 			# 포수는 그리지 않는다: 카메라가 포수보다 뒤·위에 있어 화면 밖이다 (3D 야구 게임 타석 시점). 그림은 남겨 둔다
 		else:
@@ -142,6 +143,16 @@ func _draw_front() -> void:
 		canvas.draw_set_transform(_shake())
 		_draw_hit_launch(canvas)
 		canvas.draw_set_transform(Vector2.ZERO)
+	# 홈런 뒤 베이스 도는 장면: 탭하면 건너뛴다는 안내 (화면 아래 가운데)
+	if session.can_skip_play():
+		var text := "화면을 누르면 건너뛰기"
+		var w := Tokens.FONT_BOLD.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, Tokens.FONT_LABEL).x
+		var box := Rect2(Vector2(size.x * 0.5 - w * 0.5 - Tokens.SPACE_SM * 2, size.y - Tokens.FONT_LABEL - Tokens.SPACE_SM * 4), Vector2(w + Tokens.SPACE_SM * 4, Tokens.FONT_LABEL + Tokens.SPACE_SM * 2))
+		var pill := StyleBoxFlat.new()
+		pill.bg_color = Tokens.BROADCAST_BG
+		pill.set_corner_radius_all(Tokens.RADIUS_CARD)
+		canvas.draw_style_box(pill, box)
+		canvas.draw_string(Tokens.FONT_BOLD, Vector2(box.position.x, box.position.y + Tokens.SPACE_SM + Tokens.FONT_LABEL * 0.8), text, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, Tokens.FONT_LABEL, Tokens.CHALK)
 	# 정타 섬광: 화면 전체가 잠깐 하얗게
 	if since_impact < pres.flash_ms and imp.quality == SwingJudge.Quality.SOLID:
 		var strength := 0.55 if imp.home_run else 0.35
@@ -169,7 +180,7 @@ func _layout() -> void:
 	_zone_half = Vector2(size.x * ZONE_HALF_W, size.y * ZONE_HALF_H)
 	_release = Vector2(size.x * 0.5 - size.y * 0.012, size.y * (MOUND_Y - 0.095))
 	if PixelArt.on():
-		_release = PixelArt.snap(Vector2(size.x * 0.5, size.y * MOUND_Y), size) + PixelMeta.PITCHER_RELEASE * PixelArt.unit(size)
+		_release = PixelArt.snap(Vector2(size.x * 0.5, size.y * MOUND_Y), size) + PixelMeta.PITCHER_RELEASE * PixelArt.unit(size) * PixelArt.PITCHER_SCALE
 	elif PitcherPoses.available():
 		# 공은 공 놓는 그림의 손에서 출발한다
 		_release = Vector2(size.x * 0.5, size.y * MOUND_Y) + PitcherPoses.release_hand(session.presentation.windup_ms) * (size.y * PITCHER_HEIGHT / PitcherPoses.HEIGHT)
@@ -207,9 +218,14 @@ func _ball(p: Pitch, t_ms: float) -> Vector3:
 	return Vector3(pos.x, pos.y, s)
 
 
-## 공 반지름 (원근 배율 s). 홈플레이트에서는 판정과 같은 크기 (zoneBallRadius × 존 반폭) — 존에 걸쳐 보이면 스트라이크
+## 공 반지름 (원근 배율 s). 홈플레이트에서는 판정과 같은 크기 (zoneBallRadius × 존 반폭) — 존에 걸쳐 보이면 스트라이크.
+## 크기는 실제 원근처럼 남은 거리에 반비례: 멀 땐 작게 천천히 커지다가 타자 앞에서 확 커진다
+## (PERSPECTIVE 가 클수록 손을 떠날 때 작고 마지막에 더 급하게 커진다. 0 이면 처음부터 끝까지 같은 크기)
+const BALL_PERSPECTIVE := 4.0
+
 func _ball_radius(s: float) -> float:
-	return 2.0 + (_zone_half.x * session.config.zone_ball_radius - 2.0) * s
+	var t := (-0.25 + sqrt(0.0625 + 3.0 * clampf(s, 0.0, 1.0))) / 1.5  # _ball 의 s = 0.25t + 0.75t² 를 거꾸로 — 거리 진행률
+	return maxf(_zone_half.x * session.config.zone_ball_radius / (1.0 + BALL_PERSPECTIVE * (1.0 - t)), 1.5)
 
 
 # ---------- 경기장 ----------
@@ -309,7 +325,7 @@ func _draw_pitcher() -> void:
 				since_release = session.since(session.phase_since_ms) + (session.pitch.flight_ms if session.phase == BattingSession.Phase.HIT else 0.0)
 		var mound := Vector2(size.x * 0.5, size.y * MOUND_Y)
 		if PixelArt.on():
-			PixelArt.draw_cell(self, "pitcher", PixelArt.pitcher_cell(windup, since_release), PixelMeta.PITCHER_CELL, PixelMeta.PITCHER_FEET, mound, size)
+			PixelArt.draw_cell(self, "pitcher", PixelArt.pitcher_cell(windup, since_release), PixelMeta.PITCHER_CELL, PixelMeta.PITCHER_FEET, mound, size, PixelArt.PITCHER_SCALE)
 			return
 		_draw_ellipse(mound, Vector2(size.y * PITCHER_HEIGHT * 0.3, size.y * PITCHER_HEIGHT * 0.07), Tokens.SHADOW)
 		PitcherPoses.draw(self, windup, since_release, pres.windup_ms, mound + _shake(), size.y * PITCHER_HEIGHT, _shake())
@@ -474,6 +490,44 @@ func _draw_zone() -> void:
 		var r := Rect2(zone.position + Vector2(session.aim_cell % 3, session.aim_cell / 3) * cell_size, cell_size)
 		draw_rect(r, Color(Tokens.WARN, 0.3))
 		draw_rect(r, Tokens.WARN, false, 2.0)
+
+
+## 타석 화면의 야구장 원근 (도트 배경과 맞춘 값): 홈에서 투수 쪽으로 d m 인 점은 화면 높이 HORIZON_Y + FIELD_A / (d + FIELD_C),
+## 옆으로 x m 는 FIELD_F × x / (d + FIELD_C) px. 홈(0.95)·마운드(MOUND_Y)·지평선(HORIZON_Y)과 파울 라인이 배경 그림과 맞게 정했다
+const FIELD_A := 2.31
+const FIELD_C := 4.72
+const FIELD_F := 427.0
+
+
+## 야구장 좌표 (x 1루 쪽, y 투수 쪽, m) → 타석 화면
+func _field_to_screen(p: Vector2) -> Vector2:
+	var k := 1.0 / (p.y + FIELD_C)
+	return Vector2(size.x * 0.5 + FIELD_F * p.x * k, size.y * (HORIZON_Y + FIELD_A * k))
+
+
+## 투수 뒤의 수비수들과 누상의 주자 (도트). 먼 사람부터 그려 가까운 사람이 앞에 온다.
+## 크기는 원근대로 고르되 도트가 깨지지 않게 정수 배율(1~4배)로만
+func _draw_pixel_defense() -> void:
+	var cfg := session.config.ball_physics
+	var people := []  # [야구장 좌표, 우리 팀인가]
+	var positions := BattedBallSim.fielder_positions(cfg, false)
+	for name: String in positions:
+		if name != "P" and name != "C":
+			people.append([positions[name], false])
+	# 주자: 베이스에서 다음 베이스 쪽으로 3m 리드
+	var bases: Array = session.situation.get("bases", [-1, -1, -1])
+	for i in 3:
+		if int(bases[i]) >= 0:
+			var at := cfg.base_pos(i + 1)
+			var next := cfg.base_pos(i + 2) if i < 2 else Vector2.ZERO
+			people.append([at.move_toward(next, 3.0), true])
+	people.sort_custom(func(a: Array, b: Array) -> bool: return (a[0] as Vector2).y > (b[0] as Vector2).y)
+	for person: Array in people:
+		var p: Vector2 = person[0]
+		var feet := _field_to_screen(p)
+		# 사람 키 1.8m 의 화면 높이 → 그림 8칸에 맞는 정수 배율 (SD 라 1.3배 크게)
+		var tall := 1.3 * 1.8 * FIELD_F / (p.y + FIELD_C)
+		PixelArt.draw_fielder_screen(self, feet, person[1], clampf(round(tall / PixelMeta.FIELDER_CELL.y), 1.0, 4.0))
 
 
 ## 도트 시험판: 포수 뒷모습. 홈플레이트 뒤에 쪼그려 앉아 헬멧 꼭대기가 존 아래 아홉 칸에 온다 (어깨까지만 보인다) (아래는 화면 밖)

@@ -365,12 +365,16 @@ def draw_batter(k):
     l_hip, r_hip = at(t_l_hip), at(t_r_hip)
     sh_l, sh_r = at(t_l_sh), at(t_r_sh)
 
+    # 그립: 오른손 타자는 왼손이 아래(손잡이 끝 쪽), 오른손이 그 위(배트 몸통 쪽)에 붙는다
+    grip = along((0, 0), k["bat_ang"], 1.7)
+    low_hand = (k["hands"][0] - grip[0], k["hands"][1] - grip[1])
+    top_hand = (k["hands"][0] + grip[0], k["hands"][1] + grip[1])
+
     def bat():
-        c.part(bat_shape(k["hands"], k["bat_ang"], k["bat_len"]), "bat", "bat_s")
+        c.part(bat_shape(low_hand, k["bat_ang"], k["bat_len"] + 1.7), "bat", "bat_s")
 
     def left_arm():
-        c.part(capsule(sh_l, k["l_elbow"], 6), "us", "us_s")
-        c.part(capsule(k["l_elbow"], k["hands"], 5), "us", "us_s")
+        c.part([capsule(sh_l, k["l_elbow"], 6), capsule(k["l_elbow"], low_hand, 5)], "us", "us_s")
 
     if not k["bat_front"]:
         bat()
@@ -387,16 +391,18 @@ def draw_batter(k):
     stamp(c, torso, sh_mid, anchor)
     # 오른팔 (카메라 쪽 뒷팔): 반팔 소매 → 파란 언더셔츠
     elbow = k["r_elbow"]
-    c.part(capsule(sh_r, elbow, 7), "us", "us_s")
+    # 위팔과 아래팔을 한 덩어리로 그려 팔꿈치에 이음새 선이 생기지 않게 한다 (굵기만 위팔 6 → 아래팔 5 로 가늘어짐)
+    c.part([capsule(sh_r, elbow, 6), capsule(elbow, top_hand, 5)], "us", "us_s")
     c.part(capsule(sh_r, lerp(sh_r, elbow, 0.4), 8), "jersey", "jersey_s")
-    c.part(capsule(elbow, k["hands"], 6), "us", "us_s")
     if k["l_arm_front"]:
         left_arm()
     stamp(c, HELMETS[k.get("torso", "back")], k["head"], HELMET_ANCHOR)
     if k["bat_front"]:
         bat()
-    # 장갑 낀 두 손은 늘 맨 앞 (배트가 헬멧 뒤로 지나가도 손은 보인다)
-    c.part(circle(k["hands"], 3), "us", "us_s")
+    # 장갑 낀 두 손은 늘 맨 앞 (배트가 헬멧 뒤로 지나가도 손은 보인다): 왼손(아래) → 오른손(위, 앞에 겹침)
+    # 장갑은 흰색 — 파란 언더셔츠 팔과 같은 색이면 팔꿈치·팔뚝·손이 한 덩어리로 뭉쳐 손이 여러 개처럼 보인다
+    c.part(circle(low_hand, 2.2), "jersey", "jersey_s")
+    c.part(circle(top_hand, 2.2), "jersey", "jersey_s")
     return c
 
 
@@ -510,11 +516,14 @@ for name in ("stance", "breath", "load", "stride_up", "stride", "landing", "rota
     # 옆얼굴이 손에 가리지 않게 머리는 조금 왼쪽으로
     if name != "rotate1":
         B[name] = dict(B[name], head=add(B[name]["head"], (-2, 0)))
-# 준비~랜딩의 배트: 손은 뒤 어깨 위 귀 높이, 배트는 뒤(왼쪽 위)로 낮게 눕혀 헬멧 앞을 가로지른다(헬멧을 가린다).
+# 준비~랜딩의 배트: 손은 귀 높이, 배트는 뒤(왼쪽 위)로 낮게 눕혀 헬멧 아래쪽(챙 근처)을 가로지른다. 헬멧 위쪽을
+# 가로지르면 배트 위로 잘려 나간 헬멧 조각이 팔처럼 보여서, 둥근 위쪽(빛 포함)이 통째로 보이게 아래로 지나간다.
+# 뒷팔 팔꿈치는 어깨보다 조금 아래·바깥으로 내려 위팔(어깨→팔꿈치)과 아래팔(팔꿈치→손)이 V 자로 읽히게 한다.
+# 위팔 길이는 약 10칸, 아래팔 약 12칸 — SD 체형이라 몸통(18칸)보다 짧게.
 # 단계가 갈수록 조금씩 더 눕는다. [손, 팔꿈치, 배트 각도]
-for name, hands, elbow, ang in (("stance", (18, -58), (26, -51), -150.0), ("breath", (18, -57), (26, -50), -150.0),
-                                ("load", (19, -60), (27, -53), -154.0), ("stride_up", (19, -60), (27, -53), -155.0),
-                                ("stride", (19, -59), (27, -52), -156.0), ("landing", (19, -57), (27, -50), -160.0)):
+for name, hands, elbow, ang in (("stance", (18, -55), (15, -43), -162.0), ("breath", (18, -54), (15, -42), -162.0),
+                                ("load", (19, -57), (16, -45), -165.0), ("stride_up", (19, -57), (16, -45), -166.0),
+                                ("stride", (19, -56), (16, -44), -167.0), ("landing", (19, -54), (16, -42), -170.0)):
     B[name] = dict(B[name], hands=hands, r_elbow=elbow, bat_ang=ang, bat_len=46.0, bat_front=True)
 BATTER_KEYS = B
 
@@ -893,6 +902,62 @@ def make_field():
     return im
 
 
+# ---------- 수비 화면(중계)의 선수 ----------
+# 홈 뒤 높은 곳에서 내려다보는 화면이라 선수는 아주 작게, 얼굴 없이 모자·피부·유니폼·다리만 (5×8).
+# 원근으로 크기를 바꾸지 않는다(도트 게임식). 팀마다 색만 다르다(T 모자·소매).
+# 칸: 서기 · 달리기 둘 (팀마다 3칸, 우리 팀 먼저). 앵커 = 발 (2, 7)
+FIELDER_CELL = (5, 8, 2, 7)
+FIELDER_FRAMES = {
+    "stand": [
+        ".KKK.",
+        "KTTTK",
+        "KSSSK",
+        "KTWTK",
+        "KWWwK",
+        ".KWK.",
+        "KWKWK",
+        "KK.KK",
+    ],
+    "run_a": [
+        ".KKK.",
+        "KTTTK",
+        "KSSSK",
+        "KTWTK",
+        "KWWwK",
+        "KWKWK",
+        "KK.KK",
+        ".....",
+    ],
+    "run_b": [
+        ".KKK.",
+        "KTTTK",
+        "KSSSK",
+        "KTWTK",
+        "KWWwK",
+        ".KWK.",
+        ".KWK.",
+        ".KKK.",
+    ],
+}
+FIELDER_ORDER = ["stand", "run_a", "run_b"]
+
+
+def make_fielders():
+    w, h, ax, ay = FIELDER_CELL
+    teams = [("us", "us_s"), ("them", "them_s")]
+    im = Image.new("RGBA", (w * len(FIELDER_ORDER) * len(teams), h))
+    px = im.load()
+    for ti, (main, shade) in enumerate(teams):
+        colors = {"K": "ink", "T": main, "t": shade, "S": "skin", "W": "jersey", "w": "jersey_s"}
+        for fi, name in enumerate(FIELDER_ORDER):
+            ox = (ti * len(FIELDER_ORDER) + fi) * w
+            for y, row in enumerate(FIELDER_FRAMES[name]):
+                for x, ch in enumerate(row):
+                    if ch != ".":
+                        px[ox + x, y] = (*PAL[colors[ch]], 255)
+    return im
+
+
 # ---------- 내보내기 ----------
 
 def sheet(cells):
@@ -914,6 +979,7 @@ def main():
     sheet([draw_pitcher(k) for _, k, _ in PITCHER_FRAMES]).save(os.path.join(OUT, "pitcher.png"))
     draw_catcher().image().save(os.path.join(OUT, "catcher.png"))
     draw_mitt().image().save(os.path.join(OUT, "mitt.png"))
+    make_fielders().save(os.path.join(OUT, "fielders.png"))
 
     windup = [(t, i) for i, (_, _, t) in enumerate(PITCHER_FRAMES) if not isinstance(t, str)]
     after = [(float(t[1:]), i) for i, (_, _, t) in enumerate(PITCHER_FRAMES) if isinstance(t, str)]
@@ -942,6 +1008,10 @@ def main():
         "## 포수 그림에서 헬멧 꼭대기 (발 자리 기준)",
         "const CATCHER_TOP := -40.0",
         "const MITT_SIZE := Vector2(13, 13)",
+        "## 수비 화면 선수: 칸 크기·발 자리, 칸 순서 (팀마다 서기·달리기 둘, 우리 팀 먼저)",
+        "const FIELDER_CELL := Vector2(%d, %d)" % FIELDER_CELL[:2],
+        "const FIELDER_FEET := Vector2(%d, %d)" % FIELDER_CELL[2:],
+        "const FIELDER_FRAMES := %d" % len(FIELDER_ORDER),
         "",
     ]
     with open(META, "w") as f:

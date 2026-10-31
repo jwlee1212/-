@@ -97,6 +97,8 @@ var last_result: AtBat.Result
 var run_control: RunControl
 
 var callout: Callout
+## 이번 타구에 안타 함성을 냈나
+var _cheered := false
 var impact: Impact
 ## 마지막 스윙의 타이밍 차이 (ms, +면 늦음). 아직 없으면 NAN
 var last_timing_ms := NAN
@@ -178,14 +180,26 @@ func hit_play_end_ms() -> float:
 	if c == null or c.ball == null:
 		return presentation.hit_stop_ms + presentation.hit_flight_ms
 	# 주자 플레이가 있으면 모든 주자가 멈출 때까지, 없으면 공·송구가 끝날 때까지
-	var end := last_result.play.duration if last_result.play != null else c.ball.play_end()
+	# 느리게 보여 주는 구간(내 런다운)이 있으면 그만큼 화면이 길다
+	var end := last_result.play.wall_time(last_result.play.duration) if last_result.play != null else c.ball.play_end()
 	return presentation.hit_stop_ms + presentation.launch_ms + end * 1000.0 / presentation.broadcast_speed
+
+
+## 지금 탭으로 플레이 장면을 건너뛸 수 있는가: 홈런이고, 맞은 뒤 skipAfterMs 가 지났고(친 탭이 그대로 건너뛰지 않게), 아직 안 끝났다
+func can_skip_play() -> bool:
+	if phase != Phase.HIT or last_result == null or last_result.outcome != SwingJudge.Outcome.HOME_RUN:
+		return false
+	var e := since(phase_since_ms)
+	return e >= presentation.skip_after_ms and e < hit_play_end_ms()
 
 
 ## 중계 화면에서 지금 보여 줄 공의 시각 (초, 실제 시간). 아직 중계 전이면 음수
 func broadcast_time() -> float:
 	var e := since(phase_since_ms) - presentation.hit_stop_ms - presentation.launch_ms
-	return e * presentation.broadcast_speed / 1000.0
+	var w := e * presentation.broadcast_speed / 1000.0
+	# 내 주자의 런다운은 느리게 (판단할 틈)
+	var play := last_result.play if last_result != null else null
+	return play.play_time(w) if play != null else w
 
 
 ## 다음 투수로 바꾼다 (다음 공부터)
@@ -223,11 +237,13 @@ func tick() -> void:
 			# 내 주루 판단이 확정돼 플레이가 달라졌으면 결과 문구도 고친다 (last_result 는 같은 객체라 이미 바뀌어 있다)
 			if run_control != null and run_control.advance(broadcast_time()):
 				_show_result_callout(last_result)
+			# 안타면 결과 문구가 뜨는 순간 관중 함성 (홈런은 맞는 순간 이미 터졌다)
+			var o := last_result.outcome
+			if not _cheered and SwingJudge.is_hit(o) and o != SwingJudge.Outcome.HOME_RUN \
+					and e >= hit_play_end_ms() + presentation.after_play_hold_ms * 0.3:
+				_cheered = true
+				_sound(SoundSynth.Sfx.CHEER_SMALL, 1.0)
 			if e >= hit_play_end_ms() + presentation.after_play_hold_ms:
-				# 타구가 떨어지는 순간 안타면 함성
-				var o := last_result.outcome
-				if SwingJudge.is_hit(o) and o != SwingJudge.Outcome.HOME_RUN:
-					_sound(SoundSynth.Sfx.CHEER_SMALL, 1.0)
 				_finish_at_bat(last_result)
 
 
@@ -253,6 +269,7 @@ func tap(zone_pos: Vector2 = Vector2.INF) -> void:
 			swing_at_ms = at_ms
 			swing_since_ms = now_ms()
 			swing_outcome = o
+			_cheered = false
 			_play_swing_sounds(o)
 			if o.call == AtBat.Call.IN_PLAY:
 				last_result = o.result
@@ -265,6 +282,10 @@ func tap(zone_pos: Vector2 = Vector2.INF) -> void:
 			else:
 				# 헛스윙·파울은 공이 끝까지 지나간 뒤 다음으로
 				_show_pitch_callout(o)
+		Phase.HIT:
+			# 홈런은 베이스를 다 도는 동안 탭하면 끝으로 건너뛴다 (결과는 이미 정해져 있어 화면만 줄어든다)
+			if can_skip_play():
+				phase_since_ms = now_ms() - hit_play_end_ms()
 		Phase.OVER:
 			if single:
 				at_bat_finished.emit(at_bat.result)
@@ -280,9 +301,12 @@ func _play_swing_sounds(o: AtBat.PitchOutcome) -> void:
 		SwingJudge.Quality.SOLID:
 			# 타이밍이 완벽할수록 높고 맑은 "딱!"
 			var q := clampf(1.0 - absf(o.timing_diff_ms) / config.solid_window_ms(skills.contact), 0.0, 1.0)
-			_sound(SoundSynth.Sfx.CRACK_SOLID, 0.85 + 0.15 * q, 1.0 + presentation.crack_pitch_spread * (q - 0.5) * 2.0)
+			if o.result != null and o.result.outcome == SwingJudge.Outcome.HOME_RUN:
+				_sound(SoundSynth.Sfx.CRACK_HOME_RUN, 1.0)  # 홈런은 더 크고 꽉 찬 "딱!!"
+			else:
+				_sound(SoundSynth.Sfx.CRACK_SOLID, 0.85 + 0.15 * q, 1.0 + presentation.crack_pitch_spread * (q - 0.5) * 2.0)
 		SwingJudge.Quality.WEAK:
-			_sound(SoundSynth.Sfx.CRACK_WEAK, 1.0)
+			pass  # 빗맞음은 타격음 없이 스윙 소리만 (2026-10-31 유저 "기존에 빗맞았을 때 나는 소리 지워봐")
 		SwingJudge.Quality.FOUL:
 			_sound(SoundSynth.Sfx.CRACK_FOUL, 1.0)
 		SwingJudge.Quality.MISS:
@@ -303,14 +327,29 @@ func _sound(sfx: SoundSynth.Sfx, volume: float, pitch_scale: float = 1.0) -> voi
 func _after_pitch(o: AtBat.PitchOutcome) -> void:
 	if o.call != AtBat.Call.SWINGING_STRIKE and o.call != AtBat.Call.FOUL:
 		_show_pitch_callout(o)
+	_umpire_call(o)
 	if o.result != null:
 		_finish_at_bat(o.result)
 	else:
 		_enter(Phase.WAITING)
 
 
+## 심판 콜: 미트 소리 takeGraceMs 뒤 (공이 꽂히고 잠깐 뒤 외친다). 볼·볼넷은 실제 심판처럼 말없이 넘어간다
+func _umpire_call(o: AtBat.PitchOutcome) -> void:
+	var strikeout := o.result != null and o.result.outcome == SwingJudge.Outcome.STRIKEOUT
+	if o.call == AtBat.Call.CALLED_STRIKE:
+		if strikeout:
+			_sound(SoundSynth.Sfx.CALL_STRIKEOUT, presentation.umpire_strikeout_looking_volume)  # 루킹 삼진 세리머니
+		else:
+			_sound(SoundSynth.Sfx.CALL_STRIKE, presentation.umpire_strike_volume)
+	elif o.call == AtBat.Call.SWINGING_STRIKE and strikeout:
+		_sound(SoundSynth.Sfx.CALL_STRIKEOUT, presentation.umpire_strikeout_swinging_volume)  # 헛스윙 삼진은 작게
+
+
 func _finish_at_bat(r: AtBat.Result) -> void:
 	tally.add(r.outcome)
+	if r.outcome == SwingJudge.Outcome.WALK:
+		_sound(SoundSynth.Sfx.CHEER_SMALL, 0.75)  # 볼넷 출루도 관중이 반긴다
 	if r.contact != null:
 		spray.append([r.contact.angle_deg, r.contact.distance_m, r.outcome])
 	else:
@@ -322,13 +361,13 @@ func _finish_at_bat(r: AtBat.Result) -> void:
 func _show_pitch_callout(o: AtBat.PitchOutcome) -> void:
 	match o.call:
 		AtBat.Call.CALLED_STRIKE:
-			_set_callout("스트라이크!", "", Tone.BAD)
+			_set_callout("스트라이크!", "실투를 놓쳤다" if _is_mistake() else "", Tone.BAD)
 		AtBat.Call.BALL:
 			_set_callout("볼", "", Tone.NEUTRAL)
 		AtBat.Call.SWINGING_STRIKE:
-			_set_callout("헛스윙!", aim_text(o.aim) + timing_text(o.timing_diff_ms), Tone.BAD)
+			_set_callout("헛스윙!", _tags(o.aim) + timing_text(o.timing_diff_ms), Tone.BAD)
 		AtBat.Call.FOUL:
-			_set_callout("파울", aim_text(o.aim) + timing_text(o.timing_diff_ms), Tone.NEUTRAL)
+			_set_callout("파울", _tags(o.aim) + timing_text(o.timing_diff_ms), Tone.NEUTRAL)
 
 
 func _show_result_callout(r: AtBat.Result) -> void:
@@ -340,11 +379,11 @@ func _show_result_callout(r: AtBat.Result) -> void:
 	var detail := ""
 	var delay := 0.0
 	if r.contact != null:
-		detail = "%s%s · %dm · %s" % [aim_text(swing_outcome.aim), direction_text(r.contact.angle_deg), roundi(r.contact.distance_m), timing_text(last_timing_ms)]
+		detail = "%s%s · %dm · %s" % [_tags(swing_outcome.aim), direction_text(r.contact.angle_deg), roundi(r.contact.distance_m), timing_text(last_timing_ms)]
 		var ball := r.contact.ball
 		if ball != null and ball.is_first_base_play():
 			# 1루 판정은 간발의 차를 함께 보여 준다
-			detail = "%s%s · 1루 %.2f초 차" % [aim_text(swing_outcome.aim), direction_text(r.contact.angle_deg), absf(ball.play_margin)]
+			detail = "%s%s · 1루 %.2f초 차" % [_tags(swing_outcome.aim), direction_text(r.contact.angle_deg), absf(ball.play_margin)]
 		# 인플레이 타구는 중계 화면에서 플레이가 끝난 뒤에 결과를 띄운다
 		# (주루 판단 뒤 다시 띄울 때는 이미 흐른 시간을 뺀다)
 		delay = maxf(0.0, hit_play_end_ms() + presentation.after_play_hold_ms * 0.3 - since(phase_since_ms))
@@ -373,6 +412,15 @@ func _new_at_bat() -> AtBat:
 	ab.swing_type = swing_type
 	ab.situation = situation
 	return ab
+
+
+## 결과 설명 앞머리: 실투였으면 "실투! · ", 그다음 노려치기
+func _tags(aim: AtBat.Aim) -> String:
+	return ("실투! · " if _is_mistake() else "") + aim_text(aim)
+
+
+func _is_mistake() -> bool:
+	return pitch != null and pitch.is_mistake
 
 
 static func aim_text(aim: AtBat.Aim) -> String:

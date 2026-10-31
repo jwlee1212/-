@@ -48,6 +48,11 @@ func _ready() -> void:
 	await _wait_ms(300)
 	var s: BattingSession = app._current._session
 	await _shot("batter-1-ready")
+	# 주자가 있을 때 투수 뒤로 보이는 모습 (화면만 — 판정과 무관하게 잠깐 바꿨다가 되돌린다)
+	var saved := s.situation
+	s.situation = {"bases": [1, 2, 3]}
+	await _shot("batter-1-runners")
+	s.situation = saved
 	s.ready_now()
 	await _until(func() -> bool: return s.phase == BattingSession.Phase.WINDUP)
 	await _wait_ms(s.presentation.windup_ms * 0.8)

@@ -4,8 +4,9 @@ extends RefCounted
 
 const PATH := "user://settings.json"
 
-## 주루 설정: RunControl.AUTO | ASSIST | MANUAL. 기본은 자동 — 주루 조작은 원하는 사람만 켜는 추가 요소다
-var running := RunControl.AUTO
+## 주루 설정: RunControl.AUTO | ASSIST | MANUAL. 기본은 보조 — 친 뒤·루상에서 베이스 버튼이 뜨고, 안 누르면 코치 사인대로 뛴다
+## (2026-10-31 자동 → 보조. 유저 "타격 이후에도 베이스조작이 나오게")
+var running := RunControl.ASSIST
 
 
 static func load_from(path: String = PATH) -> Settings:

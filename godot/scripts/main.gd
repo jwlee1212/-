@@ -10,6 +10,7 @@ var batting_config: BattingConfig
 var presentation: Presentation
 var career_config: CareerConfig
 var sound: SoundPlayer
+var music: MusicPlayer
 var career: CareerState
 ## 유저 설정 (주루 설정)
 var settings := Settings.new()
@@ -44,6 +45,8 @@ func _ready() -> void:
 	add_child(_source)
 	sound = SoundPlayer.new()
 	add_child(sound)
+	music = MusicPlayer.new()
+	add_child(music)
 	await _load_configs()
 	_load_save()
 	settings = Settings.load_from()
@@ -68,7 +71,17 @@ func show_screen(screen: Control) -> void:
 	if _current != null:
 		_current.queue_free()
 	_current = screen
+	music.play(_track_for(screen))
 	_screen_root.add_child(UiKit.fill_parent(screen))
+
+
+## 화면별 배경음악: 로비(타이틀·선수 만들기) · 경기(경기·연습) · 그 밖은 홈
+static func _track_for(screen: Control) -> String:
+	if screen is TitleScreen or screen is CreateScreen:
+		return "lobby"
+	if screen is GameScreen or screen is PracticeScreen or screen is RunPracticeScreen:
+		return "game"
+	return "home"
 
 
 func show_title() -> void:
@@ -216,6 +229,7 @@ func _load_configs() -> void:
 	var content: Dictionary = await _source.fetch("content.json")
 	batting_config = BattingConfig.from_balance(balance)
 	presentation = Presentation.from_balance(balance)
+	music.configure(presentation)
 	career_config = CareerConfig.from(balance, content)
 	if career != null:
 		career.cfg = career_config
