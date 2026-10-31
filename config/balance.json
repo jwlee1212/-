@@ -246,11 +246,11 @@
       "mistakeRadius": 0.3
     },
     "aim": {
-      "_note": "노려치기: 투구 전 존 3×3 칸 하나를 탭. 그 칸에 오면 판정 폭 × hitWindowFactor·타구 속도 + hitEvBonusKmh, 다른 데로 오면 판정 폭 × missWindowFactor",
+      "_note": "노려치기: 투구 전 존 3×3 칸 하나를 탭. 그 칸에 오면 판정 폭 × hitWindowFactor·타구 속도 + hitEvBonusKmh, 다른 데로 오면 판정 폭 × missWindowFactor. catcherHint: 포수 미트(투수가 노린 곳·공이 향하는 곳) 표시 — 2026-10-31 유저 '볼·스트라이크 판독이 너무 쉽다'로 끔 (false)",
       "enabled": true,
       "hitWindowFactor": 1.35,
       "missWindowFactor": 0.8,
-      "catcherHint": true,
+      "catcherHint": false,
       "hitEvBonusKmh": 4
     },
     "eye": {
