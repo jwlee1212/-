@@ -66,8 +66,6 @@ class Cam:
 static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: BattedBallSim.Result, t: float, bunt: bool,
 		us_fielding: bool = false, play: PlaySimulator.PlayResult = null, mark_id: int = -1) -> void:
 	var cam := Cam.new(rect, cfg.center_fence, cfg.line_fence, cfg.fence_height)
-	if not PixelArt.on():
-		canvas.draw_rect(rect, Tokens.STANDS)
 	_draw_field(canvas, cam, cfg)
 
 	var duration := r.duration()
@@ -291,18 +289,9 @@ static func _draw_ball(canvas: CanvasItem, cam: Cam, p: Vector3) -> void:
 	canvas.draw_circle(s, radius, Tokens.INK, false, 1.0, true)
 
 
-## 사람 (SD 느낌의 단순 도형: 그림자 + 몸통 + 머리). 도트면 PixelArt 선수 — vel(화면에서 움직이는 방향)이 있으면 달리는 칸
+## 사람: 도트 선수 (PixelArt) — vel(화면에서 움직이는 방향)이 있으면 달리는 칸
 static func _draw_person(canvas: CanvasItem, cam: Cam, at: Vector2, uniform: Color, vel: Vector2 = Vector2.ZERO, t: float = 0.0) -> void:
-	if PixelArt.on():
-		PixelArt.draw_fielder(canvas, cam, at, uniform == Tokens.UNIFORM_US, vel, t)
-		return
-	var base := Vector3(at.x, at.y, 0)
-	var px := cam.scale_at(base)
-	var feet := cam.ground(at)
-	canvas.draw_circle(feet + Vector2(0, px * 0.2), px * 0.7, Tokens.SHADOW, true, -1.0, true)
-	var body_top := cam.to_screen(base + Vector3(0, 0, 1.4))
-	canvas.draw_line(feet, body_top, uniform, maxf(px * 0.9, 2.0), true)
-	canvas.draw_circle(cam.to_screen(base + Vector3(0, 0, 1.75)), maxf(px * 0.45, 1.8), Tokens.INK, true, -1.0, true)
+	PixelArt.draw_fielder(canvas, cam, at, uniform == Tokens.UNIFORM_US, vel, t)
 
 
 static func _draw_runner(canvas: CanvasItem, cam: Cam, cfg: BattedBallSim.Config, r: BattedBallSim.Result, t: float) -> void:
@@ -342,46 +331,6 @@ static func _draw_runner(canvas: CanvasItem, cam: Cam, cfg: BattedBallSim.Config
 	_draw_person(canvas, cam, at, Tokens.UNIFORM_US, (cam.ground(to) - cam.ground(from)).normalized() if running else Vector2.ZERO, t)
 
 
+## 경기장 (도트: 칸마다 카메라를 거꾸로 계산해 칠한다, PixelArt.draw_broadcast_field)
 static func _draw_field(canvas: CanvasItem, cam: Cam, cfg: BattedBallSim.Config) -> void:
-	if PixelArt.on():
-		PixelArt.draw_broadcast_field(canvas, cam, cfg)
-		return
-	# 파울 지역 (넓게) → 페어 지역 잔디 → 담장 → 내야 흙 → 베이스
-	var foul := PackedVector2Array()
-	for deg in range(-60, 61, 5):
-		foul.append(cam.ground(BattedBallSim.polar(deg, cfg.fence_at(clampf(deg, -45, 45)) + 4.0)))
-	foul.append(cam.ground(Vector2(18, -12)))
-	foul.append(cam.ground(Vector2(-18, -12)))
-	canvas.draw_colored_polygon(foul, Tokens.FOUL_GRASS)
-	var fair := PackedVector2Array([cam.ground(Vector2.ZERO)])
-	for deg in range(-45, 46, 3):
-		fair.append(cam.ground(BattedBallSim.polar(deg, cfg.fence_at(deg))))
-	canvas.draw_colored_polygon(fair, Tokens.GRASS)
-	# 담장 (높이 있는 띠)
-	for deg in range(-45, 45, 3):
-		var a0 := BattedBallSim.polar(deg, cfg.fence_at(deg))
-		var a1 := BattedBallSim.polar(deg + 3, cfg.fence_at(deg + 3))
-		var quad := PackedVector2Array([
-			cam.to_screen(Vector3(a0.x, a0.y, 0)), cam.to_screen(Vector3(a1.x, a1.y, 0)),
-			cam.to_screen(Vector3(a1.x, a1.y, cfg.fence_height)), cam.to_screen(Vector3(a0.x, a0.y, cfg.fence_height))])
-		canvas.draw_colored_polygon(quad, Tokens.WALL)
-	# 내야 흙: 베이스를 감싸는 다이아몬드 + 홈 주변
-	var d := cfg.base_distance / sqrt(2.0)
-	var dirt := PackedVector2Array()
-	for p in [Vector2(0, -4), Vector2(d + 6, d), Vector2(0, 2 * d + 8), Vector2(-d - 6, d)]:
-		dirt.append(cam.ground(p))
-	canvas.draw_colored_polygon(dirt, Tokens.DIRT)
-	var grass_in := PackedVector2Array()
-	for p in [Vector2(0, 4), Vector2(d - 4, d), Vector2(0, 2 * d - 4), Vector2(-d + 4, d)]:
-		grass_in.append(cam.ground(p))
-	canvas.draw_colored_polygon(grass_in, Tokens.GRASS)
-	canvas.draw_circle(cam.ground(Vector2(0, 18.4)), cam.scale_at(Vector3(0, 18.4, 0)) * 2.5, Tokens.DIRT, true, -1.0, true)
-	# 파울 라인
-	canvas.draw_line(cam.ground(Vector2.ZERO), cam.ground(BattedBallSim.polar(-45, cfg.line_fence)), Tokens.CHALK, 1.5, true)
-	canvas.draw_line(cam.ground(Vector2.ZERO), cam.ground(BattedBallSim.polar(45, cfg.line_fence)), Tokens.CHALK, 1.5, true)
-	for b in [1, 2, 3]:
-		var p := cfg.base_pos(b)
-		var s := cam.scale_at(Vector3(p.x, p.y, 0)) * 0.9
-		canvas.draw_rect(Rect2(cam.ground(p) - Vector2(s, s * 0.5), Vector2(s * 2, s)), Tokens.CHALK)
-	var home := cam.ground(Vector2.ZERO)
-	canvas.draw_circle(home, cam.scale_at(Vector3.ZERO) * 0.8, Tokens.CHALK, true, -1.0, true)
+	PixelArt.draw_broadcast_field(canvas, cam, cfg)

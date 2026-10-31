@@ -7555,3 +7555,18 @@ Gemini 가 위팔과 아래팔을 두 번 다 붙여서 그렸다. 남색 소매
 
 ### 테스트 (130건 통과)
 - `test_sound_synthesis`: 파일로만 있는 소리는 빼고 다 합성되고, 심판 콜 파일 두 개가 있다
+
+## 도트 확정 — 카툰 그림 걷어 냄 (2026-10-31, 유저 결정 "도트 확정하자")
+
+### 무엇을 바꿨나
+- 원칙 6·7(CLAUDE.md)을 고쳤다: 인게임은 `scripts/make_pixel_art.py` 가 코드로 찍은 도트, 대화 일러스트·배경·로비는 애니메이션풍 그대로. 애니메이션은 도트 시트의 칸을 갈아 끼운다
+- 카툰 쪽을 지웠다: SD 타자·투수 포즈 그림(`art/characters/`, Gemini), `PitcherPoses`, `scripts/cut_character_poses.py`, 타석 화면의 도형 경기장(`_draw_stadium`·`_draw_field`)·도형 투수·타자 기울이기·배트 잔상·그림자, 중계 화면의 도형 경기장·도형 선수, 켜고 끄는 스위치 `PixelArt.enabled`·`PixelArt.on()`
+- `BatterSprite` 는 도트 칸만 갈아 끼우는 작은 노드가 됐다(`show_frame(칸 번호)`)
+- 지운 카툰 그림이 필요하면 커밋 `809d631` 에 있다
+
+### 화면은 그대로다
+- 이미 도트로 그려지고 있었으니 보이는 건 바뀌지 않는다. `shots_batter`·`shots_steal`·전체 흐름 스크린샷 모두 오류 없이 찍힌다
+- `shots_batter` 의 카툰 포즈 모음·투수 띠 그림은 뺐다. 도트 칸 모음은 `make_pixel_art.py` 가 `build/shots/pixel-batter.png` 등으로 남긴다
+
+### 테스트
+- 130건 통과

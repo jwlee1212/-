@@ -28,8 +28,7 @@ func _init(phys: BattedBallSim.Config, play: PlaySimulator.PlayResult, caption: 
 
 func _ready() -> void:
 	# 도트 경기장·선수는 칸이 번지지 않게
-	if PixelArt.on():
-		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_start_ms = Time.get_ticks_usec() / 1000.0
 	var chip := UiKit.glass_panel()

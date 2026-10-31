@@ -1,21 +1,15 @@
 class_name PixelArt
 extends RefCounted
-## 도트 시험판 (2026-10-30): 타석 화면을 코드로 찍은 도트 그림으로 그린다. 카툰 그림(BatterSprite·PitcherPoses)과 비교해 보고 하나로 정한다.
+## 인게임 그림은 모두 코드로 찍은 도트다 (2026-10-30 시험 → 2026-10-31 확정, 원칙 6·7): 타석 경기장·투수·타자·미트·수비수, 중계 화면 경기장.
 ##
 ## 그림은 scripts/make_pixel_art.py 가 만든다 (art/pixel/, 칸 크기·포즈 순서는 PixelMeta).
 ## 그림 1픽셀을 화면 SCALE 칸으로 키우고, 모든 그림을 같은 칸 격자에 맞춰 놓아 픽셀이 어긋나지 않게 한다.
 ## 공·조준 표시·타격 이펙트는 칸에 맞추면 덜덜 떨려 보여서 매끈하게 그대로 그린다.
 
 const DIR := "res://art/pixel/"
-## 끄면 카툰 그림으로 돌아간다 (시험판 비교용)
-static var enabled := true
 ## 투수는 멀리 있어 한 칸을 화면 2배로 그린다 (다른 그림은 3배). 투수 그림 키 24칸 → 화면 48
 const PITCHER_SCALE := 2.0 / 3.0
 static var _textures := {}
-
-
-static func on() -> bool:
-	return enabled and texture("field") != null
 
 
 static func texture(name: String) -> Texture2D:

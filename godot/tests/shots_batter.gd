@@ -1,43 +1,13 @@
 extends Node
-## 확인용 스크린샷: 타자 포즈 그림을 한 장에 늘어놓고(batter-poses.png), 실제 타석 화면 다섯 장(batter-1 ~ 5)을 찍는다.
-##   ~/Applications/Godot.app/Contents/MacOS/Godot --path godot res://tests/shots_batter.tscn
-## 포즈 그림이 아직 없는 칸은 준비 자세가 대신 나오고 이름 옆에 "(없음)" 이 붙는다
+## 확인용 스크린샷: 실제 타석 화면(batter-1 ~ 8)을 찍는다. 도트 칸을 늘어놓은 그림은 make_pixel_art.py 가 만든다
+## (build/shots/pixel-batter.png · pixel-pitcher.png, 4배 확대).
+##   ~/Applications/Godot.app/Contents/MacOS/Godot --always-on-top --path godot res://tests/shots_batter.tscn
 
 
 func _ready() -> void:
-	# PIXEL=0 이면 카툰 그림으로 찍는다 (도트 시험판 비교용)
-	PixelArt.enabled = OS.get_environment("PIXEL") != "0"
-	get_window().mode = Window.MODE_WINDOWED
-	get_window().size = Vector2i(1680, 780)
-	var back := ColorRect.new()
-	back.color = Tokens.GRASS
-	back.size = Vector2(1680, 900)
-	add_child(back)
-	var frames: Array = BatterSprite.FRAMES.keys()
-	for i in frames.size():
-		var batter := BatterSprite.new()
-		# 창은 크지만 화면 좌표는 844 폭 기준으로 늘어난다
-		batter.scale = Vector2.ONE * 0.3
-		batter.position = Vector2(55 + i * 170, 320)
-		add_child(batter)
-		batter.show_frame(frames[i])
-		var label := Label.new()
-		label.text = frames[i] + ("" if batter.has_frame(frames[i]) else " (없음)")
-		label.position = Vector2(35 + i * 170, 330)
-		add_child(label)
-	await get_tree().create_timer(0.3).timeout
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build/shots"))
-	get_viewport().get_texture().get_image().save_png("res://build/shots/batter-poses.png")
-	# 투수: 와인드업 0.7초 + 던진 뒤 0.35초를 15칸으로 나눠 한 장에 (포즈가 넘어가는 모습을 본다)
-	var strip := _PitcherStrip.new()
-	add_child(strip)
-	await get_tree().create_timer(0.3).timeout
-	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://build/shots/pitcher-strip.png")
-	for child in get_children():
-		child.queue_free()
-
 	# 실제 타석 화면(타격 연습)에서: 준비 → 와인드업 → 공이 오는 중 → 맞는 순간 → 팔로스루
+	get_window().mode = Window.MODE_WINDOWED
 	get_window().size = Vector2i(844, 390)
 	await get_tree().process_frame
 	var app: Control = load("res://scenes/batting.tscn").instantiate()
@@ -114,15 +84,3 @@ func _shot(shot_name: String) -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("res://build/shots/%s.png" % shot_name)
 
-
-class _PitcherStrip extends Control:
-	func _draw() -> void:
-		draw_rect(Rect2(0, 0, 844, 400), Tokens.GRASS)
-		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-		for i in 24:
-			var ms := i * 50.0
-			var windup := minf(ms / 700.0, 1.0)
-			var since := ms - 700.0 if ms >= 700.0 else -1.0
-			var feet := Vector2(60 + (i % 8) * 100, 112 + (i / 8) * 127)
-			PitcherPoses.draw(self, windup, since, 700.0, feet, 92.0)
-			draw_string(Tokens.FONT_REGULAR, feet + Vector2(-20, 14), "%dms" % ms, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Tokens.CHALK)

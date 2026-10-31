@@ -68,8 +68,8 @@ $G --headless --path godot --script res://tests/calibrate.gd   # 가상 타자�
 3. **밸런스·손맛 수치는 코드에 하드코딩하지 않는다.** 판정 폭·공 속도·확률·연출 시간은 `config/balance.json`에서 읽는다. 원본은 저장소 루트의 그 파일 하나이고, 웹 빌드 때 `godot/data/`로 복사된다.
 4. **시간은 하나의 시계로 잰다.** 타이밍 판정은 `Time.get_ticks_usec()` 기준으로, 공을 놓은 순간과 탭한 순간을 같은 시계로 잰다. 프레임 수로 시간을 세지 않는다 (프레임이 떨어져도 판정은 정확해야 한다).
 5. **디자인은 토큰으로만.** 색·간격·글자 크기·모서리·글꼴은 `godot/scripts/ui/tokens.gd`에서만 가져온다. 화면 코드에 색상값을 직접 쓰지 않는다. 세부 규칙은 `docs/02-design.md`.
-6. **그림체는 둘로 나눈다 (2026-10-11 결정): 인게임은 SD, 일러스트는 애니메이션풍.** 경기·타석·중계 화면의 캐릭터는 SD(약 2등신)에 **굵은 남색 테두리 + 부드러운 음영이 들어간 카툰풍**으로 그리고(2026-10-12 결정 — 플랫 벡터에서 바꿈. 타자·투수에 적용했고 수비수·경기장은 아직 단순 도형이라 같은 그림체로 맞춰 간다), 대화 화면의 인물 일러스트(`godot/art/portraits/`)는 애니메이션풍 반신 그림으로 한다. 어느 쪽이든 실사 얼굴·사실적(사진 같은) AI 생성 얼굴은 금지. AI로 만든 그림·소리를 넣을 때는 쓴 도구와 그 도구의 상업적 이용 허용 여부를 `licenses/assets.md`에 기록한다. 기록 없는 에셋은 넣지 않는다.
-7. **캐릭터 애니메이션은 포즈별 통짜 그림을 갈아 끼워 만든다 (2026-10-12 결정 — 파츠 분리 컷아웃을 그만뒀다).** 파츠를 잘라 뼈대에 붙이는 방식은 AI 로 뽑은 조각끼리 크기·각도·이음새가 맞지 않아 포기했다. 동작마다 필요한 포즈(타자: 준비·힘 모으기·맞는 순간·팔로스루·번트)를 한 장씩 그리고, 진행에 맞춰 바꾼다. 포즈끼리 키와 발 자리는 코드에서 맞춘다(`batter_sprite.gd` `FRAMES`). 포즈 수는 동작당 3~6장으로 적게 잡는다 — 손맛은 장 수가 아니라 히트스톱·흔들림·소리에서 나온다.
+6. **그림체는 둘로 나눈다: 인게임은 도트, 일러스트는 애니메이션풍 (2026-10-31 도트 확정).** 경기·타석·중계 화면(경기장·타자·투수·수비수·주자·미트)은 **코드로 찍은 도트**로 그린다 — `scripts/make_pixel_art.py` 가 관절 좌표·손으로 찍은 판으로 `godot/art/pixel/` 시트를 만든다(1픽셀 남색 테두리 + 오른쪽 아래 그늘). AI 로 포즈 그림을 뽑아 맞추는 게 너무 힘들어서 바꿨다(옛 SD 카툰 그림은 커밋 `809d631` 에 있다). 도트는 정수 배율·같은 격자(`PixelArt.snap`)로만 그리고 돌리지 않는다. 공·조준 표시·타격 이펙트·HUD 는 매끈하게 그대로 둔다. 대화 화면의 인물 일러스트·배경(`godot/art/portraits/`, `backgrounds/`)과 로비 일러스트는 애니메이션풍 그대로. 실사 얼굴·사실적(사진 같은) AI 생성 얼굴은 금지. AI로 만든 그림·소리를 넣을 때는 쓴 도구와 그 도구의 상업적 이용 허용 여부를 `licenses/assets.md`에 기록한다. 기록 없는 에셋은 넣지 않는다.
+7. **캐릭터 애니메이션은 도트 시트의 칸을 갈아 끼워 만든다.** 동작을 단계(타자: 스탠스·로드·스트라이드·랜딩·회전·컨택(높이별)·팔로스루·번트, 투수: 준비 → 다리 들기 → 내딛기 → 팔 젖히기 → 공 놓기 → 마무리)로 나눠 한 칸씩 찍고, 진행에 맞춰 바꾼다(`PixelArt.batter_cell`·`pitcher_cell`). 칸 크기·발 자리·순서는 스크립트가 `pixel_meta.gd` 로 만들어 준다 — 손으로 고치지 않는다. 같은 함수가 모든 칸을 그리니 칸끼리 크기·얼굴이 어긋나지 않는다. 손맛은 장 수가 아니라 히트스톱·흔들림·소리에서 나온다.
 8. **테스트가 통과해야 다음 마일스톤으로 간다** (§7).
 
 ## 5. 폴더 구조
@@ -85,7 +85,7 @@ godot/                     Godot 프로젝트
 │  ├─ pitching/            투구: 구종 데이터(pitch_catalog)·궤적(pitch_trajectory — 경과 시간만으로 위치를 내는 순수 함수) (로직)
 │  ├─ audio/               효과음 합성(44.1kHz, 경기장 반사음)·재생, 배경음악 재생(MusicPlayer: 화면별 곡·크로스페이드)
 │  ├─ ui/                  디자인 토큰
-│  ├─ characters/          캐릭터: 포즈별 그림을 갈아 끼운다 (batter_sprite: 타자 뒷모습, pitcher_poses: 투수 앞모습)
+│  ├─ characters/          도트 그림: PixelArt(시트 그리기·칸 고르기·중계 경기장), PixelMeta(make_pixel_art.py 가 만든 칸 정보), BatterSprite(타자 칸 갈아 끼우기)
 │  ├─ debug/               손맛 조절 패널(구종 고정 버튼 포함), 테스트 시작(원하는 시점까지 빨리 감기) (개발 빌드 전용)
 │  ├─ career/              커리어: 선수·주간 루프·성장·인물·라이벌·스카우트 평가·기록실 (로직)
 │  ├─ events/              돌발 이벤트·스토리 엔진: 조건·효과(event_book) + 대본을 한 걸음씩 읽는 대화 진행(dialogue_run) (로직, 정의는 content.json)
@@ -96,7 +96,7 @@ godot/                     Godot 프로젝트
 │  ├─ balance_loader.gd, balance_source.gd   수치 읽기·저장 (맥은 파일, 웹은 개발 서버)
 │  ├─ settings.gd          유저 설정 (주루 설정 — 커리어 저장과 따로 user://settings.json)
 │  └─ main.gd
-├─ art/characters/         SD 캐릭터 포즈 그림 (`batter/stance.png`, `pitcher/set.png` …). 각 폴더의 `source/` 는 초록 배경 원본(Godot 는 안 읽는다)
+├─ art/pixel/              인게임 도트 시트 (field·batter·pitcher·catcher·mitt·fielders) — scripts/make_pixel_art.py 가 만든다. 손으로 고치지 않는다
 ├─ art/portraits/, backgrounds/  대화 화면 일러스트·배경 (파일 목록은 art/README.md, 없으면 자리만 보인다)
 ├─ audio/bgm/              배경음악 루프 WAV 3곡 (lobby·home 은 음악, game 은 음악 없이 관중 웅성거림·떼창 응원가) — scripts/make_bgm.py 가 만든다
 ├─ audio/sfx/              미리 만든 효과음 (관중 함성 cheer_small·cheer_big, 심판 콜 call_strike·call_strikeout — scripts/make_bgm.py). 없는 소리는 SoundSynth 가 실행 중에 합성
@@ -106,7 +106,7 @@ godot/                     Godot 프로젝트
 scripts/godot-web.sh       웹 빌드(개발용) + 개발 서버 실행
 scripts/dev_server.py      개발 서버: 웹 빌드 + 원본 balance.json 실시간 제공·저장
 scripts/make_bgm.py        배경음악 3곡·관중 함성·심판 콜(목소리 합성)을 코드로 합성 (외부 라이브러리 없음, 곡을 고치면 다시 실행)
-scripts/cut_character_poses.py  타자·투수 포즈 원본(초록 배경) → 배경 뺀 PNG (pillow·numpy·scipy 필요)
+scripts/make_pixel_art.py  인게임 도트 그림 전부(관절 좌표·손으로 찍은 판·팔레트) → godot/art/pixel/ + pixel_meta.gd (pillow 필요). 그림을 고치면 다시 실행
 docs/                      기획·개발 기록
 licenses/                  글꼴 라이선스, assets.md(에셋 출처)
 ```
@@ -129,7 +129,7 @@ licenses/                  글꼴 라이선스, assets.md(에셋 출처)
 | G5 | 시즌·성장: 주간 루프, 훈련 배분, 컨디션, 능력치 성장 |
 | G6 | 돌발 이벤트·스토리: 고교 3년 챕터, 라이벌, 진로 선택 (완료·폰 확인 대기) |
 | G7 | 드래프트·프로: 지명, 2군→1군, FA, 군 입대, 은퇴 |
-| G8 | 캐주얼 비주얼: SD 캐릭터 파츠 + Skeleton2D 컷아웃 애니메이션, 화면 다듬기 |
+| G8 | 캐주얼 비주얼: 도트로 확정(2026-10-31) — 남은 것: 주자·포수 동작, 팀 색, 좌타자, 화면 다듬기 |
 | G9 | 세이브(앞당겨 완료)·밸런싱·iOS 앱·출시 준비 |
 
 ## 7. 필수 테스트

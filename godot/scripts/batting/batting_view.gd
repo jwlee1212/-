@@ -2,7 +2,7 @@ class_name BattingView
 extends Control
 ## 타석 장면 (타자 어깨 너머 시점): 경기장 배경, 투수, 큰 타자 뒷모습, 스트라이크존 꺾쇠, 날아오는 공,
 ## 타격 연출(히트스톱·흔들림·섬광·파편·꽃가루), 정타 뒤 타구 중계 화면, 판정 문구.
-## 버튼·점수판 같은 HUD 는 BattingHud 가 위에 얹는다. 타자는 포즈별 그림(BatterSprite), 나머지는 단순 도형.
+## 버튼·점수판 같은 HUD 는 BattingHud 가 위에 얹는다. 경기장·투수·수비수·타자는 코드로 찍은 도트 그림(PixelArt, BatterSprite).
 ## 그리는 순서: 이 노드의 _draw(경기장·투수·존·공) → 타자(_batter) → 앞쪽 연출(_front: 맞은 공·섬광·꽃가루·판정 문구).
 ## 탭(손가락이 닿는 순간)은 tapped 시그널로 알린다.
 
@@ -18,20 +18,14 @@ const MITT_RING_MS := 140.0
 ## 장면 배치 (화면 비율). 지평선(외야 담장), 마운드, 존 가운데, 타자 머리
 const HORIZON_Y := 0.46
 const MOUND_Y := 0.56
-## 투수 키 (화면 높이 비율)
-const PITCHER_HEIGHT := 0.15
 const ZONE_Y := 0.70
 const ZONE_HALF_W := 0.045
 const ZONE_HALF_H := 0.095
 ## 공이 향하는 곳은 투수 손보다 화면 높이의 이만큼은 아래 (공이 화면에서 위로 올라가지 않게)
 const MIN_DESCENT := 0.03
-## 타자: 두 발 사이의 가로 자리, 발바닥 높이(화면 아래로 살짝 잘린다), 키 — 화면 높이 비율
+## 타자: 두 발 사이의 가로 자리, 발바닥 높이 — 화면 비율. 바꾸면 make_pixel_art.py 의 LAYOUT 도 같이 바꾼다
 const BATTER_X := 0.34
 const BATTER_FEET_Y := 0.97
-const BATTER_HEIGHT := 0.58
-## 맞는 순간 배트를 공 높이에 맞추려고 몸을 기울이는 한도 (도): 높은 공 쪽 / 낮은 공 쪽
-const BATTER_LEAN_UP_DEG := 6.0
-const BATTER_LEAN_DOWN_DEG := 20.0
 
 var session: BattingSession
 ## 타자 등번호 (경기에서는 타순, 연습에서는 7)
@@ -44,17 +38,12 @@ var _zone_half := Vector2.ZERO
 var _batter: BatterSprite
 ## 타자보다 앞에 그리는 연출
 var _front: Control
-# 이번 프레임의 배트 (타자 자세와 잔상이 같이 쓴다)
-var _bat_hands := Vector2.ZERO
-var _bat_angle := 0.0
-var _bat_length := 0.0
-var _swing_progress := -1.0
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	# 투수 그림은 원본보다 훨씬 작게 그려진다 — 밉맵으로 줄여야 깨지지 않는다
-	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	# 도트는 확대해도 번지지 않게
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_batter = BatterSprite.new()
 	add_child(_batter)
 	_front = Control.new()
@@ -74,9 +63,6 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _process(_delta: float) -> void:
-	var filter := CanvasItem.TEXTURE_FILTER_NEAREST if PixelArt.on() else CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	if texture_filter != filter:
-		texture_filter = filter
 	_batter.visible = session != null and _broadcast_ball() == null
 	if _batter.visible:
 		_layout()
@@ -114,20 +100,13 @@ func _draw() -> void:
 		BroadcastView.draw(self, Rect2(Vector2.ZERO, size), session.config.ball_physics, ball, session.broadcast_time(), session.last_result.contact.bunt, false, session.last_result.play,
 			int(session.situation.get("batter", -1)) if str(session.situation.get("control", "")) != "" else -1)
 	else:
-		if PixelArt.on():
-			PixelArt.draw_field(self, size)
-			_draw_pixel_defense()
-			_draw_pitcher()
-			# 포수는 그리지 않는다: 카메라가 포수보다 뒤·위에 있어 화면 밖이다 (3D 야구 게임 타석 시점). 그림은 남겨 둔다
-		else:
-			_draw_stadium()
-			_draw_field()
-			_draw_pitcher()
+		PixelArt.draw_field(self, size)
+		_draw_pixel_defense()
+		_draw_pitcher()
+		# 포수는 그리지 않는다: 카메라가 포수보다 뒤·위에 있어 화면 밖이다 (3D 야구 게임 타석 시점). 그림은 남겨 둔다
 		_draw_zone()
 		_draw_catcher_mitt()
 		_draw_ball_in_flight()
-		if not PixelArt.on():
-			_draw_batter_ground()
 	draw_set_transform(Vector2.ZERO)
 
 
@@ -178,12 +157,8 @@ func _broadcast_ball() -> BattedBallSim.Result:
 func _layout() -> void:
 	_zone_center = Vector2(size.x * 0.5, size.y * ZONE_Y)
 	_zone_half = Vector2(size.x * ZONE_HALF_W, size.y * ZONE_HALF_H)
-	_release = Vector2(size.x * 0.5 - size.y * 0.012, size.y * (MOUND_Y - 0.095))
-	if PixelArt.on():
-		_release = PixelArt.snap(Vector2(size.x * 0.5, size.y * MOUND_Y), size) + PixelMeta.PITCHER_RELEASE * PixelArt.unit(size) * PixelArt.PITCHER_SCALE
-	elif PitcherPoses.available():
-		# 공은 공 놓는 그림의 손에서 출발한다
-		_release = Vector2(size.x * 0.5, size.y * MOUND_Y) + PitcherPoses.release_hand(session.presentation.windup_ms) * (size.y * PITCHER_HEIGHT / PitcherPoses.HEIGHT)
+	# 공은 투수 그림의 공 놓는 손에서 출발한다
+	_release = PixelArt.snap(Vector2(size.x * 0.5, size.y * MOUND_Y), size) + PixelMeta.PITCHER_RELEASE * PixelArt.unit(size) * PixelArt.PITCHER_SCALE
 
 
 ## 존 좌표 → 화면
@@ -228,154 +203,25 @@ func _ball_radius(s: float) -> float:
 	return maxf(_zone_half.x * session.config.zone_ball_radius / (1.0 + BALL_PERSPECTIVE * (1.0 - t)), 1.5)
 
 
-# ---------- 경기장 ----------
-
-## 하늘·조명탑·관중석·전광판·외야 담장
-func _draw_stadium() -> void:
-	var w := size.x
-	var h := size.y
-	var horizon := h * HORIZON_Y
-	# 하늘 (위 → 지평선 그라데이션)
-	draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, horizon), Vector2(0, horizon)]),
-		PackedColorArray([Tokens.SKY_TOP, Tokens.SKY_TOP, Tokens.SKY_BOTTOM, Tokens.SKY_BOTTOM]))
-	# 조명탑
-	for fx in [0.16, 0.84]:
-		var x: float = w * fx
-		draw_line(Vector2(x, h * 0.17), Vector2(x, horizon), Tokens.STANDS_DARK, maxf(w * 0.006, 3.0))
-		var head := Rect2(x - w * 0.035, h * 0.14, w * 0.07, h * 0.05)
-		draw_rect(head, Tokens.SCOREBOARD)
-		for i in 4:
-			for j in 2:
-				var c := head.position + Vector2(head.size.x * (i + 0.5) / 4.0, head.size.y * (j + 0.5) / 2.0)
-				draw_circle(c, head.size.y * 0.18, Tokens.LIGHT, true, -1.0, true)
-	# 관중석 (윗층·아랫층) + 관중 점 (번호로 정해지는 가짜 난수라 매번 같다)
-	var upper := [Vector2(0, h * 0.235), Vector2(w, h * 0.235), Vector2(w, h * 0.32), Vector2(0, h * 0.32)]
-	draw_colored_polygon(PackedVector2Array(upper), Tokens.STANDS_DARK)
-	draw_colored_polygon(PackedVector2Array([Vector2(0, h * 0.31), Vector2(w, h * 0.31), Vector2(w, horizon), Vector2(0, horizon)]), Tokens.STANDS)
-	var rows := 4
-	for r in rows:
-		var y := lerpf(h * 0.25, horizon - h * 0.014, float(r) / (rows - 1))
-		var n := int(w / 9.0)
-		for i in n:
-			var hsh := fposmod(sin(i * 12.9898 + r * 78.233) * 43758.5453, 1.0)
-			var x := (i + 0.5 + (hsh - 0.5) * 0.6) * w / n
-			if absf(x - w * 0.5) < w * 0.13 and y < h * 0.34:
-				continue  # 전광판 뒤
-			draw_circle(Vector2(x, y), maxf(h * 0.0045, 1.3), Color(Tokens.CROWD[int(hsh * 997) % Tokens.CROWD.size()], 0.55), true, -1.0, true)
-	# 전광판 (가운데)
-	var board := Rect2(w * 0.38, h * 0.13, w * 0.24, h * 0.2)
-	draw_rect(board, Tokens.SCOREBOARD)
-	draw_rect(Rect2(board.position + Vector2(board.size.x * 0.08, board.size.y * 0.12), board.size * Vector2(0.84, 0.5)), Tokens.STANDS_DARK)
-	for i in 6:
-		draw_circle(board.position + Vector2(board.size.x * (0.15 + i * 0.14), board.size.y * 0.8), board.size.y * 0.05,
-			Tokens.COUNT_BALL if i < 2 else (Tokens.COUNT_STRIKE if i < 4 else Tokens.COUNT_OUT), true, -1.0, true)
-	# 외야 담장
-	draw_rect(Rect2(0, horizon - h * 0.018, w, h * 0.03), Tokens.WALL)
-
-
-## 잔디(줄무늬)·내야 흙·마운드·파울 라인·홈 주변·타석 선·홈플레이트
-func _draw_field() -> void:
-	var w := size.x
-	var h := size.y
-	var horizon := h * HORIZON_Y + h * 0.012
-	# 잔디 줄무늬: 멀수록 좁게 (원근)
-	var bands := 12
-	for i in bands:
-		var y0 := horizon + (h - horizon) * pow(float(i) / bands, 2.0)
-		var y1 := horizon + (h - horizon) * pow(float(i + 1) / bands, 2.0)
-		draw_rect(Rect2(0, y0, w, y1 - y0 + 1), Tokens.GRASS if i % 2 == 0 else Tokens.GRASS_LIGHT)
-	# 내야 흙 (마운드 뒤 호) + 내야 잔디
-	_draw_ellipse(Vector2(w * 0.5, h * 0.475), Vector2(w * 0.5, h * 0.06), Tokens.DIRT)
-	_draw_ellipse(Vector2(w * 0.5, h * 0.53), Vector2(w * 0.38, h * 0.055), Tokens.GRASS_LIGHT)
-	# 파울 라인 (홈에서 1·3루 쪽으로 벌어진다)
-	var home := Vector2(w * 0.5, h * 0.95)
-	draw_line(home, Vector2(w * 0.04, h * 0.445), Tokens.CHALK, 2.0, true)
-	draw_line(home, Vector2(w * 0.96, h * 0.445), Tokens.CHALK, 2.0, true)
-	# 마운드
-	_draw_ellipse(Vector2(w * 0.5, h * MOUND_Y), Vector2(w * 0.06, h * 0.016), Tokens.DIRT)
-	draw_rect(Rect2(w * 0.5 - w * 0.012, h * MOUND_Y - h * 0.004, w * 0.024, h * 0.006), Tokens.CHALK)
-	# 홈 주변 흙 + 타석 선 + 홈플레이트
-	_draw_ellipse(Vector2(w * 0.5, h * 1.0), Vector2(w * 0.24, h * 0.12), Tokens.DIRT)
-	for side in [-1.0, 1.0]:
-		var box := PackedVector2Array([
-			Vector2(w * (0.5 + side * 0.035), h * 0.9), Vector2(w * (0.5 + side * 0.11), h * 0.9),
-			Vector2(w * (0.5 + side * 0.13), h * 1.02), Vector2(w * (0.5 + side * 0.04), h * 1.02)])
-		var closed := box.duplicate()
-		closed.append(box[0])
-		draw_polyline(closed, Tokens.CHALK, 2.0, true)
-	var pw := w * 0.026
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(w * 0.5 - pw, h * 0.935), Vector2(w * 0.5 + pw, h * 0.935), Vector2(w * 0.5 + pw, h * 0.952),
-		Vector2(w * 0.5, h * 0.968), Vector2(w * 0.5 - pw, h * 0.952)]), Tokens.CHALK)
-
-
 # ---------- 사람 ----------
 
-## 투수: 세트 자세(선택 시간) → 다리 들기 → 몸 돌려 모으기 → 공 놓기 → 팔로스루. 공을 놓는 손이 공이 출발하는 곳.
-## 포즈 그림(PitcherPoses)이 있으면 그 그림을, 없으면 옛 도형 투수를 그린다
+## 투수: 세트 자세(선택 시간) → 다리 들기 → 내딛기 → 팔 젖히기 → 공 놓기 → 마무리. 도트 칸을 갈아 끼운다
 func _draw_pitcher() -> void:
 	var pres := session.presentation
-	if PixelArt.on() or PitcherPoses.available():
-		var windup := 0.0
-		var since_release := -1.0
-		match session.phase:
-			BattingSession.Phase.WINDUP:
-				windup = clampf(session.since(session.phase_since_ms) / pres.windup_ms, 0.0, 1.0)
-			BattingSession.Phase.FLIGHT, BattingSession.Phase.HIT:
-				since_release = session.since(session.phase_since_ms) + (session.pitch.flight_ms if session.phase == BattingSession.Phase.HIT else 0.0)
-		var mound := Vector2(size.x * 0.5, size.y * MOUND_Y)
-		if PixelArt.on():
-			PixelArt.draw_cell(self, "pitcher", PixelArt.pitcher_cell(windup, since_release), PixelMeta.PITCHER_CELL, PixelMeta.PITCHER_FEET, mound, size, PixelArt.PITCHER_SCALE)
-			return
-		_draw_ellipse(mound, Vector2(size.y * PITCHER_HEIGHT * 0.3, size.y * PITCHER_HEIGHT * 0.07), Tokens.SHADOW)
-		PitcherPoses.draw(self, windup, since_release, pres.windup_ms, mound + _shake(), size.y * PITCHER_HEIGHT, _shake())
-		return
-	var u := size.y * 0.0042  # 투수 크기 단위
-	var t := 0.0
-	var follow := 0.0
+	var windup := 0.0
+	var since_release := -1.0
 	match session.phase:
 		BattingSession.Phase.WINDUP:
-			t = clampf(session.since(session.phase_since_ms) / pres.windup_ms, 0.0, 1.0)
-		BattingSession.Phase.FLIGHT:
-			t = 1.0
-			follow = clampf(session.since(session.phase_since_ms) / 200.0, 0.0, 1.0)
-	var feet := Vector2(size.x * 0.5, size.y * MOUND_Y)
-	var lift := sin(clampf(t / 0.55, 0.0, 1.0) * PI / 2.0) if t < 0.55 else 1.0 - (t - 0.55) / 0.45
-	var crouch := u * 2.0 * (clampf((t - 0.55) / 0.45, 0.0, 1.0) + follow)
-	var hip := feet - Vector2(0, u * 9.0 - crouch)
-	var shoulder := hip - Vector2(0, u * 8.0)
-	var uniform := Tokens.UNIFORM_THEM
-	_draw_ellipse(feet + Vector2(0, u), Vector2(u * 5.0, u * 1.4), Tokens.SHADOW)
-	draw_line(hip, feet + Vector2(-u * 2.5, 0), Tokens.CHALK, u * 2.4, true)  # 디딤발
-	if t < 0.55:
-		draw_polyline(PackedVector2Array([hip, hip + Vector2(u * 4.0, -u * 4.0 * lift + u * 2.0), hip + Vector2(u * 4.5, u * 6.0 - u * 5.0 * lift)]), Tokens.CHALK, u * 2.4, true)
-	else:
-		draw_line(hip, feet + Vector2(u * 3.5 + u * follow, 0), Tokens.CHALK, u * 2.4, true)
-	draw_line(hip, shoulder, uniform, u * 5.0, true)
-	draw_circle(shoulder - Vector2(0, u * 4.2), u * 3.6, Tokens.SKIN, true, -1.0, true)
-	draw_circle(shoulder - Vector2(0, u * 5.2), u * 3.4, uniform.darkened(0.35), true, -1.0, true)  # 모자
-	# 던지는 팔: 가슴 → 아래 뒤 → 위 뒤 → 머리 위(공 놓음) → 팔로스루
-	var keys := [Vector2(0, 4), Vector2(-6, 5), Vector2(-6, -7), Vector2(-3, -8.5), Vector2(5, 6)]
-	var hand: Vector2
-	if follow > 0.0:
-		hand = keys[3].lerp(keys[4], follow)
-	elif t < 0.45:
-		hand = keys[0]
-	elif t < 0.7:
-		hand = keys[0].lerp(keys[1], (t - 0.45) / 0.25)
-	elif t < 0.9:
-		hand = keys[1].lerp(keys[2], (t - 0.7) / 0.2)
-	else:
-		hand = keys[2].lerp(keys[3], (t - 0.9) / 0.1)
-	draw_line(shoulder, shoulder + hand * u, uniform, u * 1.8, true)
-	draw_line(shoulder, shoulder + Vector2(4.5, 3 + 2.0 * follow) * u, uniform, u * 1.8, true)  # 글러브 팔
-	if session.phase == BattingSession.Phase.WINDUP or session.phase == BattingSession.Phase.WAITING:
-		draw_circle(shoulder + hand * u, u * 1.2, Tokens.CHALK, true, -1.0, true)
+			windup = clampf(session.since(session.phase_since_ms) / pres.windup_ms, 0.0, 1.0)
+		BattingSession.Phase.FLIGHT, BattingSession.Phase.HIT:
+			since_release = session.since(session.phase_since_ms) + (session.pitch.flight_ms if session.phase == BattingSession.Phase.HIT else 0.0)
+	var mound := Vector2(size.x * 0.5, size.y * MOUND_Y)
+	PixelArt.draw_cell(self, "pitcher", PixelArt.pitcher_cell(windup, since_release), PixelMeta.PITCHER_CELL, PixelMeta.PITCHER_FEET, mound, size, PixelArt.PITCHER_SCALE)
 
 
-## 타자 자세 (오른손 타자, 홈플레이트 왼쪽). 투수가 던지기 시작하면 힘을 모으고(load), 스윙하면 맞는 순간 →
-## 팔로스루 그림으로 넘어간다. 히트스톱 동안은 맞는 순간 그림에서 멈춘다. 번트면 번트 그림.
-## 그림은 BatterSprite 가 갈아 끼우고, 여기서는 언제 얼마나 휘둘렀는지를 정한다
+## 타자 자세 (오른손 타자, 홈플레이트 왼쪽). 투수가 던지기 시작하면 힘을 모으고(load), 공이 날아오는 동안 앞발을 내딛고,
+## 스윙하면 회전 → 맞는 순간(공 높이별 칸) → 팔로스루로 넘어간다. 히트스톱 동안은 맞는 순간 칸에서 멈춘다. 번트면 번트 칸.
+## 칸은 BatterSprite 가 갈아 끼우고, 여기서는 언제 얼마나 휘둘렀는지를 정한다
 func _pose_batter() -> void:
 	var pres := session.presentation
 	var h := size.y
@@ -394,41 +240,19 @@ func _pose_batter() -> void:
 	elif in_flight and not session.swung:
 		load = 1.0
 
-	var unit := h * BATTER_HEIGHT / BatterSprite.HEIGHT
 	var feet := Vector2(size.x * BATTER_X, h * BATTER_FEET_Y)
-	_batter.scale = Vector2.ONE * unit
-	_batter.position = feet + _shake()
 	var bunt := session.swing_type == "bunt"
-	if PixelArt.on():
-		# 도트: 칸을 갈아 끼우기만 한다 (돌리면 픽셀이 깨진다). 높은 공·낮은 공은 맞는 순간 칸이 따로 있다
-		var height_px := 0.0
-		if swing_progress >= 0.0:
-			height_px = (_ball(session.pitch, session.swing_at_ms).y - _zone_center.y) / PixelArt.unit(size)
-		_batter.scale = Vector2.ONE * PixelArt.unit(size)
-		_batter.rotation = 0.0
-		_batter.position = PixelArt.snap(feet, size) + _shake()
-		# 공이 날아오는 동안 앞발을 내디뎌 strideLandAt 에 땅을 딛는다 (휘두르기 전까지)
-		var stride := 0.0
-		if in_flight:
-			stride = clampf(session.since(session.phase_since_ms) / session.pitch.flight_ms / maxf(pres.stride_land_at, 0.01), 0.0, 1.0)
-		_batter.show_pixel(_pixel_after_pitch(PixelArt.batter_cell(load, stride, swing_progress, bunt, height_px)))
-		_swing_progress = -1.0
-		return
-	_batter.pose(load, swing_progress, bunt)
-	# 맞는 순간 그림은 한 장이라 배트 높이가 정해져 있다. 발을 축으로 몸 전체를 조금 기울여 배트를 공 높이에 맞춘다
-	# (낮은 공엔 숙이고 높은 공엔 선다). 팔로스루로 넘어가면 바로 선다
-	var lean := 0.0
-	if not bunt and swing_progress >= 0.0 and swing_progress < BatterSprite.FOLLOW_FROM and _batter.has_frame("contact"):
-		var b := _ball(session.pitch, session.swing_at_ms)
-		var to_ball := Vector2(b.x, b.y) - feet
-		lean = clampf(angle_difference(BatterSprite.CONTACT_BARREL.angle(), to_ball.angle()), deg_to_rad(-BATTER_LEAN_UP_DEG), deg_to_rad(BATTER_LEAN_DOWN_DEG))
-	_batter.rotation = lean
-
-	# 배트 궤적 잔상: 맞은 공이면 공이 있던 자리까지, 아니면 스윙 진행만큼 쓸고 지나간다
-	_bat_hands = feet + BatterSprite.HANDS * unit
-	_bat_length = BatterSprite.BAT_LENGTH * unit
-	_bat_angle = _bat_angle_deg(maxf(swing_progress, 0.0))
-	_swing_progress = -1.0 if bunt else swing_progress
+	# 칸을 갈아 끼우기만 한다 (돌리면 픽셀이 깨진다). 높은 공·낮은 공은 맞는 순간 칸이 따로 있다
+	var height_px := 0.0
+	if swing_progress >= 0.0:
+		height_px = (_ball(session.pitch, session.swing_at_ms).y - _zone_center.y) / PixelArt.unit(size)
+	_batter.scale = Vector2.ONE * PixelArt.unit(size)
+	_batter.position = PixelArt.snap(feet, size) + _shake()
+	# 공이 날아오는 동안 앞발을 내디뎌 strideLandAt 에 땅을 딛는다 (휘두르기 전까지)
+	var stride := 0.0
+	if in_flight:
+		stride = clampf(session.since(session.phase_since_ms) / session.pitch.flight_ms / maxf(pres.stride_land_at, 0.01), 0.0, 1.0)
+	_batter.show_frame(_pixel_after_pitch(PixelArt.batter_cell(load, stride, swing_progress, bunt, height_px)))
 
 
 ## 공이 끝난 뒤: 바로 준비 자세로 돌아가면 화면이 급하게 바뀌어서, 마지막 자세(휘둘렀으면 팔로스루 마무리,
@@ -449,20 +273,6 @@ func _pixel_after_pitch(cell: int) -> int:
 	if e < pres.pitch_interval_ms + pres.batter_recover_ms:
 		return f["recover"] if session.swung else f["settle"]
 	return cell
-
-
-## 타자 발밑 그림자와 배트 궤적 잔상 (타자 뒤에 깔린다)
-func _draw_batter_ground() -> void:
-	var h := size.y
-	# 그림자는 타자 키에 맞춘다 (발보다 키의 6% 위, 폭 27%·높이 4.7%)
-	_draw_ellipse(Vector2(size.x * BATTER_X, h * (BATTER_FEET_Y - BATTER_HEIGHT * 0.06)), Vector2(h * BATTER_HEIGHT * 0.27, h * BATTER_HEIGHT * 0.047), Tokens.SHADOW)
-	# 스윙 그림이 없을 때만(준비 자세로 대신하는 동안) 잔상이 스윙을 알려 준다
-	if _swing_progress >= 0.0 and _swing_progress < 1.0 and not _batter.has_frame("contact"):
-		var wedge := PackedVector2Array([_bat_hands])
-		var from := _bat_angle_deg(0.0)
-		for i in 13:
-			wedge.append(_bat_hands + _bat_dir(lerpf(from, _bat_angle, i / 12.0)) * _bat_length)
-		draw_colored_polygon(wedge, Color(Tokens.CHALK, 0.3))
 
 
 # ---------- 존·공 ----------
@@ -551,12 +361,7 @@ func _draw_catcher_mitt() -> void:
 	var u := p.trajectory.time_fraction(t_ms)
 	var at := _aim_on_screen(_pointing(p, t_ms) + (p.intended - p.trajectory.aim) * (1.0 - u))
 	# 공을 받을 만큼 크게 (홈플레이트에서 공보다 조금 크다)
-	if PixelArt.on():
-		PixelArt.draw_cell(self, "mitt", 0, PixelMeta.MITT_SIZE, PixelMeta.MITT_SIZE * 0.5 - Vector2(0.5, 0.5), at, size)
-		return
-	var r := _ball_radius(1.0) * 1.3
-	draw_circle(at, r, Color(Tokens.MITT, 0.9), true, -1.0, true)
-	draw_circle(at, r * 0.55, Color(Tokens.DIRT, 0.95), true, -1.0, true)
+	PixelArt.draw_cell(self, "mitt", 0, PixelMeta.MITT_SIZE, PixelMeta.MITT_SIZE * 0.5 - Vector2(0.5, 0.5), at, size)
 
 
 func _draw_ball_in_flight() -> void:
@@ -773,26 +578,3 @@ func _draw_callout(canvas: CanvasItem) -> void:
 		canvas.draw_string(f, Vector2(-box.x / 2.0, y), l[0], HORIZONTAL_ALIGNMENT_CENTER, box.x, l[2], l[3])
 		y += f.get_descent(l[2])
 	canvas.draw_set_transform(Vector2.ZERO)
-
-
-# ---------- 도우미 ----------
-
-## 배트 각도 (위쪽 0°, 시계 방향 +): 대기 −13°(머리 옆으로 세워 든다) → 수평(90°)을 지나 홈 쪽으로 → 팔로스루 +150°.
-## 처음에 빠르고 끝에서 느려진다
-func _bat_angle_deg(progress: float) -> float:
-	var e := 1.0 - (1.0 - progress) * (1.0 - progress)
-	return -13.0 + 163.0 * e
-
-
-## 각도(위쪽 = 0°, 시계 방향 +)의 방향 벡터
-func _bat_dir(angle_deg: float) -> Vector2:
-	var r := deg_to_rad(angle_deg)
-	return Vector2(sin(r), -cos(r))
-
-
-func _draw_ellipse(center: Vector2, radii: Vector2, color: Color) -> void:
-	var pts := PackedVector2Array()
-	for i in 40:
-		var t := TAU * i / 40.0
-		pts.append(center + Vector2(cos(t) * radii.x, sin(t) * radii.y))
-	draw_colored_polygon(pts, color)

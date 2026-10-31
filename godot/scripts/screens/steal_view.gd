@@ -61,8 +61,7 @@ func _init(phys: BattedBallSim.Config, cfg: Dictionary, bases: Array, my_id: int
 
 func _ready() -> void:
 	# 도트 경기장·선수는 칸이 번지지 않게
-	if PixelArt.on():
-		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	clip_contents = true
 	_start_ms = _now()
