@@ -345,29 +345,57 @@ func test_pitch_trajectory_monotonic() -> void:
 	check(not bad.validate().is_empty(), "decel 1 은 실패해야 한다")
 
 
+## 화면 속 공의 길이 손 → 도착점 직선에서 벗어난 거리 (px): {"max": 가장 큰 값, "at40": 비행 40% 때}
+func _screen_bow(view: BattingView, id: String) -> Dictionary:
+	var cat := _config.catalog
+	var p := Pitch.new()
+	p.type = id
+	p.flight_ms = cat.flight_ms(id)
+	p.trajectory = PitchTrajectory.make(cat.spec(id), Vector2.ZERO, p.flight_ms, "R", cat.location_range)
+	var a := view._ball(p, 0.0)
+	var b := view._ball(p, p.flight_ms)
+	var from := Vector2(a.x, a.y)
+	var dir := (Vector2(b.x, b.y) - from).normalized()
+	var out := {"max": 0.0, "at40": 0.0}
+	for i in 101:
+		var c := view._ball(p, p.flight_ms * i / 100.0)
+		var d := absf(dir.cross(Vector2(c.x, c.y) - from))
+		out["max"] = maxf(out["max"], d)
+		if i == 40:
+			out["at40"] = d
+	return out
+
+
 func test_pitch_movement_is_visible() -> void:
-	# 2026-10-21 유저 "속도 차이만 있지 각의 변화가 없다" → 움직임을 과장. 화면 존 반폭 ≈ 38px 이라
-	# 직선(손 → 도착점)에서 가장 멀리 벗어나는 정도가 반폭 0.8 은 넘어야 눈에 보인다 (포심 제외)
-	var biggest := {}
+	# 2026-10-21 유저 "속도 차이만 있지 각의 변화가 없다" → 움직임을 과장.
+	# 2026-10-31 유저 "다 직구처럼 오다 갑자기 꺾여 아케이드 같다" → 손을 떠난 직후부터 점진적으로 휜다.
+	# 실제 타석 화면(BattingView)에서 잰다: 좌우로 휘는 공은 눈에 보이게 휘고, 비행 40% 에 이미 휨의 60% 이상이 보인다(도중에 알아볼 수 있다)
+	var balance := BalanceLoader.load_balance()
+	var view := BattingView.new()
+	view.session = BattingSession.new(BattingConfig.from_balance(balance), Presentation.from_balance(balance))
+	view.size = Vector2(844, 390)
+	view._layout()
+	var bows := {}
+	for id: String in PitchCatalog.IDS:
+		bows[id] = _screen_bow(view, id)
+	view.free()
+	for id: String in ["two_seam", "slider", "changeup", "sweeper"]:
+		check(bows[id]["max"] >= 8.0, "%s 화면 휨 %.1fpx 가 너무 작다" % [id, bows[id]["max"]])
+	for id: String in PitchCatalog.IDS:
+		if id == "four_seam":
+			continue
+		var share: float = bows[id]["at40"] / maxf(bows[id]["max"], 0.001)
+		check(share >= 0.6, "%s 비행 40%% 에 휨의 %.0f%% 만 보인다 (막판에 갑자기 꺾임)" % [id, share * 100.0])
+	check(bows["sweeper"]["max"] > bows["slider"]["max"], "스위퍼가 슬라이더보다 크게 쓸고 간다 (%.1f vs %.1f)" % [bows["sweeper"]["max"], bows["slider"]["max"]])
+	# 휨은 양 끝에서 0 (궤적 모듈)
 	for id: String in PitchCatalog.IDS:
 		var t := _trajectory(id, Vector2.ZERO)
-		var most := 0.0
-		for i in 101:
-			most = maxf(most, t.deviation_at(t.flight_ms * i / 100.0).length())
-		biggest[id] = most
 		check(t.deviation_at(0.0).length() < 1e-4 and t.deviation_at(t.flight_ms).length() < 1e-4, "%s 휨은 양 끝에서 0" % id)
-		if id != "four_seam":
-			check(most >= 0.5, "%s 최대 휨 %.2f 가 너무 작다" % [id, most])
-	check(biggest["sweeper"] > biggest["slider"], "스위퍼가 슬라이더보다 크게 쓸고 간다")
-	check(biggest["forkball"] > biggest["splitter"], "포크볼이 스플리터보다 크게 떨어진다")
 	# 구종 버릇: 커브는 손을 떠나며 떠오르고(도중 불룩함 위로), 체인지업은 직구보다 감속이 크다
 	var cat := _config.catalog
 	check(cat.spec("curve").arc_y > 0.0, "커브는 떠올랐다 떨어진다")
 	check(cat.spec("changeup").decel > cat.spec("four_seam").decel, "체인지업은 홈 앞에서 죽는다")
-	# 커브: 비행 초반에 직선보다 위(존 좌표 y −)
-	var curve := _trajectory("curve", Vector2.ZERO)
-	check(curve.deviation_at(curve.flight_ms * 0.3).y < -0.5, "커브 초반 떠오름 %.2f" % curve.deviation_at(curve.flight_ms * 0.3).y)
-	# 포크볼 vs 스플리터 (2026-10-21 유저): 포크볼은 느리고 늦게·크게, 스플리터는 빠르고 짧게 떨어진다
+	# 포크볼 vs 스플리터 (2026-10-21 유저): 포크볼은 느리고 크게, 스플리터는 빠르고 짧게 떨어진다
 	var fork := cat.spec("forkball")
 	var split := cat.spec("splitter")
 	check(fork.speed_kmh < split.speed_kmh and fork.break_y < split.break_y * 1.5, "포크볼 낙폭이 스플리터보다 훨씬 크다")
@@ -2186,6 +2214,13 @@ func test_tournament_elimination() -> void:
 	check(not career.is_national() or career.phase_index == 1, "지면 대회를 떠난다")
 	check(games >= 1 and games <= 4, "토너먼트 경기 수 %d" % games)
 	check(career.phase_log.size() == 2)
+	# 홈 화면 팀 기록: 끝난 단계는 기록 그대로, 지금 단계 하나, 나머지는 예정
+	var board := career.season_board()
+	check(board.size() == career.phases().size() and board[0].state == "done" and board[0].text == career.phase_log[0].text and board[1].text == career.phase_log[1].text,
+		"팀 기록: 끝난 단계 = phase_log (%s · %s)" % [board[0].text, board[1].text])
+	check(board[2].state == "now" and board[2].text == "개막 앞둠" and board[3].state == "next", "팀 기록: 지금 단계·예정 (%s)" % board[2].text)
+	career.finish_game(_auto_week(career, "rest"))
+	check(career.season_board()[2].text.begins_with("%d위 · " % career.my_rank()), "팀 기록: 리그 중엔 지금 순위 (%s)" % career.season_board()[2].text)
 
 
 func test_growth_curve() -> void:

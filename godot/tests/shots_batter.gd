@@ -5,6 +5,8 @@ extends Node
 
 
 func _ready() -> void:
+	# PIXEL=0 이면 카툰 그림으로 찍는다 (도트 시험판 비교용)
+	PixelArt.enabled = OS.get_environment("PIXEL") != "0"
 	get_window().mode = Window.MODE_WINDOWED
 	get_window().size = Vector2i(1680, 780)
 	var back := ColorRect.new()
@@ -72,6 +74,22 @@ func _ready() -> void:
 	await _shot("batter-4-contact")
 	await _wait_ms(s.presentation.hit_stop_ms + s.presentation.swing_ms * 0.5)
 	await _shot("batter-5-follow")
+	# 공이 끝난 뒤: 팔로스루로 멈춰 있다가(6) 사이 칸(7)을 거쳐 준비 자세(8)로 — 다음 타석에서 일찍 휘둘러 헛스윙·파울을 만든다
+	await _until(func() -> bool: return s.phase == BattingSession.Phase.OVER, 30000)
+	s.tap()
+	await _until(func() -> bool: return s.phase == BattingSession.Phase.WAITING)
+	s.ready_now()
+	await _until(func() -> bool: return s.phase == BattingSession.Phase.FLIGHT)
+	await _wait_ms(s.pitch.flight_ms * 0.3)
+	s.tap()
+	await _until(func() -> bool: return s.phase != BattingSession.Phase.FLIGHT)
+	if s.phase == BattingSession.Phase.WAITING:
+		await _wait_ms(300)
+		await _shot("batter-6-hold")
+		await _wait_ms(s.presentation.pitch_interval_ms - 300 + s.presentation.batter_recover_ms * 0.5)
+		await _shot("batter-7-recover")
+		await _wait_ms(s.presentation.batter_recover_ms)
+		await _shot("batter-8-ready")
 	get_tree().quit()
 
 

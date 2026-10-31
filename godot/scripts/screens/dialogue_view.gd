@@ -4,6 +4,8 @@ extends Control
 ## 이벤트 하나를 대본대로 진행한다 (DialogueRun): 여러 인물이 번갈아 말하고(말하는 사람에 따라 일러스트·이름표가 바뀐다),
 ## 중간중간 선택지가 나오고, 고른 것에 따라 다음 대사가 달라진다. 대화가 끝나면 변화를 보여 주고 finished.
 ## 대사는 글자가 차례로 나오고, 화면을 탭하면 다 나오거나 다음 줄로 넘어간다.
+## 오른쪽 위 [건너뛰기]는 "정말로 건너뛰시겠습니까?" 를 물은 뒤 이 장면(이벤트 하나 = 배경 하나)을 끝까지 넘긴다.
+## 남은 선택지는 첫 번째(못 고르면 고를 수 있는 것)로 고르고, 변화가 있으면 보여 준 뒤 닫는다 (2026-10-30 유저 요청).
 ## 선택지에 돈이 들면 값이 보이고, 모자라면 못 누른다. 내가 고른 말은 내 대사로 한 번 나온다.
 ##
 ## 그림은 아직 없어서 자리만 보인다. 파일을 넣으면 자동으로 쓴다:
@@ -36,6 +38,9 @@ var _parts: Label
 var _more: Label
 var _choices: VBoxContainer
 var _choice_buttons: Array[Button] = []
+var _skip_button: Button
+## 건너뛰기 확인 창 (없으면 null)
+var _confirm: Control
 
 
 func _init(career: CareerState, event: Dictionary) -> void:
@@ -79,6 +84,7 @@ func _ready() -> void:
 	_choices.offset_right = -Tokens.SPACE_MD
 	_choices.alignment = BoxContainer.ALIGNMENT_END
 	add_child(_choices)
+	_build_skip()
 	_step()
 
 
@@ -89,6 +95,7 @@ func _process(delta: float) -> void:
 		if _text.visible_characters >= _text.get_total_character_count():
 			_text.visible_ratio = 1.0
 	_more.visible = _text.visible_ratio >= 1.0 and _stage != Stage.CHOICE
+	_skip_button.visible = (_stage == Stage.LINES or _stage == Stage.CHOICE) and _confirm == null
 
 
 func _gui_input(e: InputEvent) -> void:
@@ -147,6 +154,53 @@ func skip(want: int = 0) -> void:
 	_run.commit()
 	_stage = Stage.DONE
 	finished.emit()
+
+
+## [건너뛰기]: 확인 창을 띄운다
+func ask_skip() -> void:
+	if _confirm != null or is_chosen():
+		return
+	var cover := ColorRect.new()
+	cover.color = Tokens.SCRIM
+	_confirm = UiKit.fill_parent(cover)
+	add_child(_confirm)
+	var card := UiKit.card()
+	var col := UiKit.vbox(Tokens.SPACE_SM)
+	card.add_child(col)
+	var q := UiKit.title("정말로 건너뛰시겠습니까?", Tokens.FONT_TITLE)
+	q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(q)
+	var note := UiKit.label("이 장면을 끝까지 넘깁니다. 남은 선택지는 자동으로 고릅니다.", Tokens.FONT_CAPTION, Tokens.INK_SOFT)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(note)
+	var row := UiKit.hbox(Tokens.SPACE_SM)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(UiKit.button("계속 보기", _close_confirm, Tokens.INK_SOFT))
+	row.add_child(UiKit.button("건너뛰기", skip_scene, Tokens.PRIMARY))
+	col.add_child(row)
+	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	card.grow_vertical = Control.GROW_DIRECTION_BOTH
+	cover.add_child(card)
+
+
+func _close_confirm() -> void:
+	if _confirm != null:
+		_confirm.queue_free()
+		_confirm = null
+
+
+## 이 장면을 끝까지 넘긴다: 남은 선택은 첫 번째로 고르고, 마지막 대사와 변화를 보여 준다 (변화가 없으면 바로 닫는다)
+func skip_scene() -> void:
+	_close_confirm()
+	if is_chosen():
+		return
+	_run.auto(0)
+	_clear_choices()
+	_stage = Stage.LINES
+	_show_line({"who": "", "name": "", "role": "", "portrait": "", "text": _run.last_text})
+	_text.visible_ratio = 1.0
+	_end()
 
 
 ## 대화가 끝났나 (변화를 보여 주는 중이거나 닫히는 중)
@@ -300,6 +354,18 @@ func _picture(path: String) -> TextureRect:
 	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return tex
+
+
+## 오른쪽 위 머리말 아래: [건너뛰기 ▶▶] (변화를 보여 주는 중엔 숨는다)
+func _build_skip() -> void:
+	_skip_button = UiKit.button("건너뛰기  ▶▶", ask_skip, Tokens.DIALOGUE_HEADER_BG, Tokens.FONT_CAPTION + 1)
+	_skip_button.add_theme_color_override("font_color", Tokens.INK)
+	_skip_button.add_theme_color_override("font_hover_color", Tokens.INK)
+	_skip_button.add_theme_color_override("font_pressed_color", Tokens.INK)
+	add_child(_skip_button)
+	_skip_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, Tokens.SPACE_SM)
+	_skip_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_skip_button.position.y += Tokens.SPACE_LG * 2  # 머리말 판 아래
 
 
 ## 오른쪽 위: 이야기 머리말 + 지갑

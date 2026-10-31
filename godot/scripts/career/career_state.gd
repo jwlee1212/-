@@ -396,6 +396,41 @@ func standings_rows() -> Array:
 	return rows
 
 
+## 이번 시즌 팀 기록: 단계마다 {"name", "state": done|now|next, "text"}.
+## 끝난 단계는 phase_log 결과("3위 (4승 2패 0무)" · "8강 탈락" · "우승!"), 지금 단계는 주말리그면 지금 순위·전적, 전국대회면 오른 라운드
+func season_board() -> Array:
+	var out := []
+	for i in phases().size():
+		var ph: Dictionary = phases()[i]
+		var name: String = ph["name"] if ph["kind"] == "league" else cfg.tournaments[int(ph["index"])]
+		if i < phase_log.size():
+			out.append({"name": name, "state": "done", "text": phase_log[i]["text"]})
+		elif i == phase_index:
+			var text := ""
+			if is_league():
+				var r: Array = standings["me"]
+				if r[0] + r[1] + r[2] == 0:
+					text = "개막 앞둠"
+				else:
+					text = "%d위 · %d승 %d패%s" % [my_rank(), r[0], r[1], " %d무" % r[2] if r[2] > 0 else ""]
+			else:
+				var rounds: Array = cfg.season["tournamentRounds"]
+				text = "%s 진출" % rounds[mini(phase_game, rounds.size() - 1)] if phase_game > 0 else "%s 앞둠" % rounds[0]
+			out.append({"name": name, "state": "now", "text": text})
+		else:
+			out.append({"name": name, "state": "next", "text": "예정"})
+	return out
+
+
+## 주말리그 순위표에서 우리 학교 순위 (1부터)
+func my_rank() -> int:
+	var rows := standings_rows()
+	for i in rows.size():
+		if rows[i][4]:
+			return i + 1
+	return rows.size()
+
+
 ## 승·패·무 → 순위표 칸 번호
 static func _slot(result: int) -> int:
 	return 0 if result > 0 else (1 if result < 0 else 2)

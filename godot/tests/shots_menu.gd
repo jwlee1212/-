@@ -22,6 +22,10 @@ func _ready() -> void:
 	var view: DialogueView = _app._current.story_view()
 	await _wait(1.5)
 	await _shot("menu-hub-story")
+	view.ask_skip()  # [건너뛰기] → 확인 창
+	await _frames(5)
+	await _shot("menu-hub-story-skip-ask")
+	view._close_confirm()
 	view.advance()
 	await _wait(0.2)
 	await _shot("menu-hub-story-choices")
@@ -32,12 +36,19 @@ func _ready() -> void:
 	await _frames(10)
 	await _shot("menu-hub")
 	# 남은 주 시작 이야기(입학식 날 등)를 첫 선택지로 넘긴다
+	var scenes := 0
 	while _app._current.story_view() != null:
 		var sv: DialogueView = _app._current.story_view()
-		sv.choose(0)
+		sv.ask_skip()
+		sv.skip_scene()  # 확인 창에서 [건너뛰기]
 		await _wait(0.2)
-		sv.skip()
+		if scenes == 0:
+			await _shot("menu-hub-story-skipped")
+		scenes += 1
+		if is_instance_valid(sv) and sv.is_chosen() and sv == _app._current.story_view():
+			sv.advance()  # 변화를 보여 주는 중이면 닫는다
 		await _wait(0.2)
+	print("건너뛴 장면 %d개" % scenes)
 	await _frames(10)
 	await _shot("menu-hub-room")
 	# 스케줄: 칸 고르기 판 → 칸 채우기 → 시작 (도장이 하나씩 찍히는 중) → 다 찍힘
@@ -78,6 +89,10 @@ func _ready() -> void:
 		_app.show_home()
 		await _frames(10)
 	await _shot("menu-hub-week8")
+	_app._current._open_popup(_app._current._team_popup())
+	await _frames(10)
+	await _shot("menu-hub-team")
+	_app._current._close_picker()
 	career.player.money = 320000
 	career.people.meet("manager")
 	career.people.by_id["manager"].relation = 62

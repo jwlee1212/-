@@ -4,14 +4,14 @@
     "status": "draft",
     "_note": "타격 수치 (G1). 시간 ms, 거리 m, 존 좌표는 스트라이크존 가로·세로 반폭 = 1 (y 는 아래가 +, x 는 +가 타자에게서 먼 쪽 = 바깥쪽). 능력치 0/100 쌍(At0/At100)은 사이를 선형 보간. 튜닝 안내는 docs/dev-log.md.",
     "pitches": {
-      "_note": "구종 8개 (pitching/pitch_catalog.gd). 변화량은 투수 기준: break_x + = 투수 팔 쪽(우투수면 우타자 몸쪽), - = 글러브 쪽, break_y + = 위, - = 아래. 단위는 존 반폭 = 1 (화면에서 존 반폭 ≈ 38px 이라 1 미만이면 거의 안 보인다 — 2026-10-21 유저 요청으로 과장된 값). 좌투수는 x 부호가 뒤집힌다. 비행 시간 = pitch_common.four_seam_flight_ms × (포심 speed_kmh / 이 구종 speed_kmh). break_start: 거리 진행률이 이 값을 넘어야 휘기 시작(0~1 미만). break_pow: 클수록 막판에 몰아서 꺾임(1 이상). arc_x/arc_y(없으면 0): 날아오는 도중에만 불룩한 정도 — 양 끝은 그대로라 도착점은 안 바뀐다 (커브가 손을 떠나며 떠오르는 것). decel(없으면 pitch_common.decel): 이 구종의 감속, 클수록 앞이 빠르고 홈 앞에서 느려진다 (체인지업). chase_spots: 유인구 방향(타자 기준) location_effect(없으면 0): 투구 위치에 따른 변화폭 — 휘는 방향으로 던질수록 더(최대 pitch_common.location_max 배), 반대쪽으로 던질수록 덜(최소 location_min 배) 휜다.",
+      "_note": "구종 8개 (pitching/pitch_catalog.gd). 변화량은 투수 기준: break_x + = 투수 팔 쪽(우투수면 우타자 몸쪽), - = 글러브 쪽, break_y + = 위, - = 아래. 단위는 존 반폭 = 1 (화면에서 존 반폭 ≈ 38px 이라 1 미만이면 거의 안 보인다 — 2026-10-21 유저 요청으로 과장된 값). 좌투수는 x 부호가 뒤집힌다. 비행 시간 = pitch_common.four_seam_flight_ms × (포심 speed_kmh / 이 구종 speed_kmh). break_start: 거리 진행률이 이 값을 넘어야 휘기 시작(0~1 미만). break_pow: 클수록 막판에 몰아서 꺾임(1 이상). 2026-10-31 유저 '다 직구처럼 오다 갑자기 꺾여 아케이드 같다' → 손을 떠난 직후(0~0.2)부터 고르게(1.2~1.8) 휘게 바꿈 — 타자가 날아오는 도중에 구종을 알아볼 수 있게. arc_x/arc_y(없으면 0): 날아오는 도중에만 불룩한 정도 — 양 끝은 그대로라 도착점은 안 바뀐다 (커브가 손을 떠나며 떠오르는 것). decel(없으면 pitch_common.decel): 이 구종의 감속, 클수록 앞이 빠르고 홈 앞에서 느려진다 (체인지업). chase_spots: 유인구 방향(타자 기준) location_effect(없으면 0): 투구 위치에 따른 변화폭 — 휘는 방향으로 던질수록 더(최대 pitch_common.location_max 배), 반대쪽으로 던질수록 덜(최소 location_min 배) 휜다.",
       "four_seam": {
         "name_ko": "포심",
         "speed_kmh": 145,
         "break_x": 0.25,
         "break_y": 0.35,
-        "break_start": 0.55,
-        "break_pow": 2.4,
+        "break_start": 0.1,
+        "break_pow": 1.3,
         "location_effect": 0.1,
         "chase_spots": [
           "high",
@@ -23,8 +23,8 @@
         "speed_kmh": 142,
         "break_x": 1.6,
         "break_y": -0.6,
-        "break_start": 0.5,
-        "break_pow": 2.2,
+        "break_start": 0.08,
+        "break_pow": 1.4,
         "arc_x": 0.15,
         "location_effect": 0.3,
         "chase_spots": [
@@ -37,8 +37,8 @@
         "speed_kmh": 133,
         "break_x": -1.5,
         "break_y": -0.6,
-        "break_start": 0.58,
-        "break_pow": 2.6,
+        "break_start": 0.15,
+        "break_pow": 1.6,
         "location_effect": 0.35,
         "chase_spots": [
           "away",
@@ -50,8 +50,8 @@
         "speed_kmh": 117,
         "break_x": -0.6,
         "break_y": -2.2,
-        "break_start": 0.22,
-        "break_pow": 1.5,
+        "break_start": 0.0,
+        "break_pow": 1.2,
         "arc_y": 0.3,
         "decel": 0.1,
         "location_effect": 0.3,
@@ -64,8 +64,8 @@
         "speed_kmh": 128,
         "break_x": 1.1,
         "break_y": -1.5,
-        "break_start": 0.5,
-        "break_pow": 2.2,
+        "break_start": 0.1,
+        "break_pow": 1.5,
         "decel": 0.24,
         "location_effect": 0.3,
         "chase_spots": [
@@ -78,8 +78,8 @@
         "speed_kmh": 124,
         "break_x": -3.4,
         "break_y": -0.35,
-        "break_start": 0.45,
-        "break_pow": 1.9,
+        "break_start": 0.05,
+        "break_pow": 1.25,
         "arc_x": -0.3,
         "location_effect": 0.35,
         "chase_spots": [
@@ -91,8 +91,8 @@
         "speed_kmh": 127,
         "break_x": 0.1,
         "break_y": -2.0,
-        "break_start": 0.68,
-        "break_pow": 3.0,
+        "break_start": 0.2,
+        "break_pow": 1.8,
         "decel": 0.12,
         "location_effect": 0.3,
         "chase_spots": [
@@ -104,8 +104,8 @@
         "speed_kmh": 140,
         "break_x": 0.3,
         "break_y": -1.0,
-        "break_start": 0.62,
-        "break_pow": 2.6,
+        "break_start": 0.15,
+        "break_pow": 1.6,
         "location_effect": 0.25,
         "chase_spots": [
           "low"
@@ -115,7 +115,7 @@
     "pitch_common": {
       "_note": "모든 구종 공통. decel: 감속 보정(0 이상 1 미만) — 클수록 공이 앞에서 빠르고 홈플레이트 앞에서 느려진다(도착 시각은 그대로). four_seam_flight_ms: 포심이 홈플레이트까지 걸리는 시간 = 모든 구종 비행 시간의 기준 (손맛 패널 '공 비행 시간'이 바꾼다). flight_jitter_ms: 공마다 비행 시간이 ± 이만큼 흔들린다. speed_display_spread: 화면 구속에만 쓴다(판정 무관) — 투수 보정·흔들림으로 비행 시간이 달라진 만큼 구속 숫자를 이 비율만큼만 바꾼다 (1 = 물리 그대로, 흔들림 ±30ms 면 ±11km/h 라 너무 커서 옛 speedDisplay 와 같은 0.4 쯤으로 줄여 보여 준다). location_min·location_max: 투구 위치에 따른 변화폭 배율의 범위 (구종별 location_effect 와 함께, pitch_trajectory.gd)",
       "decel": 0.06,
-      "four_seam_flight_ms": 840,
+      "four_seam_flight_ms": 672,
       "flight_jitter_ms": 30.0,
       "speed_display_spread": 0.4,
       "location_min": 0.5,
@@ -148,7 +148,7 @@
       },
       "power": {
         "name": "강속구형",
-        "speedMs": -46,
+        "speedMs": -37,
         "hand": "R",
         "mix": {
           "four_seam": 1.2,
@@ -169,7 +169,7 @@
       },
       "finesse": {
         "name": "기교파",
-        "speedMs": 32,
+        "speedMs": 26,
         "hand": "R",
         "mix": {
           "four_seam": 0.0,
@@ -273,8 +273,8 @@
       "foulAngleDeg": 60
     },
     "presentation": {
-      "_note": "화면 연출·소리. 판정에는 영향 없음. crackPitchSpread: 타이밍이 완벽할수록 타격음이 이만큼 높고 맑아진다. 정타 뒤: 히트스톱 → launchMs 동안 투구 화면에서 공이 튀어 나감 → 타구 중계 화면(실제 시간 × broadcastSpeed 배속) → 플레이가 끝나고 afterPlayHoldMs 뒤 결과. selectMs: 투수가 세트 자세로 기다리며 유저가 스윙 종류를 고르는 시간 (스윙 버튼을 누르면 바로 던진다). batterCardMs: 타석 시작에 왼쪽 아래 타자 자막(오늘·시즌 기록)이 떠 있는 시간 — 첫 공을 던지면 더 일찍 들어간다, batterCardSlideMs: 자막이 미끄러져 나오고 들어가는 시간. trailMs·trailDots: 날아오는 공 뒤 잔상 — 이만큼 지난 시간의 자리들을 점 trailDots 개로 흐리게 그린다 (휘는 길이 보이게, 0 이면 끔). movementScaleX·movementScaleY: 화면에서만 변화(break·arc)를 과장하는 배율 (판정·도착점 무관). 화면의 공은 투수 손에서 '지금 향하는 곳'(PitchTrajectory.pointing_at × 배율)으로 원근을 따라 날아오고, 향하는 곳은 손보다 위로 올라가지 않는다 (공이 화면에서 솟아 보이지 않게)",
-      "windupMs": 700,
+      "_note": "화면 연출·소리. 판정에는 영향 없음. crackPitchSpread: 타이밍이 완벽할수록 타격음이 이만큼 높고 맑아진다. 정타 뒤: 히트스톱 → launchMs 동안 투구 화면에서 공이 튀어 나감 → 타구 중계 화면(실제 시간 × broadcastSpeed 배속) → 플레이가 끝나고 afterPlayHoldMs 뒤 결과. selectMs: 투수가 세트 자세로 기다리며 유저가 스윙 종류를 고르는 시간 (스윙 버튼을 누르면 바로 던진다). batterCardMs: 타석 시작에 왼쪽 아래 타자 자막(오늘·시즌 기록)이 떠 있는 시간 — 첫 공을 던지면 더 일찍 들어간다, batterCardSlideMs: 자막이 미끄러져 나오고 들어가는 시간. strideLandAt: 타자가 앞발을 내디뎌 땅을 딛는 때 (공이 날아오는 시간 중 비율, 0~1) — 그 전에 로드 → 스트라이드, 그 뒤에는 발사 자세로 기다린다. 공이 끝나면 타자는 그 자세(휘둘렀으면 팔로스루 마무리, 안 휘둘렀으면 랜딩)로 pitchIntervalMs 동안 멈춰 있다가 batterRecoverMs 동안 준비 자세로 돌아간다. trailMs·trailDots: 날아오는 공 뒤 잔상 — 이만큼 지난 시간의 자리들을 점 trailDots 개로 흐리게 그린다 (휘는 길이 보이게, 0 이면 끔). movementScaleX·movementScaleY: 화면에서만 변화(break·arc)를 과장하는 배율 (판정·도착점 무관). 화면의 공은 투수 손에서 '지금 향하는 곳'(PitchTrajectory.pointing_at × 배율)으로 원근을 따라 날아오고, 향하는 곳은 손보다 위로 올라가지 않는다 (공이 화면에서 솟아 보이지 않게)",
+      "windupMs": 1250,
       "pitchIntervalMs": 900,
       "resultHoldMs": 1400,
       "hitFlightMs": 900,
@@ -296,6 +296,8 @@
       "selectMs": 1800,
       "batterCardMs": 2400,
       "batterCardSlideMs": 280,
+      "strideLandAt": 0.45,
+      "batterRecoverMs": 300,
       "lobby": {
         "_note": "로비 화면 연출. menuSlideMs: 메뉴 판이 오른쪽에서 미끄러져 들어오는 시간, menuStaggerMs: 메뉴 줄이 하나씩 나타나는 간격",
         "menuSlideMs": 420,

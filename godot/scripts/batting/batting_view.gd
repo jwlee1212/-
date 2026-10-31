@@ -16,18 +16,18 @@ const FOUL_FLIGHT_MS := 350.0
 const MITT_RING_MS := 140.0
 
 ## 장면 배치 (화면 비율). 지평선(외야 담장), 마운드, 존 가운데, 타자 머리
-const HORIZON_Y := 0.40
-const MOUND_Y := 0.535
+const HORIZON_Y := 0.46
+const MOUND_Y := 0.56
 ## 투수 키 (화면 높이 비율)
 const PITCHER_HEIGHT := 0.15
-const ZONE_Y := 0.77
+const ZONE_Y := 0.70
 const ZONE_HALF_W := 0.045
 const ZONE_HALF_H := 0.095
 ## 공이 향하는 곳은 투수 손보다 화면 높이의 이만큼은 아래 (공이 화면에서 위로 올라가지 않게)
 const MIN_DESCENT := 0.03
 ## 타자: 두 발 사이의 가로 자리, 발바닥 높이(화면 아래로 살짝 잘린다), 키 — 화면 높이 비율
-const BATTER_X := 0.3
-const BATTER_FEET_Y := 0.99
+const BATTER_X := 0.34
+const BATTER_FEET_Y := 0.97
 const BATTER_HEIGHT := 0.58
 ## 맞는 순간 배트를 공 높이에 맞추려고 몸을 기울이는 한도 (도): 높은 공 쪽 / 낮은 공 쪽
 const BATTER_LEAN_UP_DEG := 6.0
@@ -74,6 +74,9 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _process(_delta: float) -> void:
+	var filter := CanvasItem.TEXTURE_FILTER_NEAREST if PixelArt.on() else CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	if texture_filter != filter:
+		texture_filter = filter
 	_batter.visible = session != null and _broadcast_ball() == null
 	if _batter.visible:
 		_layout()
@@ -111,13 +114,19 @@ func _draw() -> void:
 		BroadcastView.draw(self, Rect2(Vector2.ZERO, size), session.config.ball_physics, ball, session.broadcast_time(), session.last_result.contact.bunt, false, session.last_result.play,
 			int(session.situation.get("batter", -1)) if str(session.situation.get("control", "")) != "" else -1)
 	else:
-		_draw_stadium()
-		_draw_field()
-		_draw_pitcher()
+		if PixelArt.on():
+			PixelArt.draw_field(self, size)
+			_draw_pitcher()
+			# 포수는 그리지 않는다: 카메라가 포수보다 뒤·위에 있어 화면 밖이다 (3D 야구 게임 타석 시점). 그림은 남겨 둔다
+		else:
+			_draw_stadium()
+			_draw_field()
+			_draw_pitcher()
 		_draw_zone()
 		_draw_catcher_mitt()
 		_draw_ball_in_flight()
-		_draw_batter_ground()
+		if not PixelArt.on():
+			_draw_batter_ground()
 	draw_set_transform(Vector2.ZERO)
 
 
@@ -159,7 +168,9 @@ func _layout() -> void:
 	_zone_center = Vector2(size.x * 0.5, size.y * ZONE_Y)
 	_zone_half = Vector2(size.x * ZONE_HALF_W, size.y * ZONE_HALF_H)
 	_release = Vector2(size.x * 0.5 - size.y * 0.012, size.y * (MOUND_Y - 0.095))
-	if PitcherPoses.available():
+	if PixelArt.on():
+		_release = PixelArt.snap(Vector2(size.x * 0.5, size.y * MOUND_Y), size) + PixelMeta.PITCHER_RELEASE * PixelArt.unit(size)
+	elif PitcherPoses.available():
 		# 공은 공 놓는 그림의 손에서 출발한다
 		_release = Vector2(size.x * 0.5, size.y * MOUND_Y) + PitcherPoses.release_hand(session.presentation.windup_ms) * (size.y * PITCHER_HEIGHT / PitcherPoses.HEIGHT)
 
@@ -252,18 +263,18 @@ func _draw_field() -> void:
 	# 잔디 줄무늬: 멀수록 좁게 (원근)
 	var bands := 12
 	for i in bands:
-		var y0 := horizon + (h - horizon) * pow(float(i) / bands, 1.6)
-		var y1 := horizon + (h - horizon) * pow(float(i + 1) / bands, 1.6)
+		var y0 := horizon + (h - horizon) * pow(float(i) / bands, 2.0)
+		var y1 := horizon + (h - horizon) * pow(float(i + 1) / bands, 2.0)
 		draw_rect(Rect2(0, y0, w, y1 - y0 + 1), Tokens.GRASS if i % 2 == 0 else Tokens.GRASS_LIGHT)
 	# 내야 흙 (마운드 뒤 호) + 내야 잔디
-	_draw_ellipse(Vector2(w * 0.5, h * 0.52), Vector2(w * 0.5, h * 0.085), Tokens.DIRT)
-	_draw_ellipse(Vector2(w * 0.5, h * 0.585), Vector2(w * 0.38, h * 0.07), Tokens.GRASS_LIGHT)
+	_draw_ellipse(Vector2(w * 0.5, h * 0.475), Vector2(w * 0.5, h * 0.06), Tokens.DIRT)
+	_draw_ellipse(Vector2(w * 0.5, h * 0.53), Vector2(w * 0.38, h * 0.055), Tokens.GRASS_LIGHT)
 	# 파울 라인 (홈에서 1·3루 쪽으로 벌어진다)
 	var home := Vector2(w * 0.5, h * 0.95)
-	draw_line(home, Vector2(w * 0.04, h * 0.47), Tokens.CHALK, 2.0, true)
-	draw_line(home, Vector2(w * 0.96, h * 0.47), Tokens.CHALK, 2.0, true)
+	draw_line(home, Vector2(w * 0.04, h * 0.445), Tokens.CHALK, 2.0, true)
+	draw_line(home, Vector2(w * 0.96, h * 0.445), Tokens.CHALK, 2.0, true)
 	# 마운드
-	_draw_ellipse(Vector2(w * 0.5, h * MOUND_Y), Vector2(w * 0.06, h * 0.024), Tokens.DIRT)
+	_draw_ellipse(Vector2(w * 0.5, h * MOUND_Y), Vector2(w * 0.06, h * 0.016), Tokens.DIRT)
 	draw_rect(Rect2(w * 0.5 - w * 0.012, h * MOUND_Y - h * 0.004, w * 0.024, h * 0.006), Tokens.CHALK)
 	# 홈 주변 흙 + 타석 선 + 홈플레이트
 	_draw_ellipse(Vector2(w * 0.5, h * 1.0), Vector2(w * 0.24, h * 0.12), Tokens.DIRT)
@@ -286,7 +297,7 @@ func _draw_field() -> void:
 ## 포즈 그림(PitcherPoses)이 있으면 그 그림을, 없으면 옛 도형 투수를 그린다
 func _draw_pitcher() -> void:
 	var pres := session.presentation
-	if PitcherPoses.available():
+	if PixelArt.on() or PitcherPoses.available():
 		var windup := 0.0
 		var since_release := -1.0
 		match session.phase:
@@ -295,6 +306,9 @@ func _draw_pitcher() -> void:
 			BattingSession.Phase.FLIGHT, BattingSession.Phase.HIT:
 				since_release = session.since(session.phase_since_ms) + (session.pitch.flight_ms if session.phase == BattingSession.Phase.HIT else 0.0)
 		var mound := Vector2(size.x * 0.5, size.y * MOUND_Y)
+		if PixelArt.on():
+			PixelArt.draw_cell(self, "pitcher", PixelArt.pitcher_cell(windup, since_release), PixelMeta.PITCHER_CELL, PixelMeta.PITCHER_FEET, mound, size)
+			return
 		_draw_ellipse(mound, Vector2(size.y * PITCHER_HEIGHT * 0.3, size.y * PITCHER_HEIGHT * 0.07), Tokens.SHADOW)
 		PitcherPoses.draw(self, windup, since_release, pres.windup_ms, mound + _shake(), size.y * PITCHER_HEIGHT, _shake())
 		return
@@ -367,6 +381,21 @@ func _pose_batter() -> void:
 	_batter.scale = Vector2.ONE * unit
 	_batter.position = feet + _shake()
 	var bunt := session.swing_type == "bunt"
+	if PixelArt.on():
+		# 도트: 칸을 갈아 끼우기만 한다 (돌리면 픽셀이 깨진다). 높은 공·낮은 공은 맞는 순간 칸이 따로 있다
+		var height_px := 0.0
+		if swing_progress >= 0.0:
+			height_px = (_ball(session.pitch, session.swing_at_ms).y - _zone_center.y) / PixelArt.unit(size)
+		_batter.scale = Vector2.ONE * PixelArt.unit(size)
+		_batter.rotation = 0.0
+		_batter.position = PixelArt.snap(feet, size) + _shake()
+		# 공이 날아오는 동안 앞발을 내디뎌 strideLandAt 에 땅을 딛는다 (휘두르기 전까지)
+		var stride := 0.0
+		if in_flight:
+			stride = clampf(session.since(session.phase_since_ms) / session.pitch.flight_ms / maxf(pres.stride_land_at, 0.01), 0.0, 1.0)
+		_batter.show_pixel(_pixel_after_pitch(PixelArt.batter_cell(load, stride, swing_progress, bunt, height_px)))
+		_swing_progress = -1.0
+		return
 	_batter.pose(load, swing_progress, bunt)
 	# 맞는 순간 그림은 한 장이라 배트 높이가 정해져 있다. 발을 축으로 몸 전체를 조금 기울여 배트를 공 높이에 맞춘다
 	# (낮은 공엔 숙이고 높은 공엔 선다). 팔로스루로 넘어가면 바로 선다
@@ -382,6 +411,26 @@ func _pose_batter() -> void:
 	_bat_length = BatterSprite.BAT_LENGTH * unit
 	_bat_angle = _bat_angle_deg(maxf(swing_progress, 0.0))
 	_swing_progress = -1.0 if bunt else swing_progress
+
+
+## 공이 끝난 뒤: 바로 준비 자세로 돌아가면 화면이 급하게 바뀌어서, 마지막 자세(휘둘렀으면 팔로스루 마무리,
+## 안 휘둘렀으면 랜딩)로 pitchIntervalMs 동안 멈춰 있다가 사이 칸을 거쳐 batterRecoverMs 동안 준비 자세로 돌아간다.
+## 타석이 끝난 뒤(OVER)에는 다음 타석까지 멈춰 있다. 그 밖에는 cell 그대로
+func _pixel_after_pitch(cell: int) -> int:
+	var pres := session.presentation
+	var waiting := session.phase == BattingSession.Phase.WAITING and session.at_bat.pitch_count > 0
+	if not waiting and session.phase != BattingSession.Phase.OVER:
+		return cell
+	if session.pitch == null or session.swing_type == "bunt":
+		return cell
+	var f := PixelMeta.BATTER
+	var held: int = f["finish"] if session.swung else f["landing"]
+	var e := session.since(session.phase_since_ms)
+	if session.phase == BattingSession.Phase.OVER or e < pres.pitch_interval_ms:
+		return held
+	if e < pres.pitch_interval_ms + pres.batter_recover_ms:
+		return f["recover"] if session.swung else f["settle"]
+	return cell
 
 
 ## 타자 발밑 그림자와 배트 궤적 잔상 (타자 뒤에 깔린다)
@@ -425,6 +474,13 @@ func _draw_zone() -> void:
 		draw_rect(r, Tokens.WARN, false, 2.0)
 
 
+## 도트 시험판: 포수 뒷모습. 홈플레이트 뒤에 쪼그려 앉아 헬멧 꼭대기가 존 아래 아홉 칸에 온다 (어깨까지만 보인다) (아래는 화면 밖)
+func _draw_pixel_catcher() -> void:
+	var u := PixelArt.unit(size)
+	var feet := Vector2(size.x * 0.5, size.y * (ZONE_Y + ZONE_HALF_H) - PixelMeta.CATCHER_TOP * u + u * 9.0)
+	PixelArt.draw_cell(self, "catcher", 0, PixelMeta.CATCHER_CELL, PixelMeta.CATCHER_FEET, feet, size)
+
+
 ## 포수 미트: 투수가 노린 곳(힌트). 제구가 흔들리면 공은 미트에서 벗어난다
 func _draw_catcher_mitt() -> void:
 	if not session.config.catcher_hint or session.pitch == null:
@@ -439,6 +495,9 @@ func _draw_catcher_mitt() -> void:
 	var u := p.trajectory.time_fraction(t_ms)
 	var at := _aim_on_screen(_pointing(p, t_ms) + (p.intended - p.trajectory.aim) * (1.0 - u))
 	# 공을 받을 만큼 크게 (홈플레이트에서 공보다 조금 크다)
+	if PixelArt.on():
+		PixelArt.draw_cell(self, "mitt", 0, PixelMeta.MITT_SIZE, PixelMeta.MITT_SIZE * 0.5 - Vector2(0.5, 0.5), at, size)
+		return
 	var r := _ball_radius(1.0) * 1.3
 	draw_circle(at, r, Color(Tokens.MITT, 0.9), true, -1.0, true)
 	draw_circle(at, r * 0.55, Color(Tokens.DIRT, 0.95), true, -1.0, true)

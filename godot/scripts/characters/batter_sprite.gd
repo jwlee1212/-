@@ -69,8 +69,24 @@ func show_frame(frame: String) -> void:
 	if frame == _shown or not _textures.has(frame):
 		return
 	_shown = frame
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	_sprite.region_enabled = false
 	var info: Array = FRAMES[frame]
 	var s: float = HEIGHT / info[1]
 	_sprite.texture = _textures[frame]
 	_sprite.offset = -info[0]
 	_sprite.scale = Vector2(s, s)
+
+
+## 도트 시험판: 도트 시트(PixelArt)의 칸 하나를 보여 준다. 원점이 발 자리, 그림 1픽셀 = 노드 크기 1 (화면 크기는 scale 로)
+func show_pixel(index: int) -> void:
+	var key := "pixel:%d" % index
+	if key == _shown:
+		return
+	_shown = key
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_sprite.texture = PixelArt.texture("batter")
+	_sprite.region_enabled = true
+	_sprite.region_rect = Rect2(Vector2(index * PixelMeta.BATTER_CELL.x, 0), PixelMeta.BATTER_CELL)
+	_sprite.offset = -PixelMeta.BATTER_FEET
+	_sprite.scale = Vector2.ONE
