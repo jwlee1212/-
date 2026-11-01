@@ -84,7 +84,7 @@ godot/                     Godot 프로젝트
 │  ├─ batting/             타격: 설정·볼배합·판정·타석(로직) / 세션·뷰(화면)
 │  ├─ pitching/            투구: 구종 데이터(pitch_catalog)·궤적(pitch_trajectory — 경과 시간만으로 위치를 내는 순수 함수) (로직)
 │  ├─ audio/               효과음 합성(44.1kHz, 경기장 반사음)·재생, 배경음악 재생(MusicPlayer: 화면별 곡·크로스페이드)
-│  ├─ ui/                  디자인 토큰
+│  ├─ ui/                  디자인 토큰(tokens) → 앱 Theme(theme_builder: 새 화면은 theme_type_variation 만 붙인다), 노치 여백(safe_area_margin)
 │  ├─ characters/          도트 그림: PixelArt(시트 그리기·칸 고르기·중계 경기장), PixelMeta(make_pixel_art.py 가 만든 칸 정보), BatterSprite(타자 칸 갈아 끼우기)
 │  ├─ debug/               손맛 조절 패널(구종 고정 버튼 포함), 테스트 시작(원하는 시점까지 빨리 감기) (개발 빌드 전용)
 │  ├─ career/              커리어: 선수·주간 루프·성장·인물·라이벌·스카우트 평가·기록실 (로직)
@@ -92,7 +92,7 @@ godot/                     Godot 프로젝트
 │  ├─ phone/               폰 문자: 도착·답장·만료·대화방 기록 (로직, 정의는 content.json messages — 조건·효과는 events 와 같은 검사기·처리기)
 │  ├─ game/                한 경기: 상태·주루·자동 진행, 내 주루 조작(RunControl)·도루(Steal)·런다운(Rundown) (로직)
 │  ├─ save/                커리어 저장·불러오기 (SaveGame: 객체를 통째로 이진 저장, 자동 저장)
-│  ├─ screens/             화면: 타이틀·선수 만들기·홈(내 방 + 주간 스케줄 달력)·폰(메시지·연락처)·경기(도루 화면·베이스 버튼)·결과·시즌·연습(타격·주루)·기록실·설정(주루: 자동·보조·수동)
+│  ├─ screens/             화면: 타이틀·선수 만들기·홈(위 바·내 선수 카드·아래 탭 바 = screens/home/ 부품 + 주간 스케줄 달력)·폰(메시지·연락처)·경기(도루 화면·베이스 버튼)·결과·시즌·연습(타격·주루)·기록실·설정(주루: 자동·보조·수동)
 │  ├─ balance_loader.gd, balance_source.gd   수치 읽기·저장 (맥은 파일, 웹은 개발 서버)
 │  ├─ settings.gd          유저 설정 (주루 설정 — 커리어 저장과 따로 user://settings.json)
 │  └─ main.gd

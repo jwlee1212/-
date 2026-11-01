@@ -8,7 +8,7 @@ CLAUDE.md 원칙 6: 외부·AI 생성 그림·소리를 넣을 때는 여기 기
 | 효과음 전부 (투구·스윙·타격음·미트·함성) | `godot/scripts/audio/sound_synth.gd` | 외부 음원·AI 도구 없이 코드로 합성 (사인파·잡음·감쇠 곡선) | 이 프로젝트 자체 코드 | 가능 |
 | 투수·야구장 그림 | `godot/scripts/batting/batting_view.gd` | 코드로 그린 단순 도형 (임시, G8 에서 타자와 같은 그림체로 교체) | 이 프로젝트 자체 코드 | 가능 |
 
-| **(임시)** 인물 일러스트 10장: 주인공 · 한소율(매니저) · 감독 · 동기 · 코치 · 정다온(소꿉친구) · 선배 · 엄마 · 후배 · 서지안(방송부) | `godot/art/portraits/` 의 `player` `manager` `coach` `buddy` `batting_coach` `neighbor` `senior` `mom` `junior` `reporter` `.png` | 유저가 **Google Gemini** 로 생성 (2026-10-11), 흰 배경만 지움 (선배는 가로로 긴 그림이라 인물만 남게 잘랐다). 그림 오른쪽 아래에 Gemini 표시(✦)가 남아 있다 | Gemini 이용 약관을 따른다 | **확인 필요 — 출시 전에 유저가 쓴 요금제의 약관(생성물의 상업 이용, 표시·워터마크 조건)을 확인해 여기 적는다** |
+| **(임시)** 인물 일러스트 9장 (주인공 그림은 2026-11-01 뺐다): 한소율(매니저) · 감독 · 동기 · 코치 · 정다온(소꿉친구) · 선배 · 엄마 · 후배 · 서지안(방송부) | `godot/art/portraits/` 의 `manager` `coach` `buddy` `batting_coach` `neighbor` `senior` `mom` `junior` `reporter` `.png` | 유저가 **Google Gemini** 로 생성 (2026-10-11), 흰 배경만 지움 (선배는 가로로 긴 그림이라 인물만 남게 잘랐다). 그림 오른쪽 아래에 Gemini 표시(✦)가 남아 있다 | Gemini 이용 약관을 따른다 | **확인 필요 — 출시 전에 유저가 쓴 요금제의 약관(생성물의 상업 이용, 표시·워터마크 조건)을 확인해 여기 적는다** |
 
 | **(임시)** 배경 2장: 학교 운동장 · 더그아웃 | `godot/art/backgrounds/field.png` `dugout.png` | 유저가 **Google Gemini** 로 생성 (2026-10-11), 그대로 넣음 | Gemini 이용 약관을 따른다 | **확인 필요** (위와 같음) |
 
@@ -28,6 +28,7 @@ AI 생성 에셋: 위 인물 일러스트 11장, 배경 6장 (Google Gemini).
 | 파일 | 출처 | 상업 이용 |
 |---|---|---|
 | `godot/art/pixel/*.png` (경기장·타자·투수·포수·미트·수비 화면 선수) | 이 저장소의 `scripts/make_pixel_art.py` 가 코드로 찍어 만든 그림 (AI 생성 아님, 외부 에셋 없음) | 가능 (자체 제작) |
+| `godot/art/pixel/training.png` (훈련 장면 5개: 티 배팅 · 헬스장 스쿼트 · 피칭머신 선구안 · 트랙 달리기 · 침대에서 잠, 2026-11-01) | 이 저장소의 `scripts/make_training_art.py` 가 코드로 찍어 만든 그림 (AI 생성 아님, 외부 에셋 없음) | 가능 (자체 제작) |
 
 ## 배경음악 (2026-10-31)
 | 파일 | 출처 | 상업 이용 |

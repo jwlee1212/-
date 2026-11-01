@@ -2,13 +2,19 @@ class_name Tokens
 extends RefCounted
 ## 디자인 토큰. 화면 코드는 색·간격·글자 크기·모서리를 여기서만 가져온다 (색상값을 화면 코드에 직접 쓰지 않는다).
 ## 캐주얼 톤이라 채도 높은 원색과 큰 모서리를 쓴다.
+## 색 배합 60-30-10 (2026-11-01): 배경 크림 60 · 카드 흰색 + 위·아래 바 남색 30 · 강조 주황 10.
+## 강조색(ACCENT)은 "눌러야 할 것"(진행 버튼·알림 배지)에만 쓴다. 강조하고 싶은 글자는 NAVY·굵기로.
 
-const BACKGROUND := Color("fff8ec")
+const BACKGROUND := Color("f4efe6")
 const SURFACE := Color("ffffff")
-const INK := Color("26324a")
-const INK_SOFT := Color("6b7690")
+const INK := Color("1e2a44")
+const INK_SOFT := Color("7a8299")
 const PRIMARY := Color("2f6bff")
-const ACCENT := Color("ff8a1f")
+const ACCENT := Color("ff6b2c")
+## 위·아래 바(남색), 바 위에서 고른 탭 바탕, 바 위 흐린 글자
+const NAVY := Color("1e2a44")
+const NAVY_SOFT := Color("33415f")
+const BAR_TEXT_SOFT := Color(1, 1, 1, 0.6)
 const GOOD := Color("22b573")
 const BAD := Color("ff4d5e")
 const WARN := Color("ffc21a")
@@ -48,13 +54,16 @@ const PITCH_COLORS := {
 	"changeup": GOOD, "forkball": Color("0f8a5f"), "splitter": WARN,
 }
 ## 능력치 색 (선수 탭 막대, 스케줄 칸), 휴식 칸
-const STAT_COLORS := {"contact": PRIMARY, "power": ACCENT, "eye": GOOD, "speed": Color("8a63d2")}
-const REST_COLOR := Color("4fb3d9")
+## 채도를 낮춰 강조색(주황)과 다투지 않게 한다 (2026-11-01)
+const STAT_COLORS := {"contact": Color("5b7db1"), "power": Color("c98a5e"), "eye": Color("5fa383"), "speed": Color("8e7cc3")}
+const REST_COLOR := Color("6fa8c7")
 ## 스케줄 결과 도장 (대성공 · 성공 · 실패)
-const OUTCOME_COLORS := {"great": ACCENT, "success": GOOD, "fail": BAD}
+const OUTCOME_COLORS := {"great": Color("d99a1e"), "success": Color("4f9a74"), "fail": Color("d0566a")}
 ## 내 방 화면: 방 그림 위에 겹치는 반투명 흰 판, 아직 안 채운 칸
 const ROOM_PANEL := Color(1, 1, 1, 0.9)
 const ROOM_EMPTY := Color(1, 1, 1, 0.55)
+## 방 그림 위에 덮는 크림색 막 (그림은 은은하게, 바탕은 배경색 — 60-30-10 의 60)
+const ROOM_VEIL := Color(BACKGROUND, 0.82)
 ## 공·타구 그림자, 겹쳐 그리는 반투명 바탕
 ## 대화 화면: 배경 자리(그림이 없을 때), 일러스트 자리, 대사창, 지문 글자
 const DIALOGUE_BG := Color("c9d6ef")
@@ -73,7 +82,7 @@ const PHONE_SCREEN := Color("fff8ec")
 const BUBBLE_THEM := Color("ffffff")
 const BUBBLE_ME := Color("2f6bff")
 const BUBBLE_ME_TEXT := Color("ffffff")
-const BADGE := Color("ff4d5e")
+const BADGE := ACCENT
 const SHADOW := Color(0, 0, 0, 0.25)
 const SCRIM := Color(0, 0, 0, 0.6)
 ## 로비: 데모 타석 위에 메뉴를 얹는 오른쪽 판
@@ -84,6 +93,15 @@ const SPACE_XS := 4
 const SPACE_SM := 8
 const SPACE_MD := 16
 const SPACE_LG := 24
+const SPACE_XL := 32
+## 최소 터치 영역 (보이는 버튼이 작아도 눌리는 자리는 이만큼), 홈 위 바·아래 탭 바 높이
+const TOUCH_MIN := 48
+const TOP_BAR_HEIGHT := 48
+const BOTTOM_NAV_HEIGHT := 56
+## 카드 모서리 (홈 카드·바)
+const RADIUS_PANEL := 16
+## 홈 양옆 칸 너비 (내 선수 카드 · 팀 기록)
+const SIDE_COLUMN := 216
 
 const RADIUS_CARD := 20
 const RADIUS_HUD := 16

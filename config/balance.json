@@ -446,7 +446,7 @@
       }
     },
     "schedule": {
-      "_note": "주간 스케줄 (러브딜리버리식, 2026-10-21). 평일을 slots 칸으로 나눠 칸마다 training 하나를 넣고 [스케줄 시작]으로 칸씩 실행, 주말은 경기. 한 칸 = training 의 gain·condition 을 칸 수로 나눈 만큼 (세 칸 모두 같은 훈련 = 옛 '훈련 하나' 한 주). 휴식이 아닌 칸은 대성공·성공·실패를 굴린다: 대성공 확률 = greatChance + (컨디션 − greatPivot) × greatPerPoint (pivot 위에서만 늘어남), 실패 확률 = failChance + (failPivot − 컨디션) × failPerPoint (pivot 아래에서만 늘어남). 칸을 차례로 실행하므로 앞 칸에서 깎인 컨디션이 뒤 칸 확률에 들어간다. gainMul: 그 결과일 때 성장 배율 (실패해도 컨디션은 그대로 깎인다). revealSec: 화면에서 칸 하나 결과를 보여 주는 시간",
+      "_note": "주간 스케줄 (러브딜리버리식, 2026-10-21). 평일을 slots 칸으로 나눠 칸마다 training 하나를 넣고 [스케줄 시작]으로 칸씩 실행, 주말은 경기. 한 칸 = training 의 gain·condition 을 칸 수로 나눈 만큼 (세 칸 모두 같은 훈련 = 옛 '훈련 하나' 한 주). 휴식이 아닌 칸은 대성공·성공·실패를 굴린다: 대성공 확률 = greatChance + (컨디션 − greatPivot) × greatPerPoint (pivot 위에서만 늘어남), 실패 확률 = failChance + (failPivot − 컨디션) × failPerPoint (pivot 아래에서만 늘어남). 칸을 차례로 실행하므로 앞 칸에서 깎인 컨디션이 뒤 칸 확률에 들어간다. gainMul: 그 결과일 때 성장 배율 (실패해도 컨디션은 그대로 깎인다). revealSec: 화면에서 칸 하나 결과를 보여 주는 시간. 훈련 장면 창 (2026-11-01): 칸마다 화면 가운데 창에 도트 훈련 장면(art/pixel/training.png)을 trainingFps 장/초로 trainingAnimSec 초 틀고, 결과(대성공·성공·실패)를 trainingResultSec 초 보여 준 뒤 닫고 달력에 도장을 찍는다. 창을 누르면 다음 단계로, [모두 건너뛰기]는 남은 칸을 다 넘긴다",
       "slots": [
         "월·화",
         "수·목",
@@ -472,7 +472,10 @@
           "gainMul": 0.3
         }
       },
-      "revealSec": 0.75
+      "revealSec": 0.75,
+      "trainingFps": 6,
+      "trainingAnimSec": 1.4,
+      "trainingResultSec": 0.9
     },
     "conditionEffect": {
       "_note": "컨디션이 판정에 주는 영향: 유효 능력치 = 능력치 + (컨디션 - pivot) × perPoint",

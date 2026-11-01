@@ -34,7 +34,7 @@ var _fps_label: Label
 
 
 func _ready() -> void:
-	theme = _make_theme()
+	theme = ThemeBuilder.build()
 	var bg := ColorRect.new()
 	bg.color = Tokens.BACKGROUND
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -185,8 +185,9 @@ func show_practice() -> void:
 	show_screen(PracticeScreen.new(self))
 
 
-func show_settings() -> void:
-	show_screen(SettingsScreen.new(self))
+## 설정 (back: [돌아가기]로 갈 화면, 없으면 로비)
+func show_settings(back: Callable = Callable()) -> void:
+	show_screen(SettingsScreen.new(self, back if back.is_valid() else show_title))
 
 
 ## 주루 연습 (개발 빌드): 도루·한 베이스 더·태그업만 되풀이
@@ -316,47 +317,3 @@ func _add_rotate_hint() -> void:
 	cover.add_child(UiKit.fill_parent(text))
 	add_child(_rotate_hint)
 	_rotate_hint.visible = false
-
-
-## Godot 기본 테마는 어두운 회색이라 슬라이더·버튼을 토큰 색으로 바꾼다
-func _make_theme() -> Theme:
-	var t := Theme.new()
-	t.default_font = Tokens.FONT_REGULAR
-	t.default_font_size = Tokens.FONT_BODY
-	var track := StyleBoxFlat.new()
-	track.bg_color = Color(Tokens.PRIMARY, 0.15)
-	track.set_corner_radius_all(4)
-	track.content_margin_top = 4
-	track.content_margin_bottom = 4
-	var filled := track.duplicate() as StyleBoxFlat
-	filled.bg_color = Tokens.PRIMARY
-	t.set_stylebox("slider", "HSlider", track)
-	t.set_stylebox("grabber_area", "HSlider", filled)
-	t.set_stylebox("grabber_area_highlight", "HSlider", filled)
-	var button := StyleBoxFlat.new()
-	button.bg_color = Tokens.PRIMARY
-	button.set_corner_radius_all(Tokens.RADIUS_CARD)
-	button.content_margin_left = Tokens.SPACE_MD
-	button.content_margin_right = Tokens.SPACE_MD
-	button.content_margin_top = Tokens.SPACE_XS
-	button.content_margin_bottom = Tokens.SPACE_XS
-	var pressed := button.duplicate() as StyleBoxFlat
-	pressed.bg_color = Tokens.PRIMARY.darkened(0.2)
-	for state in ["normal", "hover", "focus"]:
-		t.set_stylebox(state, "Button", button)
-	t.set_stylebox("pressed", "Button", pressed)
-	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		t.set_color(state, "Button", Tokens.SURFACE)
-	t.set_font("font", "Button", Tokens.FONT_BOLD)
-	t.set_font_size("font_size", "Button", Tokens.FONT_CAPTION)
-	var edit := StyleBoxFlat.new()
-	edit.bg_color = Tokens.SURFACE
-	edit.border_color = Tokens.PRIMARY
-	edit.set_border_width_all(2)
-	edit.set_corner_radius_all(Tokens.SPACE_SM)
-	edit.set_content_margin_all(Tokens.SPACE_SM)
-	t.set_stylebox("normal", "LineEdit", edit)
-	t.set_stylebox("focus", "LineEdit", edit)
-	t.set_color("font_color", "LineEdit", Tokens.INK)
-	t.set_font_size("font_size", "LineEdit", Tokens.FONT_TITLE)
-	return t

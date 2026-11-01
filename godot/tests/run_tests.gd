@@ -93,6 +93,7 @@ func _init() -> void:
 		"test_camp_save_and_repeat",
 		"test_fast_forward",
 		"test_season_loop",
+		"test_training_scenes",
 		"test_standings_consistent",
 		"test_tournament_elimination",
 		"test_growth_curve",
@@ -2941,6 +2942,20 @@ func test_week_schedule() -> void:
 	rest.player.condition = 40
 	rest.train("rest")
 	check(absi(rest.player.condition - 40 - int(rest.cfg.training["rest"]["condition"])) <= 2, "휴식 세 칸 ≈ 옛 휴식 한 주 (%d)" % rest.player.condition)
+
+
+func test_training_scenes() -> void:
+	# 훈련 장면 창: balance.json 의 훈련마다 도트 장면 줄이 있고, 그림 크기가 줄·칸 수와 맞는다
+	var cfg := _career_cfg()
+	for id: String in cfg.training:
+		if id.begins_with("_"):
+			continue
+		check(TrainingMeta.ROWS.has(id), "훈련 %s 의 장면이 training.png 에 있다" % id)
+	var tex := PixelArt.texture("training")
+	check(tex != null and tex.get_size() == Vector2(TrainingMeta.SIZE.x * TrainingMeta.FRAMES, TrainingMeta.SIZE.y * TrainingMeta.ROWS.size()),
+		"training.png 크기 = 칸 %d × 줄 %d" % [TrainingMeta.FRAMES, TrainingMeta.ROWS.size()])
+	for key in ["trainingFps", "trainingAnimSec", "trainingResultSec"]:
+		check(float(cfg.schedule.get(key, 0)) > 0.0, "career.schedule.%s" % key)
 
 
 func test_schedule_outcome_odds() -> void:

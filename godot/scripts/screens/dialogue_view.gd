@@ -9,7 +9,7 @@ extends Control
 ## 선택지에 돈이 들면 값이 보이고, 모자라면 못 누른다. 내가 고른 말은 내 대사로 한 번 나온다.
 ##
 ## 그림은 아직 없어서 자리만 보인다. 파일을 넣으면 자동으로 쓴다:
-##   일러스트 godot/art/portraits/<인물 id>.png  (주인공은 player.png — 내 대사 때 오른쪽에 나온다)
+##   일러스트 godot/art/portraits/<인물 id>.png  (주인공은 얼굴을 보이지 않는다 — 유저가 자기를 넣어 몰입하도록, 2026-11-01)
 ##   배경     godot/art/backgrounds/<장소 id>.png (EventBook.place_of, 장소 이름은 content.json places)
 ## 글자 속도는 balance.json career.story.dialogueCharsPerSec.
 
@@ -29,8 +29,6 @@ var _shown := 0.0
 var _portrait_id := ""
 
 var _portrait: Control
-## 주인공 일러스트 (오른쪽, 내가 말할 때만 보인다. 그림이 없으면 비어 있다)
-var _player_portrait: Control
 var _name_plate: PanelContainer
 var _name_label: Label
 var _text: Label
@@ -61,19 +59,6 @@ func _ready() -> void:
 	_portrait.offset_bottom = -Tokens.SPACE_LG  # 대사창 아래로 삐져나오지 않게
 	_portrait.clip_contents = true
 	add_child(_portrait)
-	# 일러스트는 그 인물이 처음 말할 때 나온다 (지문으로 시작하는 장면에 아직 없는 사람이 서 있지 않게)
-	_player_portrait = Control.new()
-	_player_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_player_portrait.anchor_left = 0.64
-	_player_portrait.anchor_right = 0.94
-	_player_portrait.anchor_top = 0.08
-	_player_portrait.anchor_bottom = 1.0
-	_player_portrait.offset_bottom = -Tokens.SPACE_LG  # 대사창 아래로 삐져나오지 않게
-	_player_portrait.clip_contents = true
-	_player_portrait.visible = false
-	add_child(_player_portrait)
-	if ResourceLoader.exists(PORTRAIT_DIR % "player"):
-		_player_portrait.add_child(UiKit.fill_parent(_picture(PORTRAIT_DIR % "player")))
 	_build_header()
 	_build_box()
 	_choices = UiKit.vbox(Tokens.SPACE_SM)
@@ -229,13 +214,11 @@ func _show_line(line: Dictionary) -> void:
 		_set_portrait(line["portrait"], line["name"])
 	_set_speaker(line["name"], line["role"])
 	_portrait.modulate = Tokens.PORTRAIT_IDLE if narration or mine else Color.WHITE
-	_player_portrait.visible = mine
 	_type(line["text"], Tokens.NARRATION if narration else (Tokens.PRIMARY if mine else Tokens.INK))
 
 
 func _show_choices(options: Array) -> void:
 	_stage = Stage.CHOICE
-	_player_portrait.visible = false
 	for i in options.size():
 		var o: Dictionary = options[i]
 		var text: String = o["label"]
