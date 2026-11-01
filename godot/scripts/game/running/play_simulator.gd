@@ -284,6 +284,13 @@ func _defense_followup(delay: float = 0.0) -> bool:
 			best = d
 			best.arrive = d.arrive + tag
 	if best_base < 0:
+		# 외야수가 공을 쥐고 있는데 주자가 더 가려고 뛴다: 아웃은 못 잡아도 그 베이스 쪽(먼 송구면 중계맨)으로 공을 보낸다.
+		# 그대로 쥐고 서 있으면 주자가 송구 없이 몇 베이스씩 더 간다 (중계 플레이 포기). 내야수·중계맨은 쥐고 지켜보는 게 맞다
+		if _of_holding():
+			var cut := _hold_back_base(release)
+			if cut >= 2:
+				_send(_ball_at, cut, _deliver(_ball_at, cut, release, _throw_speed(), -1.0, false), -1, false)
+				return true
 		return false
 	_send(_ball_at, best_base, best, -1, false, true)
 	return true
@@ -651,17 +658,28 @@ func _defense_decide(from: Vector2, ready: float) -> void:
 	# 아무도 못 잡으면: 공을 놓는 순간에도 아직 달리고 있을 가장 앞 주자 쪽으로 던져 더 못 가게.
 	# 그 주자가 한 베이스 더 갈지 아직 안 정했으면 "한 베이스 앞"으로 (야구의 기본: 선행 주자 앞 베이스로), 이미 정했으면 그 베이스로.
 	# 그런 주자가 없으면(다 멈췄거나 먼저 닿는다) 던지지 않고 공을 쥔 채 지켜본다
-	var cut := -1
-	for r in result.runners:
-		if r.is_on_field() and r.state == RunnerAI.State.RUN and _t + r.eta_to_target() > release:
-			var undecided := r.stop_at_end and r.target < 4 and not _decided.has("%d:%d" % [r.id, r.target])
-			cut = maxi(cut, mini(r.target + (1 if undecided and not _taken(r.target + 1, r) else 0), 4))
+	var cut := _hold_back_base(release)
 	if cut >= 2:
 		# 먼 송구면 중계맨에게 — 중계맨이 받아 들고 있다가 더 가려는 주자를 잡는다
 		_send(from, cut, _deliver(from, cut, release, _throw_speed(), -1.0, false), -1, false)
 		return
 	_ball_free_t = release
 	_ball_thrower_infield = ground or _ball.fielder in _phys.infield
+
+
+## 아무도 못 잡을 때 진루를 막으려고 던질 베이스 (없으면 -1): 공을 놓는 순간에도 아직 달리고 있을 가장 앞 주자의 목적지.
+## 그 주자가 한 베이스 더 갈지 아직 안 정했으면 "한 베이스 앞"으로. 지금 베이스에 공보다 먼저 닿더라도 한 베이스 더 갈지
+## 아직 안 정한 주자는 넣는다 — 빼면 외야수가 공을 쥔 채 서 있는 사이 그 주자가 3루를 돌아 홈까지 송구 없이 들어온다
+func _hold_back_base(release: float) -> int:
+	var cut := -1
+	for r in result.runners:
+		if not r.is_on_field() or r.state != RunnerAI.State.RUN or r.target <= r.base:
+			continue
+		var undecided := r.stop_at_end and r.target < 4 and not _decided.has("%d:%d" % [r.id, r.target])
+		if _t + r.eta_to_target() <= release and not undecided:
+			continue
+		cut = maxi(cut, mini(r.target + (1 if undecided and not _taken(r.target + 1, r) else 0), 4))
+	return cut
 
 
 ## 베이스 b 에 다른 주자가 서 있거나 그리로 가는 중인가 (그러면 r 은 거기로 못 간다)

@@ -129,6 +129,7 @@ func _init() -> void:
 		"test_no_pointless_throws",
 		"test_force_outs_and_cover",
 		"test_relay_play",
+		"test_relay_not_abandoned",
 		"test_run_control_overrides_my_runner",
 		"test_run_control_tag_up",
 		"test_run_control_no_passing",
@@ -2912,6 +2913,43 @@ func test_relay_play() -> void:
 			check((th.from as Vector2).distance_to(Vector2.ZERO if th.target >= 4 else p.base_pos(th.target)) >= p.relay_min_m, "가까운 송구에 중계 없음")
 
 
+func test_relay_not_abandoned() -> void:
+	# 외야 안타에서 주자가 한 베이스 더 가는데 수비가 공을 쥔 채 송구를 한 번도 안 하면 안 된다 (중계 플레이 포기).
+	# 예: 2루 주자가 외야수의 송구 전에 3루에 닿을 것 같아 공을 쥐었는데, 그 주자가 3루를 돌아 홈까지 송구 없이 들어오던 버그.
+	# AI 주자만 있을 때와 내 타자 주자가 계속 더 가려 할 때(choices 모두 true) 둘 다 본다
+	var p := _config.ball_physics
+	var plays := 0
+	var advanced := 0
+	var abandoned := 0
+	var example := ""
+	var seed_i := 0
+	for mine: bool in [false, true]:
+		for ev in [110, 130, 150]:
+			for la in [10, 20, 30]:
+				for spray in range(-40, 41, 8):
+					var b := _sim(ev, la, spray)
+					if b.home_run or b.caught or b.fielder in p.infield:
+						continue
+					for bases: Array in [[-1, 2, -1], [1, 2, -1], [1, -1, -1]]:
+						for outs in [0, 1]:
+							seed_i += 1
+							var res := PlaySimulator.new(p, b, 4, bases, func(_x: int) -> int: return 50, outs, _rng(seed_i),
+								4 if mine else -1, [true, true, true] if mine else []).run()
+							plays += 1
+							# 처음 자리보다 두 베이스 이상 간 주자(2루 → 홈, 1루 → 3루 등)가 있는데 송구가 하나도 없으면 포기한 것
+							for r in res.runners:
+								var reached := 4 if r.state == RunnerAI.State.SCORED else r.base
+								if r.is_batter() or reached - r.origin < 2:
+									continue
+								advanced += 1
+								if res.throws.is_empty():
+									abandoned += 1
+									if example == "":
+										example = "타구 %d/%d/%d 주자 %s %d사 → %d루 주자가 %s" % [ev, la, spray, bases, outs, r.origin, "홈인" if reached == 4 else "%d루" % reached]
+	check(plays > 200 and advanced > 50, "두 베이스 이상 간 주자가 나오는 외야 안타 %d / %d" % [advanced, plays])
+	check(abandoned == 0, "송구 없이 두 베이스 이상 간 주자 %d / %d (%s)" % [abandoned, advanced, example])
+
+
 func test_one_training_per_week() -> void:
 	# 한 주에 훈련은 하나: 홈 화면을 다시 열어 또 눌러도 능력치가 두 번 오르지 않는다. 주가 넘어가면 다시 할 수 있다
 	var career := CareerState.new(_career_cfg(), "테스트", _config)
@@ -3550,7 +3588,9 @@ func test_interactive_game_matches_and_stays_consistent() -> void:
 		for side in 2:
 			check(manual.box.team_runs(side) == manual.state.score[side], "수동 경기도 득점 합 = 총점 (seed %d)" % s)
 	print("    40경기: 도루 기회 %d번 (성공 %d, 실패 %d), 주루 장면 %d번" % [total_steals, sb, cs, total_runs])
-	check(total_steals >= 20 and total_runs >= 10, "도루 기회 %d번, 주루 장면 %d번이 나온다" % [total_steals, total_runs])
+	# 주루 장면은 시드에 따라 40경기에 4~11번으로 크게 흔들린다 (2026-11 측정, 시드 0~159를 40개씩: 옛 코드 11·4·5·7, 지금 5·4·5·10).
+	# 장면이 "나온다"만 본다 — 10번 기준은 시드 0~39가 우연히 11번이라 통과하던 것이다
+	check(total_steals >= 20 and total_runs >= 3, "도루 기회 %d번, 주루 장면 %d번이 나온다" % [total_steals, total_runs])
 	check(sb > 0 and cs > 0 and sb + cs == total_steals, "도루 성공 %d + 실패 %d = 기회 %d" % [sb, cs, total_steals])
 	# 도루하면 주력이 자란다
 	var cfg := _career_cfg()
