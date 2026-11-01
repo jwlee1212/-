@@ -209,6 +209,7 @@ func _open_batting() -> void:
 	add_child(UiKit.fill_parent(_batting))
 	_view = BattingView.new()
 	_view.session = _session
+	_view.game = _game
 	_view.jersey_number = _game.my_slot + 1
 	_view.tapped.connect(_session.tap)
 	_batting.add_child(UiKit.fill_parent(_view))

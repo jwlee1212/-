@@ -31,8 +31,14 @@ const UNIFORM_THEM := Color("ff4d5e")
 ## 경기장: 관중석, 관중 점 색, 전광판, 밝은 잔디 줄무늬
 const STANDS_DARK := Color("4b5d82")
 const CROWD: Array[Color] = [Color("f4f1ea"), Color("ffcf6b"), Color("ff7a7a"), Color("7fb2ff"), Color("9be3b0")]
+## 관중 머리 색 (머리카락·얼굴) — 관중석은 머리 한 줄·옷 한 줄·의자 한 줄로 사람처럼 찍는다
+const CROWD_HEADS: Array[Color] = [Color("3b2a22"), Color("3b2a22"), Color("f6c7a0"), Color("20232f")]
 const SCOREBOARD := Color("1b2333")
 const GRASS_LIGHT := Color("5ed27b")
+## 경기장 전광판 LED (도트): 켜진 점수 숫자, 이닝 번호·R 같은 흰 글자, 공격 중이 아닌 팀 띠
+const LED_ON := Color("ffc21a")
+const LED_TEXT := Color("f4f1e8")
+const LED_DIM := Color("5a6078")
 ## HUD: 반투명 유리 패널, 테두리, 글자, 볼카운트 점(볼·스트라이크·아웃)
 const HUD_GLASS := Color(0.06, 0.09, 0.19, 0.62)
 const HUD_BORDER := Color(1, 1, 1, 0.18)

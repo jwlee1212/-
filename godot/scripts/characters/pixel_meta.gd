@@ -5,6 +5,8 @@ extends RefCounted
 
 const SCALE := 3
 const FIELD_SIZE := Vector2(340, 130)
+## 배경의 전광판 LED 판 (왼쪽 위·크기, 그림 픽셀) — 점수·볼카운트를 이 위에 도트로 찍는다
+const BOARD_LED := Rect2(135, 27, 71, 21)
 const BATTER_CELL := Vector2(150, 128)
 const BATTER_FEET := Vector2(62, 122)
 const BATTER := {"stance": 0, "breath": 1, "load_a": 2, "load": 3, "stride_up": 4, "stride": 5, "landing": 6, "rotate1": 7, "rotate2": 8, "contact_high": 9, "contact_mid": 10, "contact_low": 11, "extend": 12, "follow1": 13, "follow2": 14, "follow3": 15, "finish": 16, "bunt": 17, "recover": 18, "settle": 19}

@@ -35,19 +35,22 @@ def hx(h):
     return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
 
 
+# 색은 단계(램프)로 둔다: _hi 빛 → 바탕 → _s 그늘 → _dk 깊은 그늘. 그늘은 푸르게·빛은 따뜻하게 살짝 틀어
+# (같은 색을 검게만 하면 칙칙하다) 칸 수는 그대로 두고 입체감만 올린다 (2026-11-01)
 PAL = {k: hx(v) for k, v in {
     "ink": "#1e2240",
-    "skin": "#f6c7a0", "skin_s": "#d8946c",
-    # 우리 팀 (타자): 파랑
-    "us": "#2f62e0", "us_s": "#1d3d9e", "us_hi": "#8fb0ff", "us_dk": "#152c70", "hair": "#3b2a22",
-    "jersey": "#eef0f6", "jersey_s": "#b4bbcc",
-    "shoe": "#2a2b38", "shoe_s": "#15161e",
-    "bat": "#dca060", "bat_s": "#9c6232",
-    "belt": "#2a2b38",
+    "skin_hi": "#ffe2c6", "skin": "#f6c7a0", "skin_s": "#d8906e", "skin_dk": "#a65d58",
+    # 우리 팀 (타자): 파랑. _gl 은 헬멧 반짝임
+    "us_hi": "#5d8cf2", "us": "#2f62e0", "us_s": "#21399c", "us_dk": "#161f66", "us_gl": "#b9d0ff",
+    "hair": "#3b2a22", "hair_hi": "#5e4436",
+    "jersey_hi": "#ffffff", "jersey": "#e8ecf5", "jersey_s": "#a9b0cd", "jersey_dk": "#5d6590",
+    "shoe_hi": "#4d5068", "shoe": "#2a2c3c", "shoe_s": "#171823", "shoe_dk": "#171823", "sole": "#8d93ab",
+    "bat_hi": "#f4cd92", "bat": "#d99a58", "bat_s": "#a5642f", "bat_dk": "#6e3a1f",
+    "belt_hi": "#4d5068", "belt": "#2a2b38",
     # 상대 팀 (투수·포수): 빨강
-    "them": "#e5404e", "them_s": "#a42638", "them_hi": "#ff8f99",
+    "them_hi": "#ff8f99", "them": "#e5404e", "them_s": "#a42638", "them_dk": "#661834",
     "gear": "#2c3046", "gear_s": "#181a28",
-    "glove": "#b0703a", "glove_s": "#6e3f18", "pocket": "#7a4720",
+    "glove_hi": "#d69458", "glove": "#b0703a", "glove_s": "#6e3f18", "glove_dk": "#4a2a14", "pocket": "#7a4720",
     "ball": "#ffffff", "ball_s": "#c9ced8",
     "eye": "#1e2240",
 }.items()}
@@ -98,6 +101,25 @@ class Cell:
         self.put(m, PAL[color])
         if shade:
             self.put(m & ~shifted(m, d, d), PAL[shade])
+        return m
+
+    def ramp(self, fn, name, d=1, hi=True):
+        """색 단계로 칠하는 부위: 테두리 → 바탕 → 왼쪽 위 빛 → 오른쪽 아래 그늘(d 칸) → 가장 바깥 깊은 그늘(d 가 2 이상일 때).
+        다른 부위 위에 그어지는 안쪽 선은 남색 대신 이 부위의 깊은 그늘색으로 — 바깥 윤곽만 남색이라 덜 딱딱하다"""
+        m = self._mask(fn)
+        if not m.any():
+            return m
+        ring = grow(m) & ~m
+        solid = self.rgba[..., 3] == 255
+        self.put(ring & ~solid, PAL["ink"])
+        self.put(ring & solid, PAL[name + "_dk"])
+        self.put(m, PAL[name])
+        shade = m & ~shifted(m, d, d)
+        if hi:
+            self.put(m & ~shifted(m, -1, -1) & ~shade, PAL[name + "_hi"])
+        self.put(shade, PAL[name + "_s"])
+        if d >= 2:
+            self.put(m & ~shifted(m, 1, 1), PAL[name + "_dk"])
         return m
 
     def shadow(self, rx, ry):
@@ -185,36 +207,38 @@ SEVEN = ["###", "..#", ".#.", ".#.", ".#."]
 
 # ---------- 손으로 찍은 판 (몸통·헬멧) ----------
 # 도형으로 그리면 몸통이 상자, 헬멧이 공처럼 보여서, 이 둘은 한 픽셀씩 찍은 판을 관절 자리에 찍는다.
-# 글자: . 투명  K 테두리  B 헬멧  b 헬멧 그늘  d 헬멧 아래 테  h 헬멧 빛  W 유니폼  w 유니폼 그늘  n 등번호
-#       L 벨트  S 피부  s 피부 그늘  r 머리카락
+# 글자: . 투명  K 테두리  B 헬멧  b 헬멧 그늘  d 헬멧 아래 테·깊은 그늘  h 헬멧 빛  g 헬멧 반짝임
+#       W 유니폼  X 유니폼 빛  w 유니폼 그늘  v 유니폼 깊은 그늘(주름 심)  n 등번호(d 는 번호 그림자)
+#       L 벨트  l 벨트 윗면 빛  S 피부  s 피부 그늘  r 머리카락
 STAMP_COLORS = {
-    "K": "ink", "B": "us", "b": "us_s", "d": "us_dk", "h": "us_hi", "W": "jersey", "w": "jersey_s", "n": "us",
-    "L": "belt", "S": "skin", "s": "skin_s", "r": "hair",
+    "K": "ink", "B": "us", "b": "us_s", "d": "us_dk", "h": "us_hi", "g": "us_gl",
+    "W": "jersey", "w": "jersey_s", "X": "jersey_hi", "v": "jersey_dk", "n": "us",
+    "L": "belt", "l": "belt_hi", "S": "skin", "s": "skin_s", "r": "hair",
 }
 
 # 몸통 (3/4 뒷모습): 왼쪽은 등, 오른쪽 띠는 그늘진 옆구리. 앵커 = 두 어깨 가운데 (13, 2)
 TORSO = [
     "......KKKKKKKKKKKKKK......",
-    "...KKKWWWWWWWWWWWWWWKKK...",
-    ".KKWWWWWWWWWWWWWWWWWWWwKK.",
-    "KWWWWWWWWWWWWWWWWWWWWWwwwK",
-    "KWWWWWWWWWWWWWWWWWWWWWWwwK",
-    "KwWWWWWWWWWWWWWWWWWWWWWwwK",
-    "KwWWWnnnnWWWWWWWWWWWWWwwwK",
-    ".KwWWWWWnnWWWWWWWWWWWWwwK.",
-    ".KwWWWWWnWWWWWWWWWWWWWwwK.",
-    ".KwWWWWnnWWWWWWWWWWWWWwwK.",
-    ".KwWWWWnWWWWWWWWWWWWWwwwK.",
-    "..KwWWWnWWWWWWWWWWWWWwwK..",
-    "..KwWWWWWWWWWWWWWWWWWwwK..",
-    "..KwWWWWWWWWWWWWWWWWWwwK..",
-    "..KwwWWWWWWWWWWWWWWWwwwK..",
-    "..KwwWWWWWWWWWWWWWWWwwwK..",
-    "...KwwWWWWWWWWWWWWWwwwK...",
+    "...KKKXXXXXXXXXXXXXXKKK...",
+    ".KKXXXXXXXXWWWWWWWWWWwwKK.",
+    "KXXXXXWWWWWWWWWWWWWWWwwvvK",
+    "KXXXWWWWWWWWWWWWWWWWWWwvvK",
+    "KwXWWWWWWWWWWWWWWWWwWwwwvK",
+    "KwWWWnnnnWWWWWWWWWwWWwwwvK",
+    ".KwWWWddnnWWWWWWWwWWWWwvK.",
+    ".KwWWWWWnddWWWWWwWWWWWwvK.",
+    ".KwWWWWnndWWWWWwWWWWWWwvK.",
+    ".KwWWWWnddWWWWwWWWWWWwwvK.",
+    "..KwWWWndWWWWwWWWWWWWwvK..",
+    "..KwWWWWdWWWWWWWWWWWWwvK..",
+    "..KwWWWWWWWWWWWWWWWWwwvK..",
+    "..KwwWWWWWWWWWWWWWWwwwvK..",
+    "..KvwwWWWWWWWWWWWWWwwwvK..",
+    "...KvwwwWWWWWWWWWwwwwvK...",
+    "...KllllllllllllllllllK...",
     "...KLLLLLLLLLLLLLLLLLLK...",
-    "...KLLLLLLLLLLLLLLLLLLK...",
-    "...KWWWWWWWWWWWWWWWWwwK...",
-    "...KWWWWWWWWWWWWWWWwwwK...",
+    "...KXWWWWWWWWWWWWWWwwvK...",
+    "...KWWWWWWWWWWWWWWwwwvK...",
 ]
 TORSO_ANCHOR = (13, 2)
 TORSO_L_SH, TORSO_R_SH = (3, 4), (23, 4)
@@ -228,26 +252,26 @@ TORSO_L_HIP, TORSO_R_HIP = (15, 19), (10, 20)
 # 회전하면서 가슴이 투수 쪽으로 돌면 등이 넓게 보이는 TORSO(3/4 뒷모습)로 바뀐다. 앵커 = 어깨 가운데 (11, 2)
 TORSO_SIDE = [
     "......KKKKKKKKKKK.......",
-    "...KKKWWWWWWWWWWWKK.....",
-    "..KwWWWWWWWWWWWWWWWKK...",
-    ".KwwWWWWWWWWWWWWWWWWWK..",
-    "KwwWWWWWWwWWWWWWwWWWwwK.",
-    "KwwWWWWWWwWWWWWWwWWWwwK.",
-    "KwwWWWWWWwWWWWWWKWWWwwwK",
-    "KwwWWWWWWwWWWWWWwWWWwwwK",
-    "KwwWWWWWWwWWWWWWwWWwwwK.",
-    ".KwwWWWWWwWWWWWWKWWwwK..",
-    ".KwwWWWWWwWWWWWWwWWwwK..",
-    ".KwwWWWWWwWWWWWWwWwwK...",
-    ".KwwWWWWWwWWWWWWKWwwK...",
-    ".KwwWWWWWwWWWWWWwwwK....",
-    ".KwwWWWWWwWWWWWWwwwK....",
-    "..KwwWWWWwWWWWWwwwK.....",
-    "..KwwWWWWwWWWWwwwwK.....",
+    "...KKKXXXXXXXXXXXKK.....",
+    "..KwXXXXXXXWWWWWWWWKK...",
+    ".KvwXXXWWWWWWWWWWWWWWK..",
+    "KvwWXWWWWwWWWWWWwWWWwvK.",
+    "KvwWWWWWWwWWWWWWwWWWwvK.",
+    "KvwWWWWWWwWWWWWWKWWWwwvK",
+    "KvwWWWWWWwWWWWWWwWWWwwvK",
+    "KvwWWWWWWwWWWWWWwWWwwvK.",
+    ".KvwWWWWWwWWWWWWKWWwvK..",
+    ".KvwWWWWWwWWWWWWwWWwvK..",
+    ".KvwWWWWWwWWWWWWwWwvK...",
+    ".KvwWWWWWwWWWWWWKWwvK...",
+    ".KvwWWWWWwWWWWWWwwvK....",
+    ".KvwWWWWWwWWWWWWwwvK....",
+    "..KvwWWWWwWWWWWwwvK.....",
+    "..KvwwWWWwWWWWwwwvK.....",
+    "..KlllllllllllllllK.....",
     "..KLLLLLLLLLLLLLLLK.....",
-    "..KLLLLLLLLLLLLLLLK.....",
-    "..KwWWWWWWWWWWWwwwK.....",
-    "..KwWWWWWWWWWWwwwK......",
+    "..KwXWWWWWWWWWWwwvK.....",
+    "..KwWWWWWWWWWWwwvK......",
 ]
 TORSOS = {
     # [판, 앵커, 왼어깨(먼 쪽), 오른어깨(카메라 쪽), 앞다리 엉덩이, 뒷다리 엉덩이]
@@ -261,17 +285,17 @@ HELMET = [
     "..........KKKKKKKK",
     ".......KKKBBBBBBBBKKK",
     ".....KKBBBBBBBBBBBBBBKK",
-    "....KBBBhhhhBBBBBBBBBBBK",
-    "...KBBBhhhhhhBBBBBBBBBBbK",
+    "....KBBBhgghBBBBBBBBBBBK",
+    "...KBBBhggghhBBBBBBBBBBbK",
     "..KBBBBhhhhhBBBBBBBBBBBbbK",
     "..KBBBBBhhhBBBBBBBBBBBBBbK",
-    ".KBBBBBBBBBBBBBBBBBBBBBBbbK",
-    ".KBBBBBBBBBBBBBBBBBBBBBBBbK",
-    ".KBBBBBBBBBBBBBBBBBBBBBBBbbK",
-    "KBBBBBBBBBBBBBBBBBBBBBBBBbbK",
-    "KBBBBBBBBBBBBBBBBBBBBBBBBbbKKK",
+    ".KBBBBBBBBBBBBBBBBBBBBBBbdK",
+    ".KBBBBBBBBBBBBBBBBBBBBBBBdK",
+    ".KBBBBBBBBBBBBBBBBBBBBBBBbdK",
+    "KBBBBBBBBBBBBBBBBBBBBBBBBbdK",
+    "KBBBBBBBBBBBBBBBBBBBBBBBBbdKKK",
     "KBBBBBBBBBBBBBBBBBBBBBBBbbbbdK",
-    "KbBBBBBBBBBBBBBBBBBBBBBbbbKKKK",
+    "KbBBBBBBBBBBBBBBBBBBBBBbbdKKKK",
     "KbbBBBBBBBBBBBBBBBBBBBbbbbK",
     "KdbbbBBBBBBBBBBBBBBBbbbbbK",
     ".KddbbbbbbbbbbbbbbbbbbbdKK",
@@ -291,17 +315,17 @@ HELMET_SIDE = [
     "..........KKKKKKKK",
     ".......KKKBBBBBBBBKKK",
     ".....KKBBBBBBBBBBBBBBKK",
-    "....KBBBhhhhBBBBBBBBBBBK",
-    "...KBBBhhhhhhBBBBBBBBBBbK",
+    "....KBBBhgghBBBBBBBBBBBK",
+    "...KBBBhggghhBBBBBBBBBBbK",
     "..KBBBBhhhhhBBBBBBBBBBBbbK",
     "..KBBBBBhhhBBBBBBBBBBBBBbK",
-    ".KBBBBBBBBBBBBBBBBBBBBBBbbK",
-    ".KBBBBBBBBBBBBBBBBBBBBBBBbK",
-    ".KBBBBBBBBBBBBBBBBBBBBBBBbbK",
-    "KBBBBBBBBBBBBBBBBBBBBBBBBbbKK",
+    ".KBBBBBBBBBBBBBBBBBBBBBBbdK",
+    ".KBBBBBBBBBBBBBBBBBBBBBBBdK",
+    ".KBBBBBBBBBBBBBBBBBBBBBBBbdK",
+    "KBBBBBBBBBBBBBBBBBBBBBBBBbdKK",
     "KBBBBBBBBBBBBBBBBBBBBBBBBbbddKKK",
     "KBBBBBBBBBBBBBBBBBBBBBBBbbbdddddK",
-    "KbBBBBBBBBBBBBBBBBBBBBbbbbKKKKKK",
+    "KbBBBBBBBBBBBBBBBBBBBBbbbdKKKKKK",
     "KbbBBBBBBBBBBBBBBBBBbbbbKssK",
     "KdbbbBBBBBBBBBBBBBbbbbbKsssK",
     ".KddbbbbbbbbbbbbbbbbbbKsssK",
@@ -316,14 +340,17 @@ HELMET_SIDE = [
 HELMETS = {"back": HELMET, "side": HELMET_SIDE}
 
 
-def stamp(c, grid, at, anchor):
-    """판을 찍는다: 판의 anchor 칸이 at(발 기준 좌표)에 온다"""
+def stamp(c, grid, at, anchor, inner="ink"):
+    """판을 찍는다: 판의 anchor 칸이 at(발 기준 좌표)에 온다. 테두리(K)가 이미 그린 부위 위에 오면 안쪽 선이라 inner 색으로"""
     ox = int(round(at[0])) - anchor[0] + c.ax
     oy = int(round(at[1])) - anchor[1] + c.ay
     for y, row in enumerate(grid):
         for x, ch in enumerate(row):
             if ch != ".":
-                c.rgba[oy + y, ox + x] = (*PAL[STAMP_COLORS[ch]], 255)
+                key = STAMP_COLORS[ch]
+                if ch == "K" and c.rgba[oy + y, ox + x, 3] == 255:
+                    key = inner
+                c.rgba[oy + y, ox + x] = (*PAL[key], 255)
     return (ox - c.ax, oy - c.ay)
 
 
@@ -371,10 +398,10 @@ def draw_batter(k):
     top_hand = (k["hands"][0] + grip[0], k["hands"][1] + grip[1])
 
     def bat():
-        c.part(bat_shape(low_hand, k["bat_ang"], k["bat_len"] + 1.7), "bat", "bat_s")
+        c.ramp(bat_shape(low_hand, k["bat_ang"], k["bat_len"] + 1.7), "bat")
 
     def left_arm():
-        c.part([capsule(sh_l, k["l_elbow"], 6), capsule(k["l_elbow"], low_hand, 5)], "us", "us_s")
+        c.ramp([capsule(sh_l, k["l_elbow"], 6), capsule(k["l_elbow"], low_hand, 5)], "us")
 
     if not k["bat_front"]:
         bat()
@@ -385,24 +412,28 @@ def draw_batter(k):
         h0 = l_hip if side == "l" else r_hip
         knee, foot = k[side + "_knee"], k[side + "_foot"]
         ankle = add(foot, (0, -3))
-        c.part([capsule(add(h0, (0, -2)), knee, 10), capsule(knee, lerp(knee, ankle, 0.62), 8)], "jersey", "jersey_s", 2)
-        c.part(capsule(lerp(knee, ankle, 0.62), ankle, 6), "us", "us_s")
-        c.part(ellipse(add(foot, (1, -1)), 5, 3), "shoe", "shoe_s")
-    stamp(c, torso, sh_mid, anchor)
+        c.ramp([capsule(add(h0, (0, -2)), knee, 10), capsule(knee, lerp(knee, ankle, 0.62), 8)], "jersey", 3)
+        c.ramp(capsule(lerp(knee, ankle, 0.62), ankle, 6), "us")
+        shoe = c.ramp(ellipse(add(foot, (1, -1)), 5, 3), "shoe")
+        # 밑창: 신발 맨 아랫줄을 밝은 회색으로 — 검은 신발이 그림자에 묻히지 않게
+        c.put(shoe & ~shifted(shoe, 0, 1), PAL["sole"])
+    stamp(c, torso, sh_mid, anchor, "jersey_dk")
     # 오른팔 (카메라 쪽 뒷팔): 반팔 소매 → 파란 언더셔츠
     elbow = k["r_elbow"]
     # 위팔과 아래팔을 한 덩어리로 그려 팔꿈치에 이음새 선이 생기지 않게 한다 (굵기만 위팔 6 → 아래팔 5 로 가늘어짐)
-    c.part([capsule(sh_r, elbow, 6), capsule(elbow, top_hand, 5)], "us", "us_s")
-    c.part(capsule(sh_r, lerp(sh_r, elbow, 0.4), 8), "jersey", "jersey_s")
+    c.ramp([capsule(sh_r, elbow, 6), capsule(elbow, top_hand, 5)], "us")
+    sleeve = c.ramp(capsule(sh_r, lerp(sh_r, elbow, 0.4), 8), "jersey")
+    # 소매 끝 팀색 띠
+    c.put(sleeve & ~c._mask(capsule(sh_r, lerp(sh_r, elbow, 0.3), 8)), PAL["us"])
     if k["l_arm_front"]:
         left_arm()
-    stamp(c, HELMETS[k.get("torso", "back")], k["head"], HELMET_ANCHOR)
+    stamp(c, HELMETS[k.get("torso", "back")], k["head"], HELMET_ANCHOR, "us_dk")
     if k["bat_front"]:
         bat()
     # 장갑 낀 두 손은 늘 맨 앞 (배트가 헬멧 뒤로 지나가도 손은 보인다): 왼손(아래) → 오른손(위, 앞에 겹침)
     # 장갑은 흰색 — 파란 언더셔츠 팔과 같은 색이면 팔꿈치·팔뚝·손이 한 덩어리로 뭉쳐 손이 여러 개처럼 보인다
-    c.part(circle(low_hand, 2.2), "jersey", "jersey_s")
-    c.part(circle(top_hand, 2.2), "jersey", "jersey_s")
+    c.ramp(circle(low_hand, 2.2), "jersey")
+    c.ramp(circle(top_hand, 2.2), "jersey")
     return c
 
 
@@ -562,9 +593,10 @@ BATTER_FRAMES = [
 
 PITCHER_CELL = (44, 40, 22, 36)
 
-# 글자: K 테두리  C 모자  c 모자 그늘(챙)  q 모자 빛  S 피부  s 피부 그늘  r 머리카락  W 유니폼  w 유니폼 그늘  L 벨트
+# 글자: K 테두리  C 모자  c 모자 그늘(챙)  q 모자 빛  S 피부  s 피부 그늘  r 머리카락  W 유니폼  X 유니폼 빛  w 유니폼 그늘
+#       v 유니폼 깊은 그늘  p 가슴 팀 글씨(팀색)  L 벨트
 P_COLORS = {"K": "ink", "C": "them", "c": "them_s", "q": "them_hi", "S": "skin", "s": "skin_s", "r": "hair",
-            "W": "jersey", "w": "jersey_s", "L": "belt"}
+            "W": "jersey", "w": "jersey_s", "X": "jersey_hi", "v": "jersey_dk", "p": "them", "L": "belt"}
 
 # 머리 (앵커 = 얼굴 가운데 (5, 5)). 얼굴은 4줄: 날카롭게 꺾인 눈썹 → 눈 → 코 그늘 → 다문 입. 모자 챙 그늘이 눈썹·눈 두 줄을 덮는다(눈만 진하게 보임)
 P_HEADS = {
@@ -613,33 +645,33 @@ P_HEAD_ANCHOR = (5, 5)
 P_TORSOS = {
     "front": [[
         "..KKKKKK..",
-        ".KWWWWWWK.",
-        "KWWWWWWWwK",
-        "KWWWWWWWwK",
-        "KWWWWWWWwK",
-        ".KWWWWWwK.",
+        ".KXXXXWWK.",
+        "KXWWWWWWwK",
+        "KWWWWWWwvK",
+        "KWWWWWWwvK",
+        ".KWWWWwvK.",
         ".KLLLLLLK.",
-        ".KWWWWWwK.",
+        ".KXWWWwvK.",
     ], (5, 1), (1, 2), (8, 2), (3, 7), (6, 7)],
     "side": [[
         ".KKKKK.",
-        "KWWWWWK",
-        "KWWWWwK",
-        "KWWWWwK",
-        "KWWWWwK",
-        ".KWWWwK",
+        "KXXXWWK",
+        "KXWWWwK",
+        "KWWWwvK",
+        "KWWWwvK",
+        ".KWWwvK",
         ".KLLLLK",
-        ".KWWWwK",
+        ".KXWwvK",
     ], (3, 1), (4, 2), (2, 2), (4, 7), (3, 7)],
     "threeq": [[
         ".KKKKKK..",
-        "KWWWWWWK.",
-        "KWWWWWWwK",
-        "KWWWWWWwK",
-        "KWWWWWWwK",
-        ".KWWWWwK.",
+        "KXXXXWWK.",
+        "KXWWWWWwK",
+        "KWWWWWwvK",
+        "KWWWWWwvK",
+        ".KWWWwvK.",
         ".KLLLLLK.",
-        ".KWWWWwK.",
+        ".KXWWwvK.",
     ], (4, 1), (1, 2), (6, 2), (3, 7), (5, 7)],
 }
 
@@ -661,19 +693,19 @@ def draw_pitcher(k):
                     c.rgba[oy + y, ox + x] = (*PAL[P_COLORS[ch]], 255)
 
     def throw_arm():
-        c.part([capsule(t_sh, k["t_elbow"], 2), capsule(k["t_elbow"], k["t_hand"], 2)], "them", "them_s")
+        c.ramp([capsule(t_sh, k["t_elbow"], 2), capsule(k["t_elbow"], k["t_hand"], 2)], "them", hi=False)
         c.part(circle(k["t_hand"], 1.2), "skin", outline=False)
         if k["ball"]:
             c.part(circle(add(k["t_hand"], (0, -1)), 1.2), "ball", "ball_s")
 
     def glove_arm():
-        c.part([capsule(g_sh, k["g_elbow"], 2), capsule(k["g_elbow"], k["g_hand"], 2)], "them", "them_s")
-        c.part(ellipse(k["g_hand"], 2.2, 2.6), "glove", "glove_s")
+        c.ramp([capsule(g_sh, k["g_elbow"], 2), capsule(k["g_elbow"], k["g_hand"], 2)], "them", hi=False)
+        c.ramp(ellipse(k["g_hand"], 2.2, 2.6), "glove")
 
     def leg(hip, knee, foot):
         ankle = add(foot, (0, -1.5))
-        c.part([capsule(hip, knee, 3), capsule(knee, lerp(knee, ankle, 0.5), 3)], "jersey", "jersey_s")
-        c.part(capsule(lerp(knee, ankle, 0.5), ankle, 2), "them", "them_s")
+        c.ramp([capsule(hip, knee, 3), capsule(knee, lerp(knee, ankle, 0.5), 3)], "jersey", hi=False)
+        c.ramp(capsule(lerp(knee, ankle, 0.5), ankle, 2), "them", hi=False)
         c.part(ellipse(foot, 2, 1), "shoe", outline=False)
 
     if not k["t_front"]:
@@ -808,10 +840,16 @@ HORIZON_Y = 0.46
 MOUND_Y = 0.56
 
 
+# 전광판 LED 판 자리 (배경 그림 픽셀, 왼쪽 위·크기). Godot 가 이 위에 점수·볼카운트를 도트로 찍는다 (PixelMeta.BOARD_LED)
+BOARD_LED = [0, 0, 0, 0]
+
+
 def make_field():
-    """화면 가운데에 놓는다. 논리 좌표 → 그림: x = (lx - 422) / 3 + 170, y = ly / 3"""
+    """화면 가운데에 놓는다. 논리 좌표 → 그림: x = (lx - 422) / 3 + 170, y = ly / 3.
+    지평선·마운드·홈 자리는 batting_view.gd 와 맞물려 있어 바꾸지 않는다. 무늬는 시드 고정 난수라 매번 같다"""
     im = Image.new("RGB", (BG_W, BG_H))
     d = ImageDraw.Draw(im)
+    px = im.load()
     rng = np.random.default_rng(7)
 
     def X(fx):
@@ -820,80 +858,191 @@ def make_field():
     def Y(fy):
         return fy * BG_H
 
-    sh = HORIZON_Y - 0.40  # 관중석·전광판을 지평선과 함께 내린다
+    def dim(col, k):
+        return tuple(int(v * k) for v in col)
+
     horizon = round(Y(HORIZON_Y))
-    # 하늘: 띠 네 개, 띠 경계는 바둑판 디더
-    sky = [hx("#3a72cf"), hx("#4f88dc"), hx("#6aa0e6"), hx("#8cbaee")]
-    band = horizon / len(sky)
-    for y in range(horizon):
+    stands_top = horizon - 23
+
+    # 하늘: 위가 진하고 지평선 쪽이 밝은 띠 여섯 개, 경계는 바둑판 디더
+    sky = [hx(h) for h in ("#3366c4", "#3d74cf", "#4a82d9", "#5a92e2", "#6ea3e9", "#86b6ef")]
+    band = stands_top / len(sky)
+    for y in range(stands_top):
         i = min(int(y / band), len(sky) - 1)
         for x in range(BG_W):
             j = i
             if i + 1 < len(sky) and y >= (i + 1) * band - 1 and (x + y) % 2 == 0:
                 j = i + 1
-            im.putpixel((x, y), sky[j])
-    # 구름 몇 덩이
-    for cx, cy, s in ((40, 9, 1.0), (118, 6, 0.8), (250, 10, 1.1), (318, 5, 0.7)):
-        for dx, dy, r in ((0, 0, 4), (5, 1, 3), (-5, 1, 3), (2, -2, 3)):
-            d.ellipse(_box((cx + dx * s, cy + dy * s), r * s, r * s * 0.7), fill=hx("#eef5ff"))
-        d.line([(cx - 7 * s, cy + 3 * s), (cx + 8 * s, cy + 3 * s)], fill=hx("#cfe0f6"))
-    # 관중석: 윗층(어두움) → 아랫층, 관중 점
-    d.rectangle([0, Y(0.235 + sh), BG_W, Y(0.32 + sh)], fill=hx("#3d4a6e"))
-    d.rectangle([0, Y(0.31 + sh), BG_W, horizon], fill=hx("#7f93ba"))
-    d.line([(0, Y(0.31 + sh)), (BG_W, Y(0.31 + sh))], fill=hx("#2a3352"))
-    crowd = [hx(h) for h in ("#ffffff", "#ffd84a", "#ff7a6a", "#7fd1ff", "#ffb0d0", "#c6f08a", "#2a3352")]
-    for y in range(int(Y(0.245 + sh)), horizon - 1, 2):
-        for x in range(BG_W):
-            if rng.random() < 0.55:
-                col = crowd[rng.integers(len(crowd))]
-                im.putpixel((x, y), col)
-                if rng.random() < 0.5 and y + 1 < horizon:
-                    im.putpixel((x, y + 1), tuple(int(v * 0.7) for v in col))
-    # 조명탑
+            px[x, y] = sky[j]
+    # 구름: 밝은 윗면 → 바탕 → 푸른 아랫면 (세 단계)
+    for cx, cy, s in ((30, 8, 1.0), (104, 4, 0.7), (262, 7, 1.1), (322, 3, 0.75)):
+        puffs = ((0, 0, 4), (5, 1, 3), (-5, 1, 3), (2, -2, 3), (-2, -1, 3))
+        for col, oy in ((hx("#bcd2f0"), 1), (hx("#eef5ff"), 0)):
+            for dx, dy, r in puffs:
+                d.ellipse(_box((cx + dx * s, cy + (dy + oy) * s), r * s, r * s * 0.7), fill=col)
+        for dx, dy, r in puffs[3:]:
+            d.ellipse(_box((cx + dx * s - 1, cy + dy * s - 1.2), r * s * 0.5, r * s * 0.3), fill=hx("#ffffff"))
+
+    # 조명탑 (관중석 뒤에 서 있으니 먼저): 기둥 → 등판 → 등 (빛 번짐 한 칸)
     for fx in (0.16, 0.84):
         x = round(X(fx))
-        d.rectangle([x - 1, Y(0.17 + sh), x, horizon], fill=hx("#2a3352"))
-        d.rectangle([x - 8, Y(0.12 + sh), x + 7, Y(0.19 + sh)], fill=hx("#2a3352"), outline=hx("#1e2240"))
+        top = round(Y(0.17 + 0.06)) - 9
+        d.rectangle([x - 1, top + 6, x, horizon], fill=hx("#2a3352"))
+        # 빛 번짐: 등판 둘레 한 칸을 하늘보다 밝게
+        d.rectangle([x - 9, top - 1, x + 8, top + 7], fill=hx("#b8d4f4"))
+        d.rectangle([x - 8, top, x + 7, top + 6], fill=hx("#2a3352"), outline=hx("#1e2240"))
         for i in range(4):
             for j in range(2):
-                d.rectangle([x - 7 + i * 4, Y(0.12 + sh) + 2 + j * 4, x - 6 + i * 4, Y(0.12 + sh) + 3 + j * 4], fill=hx("#fff6c0"))
-    # 전광판: 줄 점수판 모양 (칸과 노란 숫자 점)
-    bx0, bx1, by0, by1 = round(X(0.38)), round(X(0.62)), round(Y(0.12 + sh)), round(Y(0.32 + sh))
-    d.rectangle([bx0, by0, bx1, by1], fill=hx("#232a40"), outline=hx("#1e2240"))
-    d.rectangle([bx0 + 3, by0 + 3, bx1 - 3, by0 + 10], fill=hx("#2f6b4a"))
-    for i in range(9):
-        x = bx0 + 6 + i * ((bx1 - bx0 - 12) / 9)
-        for row in range(2):
-            y = by0 + 14 + row * 6
-            d.rectangle([x, y, x + 3, y + 3], fill=hx("#11141f"))
-            if rng.random() < 0.7:
-                d.point((x + 1 + int(rng.integers(2)), y + 1 + int(rng.integers(2))), fill=hx("#ffc21a"))
-    for i in range(3):
-        d.rectangle([bx0 + 5 + i * 5, by1 - 6, bx0 + 7 + i * 5, by1 - 4], fill=hx("#22b573"))
-        d.rectangle([bx1 - 19 + i * 5, by1 - 6, bx1 - 17 + i * 5, by1 - 4], fill=hx("#ff4d5e"))
-    # 외야 담장 + 노란 선
-    d.rectangle([0, horizon - 2, BG_W, horizon + 1], fill=hx("#1f6b3a"))
-    d.line([(0, horizon - 3), (BG_W, horizon - 3)], fill=hx("#ffd84a"))
-    # 잔디 줄무늬 (멀수록 촘촘)
+                d.rectangle([x - 7 + i * 4, top + 1 + j * 3, x - 6 + i * 4, top + 2 + j * 3], fill=hx("#fffbe6"))
+
+    # 관중석: 지붕 그늘 → 윗층(어두움) → 리본 전광판 → 아랫층 → 담장
+    upper0, upper1 = stands_top + 2, stands_top + 11
+    ribbon = upper1
+    lower0, lower1 = ribbon + 2, horizon - 5
+    d.rectangle([0, stands_top, BG_W, stands_top + 1], fill=hx("#232a44"))
+    d.rectangle([0, upper0, BG_W, upper1 - 1], fill=hx("#36405f"))
+    d.rectangle([0, lower0, BG_W, lower1], fill=hx("#56658c"))
+    shirts = [hx(h) for h in ("#ffffff", "#ffd84a", "#ff7a6a", "#7fd1ff", "#ffb0d0", "#c6f08a", "#f4f1e8")]
+    us_c, them_c = [PAL["us"], PAL["us_hi"], hx("#ffffff")], [PAL["them"], PAL["them_hi"], hx("#ffffff")]
+    heads = [PAL["hair"], PAL["hair"], PAL["skin"], PAL["skin_s"], hx("#20232f")]
+
+    def crowd(y0, y1, k):
+        """사람 한 줄 = 3칸: 머리(1칸 폭) · 옷(2칸 폭) · 의자 그늘. 왼쪽 응원석은 우리 팀색, 오른쪽은 상대 팀색이 많다"""
+        for y in range(y0, y1 - 1, 3):
+            for x in range(0, BG_W, 2):
+                if rng.random() < 0.12:
+                    continue  # 빈자리
+                fx = x / BG_W
+                if fx < 0.3 and rng.random() < 0.7:
+                    col = us_c[rng.integers(len(us_c))]
+                elif fx > 0.7 and rng.random() < 0.7:
+                    col = them_c[rng.integers(len(them_c))]
+                else:
+                    col = shirts[rng.integers(len(shirts))]
+                hx_ = x + int(rng.integers(2))
+                px[hx_, y] = dim(heads[rng.integers(len(heads))], k)
+                for i in range(2):
+                    if x + i < BG_W and y + 1 < y1:
+                        px[x + i, y + 1] = dim(col, k * (1.0 if i == 0 else 0.85))
+    crowd(upper0, upper1, 0.72)
+    crowd(lower0, lower1 + 1, 1.0)
+    # 통로 계단 (아랫층)
+    for x in range(22, BG_W, 58):
+        d.rectangle([x, lower0, x + 1, lower1], fill=hx("#8c99b8"))
+        for y in range(lower0, lower1, 2):
+            d.point((x, y), fill=hx("#6f7d9e"))
+    # 응원 깃발 (응원석마다 둘)
+    for fx, col, col_s in ((0.08, PAL["us"], PAL["us_s"]), (0.23, PAL["us"], PAL["us_s"]),
+                           (0.79, PAL["them"], PAL["them_s"]), (0.94, PAL["them"], PAL["them_s"])):
+        x = round(fx * BG_W)
+        d.line([(x, lower0 - 5), (x, lower0 + 3)], fill=hx("#1e2240"))
+        d.rectangle([x + 1, lower0 - 5, x + 6, lower0 - 2], fill=col)
+        d.line([(x + 1, lower0 - 2), (x + 6, lower0 - 2)], fill=col_s)
+        d.point((x + 3, lower0 - 4), fill=hx("#ffffff"))
+    # 리본 전광판 (윗층 난간): 팀색·노랑 칸이 번갈아, 점 글씨 무늬
+    d.rectangle([0, ribbon, BG_W, ribbon + 1], fill=hx("#11141f"))
+    segs = [(PAL["us"], hx("#ffffff")), (hx("#ffc21a"), hx("#3b2a10")), (PAL["them"], hx("#ffffff")), (hx("#22b573"), hx("#eafff4"))]
+    for i, x0 in enumerate(range(0, BG_W, 26)):
+        bg, fg = segs[i % len(segs)]
+        d.rectangle([x0 + 1, ribbon, x0 + 24, ribbon + 1], fill=bg)
+        for x in range(x0 + 3, min(x0 + 22, BG_W)):
+            if rng.random() < 0.55:
+                px[x, ribbon + int(rng.integers(2))] = fg
+
+    # 외야 담장: 노란 꼭대기 선 → 광고판(가상, 글자 대신 모양) → 초록 쿠션 → 경고 구역 흙
+    wall0 = horizon - 4
+    d.line([(0, wall0 - 1), (BG_W, wall0 - 1)], fill=hx("#ffd84a"))
+    d.rectangle([0, wall0, BG_W, horizon + 1], fill=hx("#1f6b3a"))
+    ads = [("#f4f1e8", "#2f62e0"), ("#ffc21a", "#1e2240"), ("#22b573", "#ffffff"), ("#ff7a3a", "#ffffff"), ("#7a5cff", "#ffd84a")]
+    for i, x0 in enumerate(range(-6, BG_W, 30)):
+        bg, fg = (hx(c) for c in ads[(i * 3) % len(ads)])
+        d.rectangle([x0 + 2, wall0, x0 + 27, wall0 + 2], fill=bg)
+        # 로고 모양: 동그라미 하나 + 점 글씨 줄
+        d.rectangle([x0 + 4, wall0, x0 + 6, wall0 + 2], fill=fg)
+        px_bg = bg
+        if 0 <= x0 + 5 < BG_W:
+            px[x0 + 5, wall0 + 1] = px_bg
+        for x in range(x0 + 9, x0 + 25):
+            if 0 <= x < BG_W and (x * 7 + i) % 5 != 0:
+                px[x, wall0 + 1] = fg
+    d.line([(0, wall0 + 3), (BG_W, wall0 + 3)], fill=hx("#174f2c"))
+    # 파울 폴 (노랑)
+    for fx in (0.035, 0.965):
+        x = round(X(fx))
+        d.line([(x, stands_top + 3), (x, horizon + 1)], fill=hx("#ffd84a"))
+        d.point((x + 1, stands_top + 3), fill=hx("#ffd84a"))
+        d.line([(x + 1, stands_top + 4), (x + 1, horizon - 6)], fill=hx("#c99a1a"))
+
+    # 전광판 (관중석 위에 얹힘): 테두리 → 윗판(이름판) → LED 판 (꺼진 LED 점 무늬)
+    bx0, bx1, by0, by1 = round(X(0.37)), round(X(0.63)), round(Y(0.15)), round(Y(0.38))
+    d.rectangle([bx0 + 6, by1, bx0 + 8, horizon - 5], fill=hx("#232a40"))
+    d.rectangle([bx1 - 8, by1, bx1 - 6, horizon - 5], fill=hx("#232a40"))
+    d.rectangle([bx0, by0, bx1, by1], fill=hx("#2b3350"), outline=hx("#1e2240"))
+    d.line([(bx0 + 1, by0 + 1), (bx1 - 1, by0 + 1)], fill=hx("#47527a"))
+    d.rectangle([bx0 + 3, by0 + 2, bx1 - 3, by0 + 5], fill=hx("#2f6b4a"))
+    d.line([(bx0 + 3, by0 + 2), (bx1 - 3, by0 + 2)], fill=hx("#3f8a62"))
+    mid = (bx0 + bx1) // 2
+    d.ellipse([mid - 2, by0 + 1, mid + 2, by0 + 6], fill=hx("#ffffff"), outline=hx("#1e2240"))
+    d.point((mid - 1, by0 + 3), fill=hx("#ff4d5e"))
+    d.point((mid + 1, by0 + 4), fill=hx("#ff4d5e"))
+    for x in range(bx0 + 5, bx1 - 4, 3):
+        if abs(x - mid) > 4:
+            d.point((x, by0 + 4), fill=hx("#ffd84a"))
+    lx0, ly0, lx1, ly1 = bx0 + 2, by0 + 7, bx1 - 2, by1 - 2
+    d.rectangle([lx0, ly0, lx1, ly1], fill=hx("#0c0f17"))
+    for y in range(ly0, ly1 + 1):
+        for x in range(lx0, lx1 + 1):
+            if (x + y) % 2 == 0:
+                px[x, y] = hx("#151a26")
+    BOARD_LED[:] = [lx0, ly0, lx1 - lx0 + 1, ly1 - ly0 + 1]
+
+    # 잔디: 깎은 무늬 — 멀어질수록 촘촘한 가로 띠 × 홈에서 퍼지는 세로 띠 (바둑판)
     top = horizon + 2
-    bands = 12
-    for i in range(bands):
-        y0 = top + (BG_H - top) * (i / bands) ** 2.0
-        y1 = top + (BG_H - top) * ((i + 1) / bands) ** 2.0
-        d.rectangle([0, y0, BG_W, y1], fill=hx("#4cc46a") if i % 2 == 0 else hx("#5fd27c"))
-    dirt, dirt_s = hx("#e2a66b"), hx("#c98d55")
+    g0, g1 = hx("#4cc46a"), hx("#5fd27c")
+    for y in range(top, BG_H):
+        t = ((y - top) / (BG_H - top)) ** 0.5
+        row = int(t * 12)
+        scale = 0.25 + 0.75 * t
+        for x in range(BG_W):
+            col = int(math.floor((x - BG_W / 2) / (22 * scale) + 0.5))
+            px[x, y] = g0 if (row + col) % 2 == 0 else g1
+    # 경고 구역 (담장 앞 흙 띠)
+    d.rectangle([0, top, BG_W, top + 1], fill=hx("#b98552"))
+    dirt, dirt_s, dirt_hi, lip = hx("#e2a66b"), hx("#c98d55"), hx("#efbd86"), hx("#b5783f")
+
+    def dirt_blob(box):
+        """흙: 바탕 + 시드 고정 얼룩(밝은 점·어두운 점) + 가장자리 잔디 쪽 진한 테"""
+        m = Image.new("L", (BG_W, BG_H), 0)
+        ImageDraw.Draw(m).ellipse(box, fill=255)
+        a = np.array(m) > 127
+        edge = a & ~(shifted(a, 1, 0) & shifted(a, -1, 0) & shifted(a, 0, 1) & shifted(a, 0, -1))
+        ys, xs = np.nonzero(a)
+        for x, y in zip(xs, ys):
+            r = rng.random()
+            px[int(x), int(y)] = dirt_s if r < 0.06 else dirt_hi if r < 0.1 else dirt
+        for y, x in zip(*np.nonzero(edge)):
+            px[int(x), int(y)] = lip
+        return a
+
     # 내야 흙·잔디
-    d.ellipse(_box((BG_W / 2, Y(MOUND_Y - 0.01)), 0.5 * SCREEN_W / P, Y(0.05)), fill=dirt)
-    d.ellipse(_box((BG_W / 2, Y(MOUND_Y + 0.045)), 0.38 * SCREEN_W / P, Y(0.05)), fill=hx("#5fd27c"))
+    dirt_blob(_box((BG_W / 2, Y(MOUND_Y - 0.01)), 0.5 * SCREEN_W / P, Y(0.05)))
+    m = Image.new("L", (BG_W, BG_H), 0)
+    ImageDraw.Draw(m).ellipse(_box((BG_W / 2, Y(MOUND_Y + 0.045)), 0.38 * SCREEN_W / P, Y(0.05)), fill=255)
+    for y, x in zip(*np.nonzero(np.array(m) > 127)):
+        t = ((y - top) / (BG_H - top)) ** 0.5
+        col = int(math.floor((x - BG_W / 2) / (22 * (0.25 + 0.75 * t)) + 0.5))
+        px[int(x), int(y)] = g0 if (int(t * 12) + col) % 2 == 0 else g1
     # 파울 라인
     home = (BG_W / 2, Y(0.93))
     d.line([home, (X(0.04), Y(HORIZON_Y + 0.045))], fill=hx("#ffffff"))
     d.line([home, (X(0.96), Y(HORIZON_Y + 0.045))], fill=hx("#ffffff"))
-    # 마운드
-    d.ellipse(_box((BG_W / 2, Y(MOUND_Y)), 0.06 * SCREEN_W / P, 2.5), fill=dirt, outline=dirt_s)
+    # 마운드: 윗면 밝게, 아래 테 진하게, 투수판
+    mr = 0.06 * SCREEN_W / P
+    d.ellipse(_box((BG_W / 2, Y(MOUND_Y)), mr, 2.5), fill=dirt, outline=lip)
+    d.line([(BG_W / 2 - mr + 3, Y(MOUND_Y) - 1), (BG_W / 2 + mr - 5, Y(MOUND_Y) - 1)], fill=dirt_hi)
     d.rectangle([BG_W / 2 - 2, Y(MOUND_Y) - 1, BG_W / 2 + 1, Y(MOUND_Y)], fill=hx("#ffffff"))
-    # 홈 주변 흙(크게), 타석 박스(타자 발이 안에 들어가게 넓게, 원근으로 위가 좁다), 홈플레이트
-    d.ellipse(_box((BG_W / 2, Y(1.02)), 0.42 * SCREEN_W / P, Y(0.2)), fill=dirt, outline=dirt_s)
+    # 홈 주변 흙(크게), 타석 박스(원근으로 위가 좁다), 홈플레이트
+    dirt_blob(_box((BG_W / 2, Y(1.02)), 0.42 * SCREEN_W / P, Y(0.2)))
     for s in (-1, 1):
         box = [(X(0.5 + s * 0.05), Y(0.84)), (X(0.5 + s * 0.22), Y(0.84)), (X(0.5 + s * 0.3), Y(1.04)), (X(0.5 + s * 0.06), Y(1.04))]
         d.line(box + [box[0]], fill=hx("#ffffff"))
@@ -992,6 +1141,8 @@ def main():
         "",
         "const SCALE := %d" % P,
         "const FIELD_SIZE := Vector2(%d, %d)" % (BG_W, BG_H),
+        "## 배경의 전광판 LED 판 (왼쪽 위·크기, 그림 픽셀) — 점수·볼카운트를 이 위에 도트로 찍는다",
+        "const BOARD_LED := Rect2(%d, %d, %d, %d)" % tuple(BOARD_LED),
         "const BATTER_CELL := Vector2(%d, %d)" % BATTER_CELL[:2],
         "const BATTER_FEET := Vector2(%d, %d)" % BATTER_CELL[2:],
         "const BATTER := {%s}" % ", ".join('"%s": %d' % (n, i) for i, (n, _) in enumerate(BATTER_FRAMES)),

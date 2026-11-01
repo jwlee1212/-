@@ -42,6 +42,61 @@ static func draw_field(canvas: CanvasItem, view_size: Vector2) -> void:
 	canvas.draw_texture_rect(texture("field"), Rect2(origin(view_size), PixelMeta.FIELD_SIZE * u), false)
 
 
+## 전광판 글자 (3×5, 위 줄부터 — 1 이 켜진 LED)
+const LED_FONT := {
+	"0": "010101101101010", "1": "010110010010111", "2": "111001111100111", "3": "111001011001111",
+	"4": "101101111001001", "5": "111100111001111", "6": "111100111101111", "7": "111001010010010",
+	"8": "111101111101111", "9": "111101111001111", "R": "110101110101101", "B": "110101110101110",
+	"S": "011100010001110", "O": "111101101101111", "-": "000000111000000",
+}
+
+
+## 경기장 전광판에 줄 점수·볼카운트를 도트로 찍는다 (배경 그림의 LED 판 위, 같은 칸 격자).
+## board: rows [[팀색, 이닝별 점수 Array, 합계 문자열, 공격 중], [...]] (원정 먼저), first 맨 왼쪽 이닝 번호, balls·strikes·outs
+static func draw_scoreboard(canvas: CanvasItem, view_size: Vector2, board: Dictionary) -> void:
+	var u := unit(view_size)
+	var led := PixelMeta.BOARD_LED
+	var o := origin(view_size) + led.position * u
+	var dot := func(x: int, y: int, col: Color) -> void:
+		canvas.draw_rect(Rect2(o + Vector2(x, y) * u, Vector2(u, u)), col)
+	var text := func(x: int, y: int, s: String, col: Color) -> void:
+		for i in s.length():
+			var g: String = LED_FONT.get(s[i], "")
+			for k in g.length():
+				if g[k] == "1":
+					dot.call(x + i * 4 + k % 3, y + k / 3, col)
+	# 줄: 이닝 번호(2) · 원정(8) · 홈(14). 칸: 팀 띠(2) · 이닝 9칸(6~) · R(44) · 볼카운트(55~)
+	var first: int = board.get("first", 1)
+	for i in 9:
+		text.call(6 + i * 4, 2, str((first + i) % 10), Tokens.LED_DIM)
+	text.call(44, 2, " R", Tokens.LED_TEXT)
+	var rows: Array = board.get("rows", [])
+	for r in rows.size():
+		var row: Array = rows[r]
+		var y := 8 + r * 6
+		var tag: Color = row[0] if row[3] else Color(row[0], 0.45)
+		for k in 15:
+			dot.call(2 + k % 3, y + k / 3, tag)
+		var runs: Array = row[1]
+		for i in 9:
+			var inning := first + i - 1
+			if inning < runs.size():
+				text.call(6 + i * 4, y, str(mini(int(runs[inning]), 9)), Tokens.LED_ON)
+		var total: String = row[2]
+		text.call(44 + (2 - total.length()) * 4, y, total, Tokens.LED_TEXT)
+	# 볼카운트: B 초록 3 · S 노랑 2 · O 빨강 2 (꺼진 점은 흐리게)
+	var lamps := [["B", board.get("balls", 0), 3, Tokens.COUNT_BALL], ["S", board.get("strikes", 0), 2, Tokens.COUNT_STRIKE],
+		["O", board.get("outs", 0), 2, Tokens.COUNT_OUT]]
+	for r in 3:
+		var lamp: Array = lamps[r]
+		var y := 2 + r * 6
+		text.call(55, y, lamp[0], Tokens.LED_TEXT)
+		for i in int(lamp[2]):
+			var col: Color = lamp[3] if i < int(lamp[1]) else Tokens.LED_DIM
+			for k in 9:
+				dot.call(59 + i * 4 + k % 3, y + 1 + k / 3, col)
+
+
 ## 시트의 index 번째 칸을 발 자리 feet 에 그린다. scale: 칸 크기 배율 (1 = 다른 그림과 같은 한 칸)
 static func draw_cell(canvas: CanvasItem, sheet: String, index: int, cell: Vector2, cell_feet: Vector2, feet: Vector2, view_size: Vector2, scale: float = 1.0) -> void:
 	var tex := texture(sheet)
@@ -210,16 +265,20 @@ static func _ground_color(p: Vector2, cfg: BattedBallSim.Config, d: float, grass
 	return grass if band == 0 else grass2
 
 
-## 관중석: 줄마다 관중 점 (번호로 정해지는 가짜 난수 — 매번 같다)
+## 관중석: 사람 한 줄 = 3칸 — 머리(1칸) · 옷(2칸 폭) · 의자 그늘. 번호로 정해지는 가짜 난수라 매번 같다
 static func _stands_color(x: int, y: int, wall_top: float) -> Color:
 	if wall_top > 0.0 and y > wall_top - 3.0:
 		return Tokens.STANDS_DARK
-	if y % 2 == 1:
-		return Tokens.STANDS
-	var hsh := fposmod(sin(x * 12.9898 + y * 78.233) * 43758.5453, 1.0)
-	if hsh < 0.45:
-		return Tokens.STANDS
-	return Tokens.CROWD[int(hsh * 997.0) % Tokens.CROWD.size()]
+	var hsh := fposmod(sin((x / 2) * 12.9898 + (y / 3) * 78.233) * 43758.5453, 1.0)
+	var row := y % 3
+	if row == 2 or hsh < 0.12:
+		return Tokens.STANDS_DARK if row == 2 else Tokens.STANDS
+	if row == 0:
+		if x % 2 != int(hsh * 7.0) % 2:
+			return Tokens.STANDS
+		return Tokens.CROWD_HEADS[int(hsh * 131.0) % Tokens.CROWD_HEADS.size()]
+	var shirt: Color = Tokens.CROWD[int(hsh * 997.0) % Tokens.CROWD.size()]
+	return shirt if x % 2 == 0 else shirt.darkened(0.15)
 
 
 ## 수비 화면 선수 (원근으로 크기를 바꾸지 않는 도트). vel: 화면에서 움직이는 방향 (멈춰 있으면 0 — 서기, 아니면 달리기 두 칸 번갈아)

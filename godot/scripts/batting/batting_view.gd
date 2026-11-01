@@ -28,6 +28,8 @@ const BATTER_X := 0.34
 const BATTER_FEET_Y := 0.97
 
 var session: BattingSession
+## 경기 중이면 경기 (전광판 줄 점수에 쓴다). 연습이면 null
+var game: GameRunner = null
 ## 타자 등번호 (경기에서는 타순, 연습에서는 7)
 var jersey_number := 7
 
@@ -101,6 +103,7 @@ func _draw() -> void:
 			int(session.situation.get("batter", -1)) if str(session.situation.get("control", "")) != "" else -1)
 	else:
 		PixelArt.draw_field(self, size)
+		PixelArt.draw_scoreboard(self, size, _board())
 		_draw_pixel_defense()
 		_draw_pitcher()
 		# 포수는 그리지 않는다: 카메라가 포수보다 뒤·위에 있어 화면 밖이다 (3D 야구 게임 타석 시점). 그림은 남겨 둔다
@@ -108,6 +111,20 @@ func _draw() -> void:
 		_draw_catcher_mitt()
 		_draw_ball_in_flight()
 	draw_set_transform(Vector2.ZERO)
+
+
+## 전광판에 띄울 것: 줄 점수(경기 중일 때만, 이닝이 9를 넘으면 마지막 9이닝)와 볼카운트
+func _board() -> Dictionary:
+	var board := {"balls": mini(session.at_bat.balls, 3), "strikes": mini(session.at_bat.strikes, 2), "outs": 0, "first": 1,
+		"rows": [[Tokens.UNIFORM_THEM, [], "", false], [Tokens.UNIFORM_US, [], "", true]]}
+	if game == null:
+		return board
+	var st := game.state
+	board["outs"] = st.outs
+	board["first"] = maxi(1, st.inning - 8)
+	for side in 2:
+		board["rows"][side] = [Tokens.UNIFORM_US if side == game.my_side else Tokens.UNIFORM_THEM, st.line[side], str(st.score[side]), side == st.batting_side()]
+	return board
 
 
 ## 타자보다 앞에 그리는 것
