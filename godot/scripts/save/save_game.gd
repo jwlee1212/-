@@ -34,6 +34,7 @@ static var TYPES := {
 	"GameEntry": CareerRecords.GameEntry,
 	"PhaseEntry": CareerRecords.PhaseEntry,
 	"Phone": Phone,
+	"NewsFeed": NewsFeed,
 }
 
 ## 저장하지 않는 필드 (종류 -> 필드). 설정에서 다시 만든다

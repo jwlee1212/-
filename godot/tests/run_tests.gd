@@ -157,6 +157,8 @@ func _init() -> void:
 		"test_records_game_log_and_splits",
 		"test_phone_messages",
 		"test_phone_content",
+		"test_news_feed",
+		"test_news_content",
 		"test_save_roundtrip",
 		"test_save_then_continue_is_same",
 		"test_save_file_and_errors",
@@ -1720,6 +1722,24 @@ func test_dialogue_lines() -> void:
 	check(no_interest.next().options.size() == 2 and interest.next().options.size() == 3, "조건이 안 맞는 선택지는 안 보인다")
 	interest.choose(0)
 	check(interest.overlay.get("ep03_taeo_sink", "") == "A" and interest.overlay.get("taeo_first_talk", false) == true and not interest.last_echo, "고른 선택지 key·효과가 대화 안 분기에 바로 보인다, 같은 말 반복은 안 한다")
+	# 폰 화면: 문자 상대가 바뀌면 그 사람 대화방으로 넘어간다 (EP06 #8 준수 → 소율) — 앞 사람 말풍선이 남지 않는다
+	var dv := DialogueView.new(CareerState.new(cfg, "테스트", _config), _event(cfg, "ep06_08"))
+	dv._ready()  # 헤드리스 테스트에선 트리에 붙이지 않고 직접 조립한다
+	var rooms: Array[String] = []
+	var first_soyul := -1
+	for k in 80:
+		if dv.is_chosen():
+			break
+		if dv.phone_room() != "" and (rooms.is_empty() or rooms[-1] != dv.phone_room()):
+			rooms.append(dv.phone_room())
+			if dv.phone_room() == "manager":
+				first_soyul = dv.phone_bubbles()
+		if dv._stage == DialogueView.Stage.CHOICE:
+			dv.choose(0)
+		else:
+			dv.advance()
+	check(rooms == (["buddy", "manager"] as Array[String]) and first_soyul == 1, "준수 대화방 → 소율 대화방, 소율 방엔 소율 문자부터 (%s, %d)" % [rooms, first_soyul])
+	dv.free()
 	# 옛 형식(대사 하나 + 선택 한 번)도 같은 대본으로 읽힌다
 	var rumor := _event(cfg, "rumor")
 	var old := _read(DialogueRun.new(career, rumor))
@@ -4426,3 +4446,138 @@ func test_fielding_stat_career() -> void:
 	back.train("fielding")
 	check(back.player.fielding >= 1, "옛 저장에서도 수비 훈련이 된다")
 	check(SaveGame.to_bytes(_reload(back)) == SaveGame.to_bytes(back), "고친 뒤 저장·불러오기는 그대로")
+
+
+# ---------- 폰 뉴스 ----------
+
+## 기사 값이 다 들어 있는 경기 하나치 값 (문장 틀을 모두 채워 보는 데 쓴다)
+func _news_ctx(career: CareerState, flags: Dictionary) -> Dictionary:
+	var ctx := career.feed._base_ctx(career)
+	for k: String in ["opp", "phase", "round", "nextRound"]:
+		ctx[k] = {"opp": "동인고", "phase": "백호기", "round": "8강", "nextRound": "준결승"}[k]
+	ctx.merge({"score": "5-3", "resultWord": "승리", "line": "4타수 3안타 1홈런 3타점", "ab": "4", "hits": "3", "rbi": "3", "walks": "1",
+		"strikeouts": "2", "steals": "0", "doubles": "1", "triples": "0", "hr": "1", "xbh": "2", "hrNo": "3", "hrEv": "158", "hrDir": "좌중간",
+		"recentN": "5", "recentAvg": ".412", "recentHits": "7", "leagueRank": "2", "leagueRecord": "4승 2패 0무", "headline": "백호기 1회전 — 청운고 콜드게임 승리",
+		"streak": "8", "dry": "3", "scoutTeam": "KKG 스타즈"}, true)
+	(ctx["_flags"] as Dictionary).merge(flags, true)
+	return ctx
+
+
+## 남은 치환·조사 표시가 없는 글
+func _news_clean(t: String) -> bool:
+	for mark: String in ["{", "}", "이(가)", "을(를)", "은(는)", "과(와)", "(으)로"]:
+		if t.contains(mark):
+			return false
+	return t != ""
+
+
+func test_news_feed() -> void:
+	var cfg := _real_cfg()
+	check(NewsFeed.validate(cfg).is_empty(), "뉴스 문장 틀 문제: %s" % [NewsFeed.validate(cfg)])
+	# 조사: 숫자(읽는 소리)·괄호 뒤·(으)로
+	check(NewsFeed.josa("5-3(으)로") == "5-3으로" and NewsFeed.josa("4-2(으)로") == "4-2로" and NewsFeed.josa("1-6(으)로") == "1-6으로"
+		and NewsFeed.josa("2-7(으)로") == "2-7로", "점수 뒤 (으)로")
+	check(NewsFeed.josa("강태오(청운고)이(가)") == "강태오(청운고)가" and NewsFeed.josa("이도현(서림고)이(가)") == "이도현(서림고)이", "괄호 앞 글자로")
+	check(NewsFeed.josa("타율 .357이(가)") == "타율 .357이" and NewsFeed.josa("타율 .302을(를)") == "타율 .302를" and NewsFeed.josa("좌중간(으)로") == "좌중간으로"
+		and NewsFeed.josa("가운데(으)로") == "가운데로" and NewsFeed.josa("우측(으)로") == "우측으로", "숫자·한글 받침")
+	# 매체 단계: 관심도·랭킹·무대
+	var career := CareerState.new(cfg, "테스트", _config)
+	var e := CareerRecords.GameEntry.new()
+	career.player.scout_interest = 0
+	var t: Dictionary = cfg.news_cfg.tiers
+	check(career.feed._tier(career, e) == (0 if career.prospect_rank() > int(t.reportRank) else 1), "이름이 안 알려지면 커뮤니티")
+	e.national = true
+	check(career.feed._tier(career, e) >= 1, "전국대회 경기는 전문 매체부터")
+	e.round = t.bigRounds[0]
+	check(career.feed._tier(career, e) == 2, "전국대회 준결승은 일간 매체")
+	e.national = false
+	career.player.scout_interest = int(t.dailyScout)
+	check(career.feed._tier(career, e) == 2, "관심도가 높으면 일간 매체")
+	# 연속 안타·연속 무안타 (타수 없는 경기·결장은 건너뛴다)
+	for hits: int in [0, 1, 2, -1, 1]:
+		var g := CareerRecords.GameEntry.new()
+		g.season_no = career.season_no
+		g.playing = hits >= 0
+		g.line.ab = 3 if hits >= 0 else 0
+		g.line.hits = maxi(hits, 0)
+		career.records.games.append(g)
+	check(NewsFeed.hit_streak(career) == 3 and NewsFeed.hitless_run(career) == 0, "연속 안타 3 (결장은 건너뜀)")
+	var dry := CareerRecords.GameEntry.new()
+	dry.season_no = career.season_no
+	dry.line.ab = 4
+	career.records.games.append(dry)
+	check(NewsFeed.hit_streak(career) == 0 and NewsFeed.hitless_run(career) == 1, "무안타면 연속 안타가 끊긴다")
+	# 모든 종류·단계·틀을 여러 시드·조건으로 채워 본다: 치환·조사 표시가 남지 않고, 댓글은 추천 많은 순
+	var flag_sets := [{"win": true, "hasHr": true, "multiHr": true, "threeHits": true, "bigRbi": true, "gotHit": true, "grade1": true, "rivalHr": true, "ranked": true, "rankUp": true, "metRival": true},
+		{"loss": true, "noHr": true, "noHit": true, "grade3": true, "unranked": true, "rivalNoHr": true},
+		{"draw": true, "hasBb": true, "grade2": true, "ranked": true, "rankDown": true}]
+	for kind: String in NewsFeed.KINDS:
+		for tier in 3:
+			for k in 6:
+				var a := career.feed.publish(career, kind, tier, _news_ctx(career, flag_sets[k % flag_sets.size()]))
+				var ok := _news_clean(a.title) and not (a.body as Array).is_empty()
+				for para: String in a.body:
+					ok = ok and _news_clean(para)
+				var likes := 999999
+				for cm: Dictionary in a.comments:
+					ok = ok and _news_clean(cm.text) and cm.nick != "" and int(cm.likes) <= likes
+					likes = int(cm.likes)
+				check(ok, "%s tier %d: %s / %s" % [kind, tier, a.title, a.body])
+	check(career.feed.unread_count() == mini(career.feed.articles.size(), int(cfg.news_cfg.keep)) and career.feed.articles.size() <= int(cfg.news_cfg.keep), "안 읽은 기사 · 보관 수")
+	var first: Dictionary = career.feed.articles[0]
+	career.feed.mark_read(first.id)
+	check(career.feed.article(first.id).read and career.phone_unread() == career.phone.total_unread() + career.feed.unread_count(), "읽음 · 폰 배지 = 문자 + 기사")
+	# 이야기 속 뉴스 알림 줄 → 속보 기사
+	var story := {}
+	for ev: Dictionary in cfg.events:
+		var found := {"choices": [], "lines": []}
+		EventBook._collect(EventBook.script_of(ev), found)
+		for line: Dictionary in found.lines:
+			if line.get("ui", "") == "news" and story.is_empty():
+				story = {"event": ev, "text": line.text}
+	check(not story.is_empty(), "시나리오에 뉴스 알림 줄이 있다")
+	if not story.is_empty():
+		var c2 := CareerState.new(cfg, "테스트", _config)
+		var run := DialogueRun.new(c2, story.event)
+		run.auto(0)
+		var seen: bool = run.news_log.size() > 0
+		run.commit()
+		var last: Dictionary = c2.feed.articles[-1] if not c2.feed.articles.is_empty() else {}
+		check(not seen or (last.get("kind", "") == "story" and str(last.get("title", "")).begins_with(str(story.text).left(8))), "뉴스 알림 줄이 속보 기사로 실린다: %s" % last.get("title", ""))
+
+
+func test_news_content() -> void:
+	# 실제 콘텐츠로 3년: 기사가 고르게 실리고, 한 주 상한을 지키고, 같은 진행이면 같은 기사, 저장 → 불러오기에 남는다
+	var cfg := _real_cfg()
+	var runs: Array[CareerState] = []
+	for r in 2:
+		var career := CareerState.new(cfg, "테스트", _config)
+		check(FastForward.run(career, 3, "season_end"), "3학년 시즌 결산까지")
+		runs.append(career)
+	var feed := runs[0].feed
+	var titles := func(f: NewsFeed) -> Array: return f.articles.map(func(a: Dictionary) -> String: return a.title)
+	check(titles.call(feed) == titles.call(runs[1].feed), "같은 진행 = 같은 기사")
+	check(feed.articles.size() >= 20 and feed.articles.size() <= 120, "3년 기사 수 %d" % feed.articles.size())
+	var kinds := {}
+	var per_week := {}
+	for a: Dictionary in feed.articles:
+		kinds[a.kind] = true
+		if a.kind != "story":
+			per_week[a.tw] = int(per_week.get(a.tw, 0)) + 1
+		var ok := _news_clean(a.title)
+		for para: String in a.body:
+			ok = ok and _news_clean(para)
+		for cm: Dictionary in a.comments:
+			ok = ok and _news_clean(cm.text)
+		check(ok, "치환이 남은 기사: %s" % a.title)
+	for tw: int in per_week:
+		check(per_week[tw] <= int(cfg.news_cfg.maxPerWeek), "%d주 기사 %d건" % [tw, per_week[tw]])
+	for k: String in ["power_ranking", "season_end", "team_out", "story"]:
+		check(kinds.has(k), "3년 동안 %s 기사가 나온다 (%s)" % [k, kinds.keys()])
+	var sources := {}
+	for a: Dictionary in feed.articles:
+		sources[a.source] = true
+	check(sources.has("board") and sources.has("report") and sources.has("daily"), "커뮤니티 → 전문 매체 → 일간 매체가 모두 나온다 (%s)" % [sources.keys()])
+	var loaded := _reload(runs[0])
+	check(titles.call(loaded.feed) == titles.call(feed) and loaded.feed.unread_count() == feed.unread_count(), "저장 → 불러오기에 기사가 남는다")
+

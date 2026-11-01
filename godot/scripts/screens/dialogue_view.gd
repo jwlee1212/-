@@ -49,6 +49,8 @@ var _phone_title: Label
 var _phone_scroll: ScrollContainer
 var _phone_list: VBoxContainer
 var _phone_choices: VBoxContainer
+## 지금 폰에 열린 대화방 (인물 id, "" 없음)
+var _phone_room := ""
 
 
 func _init(career: CareerState, event: Dictionary) -> void:
@@ -429,16 +431,24 @@ func _build_header() -> void:
 # ---------- 이야기 속 문자 (폰 화면) ----------
 
 ## 폰 화면을 띄운다 (이미 떠 있으면 대화방 이름만). 대사창은 숨긴다
+## 대화 상대가 바뀌면(하린 → 소율) 그 사람 대화방으로 넘어간다: 이름을 바꾸고 앞 사람 말풍선을 비운다
 func _phone_on(room: String) -> void:
 	if _phone == null:
 		_build_phone()
-	if room != "":
+	if room != "" and room != _phone_room:
+		if _phone_room != "":
+			for c in _phone_list.get_children():
+				c.queue_free()
+			_phone.modulate.a = 0.4
+			create_tween().tween_property(_phone, "modulate:a", 1.0, 0.15)
+		_phone_room = room
 		_phone_title.text = Phone.room_name(_career, room)
 	_box_area.visible = false
 
 
 ## 폰 화면을 내린다 (지문·보통 대사가 나오면)
 func _phone_off() -> void:
+	_phone_room = ""
 	if _phone != null:
 		_phone.queue_free()
 		_phone = null
@@ -456,6 +466,8 @@ func _phone_bubble(text: String, mine: bool) -> void:
 
 
 func _phone_scroll_end() -> void:
+	if not is_inside_tree():
+		return
 	await get_tree().process_frame
 	if is_instance_valid(_phone_scroll):
 		_phone_scroll.scroll_vertical = int(_phone_scroll.get_v_scroll_bar().max_value)
@@ -512,6 +524,15 @@ func _build_phone() -> void:
 ## 지금 떠 있는 폰 화면 (스크린샷 스크립트용, 없으면 null)
 func phone_screen() -> Control:
 	return _phone
+
+
+## 지금 폰에 열린 대화방과 말풍선 수 (테스트·스크린샷용)
+func phone_room() -> String:
+	return _phone_room
+
+
+func phone_bubbles() -> int:
+	return 0 if _phone_list == null else _phone_list.get_children().filter(func(c: Node) -> bool: return not c.is_queued_for_deletion()).size()
 
 
 ## 아래: 이름표 + 대사창 (글자 · 변화 · ▼)

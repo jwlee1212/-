@@ -1,7 +1,7 @@
 class_name PhoneView
 extends Control
 ## 폰 화면 (허브 위에 겹쳐 뜬다). 가로 화면 가운데 오른쪽에 세로 폰 하나, 그 옆에 지금 보고 있는 인물의 일러스트.
-## 폰 안: 메시지(대화방 목록 → 대화방, 답장) · 연락처(관계 상태 문구 → 인물 카드, 선물·만나기).
+## 폰 안: 메시지(대화방 목록 → 대화방, 답장) · 뉴스(기사·커뮤니티 글 목록 → 본문·댓글) · 연락처(관계 상태 문구 → 인물 카드, 선물·만나기).
 ## 폰 밖 어두운 곳을 누르면 닫힌다. 로직은 Phone(문자) · CareerState.socialize(교류)가 하고 여기는 그리기만 한다.
 ## 관계는 숫자 없이 문구로만 보인다 — 숨은 수치는 그대로다.
 
@@ -10,6 +10,7 @@ signal closed
 signal changed
 
 const TAB_MESSAGES := "메시지"
+const TAB_NEWS := "뉴스"
 const TAB_CONTACTS := "연락처"
 
 var _career: CareerState
@@ -17,6 +18,8 @@ var _tab := TAB_MESSAGES
 ## 열려 있는 대화방 / 인물 카드 ("" 이면 목록)
 var _room := ""
 var _person := ""
+## 열려 있는 기사 id (-1 이면 뉴스 목록)
+var _article := -1
 ## 대화방에서 마지막 몇 줄을 차례로 띄울지 (답장 직후)
 var _reveal := 0
 
@@ -25,9 +28,12 @@ var _screen: VBoxContainer
 var _scroll: ScrollContainer
 
 
-func _init(career: CareerState, room: String = "") -> void:
+func _init(career: CareerState, room: String = "", article: int = -1) -> void:
 	_career = career
 	_room = room
+	if article >= 0:
+		_tab = TAB_NEWS
+		_article = article
 
 
 func _ready() -> void:
@@ -76,6 +82,13 @@ func show_tab(tab: String) -> void:
 	_tab = tab
 	_room = ""
 	_person = ""
+	_article = -1
+	_rebuild()
+
+
+func open_article(id: int) -> void:
+	_tab = TAB_NEWS
+	_article = id
 	_rebuild()
 
 
@@ -110,6 +123,10 @@ func _rebuild() -> void:
 		_build_room()
 	elif _tab == TAB_MESSAGES:
 		_build_rooms()
+	elif _tab == TAB_NEWS and _article >= 0:
+		_build_article()
+	elif _tab == TAB_NEWS:
+		_build_news()
 	elif _person != "":
 		_build_person()
 	else:
@@ -132,7 +149,7 @@ func _status_bar() -> Control:
 ## 맨 아래: 메시지 · 연락처 (안 읽은 문자 수 / 관계 문구가 바뀐 사람 수)
 func _nav() -> Control:
 	var bar := UiKit.hbox(0)
-	for item: Array in [[TAB_MESSAGES, _career.phone.total_unread()], [TAB_CONTACTS, _career.phone.relation_changes(_career)]]:
+	for item: Array in [[TAB_MESSAGES, _career.phone.total_unread()], [TAB_NEWS, _career.feed.unread_count()], [TAB_CONTACTS, _career.phone.relation_changes(_career)]]:
 		var tab: String = item[0]
 		var text := tab if int(item[1]) == 0 else "%s  %d" % [tab, item[1]]
 		var b := _text_button(text, func() -> void: show_tab(tab), Tokens.PRIMARY if tab == _tab else (Tokens.BADGE if int(item[1]) > 0 else Tokens.INK_SOFT), Tokens.FONT_BODY)
@@ -163,6 +180,94 @@ func _list() -> VBoxContainer:
 	_screen.add_child(scroll)
 	_scroll = scroll
 	return col
+
+
+# ---------- 뉴스 ----------
+
+## 기사 목록 (새것이 위): 매체 · 언제 / 제목 / 댓글·조회. 안 읽은 기사는 N 표시와 굵은 제목
+func _build_news() -> void:
+	var feed := _career.feed
+	_screen.add_child(_header("뉴스"))
+	var col := _list()
+	if feed.articles.is_empty():
+		col.add_child(_note("아직 실린 기사가 없다. 눈에 띄는 경기를 하면 커뮤니티부터 글이 올라온다."))
+	for i in range(feed.articles.size() - 1, -1, -1):
+		var a: Dictionary = feed.articles[i]
+		var top := UiKit.hbox(Tokens.SPACE_XS)
+		var src := UiKit.label(NewsFeed.source_name(_career, a["source"]), Tokens.FONT_CAPTION, Tokens.INK_SOFT if _is_board(a) else Tokens.NAVY, Tokens.FONT_BOLD)
+		src.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		top.add_child(src)
+		if not a["read"]:
+			top.add_child(_badge("N"))
+		top.add_child(UiKit.label(_ago(int(a["tw"])), Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+		var title := UiKit.label(a["title"], Tokens.FONT_CAPTION + 1, Tokens.INK, Tokens.FONT_REGULAR if a["read"] else Tokens.FONT_BOLD)
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var meta := UiKit.label("댓글 %d · 조회 %s" % [(a["comments"] as Array).size(), _comma(int(a["views"]))], Tokens.FONT_CAPTION, Tokens.INK_SOFT)
+		var id: int = a["id"]
+		col.add_child(_row([top, title, meta], func() -> void: open_article(id)))
+
+
+## 기사 본문: 매체·기자(작성자) / 제목 / 날짜·조회·추천 / 문단 / 댓글 (추천 많은 순, 맨 위는 BEST)
+func _build_article() -> void:
+	var feed := _career.feed
+	var a := feed.article(_article)
+	if a.is_empty():
+		show_tab(TAB_NEWS)
+		return
+	if not a["read"]:
+		feed.mark_read(_article)
+		changed.emit()
+	var board := _is_board(a)
+	_screen.add_child(_header(NewsFeed.source_name(_career, a["source"]), func() -> void: show_tab(TAB_NEWS)))
+	var col := _list()
+	var src: Dictionary = _career.cfg.news["sources"][a["source"]]
+	col.add_child(UiKit.label("%s · %s" % [src["desc"], a["author"]], Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD))
+	var title := UiKit.title(a["title"], Tokens.FONT_BODY)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(title)
+	col.add_child(UiKit.label("%d학년 · %d월 · %s · 조회 %s%s" % [a["grade"], a["month"], _ago(int(a["tw"])), _comma(int(a["views"])),
+		" · 추천 %d" % a["up"] if board else ""], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	col.add_child(UiKit.divider())
+	for para: String in a["body"]:
+		var l := UiKit.label(para, Tokens.FONT_CAPTION + 1, Tokens.INK)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(l)
+	col.add_child(UiKit.divider())
+	var comments: Array = a["comments"]
+	col.add_child(UiKit.label("댓글 %d" % comments.size(), Tokens.FONT_CAPTION, Tokens.INK, Tokens.FONT_BOLD))
+	for i in comments.size():
+		var cm: Dictionary = comments[i]
+		var head := UiKit.hbox(Tokens.SPACE_XS)
+		if i == 0 and int(cm["likes"]) > 0:
+			head.add_child(_badge("BEST"))
+		var nick := UiKit.label(cm["nick"], Tokens.FONT_CAPTION, Tokens.NAVY, Tokens.FONT_BOLD)
+		nick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		head.add_child(nick)
+		head.add_child(UiKit.label("♥ %d" % cm["likes"], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+		col.add_child(head)
+		var t := UiKit.label(cm["text"], Tokens.FONT_CAPTION + 1, Tokens.INK)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(t)
+
+
+func _is_board(a: Dictionary) -> bool:
+	return _career.cfg.news["sources"][a["source"]].get("community", false)
+
+
+## "이번 주" · "3주 전"
+func _ago(tw: int) -> String:
+	var d := _career.total_week - tw
+	return "이번 주" if d <= 0 else "%d주 전" % d
+
+
+## 1234 → "1,234"
+static func _comma(n: int) -> String:
+	var t := str(n)
+	var out := ""
+	while t.length() > 3:
+		out = "," + t.right(3) + out
+		t = t.left(t.length() - 3)
+	return t + out
 
 
 # ---------- 메시지 ----------

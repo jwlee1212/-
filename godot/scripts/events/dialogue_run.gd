@@ -46,6 +46,8 @@ var phone_room := ""
 var phone_log: Array = []
 ## 방금 고른 선택지가 폰 문자였나, 그때 보낸 말 ("" = 말풍선 없음 — 괄호만 있는 행동)
 var last_phone_text := ""
+## 이야기 속 뉴스 알림 줄 (ui news) — commit 때 폰 뉴스에 속보 기사로 실린다
+var news_log: Array[String] = []
 var last_was_phone := false
 
 
@@ -191,6 +193,8 @@ func _line_step(node: Dictionary) -> Dictionary:
 		text = text.substr(1, text.length() - 2).strip_edges()
 	last_text = text
 	var step := {"type": "line", "who": "", "name": "", "role": "", "portrait": "", "face": "", "text": text, "ui": node.get("ui", "")}
+	if step["ui"] == "news":
+		news_log.append(text)
 	if step["ui"] == "phone" and speaker != "":
 		var p := career.people.person(speaker)
 		if speaker != "player" and p != null:

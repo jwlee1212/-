@@ -345,6 +345,9 @@ func commit(run: DialogueRun) -> String:
 	# 이야기 속 문자는 폰 대화방 기록에도 남는다
 	for pl: Dictionary in run.phone_log:
 		career.phone.add_story_line(pl["room"], pl["from"], pl["text"], career.total_week, id)
+	# 이야기 속 뉴스 알림은 폰 뉴스에 속보로 남는다
+	for headline: String in run.news_log:
+		career.feed.add_story(career, headline)
 	var text := run.last_text
 	log.append({"season": career.season_no, "grade": career.player.grade, "week": career.week, "title": e.get("title", id),
 		"speaker": speaker, "choice": " → ".join(run.labels), "result": text, "story": e.get("story", false)})

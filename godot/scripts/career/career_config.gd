@@ -36,6 +36,9 @@ var fitness: Dictionary
 var minigames: Dictionary = {}
 ## 폰 (한 주 문자 수, 답장 기한, 말풍선 연출 시간)
 var phone: Dictionary
+## 폰 뉴스: 수치(balance.json career.news)와 문장 틀(content.json news)
+var news_cfg: Dictionary
+var news: Dictionary = {}
 
 var innings: int
 var auto_step_ms: float
@@ -111,6 +114,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.schedule = car["schedule"]
 	assert(not (c.schedule["slots"] as Array).is_empty(), "balance.json: career.schedule.slots 가 비었다")
 	c.phone = car["phone"]
+	c.news_cfg = car["news"]
 	c.fitness = car["fitness"]
 
 	var g: Dictionary = balance["game"]
@@ -145,6 +149,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	for id: String in content["places"]:
 		if not id.begins_with("_"):
 			c.places[id] = content["places"][id]
+	c.news = content.get("news", {})
 	c.messages = content.get("messages", [])
 	var drill_numbers: Dictionary = car.get("drills", {})
 	for id: String in content.get("drills", {}):

@@ -951,6 +951,21 @@
       "toastSec": 3.5,
       "toastSlideSec": 0.35
     },
+    "news": {
+      "_note": "폰 뉴스 (scripts/phone/news_feed.gd, 문장 틀은 content.json news). 공식 경기가 끝날 때마다 눈에 띄는 일을 기사 후보로 모아 중요한 순서로 한 주에 maxPerWeek 건까지 싣는다 (늘리면 뉴스가 많아지지만 같은 틀이 빨리 반복된다). 매체 단계: 스카우트 관심도 reportScout 이상·유망주 랭킹 reportRank 위 이내·전국대회 경기면 전문 매체(1), dailyScout·dailyRank·전국대회 bigRounds 라운드면 일간 매체(2), 아니면 커뮤니티 게시글(0) — 문턱을 낮추면 일찍 '유명해진' 느낌이 난다. goodGameChance: 2안타 경기가 커뮤니티 글이 될 확률. slumpChance: 이름이 알려진 뒤(매체 1 이상) 무안타·2삼진 경기가 비판 글이 될 확률, hitlessGames 경기 연속 무안타면 반드시. rivalChance: 라이벌이 홈런·3안타를 친 주에 기사가 날 확률 (rivalCooldownWeeks 주 안에는 다시 안 난다). leagueRankNews: 주말리그를 이 순위 안으로 마치면 지역 신문 기사. rankingEveryWeeks: 파워랭킹이 나오는 주기(주). rankedTop: 파워랭킹 기사에서 내 순위를 따로 말하는 순위 안. comments: 기사 한 건 댓글 수 [최소, 최대]. keep: 폰에 남기는 기사 수",
+      "maxPerWeek": 2,
+      "tiers": {"reportScout": 20, "reportRank": 10, "dailyScout": 45, "dailyRank": 3, "bigRounds": ["준결승", "결승"]},
+      "goodGameChance": 0.35,
+      "slumpChance": 0.5,
+      "hitlessGames": 3,
+      "rivalChance": 0.4,
+      "rivalCooldownWeeks": 4,
+      "leagueRankNews": 3,
+      "rankingEveryWeeks": 4,
+      "rankedTop": 20,
+      "comments": [3, 5],
+      "keep": 120
+    },
     "romance": {
       "_note": "연애: 연애 후보(content.json people 의 romance)와 호감(관계 수치)을 쌓아 고백 이벤트로 사귄다(한 명만). 사귀는 동안 경기마다 호감 −weeklyDecay (만나기·이벤트로 채운다), 컨디션 +datingCondition. 호감이 낮으면 위기 이벤트",
       "weeklyDecay": 2,

@@ -158,12 +158,12 @@ func story_view() -> DialogueView:
 
 # ---------- 폰 ----------
 
-## 폰을 연다 (room 이 있으면 그 대화방부터). 닫으면 허브를 다시 그린다
-func open_phone(room: String = "") -> void:
+## 폰을 연다 (room 이 있으면 그 대화방부터, article 이 있으면 그 기사부터). 닫으면 허브를 다시 그린다
+func open_phone(room: String = "", article: int = -1) -> void:
 	if _phone != null or _overlay != null:
 		return
 	_hide_toast()
-	_phone = PhoneView.new(_app.career, room)
+	_phone = PhoneView.new(_app.career, room, article)
 	add_child(UiKit.fill_parent(_phone))
 	_phone.changed.connect(_app.save_career)
 	_phone.closed.connect(func() -> void:
@@ -180,12 +180,23 @@ func phone_view() -> PhoneView:
 ## 새 문자가 왔다: 오른쪽 위에 알림 띠가 오른쪽에서 미끄러져 들어왔다가 다시 미끄러져 나간다 (누르면 그 대화방이 열린다).
 ## 이야기가 다 끝난 뒤에 뜬다. 시간은 balance.json career.phone 의 toastSec · toastSlideSec
 func _notify_messages() -> void:
-	var phone: Phone = _app.career.phone
-	var fresh: Array = phone.take_fresh(_app.career)
-	if fresh.is_empty():
+	var career: CareerState = _app.career
+	var fresh: Array = career.phone.take_fresh(career)
+	var news: Array = career.feed.take_fresh()
+	if fresh.is_empty() and news.is_empty():
 		return
 	_app.save_career()
-	var first: Dictionary = fresh[0]
+	# 미리보기: 새 문자가 있으면 문자, 없으면 새 기사 (누르면 그 대화방 / 그 기사)
+	var preview_text := ""
+	var open_it: Callable
+	if not fresh.is_empty():
+		var first: Dictionary = fresh[0]
+		preview_text = "%s: %s" % [first["name"], first["text"]]
+		open_it = func() -> void: open_phone(first["room"])
+	else:
+		var a: Dictionary = news[-1]
+		preview_text = "%s · %s" % [NewsFeed.source_name(career, a["source"]), a["title"]]
+		open_it = func() -> void: open_phone("", int(a["id"]))
 	var card := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Tokens.PHONE_BODY
@@ -198,13 +209,13 @@ func _notify_messages() -> void:
 	card.add_theme_stylebox_override("panel", style)
 	var row := UiKit.hbox(Tokens.SPACE_SM)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var badge := Shapes.Badge.new(phone.total_unread())
+	var badge := Shapes.Badge.new(career.phone_unread())
 	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(badge)
 	var col := UiKit.vbox(0)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_child(UiKit.label("알림이 %d개 쌓여 있습니다." % phone.total_unread(), Tokens.FONT_CAPTION + 1, Tokens.HUD_TEXT, Tokens.FONT_BOLD))
-	var preview := UiKit.label("%s: %s" % [first["name"], first["text"]], Tokens.FONT_CAPTION, Tokens.HUD_TEXT_SOFT)
+	col.add_child(UiKit.label("알림이 %d개 쌓여 있습니다." % career.phone_unread(), Tokens.FONT_CAPTION + 1, Tokens.HUD_TEXT, Tokens.FONT_BOLD))
+	var preview := UiKit.label(preview_text, Tokens.FONT_CAPTION, Tokens.HUD_TEXT_SOFT)
 	preview.clip_text = true
 	col.add_child(preview)
 	row.add_child(col)
@@ -212,7 +223,7 @@ func _notify_messages() -> void:
 	var hit := Button.new()
 	hit.flat = true
 	hit.focus_mode = Control.FOCUS_NONE
-	hit.pressed.connect(func() -> void: open_phone(first["room"]))
+	hit.pressed.connect(open_it)
 	card.add_child(hit)
 	card.custom_minimum_size.x = Tokens.TOAST_WIDTH
 	_toast = card
@@ -265,7 +276,7 @@ func _rebuild() -> void:
 	var career: CareerState = _app.career
 	_top.refresh(career)
 	_nav.select(_tab)
-	_nav.set_badge(PHONE_TAB, career.phone.total_unread())
+	_nav.set_badge(PHONE_TAB, career.phone_unread())
 	_nav.set_cta(_go_button())
 	_app.save_career()
 

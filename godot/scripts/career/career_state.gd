@@ -58,6 +58,8 @@ var scouting: Scouting
 var book: EventBook
 ## 폰 (문자 · 연락처에서 본 관계 문구)
 var phone := Phone.new()
+## 폰 뉴스 (기사 · 커뮤니티 글)
+var feed := NewsFeed.new()
 ## 지난 경기 요약 (경기 뒤 이벤트 조건): {"result": "win"|"loss"|"draw", "hits", "home_runs",
 ##   "phase_end": ""|"champion"|"eliminated"|"leagueEnd"|"advanced", "national", "opponent_id", "season_over"}
 var last := {}
@@ -761,7 +763,13 @@ func finish_game(game: GameRunner) -> Array[String]:
 		"phase_end": phase_end, "national": national, "opponent_id": game.opponent.id, "season_over": is_season_over()}
 	scouting.record(prospect_rank(), player.overall())
 	_build_news(teams_before)
+	feed.after_game(self, game, records.games[-1], phase_end, teams_before)
 	return notes
+
+
+## 폰 탭 배지: 안 읽은 문자 + 안 읽은 기사
+func phone_unread() -> int:
+	return phone.total_unread() + feed.unread_count()
 
 
 ## 소율의 영상 수: 내가 직접 한 실전 타석·수비마다 +1 (연습경기도 실전이다)
