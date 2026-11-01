@@ -48,7 +48,7 @@ static func room_text(current: int, potential: int) -> String:
 	return "한계 근처"
 
 
-## 경기 기록으로 성장 (안타 → 컨택, 장타·홈런 → 파워, 볼넷 → 선구안, 도루 → 주력). 돌려주는 값: {능력치: 오른 칸} (0 은 빼고)
+## 경기 기록으로 성장 (안타 → 컨택, 장타·홈런 → 파워, 볼넷 → 선구안, 도루 → 주력, 내 수비 보살 → 수비). 돌려주는 값: {능력치: 오른 칸} (0 은 빼고)
 static func from_line(cfg: CareerConfig, p: PlayerData, line: PlayerData.SeasonStats) -> Dictionary:
 	var g := cfg.growth
 	var grow := {
@@ -56,6 +56,7 @@ static func from_line(cfg: CareerConfig, p: PlayerData, line: PlayerData.SeasonS
 		"power": (line.doubles + line.triples) * float(g["perExtraBasePower"]) + line.home_runs * float(g["perHomeRunPower"]),
 		"eye": line.walks * float(g["perWalkEye"]),
 		"speed": line.steals * float(g["perStealSpeed"]),
+		"fielding": line.assists * float(g["perAssistFielding"]),
 	}
 	var out := {}
 	for stat: String in grow:

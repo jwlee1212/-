@@ -8,6 +8,8 @@
 
 ## 인물 일러스트 `portraits/<id>.png`
 
+표정: 대본 줄에 `"face": "happy" | "pout" | "surprised"` 를 붙이면 `<id>_<표정>.png` 를 쓴다. 그 그림이 없으면 기본 `<id>.png` (`EventBook.FACES`).
+
 | 파일 | 인물 |
 |---|---|
 | `coach.png` | 감독 · (이름은 커리어마다 뽑음) — **임시 그림이 들어 있다** |
@@ -18,7 +20,7 @@
 | `buddy.png` | 동기 · (이름은 커리어마다 뽑음) — **임시 그림이 들어 있다** |
 | `rival.png` | 라이벌 · (이름은 커리어마다 뽑음) — **임시 그림이 들어 있다** |
 | `scout.png` | 스카우트 · (이름은 커리어마다 뽑음) |
-| `manager.png` | 매니저 · 한소율 — **임시 그림이 들어 있다** |
+| `manager.png` | 매니저 · 한소율 (기본). 표정 `manager_happy`(신남) · `manager_pout`(심통) · `manager_surprised`(놀람) |
 | `neighbor.png` | 소꿉친구 · 정다온 — **임시 그림이 들어 있다** |
 | `reporter.png` | 방송부 · 서지안 — **임시 그림이 들어 있다** |
 | `agent.png` | 에이전트라는 남자 (조연) |

@@ -102,14 +102,7 @@ func apply_play(play: PlaySimulator.PlayResult, bunt: bool = false) -> Dictionar
 		"outs": play.outs, "note": note, "half_over": false, "sac_fly": play.sac_fly}
 	outs += play.outs
 	bases = play.bases.duplicate()
-	_add_runs(side, res.runs)
-	batter_index[side] = (batter_index[side] + 1) % 9
-	if outs >= 3:
-		res.half_over = true
-		_end_half()
-	elif not top and inning >= innings and score[HOME] > score[AWAY]:
-		over = true  # 끝내기
-	return res
+	return _end_pa(res, side)
 
 
 ## 타석 결과 적용.
@@ -163,6 +156,52 @@ func apply(outcome: SwingJudge.Outcome, rng: RandomNumberGenerator, bunt: bool =
 		SwingJudge.Outcome.SINGLE, SwingJudge.Outcome.DOUBLE, SwingJudge.Outcome.TRIPLE:
 			_hit(res, outcome, ball, rng, batter, speed)
 
+	return _end_pa(res, side)
+
+
+## 내 수비(유격수) 결과를 반영한다. kind: FieldPlay.Kind. 기록상 타자는 땅볼(실책 출루 포함 — 타수만, 안타 아님),
+## 늦은 송구만 내야안타다. 돌려주는 값은 apply() 와 같은 모양
+##   BONUS  레이저 송구: 타자 아웃, 주자는 한 베이스도 못 간다
+##   NORMAL 보통 송구: 타자 아웃, 주자는 한 베이스씩 (3루 주자는 2사 전이면 홈인)
+##   WILD   악송구: 타자 2루까지, 1루 주자 3루, 2·3루 주자 홈인 (타점 없음)
+##   MISS   포구 실책: 타자 1루, 주자 모두 한 베이스씩 (타점 없음)
+##   LATE   내야안타(송구보다 주자가 먼저): 타자 1루, 밀려나는 주자만 한 베이스
+func apply_shortstop(kind: FieldPlay.Kind, batter: int) -> Dictionary:
+	var side := batting_side()
+	var outs_before := outs
+	var res := {"outcome": SwingJudge.Outcome.GROUND_OUT, "runs": 0, "rbi": 0, "scorers": [], "outs": 0, "note": "", "half_over": false, "sac_fly": false}
+	match kind:
+		FieldPlay.Kind.BONUS:
+			_out(res)
+			res.note = "호수비"
+		FieldPlay.Kind.NORMAL:
+			_out(res)
+			if outs < 3:
+				_advance_others(res, outs_before < 2)
+		FieldPlay.Kind.WILD:
+			_score(res, bases[2], false)
+			_score(res, bases[1], false)
+			bases = [EMPTY, batter, bases[0]]
+			res.note = "유격수 악송구"
+		FieldPlay.Kind.MISS:
+			_score(res, bases[2], false)
+			bases = [batter, bases[0], bases[1]]
+			res.note = "유격수 실책"
+		FieldPlay.Kind.LATE:
+			res.outcome = SwingJudge.Outcome.SINGLE
+			res.note = "내야안타"
+			if occupied(0):
+				if occupied(1):
+					if occupied(2):
+						_score(res, bases[2], true)
+					bases[2] = bases[1]
+				bases[1] = bases[0]
+			bases[0] = batter
+	return _end_pa(res, side)
+
+
+## 타석 하나가 끝났다: 점수를 올리고 다음 타자로, 3아웃이면 공수 교대, 마지막 회 말에 앞서면 끝내기
+func _end_pa(res: Dictionary, side: int) -> Dictionary:
 	_add_runs(side, res.runs)
 	batter_index[side] = (batter_index[side] + 1) % 9
 	if outs >= 3:

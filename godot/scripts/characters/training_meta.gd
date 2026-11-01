@@ -5,4 +5,4 @@ extends RefCounted
 
 const SIZE := Vector2(120, 72)
 const FRAMES := 4
-const ROWS := {"contact": 0, "power": 1, "eye": 2, "speed": 3, "rest": 4}
+const ROWS := {"contact": 0, "power": 1, "eye": 2, "speed": 3, "rest": 4, "fielding": 5}

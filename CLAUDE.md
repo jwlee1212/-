@@ -46,6 +46,7 @@ $G --path godot                                                # 맥에서 실�
 $G --always-on-top --path godot res://tests/shots.tscn         # 확인용 스크린샷 → godot/build/shots/ (창이 뒤에 깔리면 맥이 그리기를 멈춰서 항상 위에 띄운다)
 ./scripts/godot-web.sh                                         # 웹 개발 빌드 + 개발 서버 (폰에서 ⚙ 손맛 패널)
 $G --headless --path godot --script res://tests/calibrate.gd   # 가상 타자로 타율·삼진율 보기
+python3 scripts/build_scenario.py                               # 시나리오 문서를 고친 뒤 이벤트 다시 만들기 (그다음 테스트)
 ```
 새 스크립트·리소스를 추가하면 `$G --headless --path godot --import` 로 클래스 목록을 갱신한 뒤 테스트를 돌린다.
 
@@ -76,7 +77,7 @@ $G --headless --path godot --script res://tests/calibrate.gd   # 가상 타자�
 
 ```
 config/balance.json        밸런스·손맛 수치 원본 (구종 8개는 batting.pitches · batting.pitch_common)
-config/content.json        콘텐츠 원본 (학교·이름·이벤트·대사·폰 문자)
+config/content.json        콘텐츠 원본 (학교·이름·이벤트·대사·폰 문자). 1학년 이야기(ep01~ep08 이벤트·vars)는 docs/scenario 문서에서 만든다 — 손으로 고치지 않는다
 godot/                     Godot 프로젝트
 ├─ project.godot, export_presets.cfg
 ├─ scenes/                 장면 (화면은 가능한 한 코드로 조립한다)
@@ -85,27 +86,31 @@ godot/                     Godot 프로젝트
 │  ├─ pitching/            투구: 구종 데이터(pitch_catalog)·궤적(pitch_trajectory — 경과 시간만으로 위치를 내는 순수 함수) (로직)
 │  ├─ audio/               효과음 합성(44.1kHz, 경기장 반사음)·재생, 배경음악 재생(MusicPlayer: 화면별 곡·크로스페이드)
 │  ├─ ui/                  디자인 토큰(tokens) → 앱 Theme(theme_builder: 새 화면은 theme_type_variation 만 붙인다), 노치 여백(safe_area_margin)
-│  ├─ characters/          도트 그림: PixelArt(시트 그리기·칸 고르기·중계 경기장), PixelMeta(make_pixel_art.py 가 만든 칸 정보), BatterSprite(타자 칸 갈아 끼우기)
+│  ├─ characters/          도트 그림: PixelArt(시트 그리기·칸 고르기·중계 경기장), PixelMeta(make_pixel_art.py 가 만든 칸 정보), TrainingMeta·MinigameMeta(훈련 장면·미니게임 칸 정보), BatterSprite(타자 칸 갈아 끼우기)
 │  ├─ debug/               손맛 조절 패널(구종 고정 버튼 포함), 테스트 시작(원하는 시점까지 빨리 감기) (개발 빌드 전용)
-│  ├─ career/              커리어: 선수·주간 루프·성장·인물·라이벌·스카우트 평가·기록실 (로직)
-│  ├─ events/              돌발 이벤트·스토리 엔진: 조건·효과(event_book) + 대본을 한 걸음씩 읽는 대화 진행(dialogue_run) (로직, 정의는 content.json)
+│  ├─ career/              커리어: 선수(능력치 다섯: 컨택·파워·선구안·주력·수비)·주간 루프·성장·인물·라이벌·스카우트 평가·기록실 (로직)
+│  ├─ events/              돌발 이벤트·스토리 엔진: 조건·효과·시나리오 변수(event_book) + 대본을 한 걸음씩 읽는 대화 진행(dialogue_run — IF/ELSE 갈래·조건부 선택지·화면 표시 줄) (로직, 정의는 content.json)
+│  ├─ minigames/           미니게임 로직: 입부 체력 테스트(FitnessTest 등급·보상) + 50m(RunTest)·스쿼트(LiftTest)·반응(ReactTest) — 화면은 screens/fitness_view.gd
 │  ├─ phone/               폰 문자: 도착·답장·만료·대화방 기록 (로직, 정의는 content.json messages — 조건·효과는 events 와 같은 검사기·처리기)
-│  ├─ game/                한 경기: 상태·주루·자동 진행, 내 주루 조작(RunControl)·도루(Steal)·런다운(Rundown) (로직)
+│  ├─ fielding/            내 수비: 유격수 포구(줄어드는 원)·송구(눌렀다 떼는 게이지)·1루 판정(칸별 아웃 확률) FieldPlay (로직) — 화면은 screens/field_view.gd(유격수 시점 + 1루 클로즈업)
+│  ├─ game/                한 경기: 상태·주루·자동 진행, 경기 대본(gamePlan: 장면마다 내 타석·수비), 내 주루 조작(RunControl)·도루(Steal)·런다운(Rundown) (로직)
 │  ├─ save/                커리어 저장·불러오기 (SaveGame: 객체를 통째로 이진 저장, 자동 저장)
-│  ├─ screens/             화면: 타이틀·선수 만들기·홈(위 바·내 선수 카드·아래 탭 바 = screens/home/ 부품 + 주간 스케줄 달력)·폰(메시지·연락처)·경기(도루 화면·베이스 버튼)·결과·시즌·연습(타격·주루)·기록실·설정(주루: 자동·보조·수동)
+│  ├─ screens/             화면: 타이틀·선수 만들기·홈(위 바·내 선수 카드·아래 탭 바 = screens/home/ 부품 + 주간 스케줄 달력)·폰(메시지·연락처)·경기(도루 화면·베이스 버튼·유격수 수비 화면)·결과·시즌·연습(타격·주루·수비)·기록실·설정(주루: 자동·보조·수동)
 │  ├─ balance_loader.gd, balance_source.gd   수치 읽기·저장 (맥은 파일, 웹은 개발 서버)
 │  ├─ settings.gd          유저 설정 (주루 설정 — 커리어 저장과 따로 user://settings.json)
 │  └─ main.gd
-├─ art/pixel/              인게임 도트 시트 (field·batter·pitcher·catcher·mitt·fielders) — scripts/make_pixel_art.py 가 만든다. 손으로 고치지 않는다
+├─ art/pixel/              인게임 도트 시트 (field·batter·pitcher·catcher·mitt·fielders·closeup(1루수·타자 주자·루심)·closeup_bg — make_pixel_art.py, training — make_training_art.py, minigame·minigame_bg — make_minigame_art.py). 손으로 고치지 않는다
 ├─ art/portraits/, backgrounds/  대화 화면 일러스트·배경 (파일 목록은 art/README.md, 없으면 자리만 보인다)
 ├─ audio/bgm/              배경음악 루프 WAV 3곡 (lobby·home 은 음악, game 은 음악 없이 관중 웅성거림·떼창 응원가) — scripts/make_bgm.py 가 만든다
 ├─ audio/sfx/              미리 만든 효과음 (관중 함성 cheer_small·cheer_big, 심판 콜 call_strike·call_strikeout — scripts/make_bgm.py). 없는 소리는 SoundSynth 가 실행 중에 합성
 ├─ fonts/                  Pretendard (OFL)
-├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_lobby 로비 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_steal 도루·주루 버튼·런다운 · shots_run_game 실제 경기 화면에서 내 주루 · shots_run_practice 주루 연습 · shots_batter 타자 포즈 · shots_effects 타격 이펙트 · shots_hud 타석 중계 그래픽 · shots_pitches 8개 구종 궤적 · shots_pitch_flight 실제 타석 화면에서 구종별 날아오는 공), calibrate.gd(가상 타자 튜닝 도구), export_sfx.gd(효과음을 build/sfx/ 에 WAV 로 꺼내 들어 보기), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
+├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_lobby 로비 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_steal 도루·주루 버튼·런다운 · shots_run_game 실제 경기 화면에서 내 주루 · shots_run_practice 주루 연습 · shots_batter 타자 포즈 · shots_effects 타격 이펙트 · shots_hud 타석 중계 그래픽 · shots_pitches 8개 구종 궤적 · shots_pitch_flight 실제 타석 화면에서 구종별 날아오는 공 · shots_fitness 입부 체력 테스트 세 종목 · shots_field 유격수 수비), calibrate.gd(가상 타자 튜닝 도구), export_sfx.gd(효과음을 build/sfx/ 에 WAV 로 꺼내 들어 보기), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
 └─ data/                   빌드 때 복사되는 balance.json (저장소에 넣지 않음)
 scripts/godot-web.sh       웹 빌드(개발용) + 개발 서버 실행
 scripts/dev_server.py      개발 서버: 웹 빌드 + 원본 balance.json 실시간 제공·저장
+scripts/build_scenario.py  시나리오 문서(docs/scenario) → content.json 이야기 이벤트·변수. 문서에 없는 엔진 정보(어느 주·경기 대본 gamePlan·연습 drill·장소)만 이 파일에 적는다
 scripts/make_bgm.py        배경음악 3곡·관중 함성·심판 콜(목소리 합성)을 코드로 합성 (외부 라이브러리 없음, 곡을 고치면 다시 실행)
+scripts/make_minigame_art.py  미니게임 도트(체력 테스트 배경·인물 칸) → godot/art/pixel/minigame*.png + minigame_meta.gd (make_pixel_art.py 의 도구를 쓴다)
 scripts/make_pixel_art.py  인게임 도트 그림 전부(관절 좌표·손으로 찍은 판·팔레트) → godot/art/pixel/ + pixel_meta.gd (pillow 필요). 그림을 고치면 다시 실행
 docs/                      기획·개발 기록
 licenses/                  글꼴 라이선스, assets.md(에셋 출처)
@@ -123,7 +128,7 @@ licenses/                  글꼴 라이선스, assets.md(에셋 출처)
 | P1 | 게임형 프로토타입: 타이틀 → 주간 루프 × 시즌 (타자 전용, 완료·폰 확인 대기) |
 | G1.5 | **타석의 사실성**: 스윙 종류(밸런스/컨택/파워/번트), 타구 물리(타구 속도·발사각·방향) + 수비수 도달로 결과 결정, 타구 중계 화면, 기록을 한국 야구 평균에 맞춤 |
 | ~~G2~~ | ~~투구~~ → 백로그 (타자 전용으로 결정, 2026-10-06) |
-| ~~G3~~ | ~~수비 조작~~ → 백로그 (수비는 타구 물리로 자동, 2026-10-06) |
+| ~~G3~~ | ~~수비 조작~~ → 백로그 (수비는 타구 물리로 자동, 2026-10-06). 최소판만 넣음(2026-11-01): 한 경기 1~2번 유격수 땅볼을 직접 포구·송구(게이지) → 1루 클로즈업 아웃·세이프 |
 | G4 | 한 경기: 내 차례만 조작, 나머지는 자동 시뮬레이션 + 하이라이트 |
 | G4.5 | **첫 플레이어블**: 고교 한 경기를 폰에서 끝까지 |
 | G5 | 시즌·성장: 주간 루프, 훈련 배분, 컨디션, 능력치 성장 |
@@ -137,7 +142,7 @@ licenses/                  글꼴 라이선스, assets.md(에셋 출처)
 | 테스트 | 기준 |
 |---|---|
 | 판정 | 타이밍·능력치·볼배합·노려치기 → 기획대로, 스트라이크 = 공이 존에 조금이라도 걸침(zoneBallRadius), 손맛 조절 패널의 저장 경로 |
-| 경기·커리어 | 주루 규칙, 9이닝 진행·끝내기, 200경기 점수 합 일치·평균 득점 범위, 훈련·성장·이벤트·시즌 기록실(경기별·대회별·분할 기록 합 = 시즌 기록) 저장·불러오기(불러온 뒤 진행 = 원래 진행) 겨울 캠프 · 이벤트 대타 · 시나리오용 조건·효과 · 1학년 시나리오 흐름 · 실제 콘텐츠만으로 3년 진행 · 폰 문자(도착·답장·만료·저장·`Phone.validate`) · 내 주루 조작(주루 설정 자동·보조·수동, 베이스 버튼·태그업·도루: 보조에서 안 누르면 자동 경기와 같은 결과, 앞 주자 추월 금지, 내 타구는 내야여도 1루 앞 판단, 달리는 중 방향 바꾸기, 기본 보조) · 주력 피로(한 바퀴 넘게 달리면 느려짐) · 런다운(결과·기록 맞물림·재현성·대부분 아웃·내 주자 방향 선택·느린 화면) · 투구 궤적(도착점·직선 구간·변화 방향·좌우 반전·감속 단조성·투구 위치별 변화폭·화면에서 공이 솟지 않음)·구종 데이터 검증 · 주간 스케줄(칸 순서·컨디션 합·이어 쓰기·대성공/실패 비율) · 투수 실투(카운트별 확률·행잉·보너스) · 배경음악 곡 파일·루프 · 홈런 장면 건너뛰기 (테스트 전체 130건) |
+| 경기·커리어 | 주루 규칙, 9이닝 진행·끝내기, 200경기 점수 합 일치·평균 득점 범위, 훈련·성장·이벤트·시즌 기록실(경기별·대회별·분할 기록 합 = 시즌 기록) 저장·불러오기(불러온 뒤 진행 = 원래 진행) 겨울 캠프 · 이벤트 대타 · 시나리오용 조건·효과 · 1학년 시나리오 흐름(EP01~08 이 정한 주·경기 대본대로, 결과 변수·활약도 공식·해금) · 대본 분기(IF/ELSE·조건부 선택지·선택 지점 id) · 실제 콘텐츠만으로 3년 진행 · 폰 문자(도착·답장·만료·저장·`Phone.validate`) · 내 주루 조작(주루 설정 자동·보조·수동, 베이스 버튼·태그업·도루: 보조에서 안 누르면 자동 경기와 같은 결과, 앞 주자 추월 금지, 내 타구는 내야여도 1루 앞 판단, 달리는 중 방향 바꾸기, 기본 보조) · 주력 피로(한 바퀴 넘게 달리면 느려짐) · 런다운(결과·기록 맞물림·재현성·대부분 아웃·내 주자 방향 선택·느린 화면) · 투구 궤적(도착점·직선 구간·변화 방향·좌우 반전·감속 단조성·투구 위치별 변화폭·화면에서 공이 솟지 않음)·구종 데이터 검증 · 주간 스케줄(칸 순서·컨디션 합·이어 쓰기·대성공/실패 비율) · 투수 실투(카운트별 확률·행잉·보너스) · 배경음악 곡 파일·루프 · 홈런 장면 건너뛰기 · 입부 체력 테스트(50m 연타 속도·헛발·부정 출발·프레임 무관, 스쿼트 호흡 구간·실패, 반응 신호 시드·실수 벌점, 등급 → 보상·저장) · 내 수비(포구 판정 폭·더듬기·빠짐, 송구 게이지 눌렀다 떼기·칸, 칸별 아웃 확률(회색·초록·금색)·주력 영향·늦은 송구·악송구·못 던짐, 종류별 주자·기록, 한 경기 1~2번·점수 합) · 수비 능력치(판정 폭·공 빼기·금색 폭·송구 힘·아웃 확률, 수비 훈련·보살 성장·글러브·옛 저장 호환) (테스트 전체 141건) |
 | 재현성 | 같은 시드·같은 입력 → 완전히 같은 결과 |
 | 경기 무결성 | (G4~) 자동 시뮬레이션 경기에서 점수·아웃·주자 수가 맞는다 |
 | 이벤트 무결성 | (G6~) `EventBook.validate` 통과, 모든 선택지가 유효한 결과로 이어지고, 고교 3년 자동 진행에서 스토리가 다 나온다 |
@@ -157,3 +162,5 @@ licenses/                  글꼴 라이선스, assets.md(에셋 출처)
 | `config/balance.json` | 밸런스·손맛 수치 |
 | `config/content.json` | 콘텐츠: 학교·이름·돌발 이벤트·폰 문자·감독 대사 (모두 가상) |
 | `licenses/assets.md` | 외부·AI 생성 에셋 출처와 상업 이용 가능 여부 |
+| `docs/worldview.md` | 세계관: 학교·인물·구단·대회·제도·연표. 이름은 여기 있는 것만 쓴다 |
+| `docs/scenario/` | 시나리오 원본 (`scenario_y1_ep01-08.md` = 1학년 EP01~08). 대사는 여기서만 고친다 → `python3 scripts/build_scenario.py` 가 `content.json` 이벤트로 만든다 |

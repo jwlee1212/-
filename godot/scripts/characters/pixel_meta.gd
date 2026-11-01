@@ -27,3 +27,18 @@ const MITT_SIZE := Vector2(13, 13)
 const FIELDER_CELL := Vector2(5, 8)
 const FIELDER_FEET := Vector2(2, 7)
 const FIELDER_FRAMES := 3
+## 1루 클로즈업 (내 수비 송구): 배경 크기, 칸 크기·발 자리(투수와 같은 몸 뼈대), 칸 이름 → 번호
+const CLOSEUP_BG := Vector2(256, 98)
+const CLOSEUP_CELL := Vector2(44, 40)
+const CLOSEUP_FEET := Vector2(22, 36)
+const CLOSEUP := {"run_a": 0, "run_b": 1, "run_c": 2, "run_d": 3, "run_touch": 4, "run_pass": 5, "fb_ready": 6, "fb_reach": 7, "fb_stretch": 8, "fb_catch": 9, "fb_jump": 10, "ump_set": 11, "ump_out": 12, "ump_safe": 13}
+## 배경 위 자리 (배경 그림 픽셀): 1루 베이스, 타자 주자가 달리는 줄(발 높이), 1루수·루심 발
+const CLOSEUP_BAG := Vector2(128, 72)
+const CLOSEUP_RUNNER_Y := 72
+const CLOSEUP_FB_FOOT := Vector2(121, 78)
+const CLOSEUP_UMP_FOOT := Vector2(78, 66)
+## 타자 주자 베이스 터치 칸에서 뻗은 앞발 끝 (발 기준) — 이 발이 베이스에 닿는 순간이 1루를 밟는 순간
+const CLOSEUP_TOUCH_FOOT := Vector2(-10, 0)
+## 1루수 글러브 자리 (발 기준): 뻗어 잡을 때, 뛰어오를 때
+const CLOSEUP_GLOVE := Vector2(-3, -8)
+const CLOSEUP_GLOVE_JUMP := Vector2(5, -31)

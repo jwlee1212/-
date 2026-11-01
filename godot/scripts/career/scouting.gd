@@ -37,6 +37,12 @@ static func create(cfg: CareerConfig, rng: RandomNumberGenerator) -> Scouting:
 		var t := order[i]
 		order[i] = order[j]
 		order[j] = t
+	# 스카우트 인물의 구단이 정해져 있으면 (content.json people.scout.team) 그 구단이 맨 앞
+	var fixed_team: String = cfg.people.get("scout", {}).get("team", "")
+	for k in order.size():
+		if cfg.pro_teams[order[k]]["name"] == fixed_team:
+			order.push_front(order.pop_at(k))
+			break
 	sc.team_order = order
 	sc.potential_error = rng.randfn(0.0, float(c["potentialErrorSd"]))
 	return sc

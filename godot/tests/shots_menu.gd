@@ -55,7 +55,7 @@ func _ready() -> void:
 	_app._current._open_picker(0)
 	await _frames(10)
 	await _shot("menu-hub-picker")
-	_app.career.set_plan(0, "contact")
+	_app.career.set_plan(0, "fielding")
 	_app.career.set_plan(1, "power")
 	_app.career.set_plan(2, "rest")
 	_app._current._close_picker()

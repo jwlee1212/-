@@ -13,7 +13,7 @@ extends RefCounted
 const POINTS := [
 	["season_start", "시즌 시작"], ["phase:1", "첫 전국대회"], ["phase:2", "주말리그 후반기"], ["phase:3", "두 번째 전국대회"], ["phase:4", "세 번째 전국대회"],
 	["season_end", "시즌 결산"], ["camp", "겨울 캠프 1주"], ["camp_game", "캠프 연습경기 주"], ["camp_end", "캠프 결산"]]
-const TRAININGS := ["contact", "power", "eye", "speed"]
+const TRAININGS := ["contact", "power", "eye", "speed", "fielding"]
 ## 한 번에 최대 몇 주까지 감나 (3년 = 80주 안쪽)
 const MAX_STEPS := 200
 
@@ -93,6 +93,9 @@ static func _play(career: CareerState) -> void:
 	var game := career.new_game()
 	var rng := career._rng("fast-forward")
 	while not game.state.over:
+		# 경기 대본의 장면에 도착했으면 장면 대화부터 (수비 장면은 내 타석이 아니라 여기서 넘긴다)
+		if game.in_scene():
+			career.auto_game_story(game)
 		if game.step()["type"] == "my_turn":
 			career.auto_game_story(game)
 			var pa := AutoPa.simulate(career.cfg.auto_pa, career.batting, game.current_batter().skills, game.current_pitcher(), rng)
@@ -113,7 +116,7 @@ static func _resolve(career: CareerState, timing: String) -> void:
 	# 이야기 하나가 끝나면 그다음 이야기가 열릴 수 있다 (입학 첫날처럼) — 남은 게 없을 때까지
 	while not career.events(timing).is_empty():
 		var e: Dictionary = career.events(timing)[0]
-		var choices: Array = e["choices"]
+		var choices: Array = e.get("choices", [])
 		var pick := 0
 		for i in choices.size():
 			if EventBook.choice_block(career, choices[i]) == "":

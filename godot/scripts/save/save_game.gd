@@ -116,6 +116,7 @@ static func from_bytes(bytes: PackedByteArray, cfg: CareerConfig, batting: Batti
 	_create_all(root["f"], memo, cfg)
 	var filled := {int(root["$id"]): true}
 	_fill(career, "CareerState", root["f"], memo, filled, cfg)
+	career.upgrade_old_save()
 	return {"career": career, "error": ""}
 
 

@@ -13,6 +13,9 @@ extends RefCounted
 
 ## 캠프 집중 과제 중 능력치가 아닌 것: 몸 관리 (캠프 동안 컨디션이 덜 깎인다 — career.camp.body)
 const CAMP_FOCUS_BODY := "body"
+## 소율이 찍는 영상 수 (docs/scenario 2-1): 실전 타석·실전 수비(직접 한 것)마다 +1. content.json vars 에 선언돼 있을 때만 센다
+const VIDEO_AT_BAT := "stats.at_bat_video_count"
+const VIDEO_FIELDING := "stats.fielding_video_count"
 
 var cfg: CareerConfig
 ## 타격·타구 물리 수치 (경기 자동 진행에 쓴다)
@@ -85,6 +88,12 @@ var camp_focus := ""
 ## 다음 경기 결과 고정 (이벤트의 matchOverride 효과, {} 없음): {"opponent"?, "score": [우리, 상대], "innings"?}.
 ## 그 경기에 내 선수는 나오지 않고, 경기가 끝나면 지운다
 var match_override := {}
+## 대화가 끝나면 열 미니게임 (이벤트 효과 minigame — 지금은 FitnessTest.ID 뿐, "" 이면 없음). 홈이 띄우고 끝나면 finish_minigame
+var pending_minigame := ""
+## 다음 경기 대본 (이벤트 효과 gamePlan, {} 없음) — GameRunner.set_plan. 경기가 끝나면 지운다
+var game_plan := {}
+## 체력 테스트 기록 {종목: {"grade", "value"}} (안 했으면 비어 있다)
+var fitness := {}
 var _checking_exhibition := false
 ## 캠프 시작 때 능력치 (캠프 결산에서 성장 비교)
 var camp_start := {}
@@ -107,6 +116,10 @@ func _init(p_cfg: CareerConfig, player_name: String, p_batting: BattingConfig) -
 		var s := School.from_content(d, cfg, rng)
 		schools[s.id] = s
 		national_ids.append(s.id)
+	# 연습경기 상대로만 나오는 팀 (대학팀 — 리그·대회 대진에는 없다)
+	for d: Dictionary in cfg.exhibition_schools:
+		var s := School.from_content(d, cfg, rng)
+		schools[s.id] = s
 	rival = Rival.create(cfg, schools[cfg.people["rival"]["school"]], _rng("create-rival"))
 	scouting = Scouting.create(cfg, _rng("create-scouting"))
 	people = People.create(cfg, _rng("create-people"), {"rival": rival.player.name, "scoutTeam": scouting.scout_team_name(cfg), "player": player_name})
@@ -125,14 +138,16 @@ func _init(p_cfg: CareerConfig, player_name: String, p_batting: BattingConfig) -
 	player.money = int(cfg.economy["startMoney"])
 	book = EventBook.new(cfg)
 	records = CareerRecords.new(cfg)
+	phone.add_contact("mom")
 	scouting.record(prospect_rank(), player.overall())
 	_start_phase()
 
 
 # ---------- 시즌 단계 ----------
 
+## 이번 시즌 단계 순서: 학년별 순서(season.phasesByGrade)가 있으면 그것, 없으면 season.phases
 func phases() -> Array:
-	return cfg.season["phases"]
+	return cfg.season.get("phasesByGrade", {}).get(str(player.grade), cfg.season["phases"])
 
 
 func phase() -> Dictionary:
@@ -176,6 +191,9 @@ func round_text() -> String:
 
 ## 이번 주 상대
 func opponent() -> School:
+	# 경기 대본이 정한 상대 (연습경기·전국대회만 — 주말리그는 일정대로)
+	if not game_plan.is_empty() and schools.has(game_plan.get("opponent", "")) and (game_plan.get("practice", false) or not is_league()):
+		return schools[game_plan["opponent"]]
 	if is_exhibition():
 		return schools[_camp_opponent_id()]
 	if is_league():
@@ -190,6 +208,8 @@ func opponent() -> School:
 
 ## 이번 주 경기가 대본이 만든 연습경기인가 (이벤트의 stage.practice): 순위·시즌 기록에 안 들어가고, 리그 일정은 한 주 뒤로 밀린다
 func is_exhibition() -> bool:
+	if not game_plan.is_empty() and not game_done:
+		return game_plan.get("practice", false)
 	if _checking_exhibition or game_done or is_season_over():
 		return false
 	_checking_exhibition = true  # 조건 검사가 다시 상대(opponent)를 물어도 돌지 않게
@@ -553,6 +573,8 @@ func train(id: String) -> String:
 ## 다음 경기에 내가 어떻게 나가나: "start" 선발 | "pinch" 벤치에서 시작해 대타 | "bench" 벤치 (출전 없음) | "out" 결장 (부상, 결과를 고정한 경기).
 ## 타순 0(벤치)이면 이야기가 부르는 경기(조건이 맞는 한 번뿐인 pinch_pa 이벤트)에만 대타로 나간다
 func next_role() -> String:
+	if not game_plan.is_empty() and not player.is_injured():
+		return "start" if game_plan.get("role", "start") == "start" else "pinch"
 	if player.is_injured() or not match_override.is_empty():
 		return "out"
 	if player.bench_next:
@@ -576,6 +598,8 @@ func next_lineup() -> Array:
 
 func new_game() -> GameRunner:
 	player.game_boost.clear()
+	if not game_plan.is_empty() and not player.is_injured():
+		return _new_plan_game()
 	var role := next_role()
 	var scene := book.staged_story(self, role)
 	var home: bool = is_home() if scene.is_empty() else scene["stage"]["half"] == "bottom"
@@ -600,10 +624,38 @@ func new_game() -> GameRunner:
 	return game
 
 
+## 경기 대본(gamePlan)이 있는 경기: 장면마다 정해진 상황에서 내 타석·수비를 직접 한다.
+## 홈·원정은 대본의 home, 없으면 첫 장면이 정한다 (내 타석 장면이 말이면 홈, 수비 장면이 초면 홈)
+func _new_plan_game() -> GameRunner:
+	var plan := game_plan
+	var first: Dictionary = plan["scenes"][0]
+	var home: bool = (first["half"] == "bottom") == (first["kind"] == "pa")
+	if plan.has("home"):
+		home = bool(plan["home"])
+	var game := GameRunner.new(cfg, batting, player, my_school, opponent(), home, _seed("game"), true, plan.get("role", "start") == "sub")
+	for idx: int in _lineup_out():
+		game.replace_starter(idx, _substitute(idx))
+	game.cond_test = func(c: Dictionary) -> bool: return EventBook.test(self, c)
+	game.set_plan(plan)
+	game.exhibition = plan.get("practice", false)
+	return game
+
+
+## 경기 대본 장면 직전에 띄울 대화 (없으면 빈 Dictionary): 지금 장면의 event, 아직 안 봤을 때만. 한 주 이벤트 개수에 넣지 않는다
+func scene_event(game: GameRunner) -> Dictionary:
+	var sc := game.current_scene()
+	var id: String = sc.get("event", "")
+	if id == "" or not book.defs.has(id) or book.fired.has(id):
+		return {}
+	return book.defs[id]
+
+
 ## 경기 중 대화: 지금 내 타석이 어떤 순간인가 ("pinch_pa" 대타로 나가는 타석 | "first_pa" 첫 타석 | "clutch_pa" 승부처 | "" 평범한 타석).
 ## 한 번뿐인 승부처 스토리가 기다리고 있으면 clutch.minInning 회 이후의 내 타석은 점수 차·주자와 상관없이 승부처로 본다
 ## (진짜 승부처는 두 경기에 한 번도 안 와서, 기다리기만 하면 그 뒤 이야기가 시즌 안에 안 열린다)
 func pa_moment(game: GameRunner) -> String:
+	if game.planned:
+		return "scene"
 	if game.staged and game.my_line.pa == 0:
 		return game.stage_moment
 	if game.my_line.pa == 0:
@@ -627,7 +679,9 @@ static func result_moment(outcome: SwingJudge.Outcome) -> String:
 
 ## 이 순간에 띄울 경기 중 이벤트 (없으면 빈 Dictionary). 한 주 이벤트 개수에 같이 들어간다
 func game_event(moment: String, game: GameRunner) -> Dictionary:
-	if moment == "":
+	if moment == "scene":
+		return scene_event(game)
+	if moment == "" or game.planned:
 		return {}
 	return book.pick_game(self, moment, "pa%d" % game.my_line.pa)
 
@@ -636,6 +690,11 @@ func game_event(moment: String, game: GameRunner) -> Dictionary:
 ## 안 넘기면 그 이야기가 계속 기다려서 뒤에 이어지는 이야기가 열리지 않는다 (대타 호출이면 매 경기 대타로 불린다).
 ## 되풀이되는 이야기·무작위 이벤트는 건드리지 않는다
 func auto_game_story(game: GameRunner) -> void:
+	if game.planned:
+		var se := scene_event(game)
+		if not se.is_empty():
+			resolve_event(se, 0)
+		return
 	var moment := pa_moment(game)
 	if moment != "" and book.has_game_story(self, moment):
 		var e := game_event(moment, game)
@@ -660,6 +719,8 @@ func finish_game(game: GameRunner) -> Array[String]:
 	player.game_boost.clear()
 	player.bench_next = false
 	match_override = {}
+	game_plan = {}
+	_count_videos(game)
 	if in_camp() or game.exhibition:
 		return _finish_practice(game)
 	var line := game.my_line
@@ -701,6 +762,16 @@ func finish_game(game: GameRunner) -> Array[String]:
 	scouting.record(prospect_rank(), player.overall())
 	_build_news(teams_before)
 	return notes
+
+
+## 소율의 영상 수: 내가 직접 한 실전 타석·수비마다 +1 (연습경기도 실전이다)
+func _count_videos(game: GameRunner) -> void:
+	if not game.me_playing:
+		return
+	if cfg.vars.has(VIDEO_AT_BAT):
+		player.vars[VIDEO_AT_BAT] = int(EventBook.var_of(self, VIDEO_AT_BAT)) + game.my_line.pa
+	if cfg.vars.has(VIDEO_FIELDING):
+		player.vars[VIDEO_FIELDING] = int(EventBook.var_of(self, VIDEO_FIELDING)) + game.my_fields.size()
 
 
 ## 기록실에 넣을 경기 한 줄 (단계가 넘어가기 전에 만든다 — 대회 이름·라운드가 이 경기 것이어야 한다)
@@ -980,9 +1051,127 @@ func events(timing: String) -> Array:
 	return book.pending(self, timing)
 
 
-## 이벤트 선택. 돌려주는 값: 결과 문장 + 변화 설명
+## 이벤트 선택. 돌려주는 값: 결과 문장 + 변화 설명.
+## 화면 없이 고르는 길이라, 대화가 미니게임을 열었으면 autoGrade 결과로 바로 끝낸다 (테스트·빨리 감기가 멈추지 않게)
 func resolve_event(event: Dictionary, choice_index: int) -> String:
-	return book.resolve(self, event, choice_index)
+	var text := book.resolve(self, event, choice_index)
+	if pending_minigame != "":
+		auto_minigame()
+	return text
+
+
+## 화면 없이 미니게임을 끝낸다 (테스트·빨리 감기·건너뛰기): 체력 테스트는 autoGrade, 연습은 autoRate 만큼 성공
+func auto_minigame() -> void:
+	if pending_minigame.begins_with("drill:"):
+		var d: Dictionary = cfg.drills[pending_minigame.trim_prefix("drill:")]
+		finish_drill(roundi(float(d["balls"]) * drill_auto_rate(d)))
+	else:
+		finish_minigame(FitnessTest.auto_results(cfg.fitness, minigame_kinds()))
+
+
+## 지금 미니게임이 체력 테스트의 어느 종목들인가 (fitness_test 면 세 종목 모두, fitness_run 이면 50m 하나)
+func minigame_kinds() -> Array:
+	if pending_minigame == FitnessTest.ID:
+		return cfg.fitness["order"]
+	return [pending_minigame.trim_prefix("fitness_")]
+
+
+## 체력 테스트 종목이 끝났다 (한 번에 세 종목이든, 종목 하나든): 기록을 남기고 그 종목의 보상을 준다.
+## 세 종목이 다 모이면 종합 등급 보상도 (한 번만). 시나리오 변수(test_*_grade)도 세운다 (balance.json fitness.story).
+## 돌려주는 값: 변화 설명들 ("주력 +3", "감독 신뢰 +5" …)
+func finish_minigame(results: Dictionary) -> Array[String]:
+	pending_minigame = ""
+	var fresh := {}
+	for kind: String in results:
+		if not fitness.has(kind):
+			fresh[kind] = results[kind]
+		fitness[kind] = results[kind].duplicate(true)
+	var parts := book.apply_effects(self, FitnessTest.kind_effects(cfg.fitness, fresh))
+	var story: Dictionary = cfg.fitness.get("story", {})
+	for kind: String in results:
+		var vid: String = story.get("vars", {}).get(kind, "")
+		if cfg.vars.has(vid):
+			player.vars[vid] = story["grades"][results[kind]["grade"]]
+	if not all_fitness_done() or player.flags.has("fitness_done"):
+		return parts
+	parts.append_array(book.apply_effects(self, FitnessTest.overall_effects(cfg.fitness, fitness)))
+	if cfg.vars.has(story.get("overallVar", "")):
+		player.vars[story["overallVar"]] = FitnessTest.story_overall(cfg.fitness, fitness)
+	var grades := []
+	for kind: String in cfg.fitness["order"]:
+		grades.append("%s %s" % [minigame_text("events.%s.short" % kind), fitness[kind]["grade"]])
+	var row := FitnessTest.overall(cfg.fitness, fitness)
+	news.append("체력 테스트 · 종합 %s (%s)" % [row["grade"], " · ".join(grades)])
+	book.log.append({"season": season_no, "grade": player.grade, "week": week, "title": minigame_text("title"),
+		"speaker": "", "choice": " · ".join(grades), "result": "종합 %s" % row["grade"], "story": true})
+	return parts
+
+
+## 체력 테스트 세 종목을 다 했나
+func all_fitness_done() -> bool:
+	for kind: String in cfg.fitness["order"]:
+		if not fitness.has(kind):
+			return false
+	return true
+
+
+# ---------- 이야기 속 연습 (drill) ----------
+
+## 지금 띄울 연습 정의 (pending_minigame 이 drill:<id> 일 때, 아니면 {})
+func pending_drill() -> Dictionary:
+	if not pending_minigame.begins_with("drill:"):
+		return {}
+	var d: Dictionary = cfg.drills[pending_minigame.trim_prefix("drill:")].duplicate(true)
+	d["id"] = pending_minigame.trim_prefix("drill:")
+	return d
+
+
+## 이 연습에 붙는 보정 {능력치: +n}: boostByVar [{"var", "stat", "values"?: {값: n}, "perPoint"?, "offset"?}]
+## — 체력 테스트 등급이 좋으면 판정 폭이 넓어지고, 폼 적응도가 낮으면 좁아진다
+func drill_boost(d: Dictionary) -> Dictionary:
+	var out := {}
+	for b: Dictionary in d.get("boostByVar", []):
+		var v: Variant = EventBook.var_of(self, b["var"])
+		var n := 0.0
+		if b.has("values"):
+			n = float(b["values"].get(str(v), 0))
+		else:
+			n = float(b.get("offset", 0)) + float(v) * float(b.get("perPoint", 0))
+		out[b["stat"]] = int(out.get(b["stat"], 0)) + roundi(n)
+	return out
+
+
+## 화면 없이 할 때 성공 비율 (autoRate + 보정 1점당 autoPerBoost)
+func drill_auto_rate(d: Dictionary) -> float:
+	var boost := 0
+	for st: String in drill_boost(d):
+		boost += int(drill_boost(d)[st])
+	return clampf(float(d.get("autoRate", 0.5)) + boost * float(d.get("autoPerBoost", 0.0)), 0.0, 1.0)
+
+
+## 연습이 끝났다: 성공 수만큼 경험치(stat × gainPerSuccess), 결과 변수(countVar)에 성공 수. 돌려주는 값: 변화 설명들
+func finish_drill(successes: int) -> Array[String]:
+	var d := pending_drill()
+	pending_minigame = ""
+	var fx := {}
+	if d.has("stat") and successes > 0:
+		fx["train"] = {d["stat"]: float(d["gainPerSuccess"]) * successes}
+	if d.has("countVar") and cfg.vars.has(d["countVar"]):
+		fx["set"] = {d["countVar"]: successes}
+	var parts := book.apply_effects(self, fx)
+	book.log.append({"season": season_no, "grade": player.grade, "week": week, "title": d.get("title", d["id"]),
+		"speaker": "", "choice": "", "result": "%d / %d" % [successes, int(d["balls"])], "story": true})
+	return parts
+
+
+## 미니게임 글 (content.json minigames.fitness_test, "events.run.title" 처럼 점으로 찾아 들어간다). 없으면 ""
+func minigame_text(path: String) -> String:
+	var v: Variant = cfg.minigames.get(FitnessTest.ID, {})
+	for key in path.split("."):
+		if not (v is Dictionary and (v as Dictionary).has(key)):
+			return ""
+		v = v[key]
+	return EventBook.fill(self, str(v))
 
 
 ## 같은 학년 유망주 중 내 순위 (라이벌 포함)
@@ -1099,6 +1288,28 @@ func start_next_season() -> void:
 		schools[id].new_season(cfg, rng)
 	_start_phase()
 	phone.deliver(self)
+
+
+## 화면이 쓰는 시드 난수 (미니게임 신호 시간 등 — 같은 커리어·같은 주면 같은 값)
+func rng_for(salt: String) -> RandomNumberGenerator:
+	return _rng(salt)
+
+
+## 옛 저장을 불러온 뒤 (SaveGame 이 부른다): 그 뒤에 생긴 능력치(2026-11-01 수비)의 잠재력·시즌 시작·캠프 시작 값을 채운다.
+## 새 능력치 값은 변수 기본값으로 시작하고, 잠재력은 시드로 뽑는다(라이벌은 설정값). 이미 다 있으면 아무 일도 없다
+func upgrade_old_save() -> void:
+	player.fill_missing_stats(cfg, _rng("upgrade-stats"))
+	# 연락처가 생기기 전 저장: 만난 사람을 모두 연락처로
+	if phone.contacts.is_empty():
+		for id: String in people.by_id:
+			if people.is_met(id):
+				phone.add_contact(id)
+	if rival != null:
+		rival.player.fill_missing_stats(cfg, _rng("upgrade-rival"), cfg.rival["potential"])
+	if not camp_start.is_empty():
+		for s in PlayerData.STATS:
+			if not camp_start.has(s):
+				camp_start[s] = player.stat(s)
 
 
 func _rng(salt: String) -> RandomNumberGenerator:

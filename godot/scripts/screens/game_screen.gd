@@ -3,6 +3,7 @@ extends Control
 ## 경기: 점수판 + 상황(주자·아웃·타자) + 문자 중계가 자동으로 흘러가다가,
 ## 내 타순이 오면 타석 화면(BattingView)으로 바뀌어 직접 친다. 결과는 주자·점수에 그대로 반영된다.
 ## 내가 루상에 있으면: 도루 기회(StealView)와, 다른 타자의 타구에 내 주자가 판단할 순간(주루 장면)에도 멈춰서 조작을 받는다.
+## 내 수비: 경기마다 상대 타석 1~2번은 유격수(내 선수)에게 땅볼이 온다 — 수비 화면(FieldView)에서 포구·송구를 직접 한다.
 ## 경기 중 대화: 내 타석 직전(첫 타석·승부처)과 직후(홈런·삼진)에 이벤트가 있으면 경기를 멈추고 대화 화면을 띄운다.
 
 var _app
@@ -29,6 +30,8 @@ var _highlight: HighlightView
 ## 내 주루 장면 (판단 버튼이 뜨는 하이라이트) 과 도루 화면 — 떠 있는 동안 경기가 멈춘다
 var _run_view: HighlightView
 var _steal: StealView
+## 내 수비 화면 (떠 있는 동안 경기가 멈춘다)
+var _field: FieldView
 ## 경기 중 대화 (떠 있는 동안 경기가 멈춘다)
 var _dialogue: DialogueView
 
@@ -40,6 +43,7 @@ func _init(app) -> void:
 func _ready() -> void:
 	_game = _app.career.new_game()
 	_game.running_mode = _app.settings.running
+	_game.fielding = true
 	var col := UiKit.vbox(Tokens.SPACE_SM)
 	add_child(UiKit.fill_parent(UiKit.margin(col, Tokens.SPACE_SM)))
 
@@ -94,7 +98,7 @@ func _process(_delta: float) -> void:
 	if _session != null:
 		_session.tick()
 		return
-	if _dialogue != null or _game.state.over or _highlight != null or _run_view != null or _steal != null:
+	if _dialogue != null or _game.state.over or _highlight != null or _run_view != null or _steal != null or _field != null:
 		return
 	if _waiting_for_turn:
 		if _now() >= _banner_until:
@@ -117,6 +121,14 @@ func _process(_delta: float) -> void:
 			_show_steal(int(step.from))
 		"my_run":
 			_show_run(step.control, step.batter)
+		"my_field":
+			# 경기 대본의 수비 장면: 장면 대화가 있으면 먼저 (끝나면 수비 화면)
+			var scene: Dictionary = _app.career.scene_event(_game) if _game.planned else {}
+			if scene.is_empty():
+				_show_field(int(step.seed), step.batter, int(step.runner_speed), int(step.fielding))
+			else:
+				_show_dialogue(scene, func() -> void:
+					_show_field(int(step.seed), step.batter, int(step.runner_speed), _app.career.player.fielding_for_game(_app.career_config)))
 		"auto":
 			_next_step_at = _now() + (_app.career_config.fast_step_ms if _fast else _app.career_config.auto_step_ms)
 			# 점수가 난 안타·홈런은 중계 화면 하이라이트로 (빠르게 모드면 건너뜀)
@@ -169,6 +181,25 @@ func _show_steal(from: int) -> void:
 		_steal = null
 		_next_step_at = _now() + 500.0
 		_refresh())
+
+
+## 내 수비: 유격수 시점 화면에서 포구 → 송구 → 1루 클로즈업(아웃·세이프). 결과를 경기에 반영하고 이어 간다
+func _show_field(seed_value: int, batter_name: String, runner_speed: int, fielding: int) -> void:
+	_field = FieldView.new(_app.career_config.fielding, _app.batting_config.ball_physics, seed_value, batter_name, runner_speed, fielding, _app.batting_config.input_latency_ms)
+	_field.sound_requested.connect(func(sfx: SoundSynth.Sfx, volume: float, pitch_scale: float) -> void:
+		_app.sound.play(sfx, volume * _app.presentation.sfx_volume, pitch_scale))
+	add_child(UiKit.fill_parent(_field))
+	_field.finished.connect(func(kind: FieldPlay.Kind) -> void:
+		_game.apply_field(kind)
+		_field.queue_free()
+		_field = null
+		_next_step_at = _now() + 600.0
+		_refresh())
+
+
+## 지금 떠 있는 수비 화면 (스크린샷 스크립트용, 없으면 null)
+func field_view() -> FieldView:
+	return _field
 
 
 ## 다른 타자의 타구에 내 주자가 판단할 순간이 있다: 중계 화면으로 보여 주며 [멈춘다]/[뛴다] 를 받는다
@@ -247,7 +278,7 @@ func _on_at_bat_finished(result: AtBat.Result) -> void:
 
 
 ## 경기 중 대화를 띄운다 (이벤트가 없으면 아무 일도 없다). 끝나면 경기가 이어진다
-func _show_dialogue(event: Dictionary) -> void:
+func _show_dialogue(event: Dictionary, then: Callable = Callable()) -> void:
 	if event.is_empty():
 		return
 	_dialogue = DialogueView.new(_app.career, event)
@@ -257,7 +288,9 @@ func _show_dialogue(event: Dictionary) -> void:
 		_dialogue = null
 		# 멈춰 있던 만큼 시계를 다시 맞춘다
 		_banner_until = _now() + 900.0
-		_next_step_at = _now() + 600.0)
+		_next_step_at = _now() + 600.0
+		if then.is_valid():
+			then.call())
 
 
 ## 지금 떠 있는 경기 중 대화 (스크린샷 스크립트용, 없으면 null)

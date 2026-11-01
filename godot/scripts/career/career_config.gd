@@ -30,6 +30,10 @@ var romance: Dictionary
 var camp: Dictionary
 ## 주간 스케줄 (평일 칸, 대성공·성공·실패 확률)
 var schedule: Dictionary
+## 입부 체력 테스트 미니게임 수치 (balance.json career.fitness)
+var fitness: Dictionary
+## 미니게임 글 (content.json minigames: id -> 제목·종목 설명·감독 한마디)
+var minigames: Dictionary = {}
 ## 폰 (한 주 문자 수, 답장 기한, 말풍선 연출 시간)
 var phone: Dictionary
 
@@ -41,10 +45,14 @@ var roster: Dictionary
 var running: Dictionary
 ## 도루 (투수 동작·수비 시간)
 var steal: Dictionary
+## 내 수비 (유격수 포구·송구 미니게임) — balance.json game.fielding
+var fielding: Dictionary
 
 var my_school: Dictionary
 var regional_schools: Array
 var national_schools: Array
+## 리그·대회에는 안 나오고 연습경기 상대로만 쓰는 팀 (대학팀 등 — content.json exhibitionSchools)
+var exhibition_schools: Array = []
 var tournaments: Array
 var surnames: Array
 var given_names: Array
@@ -65,6 +73,12 @@ var places: Dictionary = {}
 ## 폰 문자 (content.json messages), 단체방 (phone.rooms: id -> {name})
 var messages: Array = []
 var phone_rooms: Dictionary = {}
+## 시나리오 변수 선언 (content.json vars: id -> {"type": int|bool|enum|string|list, "default", "values"?(enum)}).
+## 플래그(flags)와 달리 값이 있는 이야기 상태 — 호감도·테스트 등급·경기 장면 결과 (docs/scenario 문서의 ID 그대로)
+var vars: Dictionary = {}
+## 이야기 속 연습 미니게임 (이벤트 효과 minigame "drill:<id>"): content.json drills(제목·결과 변수) 에
+## balance.json career.drills(공 수·성장량·보정) 를 겹친 것. id -> 정의
+var drills: Dictionary = {}
 
 
 static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
@@ -97,6 +111,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.schedule = car["schedule"]
 	assert(not (c.schedule["slots"] as Array).is_empty(), "balance.json: career.schedule.slots 가 비었다")
 	c.phone = car["phone"]
+	c.fitness = car["fitness"]
 
 	var g: Dictionary = balance["game"]
 	c.innings = int(BattingConfig.num(g, "innings"))
@@ -106,10 +121,12 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.roster = g["roster"]
 	c.running = g["running"]
 	c.steal = g["steal"]
+	c.fielding = g["fielding"]
 
 	c.my_school = content["mySchool"]
 	c.regional_schools = content["regionalSchools"]
 	c.national_schools = content["nationalSchools"]
+	c.exhibition_schools = content.get("exhibitionSchools", [])
 	c.tournaments = content["tournaments"]
 	c.surnames = content["surnames"]
 	c.given_names = content["givenNames"]
@@ -118,6 +135,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.pending_flags = content.get("pendingFlags", [])
 	c.pending_events = content.get("pendingEvents", [])
 	c.coach_lines = content["coachLines"]
+	c.minigames = content.get("minigames", {})
 	c.game_title = content["gameTitle"]
 	for id: String in content["people"]:
 		if not id.begins_with("_"):
@@ -128,6 +146,15 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 		if not id.begins_with("_"):
 			c.places[id] = content["places"][id]
 	c.messages = content.get("messages", [])
+	var drill_numbers: Dictionary = car.get("drills", {})
+	for id: String in content.get("drills", {}):
+		if not id.begins_with("_"):
+			var d: Dictionary = (content["drills"][id] as Dictionary).duplicate(true)
+			d.merge(drill_numbers.get(id, {}), true)
+			c.drills[id] = d
+	for id: String in content.get("vars", {}):
+		if not id.begins_with("_"):
+			c.vars[id] = content["vars"][id]
 	for id: String in content.get("phone", {}).get("rooms", {}):
 		c.phone_rooms[id] = content["phone"]["rooms"][id]
 	return c

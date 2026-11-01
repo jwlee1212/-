@@ -8,6 +8,7 @@ AI 생성 그림을 쓰지 않는다. 테두리·그늘 규칙과 색은 make_pi
     eye      선구안 훈련 피칭머신 공을 끝까지 보고 참는다 (공이 오른쪽에서 날아와 뒤 그물에 꽂힌다)
     speed    주루 훈련   운동장 트랙 달리기 (뛰기 4장, 뒤 콘이 흘러간다)
     rest     휴식        내 방 침대에 누워 잔다 (이불이 숨 따라 오르내리고 Z 가 떠오른다)
+    fielding 수비 훈련   내야 흙 위 펑고 땅볼: 자세 잡기 → 앞으로 대시 → 낮게 잡기(흙먼지) → 송구 (2026-11-01)
 주인공은 얼굴을 그리지 않는다 (유저 몰입, 2026-11-01) — 모자 챙 그늘이 눈 자리를 덮는다. 누워 있을 때는 뒤통수만.
 
     python3 scripts/make_training_art.py   (pillow·numpy 필요)
@@ -27,7 +28,7 @@ META = os.path.join(ROOT, "godot", "scripts", "characters", "training_meta.gd")
 
 W, H = 120, 72
 FRAMES = 4
-SCENES = ["contact", "power", "eye", "speed", "rest"]
+SCENES = ["contact", "power", "eye", "speed", "rest", "fielding"]
 FLOOR = 66  # 발 자리 y
 
 PAL.update({k: hx(v) for k, v in {
@@ -43,6 +44,7 @@ PAL.update({k: hx(v) for k, v in {
     "room_wall": "#3a3f66", "room_wall_s": "#30345a", "night": "#1b2040", "moon": "#fff3b0",
     "bed": "#a0724a", "bed_s": "#7a5434", "sheet": "#f4efe6", "blanket": "#e98a6a", "blanket_s": "#c96a4c", "pillow": "#ffffff",
     "machine": "#9aa3b8", "machine_s": "#6b7290", "tee": "#2a2b38",
+    "dirt": "#e2a66b", "dirt_s": "#c98d55", "fence": "#1f6b3a", "fence_top": "#ffd84a",
 }.items()})
 
 
@@ -273,7 +275,60 @@ def scene_rest(i):
     return c
 
 
-DRAW = {"contact": scene_contact, "power": scene_power, "eye": scene_eye, "speed": scene_speed, "rest": scene_rest}
+def scene_fielding(i):
+    c = Cell(W, H, 0, 0)
+    # 하늘 → 외야 담장(노란 꼭대기) → 잔디(줄무늬) → 내야 흙(얼룩)
+    rect(c, 0, 0, W, 18, "sky")
+    rect(c, 0, 18, W, 19, "fence_top")
+    rect(c, 0, 19, W, 26, "fence")
+    for x in range(0, W, 16):
+        rect(c, x, 26, x + 8, 46, "grass")
+        rect(c, x + 8, 26, x + 16, 46, "turf")
+    rect(c, 0, 46, W, H, "dirt")
+    rect(c, 0, 46, W, 47, "dirt_s")
+    for j in range(40):
+        x = (j * 37) % W
+        y = 49 + (j * 13) % (H - 50)
+        rect(c, x, y, x + 1, y + 1, "dirt_s")
+    x = 46
+    ground = FLOOR - 2
+    # 자세: 낮게 앉아 글러브(앞손)를 땅 가까이 — 대시 — 더 낮게 잡기 — 일어서며 송구 (공은 오른쪽 코치 쪽에서 굴러온다)
+    crouch = dict(head=(x + 5, 33), sh=(x + 3, 41), hip=(x - 3, 51), bk=(x - 6, 58), bft=(x - 8, FLOOR - 1),
+                  fk=(x + 5, 56), fft=(x + 8, FLOOR - 1), be=(x + 1, 48), bh=(x + 6, 55), fe=(x + 7, 48), fh=(x + 10, 56))
+    poses = [
+        standing(x, **crouch),
+        standing(x + 5, head=(x + 11, 34), sh=(x + 9, 42), hip=(x + 2, 51), bk=(x - 2, 57), bft=(x - 5, FLOOR - 3),
+                 fk=(x + 11, 56), fft=(x + 14, FLOOR - 1), be=(x + 6, 48), bh=(x + 11, 56), fe=(x + 13, 49), fh=(x + 16, 59)),
+        standing(x + 6, head=(x + 13, 37), sh=(x + 11, 44), hip=(x + 3, 52), bk=(x - 1, 59), bft=(x - 3, FLOOR - 1),
+                 fk=(x + 13, 57), fft=(x + 16, FLOOR - 1), be=(x + 9, 52), bh=(x + 16, 60), fe=(x + 14, 53), fh=(x + 18, 62)),
+        standing(x + 6, head=(x + 13, 25), sh=(x + 11, 34), hip=(x + 9, 49), bk=(x + 5, 58), bft=(x + 2, FLOOR - 2),
+                 fk=(x + 16, 57), fft=(x + 19, FLOOR - 1), be=(x + 5, 30), bh=(x + 2, 23), fe=(x + 17, 36), fh=(x + 20, 40)),
+    ]
+    k = poses[i]
+    # 굴러오는 공 (꼬리 점) — 잡기 전 두 장
+    if i < 2:
+        bx = [108, 84][i]
+        for t in range(1, 4):
+            c.put(c._mask(circle((bx + t * 4, ground), 0.7)), PAL["line"], 180 - t * 50)
+        c.part(circle((bx, ground), 2), "ball", "ball_s")
+    guy(c, k)
+    # 글러브 (앞손). 잡는 장은 글러브 안에 공, 발밑에 흙먼지
+    gx, gy = k["fh"]
+    c.part(ellipse((gx + 1, gy), 3.5, 2.5), "glove", "glove_s")
+    if i == 2:
+        c.part(circle((gx + 2, gy - 1), 1.5), "ball", "ball_s")
+        for d in [(-6, 1), (4, 2), (8, 0), (-2, 3)]:
+            c.part(circle((gx + d[0], FLOOR - 1 + d[1] * 0.3), 1.6 - abs(d[0]) * 0.08), "dirt_s", outline=False)
+    if i == 3:
+        # 던지는 손의 공 + 바람 줄
+        c.part(circle(k["bh"], 1.6), "ball", "ball_s")
+        for j, y in enumerate((22, 27)):
+            rect(c, k["bh"][0] - 9 + j * 2, y, k["bh"][0] - 4 + j * 2, y + 1, "line")
+    return c
+
+
+DRAW = {"contact": scene_contact, "power": scene_power, "eye": scene_eye, "speed": scene_speed, "rest": scene_rest,
+        "fielding": scene_fielding}
 
 
 def main():

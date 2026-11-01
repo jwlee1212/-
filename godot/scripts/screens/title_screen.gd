@@ -96,7 +96,7 @@ func _ready() -> void:
 		var dev := UiKit.vbox(Tokens.SPACE_XS)
 		add_child(dev)
 		dev.position = Vector2(Tokens.SPACE_SM, Tokens.SPACE_SM)
-		for b: Array in [["테스트 시작 ›", _app.show_jump, Tokens.INK_SOFT], ["주루 연습 ›", _app.show_run_practice, Tokens.INK_SOFT]] \
+		for b: Array in [["테스트 시작 ›", _app.show_jump, Tokens.INK_SOFT], ["주루 연습 ›", _app.show_run_practice, Tokens.INK_SOFT], ["체력 테스트 ›", _app.show_fitness_practice, Tokens.INK_SOFT], ["수비 연습 ›", _app.show_field_practice, Tokens.INK_SOFT]] \
 				+ ([["테스트 끝내기 (내 저장으로)", _app.end_test, Tokens.BAD]] if _app.test_mode else []):
 			var button := UiKit.button(b[0], b[1], b[2], Tokens.FONT_CAPTION)
 			button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN

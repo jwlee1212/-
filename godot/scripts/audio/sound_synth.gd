@@ -14,6 +14,11 @@ enum Sfx {
 	CHEER_BIG,    ## 홈런 함성
 	CALL_STRIKE,     ## 심판 "스트라이크!" (파일만)
 	CALL_STRIKEOUT,  ## 심판 "스트라익~ 아웃!" (파일만)
+	STEP,     ## 미니게임: 트랙 발소리 "탁"
+	WHISTLE,  ## 미니게임: 출발 호루라기 "삑—"
+	CLANK,    ## 미니게임: 바벨 원판 "철컥"
+	BEEP,     ## 미니게임: 신호등이 켜지는 "삑"
+	BUZZ,     ## 미니게임: 실패 "부—"
 }
 
 ## 실행 중 합성하지 않고 audio/sfx/ 파일로만 있는 소리 (scripts/make_bgm.py 가 만든다)
@@ -112,6 +117,51 @@ static func _synth(sfx: Sfx, rng: RandomNumberGenerator) -> PackedFloat32Array:
 			return _scale(_crowd(0.9, 0.08, rng), 0.45)
 		Sfx.CHEER_BIG:
 			return _scale(_crowd(2.2, 0.25, rng), 0.7)
+		Sfx.STEP:
+			# 트랙을 차는 짧은 "탁": 낮은 몸통(90Hz) + 고무 바닥 마찰 잡음 (연타라 아주 짧게)
+			return _normalized(_mix(0.06, [
+				_tone(90.0, 0.012, 0.6),
+				_scale(_biquad(_noise(0.04, 0.0005, 0.008, rng), "band", 900.0, 1.2), 1.4),
+			]), 0.55)
+		Sfx.WHISTLE:
+			# 호루라기 "삑—": 2.9kHz 에 빠른 떨림(구슬이 굴러 생기는 30Hz 진폭 떨림) + 바람 잡음
+			var n := _length(0.42)
+			var out := PackedFloat32Array()
+			out.resize(n)
+			for i in n:
+				var t := float(i) / SAMPLE_RATE
+				var env := minf(t / 0.015, 1.0) * minf((0.42 - t) / 0.06, 1.0)
+				out[i] = sin(TAU * (2900.0 * t + 25.0 * sin(TAU * 30.0 * t) / (TAU * 30.0))) * env * (0.75 + 0.25 * sin(TAU * 30.0 * t))
+			return _normalized(_mix(0.42, [out, _scale(_biquad(_noise(0.42, 0.01, 0.3, rng), "band", 3000.0, 2.0), 0.3)]), 0.5)
+		Sfx.CLANK:
+			# 원판끼리 부딪는 "철컥": 금속 울림 여러 개(배음이 정수배가 아니라 쇳소리) + 짧은 타격 잡음
+			return _normalized(_mix(0.4, [
+				_scale(_biquad(_noise(0.02, 0.0002, 0.003, rng), "high", 2000.0, 0.7), 1.0),
+				_tone(620.0, 0.08, 0.5),
+				_tone(1370.0, 0.05, 0.35),
+				_tone(2310.0, 0.03, 0.25),
+				_tone(3650.0, 0.02, 0.15),
+			]), 0.8)
+		Sfx.BEEP:
+			# 신호음 "삑": 1.6kHz 짧은 사각파 느낌(기음 + 3배음)
+			var n := _length(0.09)
+			var out := PackedFloat32Array()
+			out.resize(n)
+			for i in n:
+				var t := float(i) / SAMPLE_RATE
+				var env := minf(t / 0.003, 1.0) * minf((0.09 - t) / 0.01, 1.0)
+				out[i] = (sin(TAU * 1600.0 * t) + 0.3 * sin(TAU * 4800.0 * t)) * env
+			return _normalized(out, 0.45)
+		Sfx.BUZZ:
+			# 실패 "부—": 낮은 두 음(150·158Hz)이 맥놀이 + 배음
+			var n := _length(0.3)
+			var out := PackedFloat32Array()
+			out.resize(n)
+			for i in n:
+				var t := float(i) / SAMPLE_RATE
+				var env := minf(t / 0.01, 1.0) * minf((0.3 - t) / 0.05, 1.0)
+				out[i] = (sin(TAU * 150.0 * t) + sin(TAU * 158.0 * t) + 0.5 * sin(TAU * 450.0 * t) + 0.3 * sin(TAU * 750.0 * t)) * env
+			return _normalized(out, 0.5)
 	return PackedFloat32Array()
 
 

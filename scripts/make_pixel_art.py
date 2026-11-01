@@ -13,6 +13,8 @@
     pitcher.png  투수 앞모습 시트
     catcher.png  포수 뒷모습
     mitt.png     포수 미트
+    closeup.png  1루 클로즈업 칸 (타자 주자 달리기 4·베이스 터치 2 · 1루수(정면) 기다림·뻗기·잡음·점프 · 루심 기다림·아웃·세이프 — 투수와 같은 몸 뼈대, 옷 색만 다름)
+    closeup_bg.png  내야에서 1루를 본 배경 (256×98, 화면 4배)
 그리고 godot/scripts/characters/pixel_meta.gd — 칸 크기·발 자리·포즈 순서·공이 출발하는 손 자리 (Godot 가 읽는다).
 좌표는 모두 "발 자리 기준, 위가 -" 인 그림 픽셀.
 """
@@ -53,6 +55,9 @@ PAL = {k: hx(v) for k, v in {
     "glove_hi": "#d69458", "glove": "#b0703a", "glove_s": "#6e3f18", "glove_dk": "#4a2a14", "pocket": "#7a4720",
     "ball": "#ffffff", "ball_s": "#c9ced8",
     "eye": "#1e2240",
+    # 루심: 남색 셔츠·회색 바지
+    "ump_hi": "#4a5578", "ump": "#2b3352", "ump_s": "#1b2038", "ump_dk": "#10132a",
+    "upants_hi": "#c3c7d4", "upants": "#9a9fb2", "upants_s": "#6f7488", "upants_dk": "#4a4f63",
 }.items()}
 
 
@@ -676,9 +681,18 @@ P_TORSOS = {
 }
 
 
-def draw_pitcher(k):
+# 옷 색 (같은 몸 뼈대로 투수·1루수·타자 주자·루심을 그린다). letters: 판 글자 → 팔레트, sleeve·sock·pants: 램프 이름
+LOOK_THEM = dict(letters={}, sleeve="them", sock="them", pants="jersey")
+LOOK_US = dict(letters={"C": "us", "c": "us_s", "q": "us_hi", "p": "us"}, sleeve="us", sock="us", pants="jersey")
+LOOK_UMP = dict(letters={"C": "ump", "c": "ump_s", "q": "ump_hi", "W": "ump", "X": "ump_hi", "w": "ump_s", "v": "ump_dk", "p": "ump_s", "L": "ump_dk"},
+                sleeve="ump", sock="upants", pants="upants")
+
+
+def draw_pitcher(k, look=LOOK_THEM):
+    """k 의 선택 키: glove(False 면 글러브 대신 맨손), glove_ball(글러브 안에 공) — 없으면 투수 그대로"""
     c = Cell(*PITCHER_CELL)
     c.shadow(7, 1.5)
+    colors = dict(P_COLORS, **look["letters"])
     grid, anchor, t_sh, g_sh, p_hip, g_hip = P_TORSOS[k["body"]]
     top_left = (int(round(k["chest"][0])) - anchor[0], int(round(k["chest"][1])) - anchor[1])
     at = lambda p: (top_left[0] + p[0], top_left[1] + p[1])
@@ -690,22 +704,27 @@ def draw_pitcher(k):
         for y, row in enumerate(rows):
             for x, ch in enumerate(row):
                 if ch != ".":
-                    c.rgba[oy + y, ox + x] = (*PAL[P_COLORS[ch]], 255)
+                    c.rgba[oy + y, ox + x] = (*PAL[colors[ch]], 255)
 
     def throw_arm():
-        c.ramp([capsule(t_sh, k["t_elbow"], 2), capsule(k["t_elbow"], k["t_hand"], 2)], "them", hi=False)
+        c.ramp([capsule(t_sh, k["t_elbow"], 2), capsule(k["t_elbow"], k["t_hand"], 2)], look["sleeve"], hi=False)
         c.part(circle(k["t_hand"], 1.2), "skin", outline=False)
         if k["ball"]:
             c.part(circle(add(k["t_hand"], (0, -1)), 1.2), "ball", "ball_s")
 
     def glove_arm():
-        c.ramp([capsule(g_sh, k["g_elbow"], 2), capsule(k["g_elbow"], k["g_hand"], 2)], "them", hi=False)
-        c.ramp(ellipse(k["g_hand"], 2.2, 2.6), "glove")
+        c.ramp([capsule(g_sh, k["g_elbow"], 2), capsule(k["g_elbow"], k["g_hand"], 2)], look["sleeve"], hi=False)
+        if k.get("glove", True):
+            c.ramp(ellipse(k["g_hand"], 2.2, 2.6), "glove")
+            if k.get("glove_ball"):
+                c.part(circle(add(k["g_hand"], (-1, -1)), 1.2), "ball", "ball_s")
+        else:
+            c.part(circle(k["g_hand"], 1.2), "skin", outline=False)
 
     def leg(hip, knee, foot):
         ankle = add(foot, (0, -1.5))
-        c.ramp([capsule(hip, knee, 3), capsule(knee, lerp(knee, ankle, 0.5), 3)], "jersey", hi=False)
-        c.ramp(capsule(lerp(knee, ankle, 0.5), ankle, 2), "them", hi=False)
+        c.ramp([capsule(hip, knee, 3), capsule(knee, lerp(knee, ankle, 0.5), 3)], look["pants"], hi=False)
+        c.ramp(capsule(lerp(knee, ankle, 0.5), ankle, 2), look["sock"], hi=False)
         c.part(ellipse(foot, 2, 1), "shoe", outline=False)
 
     if not k["t_front"]:
@@ -1107,6 +1126,135 @@ def make_fielders():
     return im
 
 
+# ---------- 1루 클로즈업 (내 수비: 송구 → 1루수 포구 · 타자 주자 · 루심 판정) ----------
+# 내야(유격수 쪽)에서 1루를 바라본다 (2026-11-01 고침): 송구는 카메라 뒤에서 화면 안쪽으로 날아가고, 1루수는 카메라를 보고
+# 받는다. 1루 선은 화면을 가로지르고, 홈은 오른쪽 화면 밖 → 타자 주자는 오른쪽에서 왼쪽으로 달려온다(옆모습이 원래 왼쪽을 본다).
+# 뒤(위)로 파울 지역 → 1루 쪽 관중석. 투수와 같은 몸 뼈대를 화면 4배로 그린다.
+CLOSEUP_BG = (256, 98)
+# 1루 베이스 (가운데·윗면 줄), 각자의 발 자리 (배경 그림 픽셀). 주자는 1루 선 위를 달린다(1루수보다 뒤)
+CLOSEUP_BAG = (128, 72)
+CLOSEUP_RUNNER_Y = 72
+CLOSEUP_FB_FOOT = (121, 78)
+CLOSEUP_UMP_FOOT = (78, 66)
+
+CU = {}
+# 타자 주자 (상대 팀, 그림 왼쪽을 보고 달린다 — 몸을 앞으로 숙이고, 팔다리를 엇갈려)
+CU["run_a"] = dict(body="side", face="side", chest=(-1, -15), head=(-2, -20),
+                   g_knee=(-4, -6), g_foot=(-7, 0), p_knee=(2, -5), p_foot=(5, -3),
+                   g_elbow=(2, -11), g_hand=(4, -9), t_elbow=(-3, -12), t_hand=(-6, -14),
+                   ball=False, glove=False, t_front=False, g_front=True)
+CU["run_b"] = dict(CU["run_a"], chest=(-1, -16), head=(-2, -21),
+                   g_knee=(-1, -5), g_foot=(0, 0), p_knee=(-3, -8), p_foot=(0, -5),
+                   g_elbow=(0, -12), g_hand=(-1, -9), t_elbow=(-1, -12), t_hand=(-1, -9))
+CU["run_c"] = dict(CU["run_a"], p_knee=(-4, -6), p_foot=(-7, 0), g_knee=(2, -5), g_foot=(5, -3),
+                   g_elbow=(-3, -12), g_hand=(-6, -14), t_elbow=(2, -11), t_hand=(4, -9))
+CU["run_d"] = dict(CU["run_b"], p_knee=(-1, -5), p_foot=(0, 0), g_knee=(-3, -8), g_foot=(0, -5), knee_up=True)
+# 베이스 터치: 앞다리를 쭉 뻗어 발끝으로 베이스를 찍고(몸은 낮게, 뒷다리는 뒤로 길게) → 그 발을 딛고 몸이 넘어간다
+CU["run_touch"] = dict(CU["run_a"], chest=(-3, -13), head=(-5, -17),
+                       g_knee=(-6, -4), g_foot=(-10, 0), p_knee=(3, -5), p_foot=(7, -1),
+                       t_elbow=(-5, -13), t_hand=(-8, -15), g_elbow=(2, -10), g_hand=(5, -9))
+CU["run_pass"] = dict(CU["run_a"], chest=(-3, -15), head=(-4, -20),
+                      g_knee=(-4, -5), g_foot=(-5, 0), p_knee=(-1, -8), p_foot=(2, -5),
+                      t_elbow=(-2, -12), t_hand=(-3, -9), g_elbow=(0, -12), g_hand=(2, -10))
+# 1루수 (우리 팀, 정면 — 카메라 쪽에서 오는 송구를 본다). 그림 오른쪽 발로 베이스 왼쪽 끝을 밟고, 뻗을 때는 그림 왼쪽으로
+# 내딛는다 — 주자가 발끝으로 찍는 베이스 오른쪽이 1루수 몸에 가리지 않게. 글러브는 그림 오른쪽 손
+CU["fb_ready"] = dict(body="front", face="front", chest=(0, -15), head=(0, -20),
+                      p_knee=(-3, -5), p_foot=(-3, 0), g_knee=(3, -5), g_foot=(3, 0),
+                      t_elbow=(-5, -11), t_hand=(-4, -8), g_elbow=(5, -13), g_hand=(3, -16),
+                      ball=False, t_front=True, g_front=True)
+# 쭉 뻗기: 그림 왼쪽 발을 카메라 쪽(그림 아래·왼쪽)으로 크게 내딛고 몸을 낮춰 글러브를 앞으로 (오른쪽 발은 베이스에)
+CU["fb_stretch"] = dict(CU["fb_ready"], chest=(-2, -11), head=(-2, -16),
+                        g_knee=(2, -5), g_foot=(3, 0), p_knee=(-7, -3), p_foot=(-9, 3),
+                        t_elbow=(-6, -9), t_hand=(-6, -6), g_elbow=(1, -10), g_hand=(-3, -8), t_front=False)
+CU["fb_catch"] = dict(CU["fb_stretch"], glove_ball=True)
+# 악송구: 뛰어올라 글러브를 머리 위로 (공은 그 위로 빠진다)
+CU["fb_jump"] = dict(CU["fb_ready"], chest=(0, -20), head=(0, -25),
+                     p_knee=(-3, -10), p_foot=(-3, -5), g_knee=(3, -11), g_foot=(3, -6),
+                     g_elbow=(5, -25), g_hand=(5, -31), t_elbow=(-5, -17), t_hand=(-6, -14))
+# 루심 (정면): 무릎에 손 → 아웃(오른 주먹을 머리 위로) / 세이프(두 팔을 옆으로 쫙)
+CU["ump_set"] = dict(body="front", face="front", chest=(0, -12), head=(0, -17),
+                     p_knee=(-3, -5), p_foot=(-4, 0), g_knee=(3, -5), g_foot=(4, 0),
+                     t_elbow=(-4, -9), t_hand=(-3, -6), g_elbow=(4, -9), g_hand=(3, -6),
+                     ball=False, glove=False, t_front=True, g_front=True)
+CU["ump_out"] = dict(CU["ump_set"], chest=(0, -15), head=(0, -20),
+                     p_knee=(-2, -5), p_foot=(-2, 0), g_knee=(2, -5), g_foot=(2, 0),
+                     t_elbow=(-5, -19), t_hand=(-4, -25), g_elbow=(4, -11), g_hand=(4, -8))
+CU["ump_safe"] = dict(CU["ump_out"], t_elbow=(-6, -14), t_hand=(-11, -14), g_elbow=(6, -14), g_hand=(11, -14))
+
+# [이름, 포즈, 옷]
+CLOSEUP_FRAMES = [
+    ("run_a", CU["run_a"], LOOK_THEM), ("run_b", CU["run_b"], LOOK_THEM),
+    ("run_c", CU["run_c"], LOOK_THEM), ("run_d", CU["run_d"], LOOK_THEM),
+    ("run_touch", CU["run_touch"], LOOK_THEM), ("run_pass", CU["run_pass"], LOOK_THEM),
+    ("fb_ready", CU["fb_ready"], LOOK_US), ("fb_reach", blend(CU["fb_ready"], CU["fb_stretch"], 0.5), LOOK_US),
+    ("fb_stretch", CU["fb_stretch"], LOOK_US), ("fb_catch", CU["fb_catch"], LOOK_US), ("fb_jump", CU["fb_jump"], LOOK_US),
+    ("ump_set", CU["ump_set"], LOOK_UMP), ("ump_out", CU["ump_out"], LOOK_UMP), ("ump_safe", CU["ump_safe"], LOOK_UMP),
+]
+
+
+def make_closeup_bg():
+    """내야에서 1루를 본 배경: 하늘 → 1루 쪽 관중석(가까워 사람이 크다) → 담장 → 파울 지역 잔디 → 1루 둘레 흙 →
+    1루 선 → 내야 흙 → 맨 아래 내야 잔디 끝"""
+    w, h = CLOSEUP_BG
+    im = Image.new("RGB", (w, h))
+    d = ImageDraw.Draw(im)
+    px = im.load()
+    rng = np.random.default_rng(11)
+    sky = [hx(c) for c in ("#5a92e2", "#6ea3e9", "#86b6ef")]
+    for y in range(10):
+        for x in range(w):
+            i = min(y * len(sky) // 10, len(sky) - 1)
+            if i + 1 < len(sky) and (y + 1) * len(sky) % 10 < len(sky) and (x + y) % 2 == 0:
+                i += 1
+            px[x, y] = sky[i]
+    # 관중석: 지붕 그늘 → 사람 한 줄 = 4칸 (머리 · 옷 2칸 · 의자 그늘), 통로 계단
+    d.rectangle([0, 10, w, 11], fill=hx("#232a44"))
+    d.rectangle([0, 12, w, 39], fill=hx("#56658c"))
+    shirts = [hx(c) for c in ("#ffffff", "#ffd84a", "#ff7a6a", "#7fd1ff", "#ffb0d0", "#c6f08a")] + [PAL["us"], PAL["us_hi"], PAL["us"]]
+    heads = [PAL["hair"], PAL["hair"], PAL["skin"], PAL["skin_s"]]
+    for y in range(12, 37, 4):
+        for x in range(0, w, 3):
+            if rng.random() < 0.1:
+                continue
+            col = shirts[rng.integers(len(shirts))]
+            px[min(x + 1, w - 1), y] = heads[rng.integers(len(heads))]
+            for i in range(2):
+                for j in (1, 2):
+                    if x + i < w:
+                        px[x + i, y + j] = tuple(int(v * (1.0 if i == 0 else 0.85)) for v in col)
+        d.line([(0, y + 3), (w, y + 3)], fill=hx("#4b5a80"))
+    for x in range(30, w, 70):
+        d.rectangle([x, 12, x + 2, 39], fill=hx("#8c99b8"))
+    # 담장(관중석 난간): 노란 꼭대기 → 초록 쿠션
+    d.line([(0, 40), (w, 40)], fill=hx("#ffd84a"))
+    d.rectangle([0, 41, w, 45], fill=hx("#1f6b3a"))
+    d.line([(0, 45), (w, 45)], fill=hx("#174f2c"))
+    # 파울 지역 잔디 (가까울수록 넓은 세로 줄무늬)
+    g0, g1 = hx("#3fae5c"), hx("#4cc46a")
+    for y in range(46, 58):
+        k = 14 + (y - 46) * 0.8
+        for x in range(w):
+            px[x, y] = g0 if int(math.floor(x / k)) % 2 == 0 else g1
+    # 1루 둘레 흙 (파울 지역부터 내야까지) → 1루 선 → 맨 아래 내야 잔디
+    dirt, dirt_s, dirt_hi, lip = hx("#e2a66b"), hx("#c98d55"), hx("#efbd86"), hx("#b5783f")
+    for y in range(58, 92):
+        for x in range(w):
+            r = rng.random()
+            px[x, y] = dirt_s if r < 0.06 else dirt_hi if r < 0.1 else dirt
+    d.line([(0, 58), (w, 58)], fill=lip)
+    for y in range(92, h):
+        for x in range(w):
+            px[x, y] = hx("#4cc46a") if int(math.floor(x / 30)) % 2 == 0 else hx("#5fd27c")
+    d.line([(0, 92), (w, 92)], fill=lip)
+    d.line([(0, 72), (w, 72)], fill=hx("#ffffff"))  # 1루 선
+    # 1루 베이스: 윗면 → 옆면 그늘 → 그림자
+    bx, by = CLOSEUP_BAG
+    d.rectangle([bx - 6, by + 1, bx + 6, by + 3], fill=hx("#1e2240"))
+    d.rectangle([bx - 5, by - 1, bx + 5, by + 1], fill=hx("#ffffff"))
+    d.line([(bx - 5, by + 2), (bx + 5, by + 2)], fill=hx("#b9bfd0"))
+    return im
+
+
 # ---------- 내보내기 ----------
 
 def sheet(cells):
@@ -1129,6 +1277,8 @@ def main():
     draw_catcher().image().save(os.path.join(OUT, "catcher.png"))
     draw_mitt().image().save(os.path.join(OUT, "mitt.png"))
     make_fielders().save(os.path.join(OUT, "fielders.png"))
+    sheet([draw_pitcher(k, look) for _, k, look in CLOSEUP_FRAMES]).save(os.path.join(OUT, "closeup.png"))
+    make_closeup_bg().save(os.path.join(OUT, "closeup_bg.png"))
 
     windup = [(t, i) for i, (_, _, t) in enumerate(PITCHER_FRAMES) if not isinstance(t, str)]
     after = [(float(t[1:]), i) for i, (_, _, t) in enumerate(PITCHER_FRAMES) if isinstance(t, str)]
@@ -1163,6 +1313,21 @@ def main():
         "const FIELDER_CELL := Vector2(%d, %d)" % FIELDER_CELL[:2],
         "const FIELDER_FEET := Vector2(%d, %d)" % FIELDER_CELL[2:],
         "const FIELDER_FRAMES := %d" % len(FIELDER_ORDER),
+        "## 1루 클로즈업 (내 수비 송구): 배경 크기, 칸 크기·발 자리(투수와 같은 몸 뼈대), 칸 이름 → 번호",
+        "const CLOSEUP_BG := Vector2(%d, %d)" % CLOSEUP_BG,
+        "const CLOSEUP_CELL := Vector2(%d, %d)" % PITCHER_CELL[:2],
+        "const CLOSEUP_FEET := Vector2(%d, %d)" % PITCHER_CELL[2:],
+        "const CLOSEUP := {%s}" % ", ".join('"%s": %d' % (n, i) for i, (n, _, _) in enumerate(CLOSEUP_FRAMES)),
+        "## 배경 위 자리 (배경 그림 픽셀): 1루 베이스, 타자 주자가 달리는 줄(발 높이), 1루수·루심 발",
+        "const CLOSEUP_BAG := %s" % gd_vec(CLOSEUP_BAG),
+        "const CLOSEUP_RUNNER_Y := %d" % CLOSEUP_RUNNER_Y,
+        "const CLOSEUP_FB_FOOT := %s" % gd_vec(CLOSEUP_FB_FOOT),
+        "const CLOSEUP_UMP_FOOT := %s" % gd_vec(CLOSEUP_UMP_FOOT),
+        "## 타자 주자 베이스 터치 칸에서 뻗은 앞발 끝 (발 기준) — 이 발이 베이스에 닿는 순간이 1루를 밟는 순간",
+        "const CLOSEUP_TOUCH_FOOT := %s" % gd_vec(CU["run_touch"]["g_foot"]),
+        "## 1루수 글러브 자리 (발 기준): 뻗어 잡을 때, 뛰어오를 때",
+        "const CLOSEUP_GLOVE := %s" % gd_vec(CU["fb_stretch"]["g_hand"]),
+        "const CLOSEUP_GLOVE_JUMP := %s" % gd_vec(CU["fb_jump"]["g_hand"]),
         "",
     ]
     with open(META, "w") as f:
@@ -1170,8 +1335,8 @@ def main():
     # 확인용 확대본 (저장소에 넣지 않는다)
     preview = os.path.join(ROOT, "godot", "build", "shots")
     os.makedirs(preview, exist_ok=True)
-    for name in ("batter", "pitcher", "catcher"):
-        im = Image.open(os.path.join(OUT, name + ".png"))
+    for name in ("batter", "pitcher", "catcher", "closeup", "closeup_bg"):
+        im = Image.open(os.path.join(OUT, name + ".png")).convert("RGBA")
         bg = Image.new("RGBA", im.size, hx("#5fd27c") + (255,))
         bg.alpha_composite(im)
         bg.resize((im.width * 4, im.height * 4), Image.NEAREST).save(os.path.join(preview, "pixel-%s.png" % name))

@@ -38,6 +38,8 @@ var status := {}
 var fresh: Array[String] = []
 ## 연락처에서 마지막으로 본 관계 문구 (인물 id -> 문구). 지금 문구와 다르면 "바뀌었다"고 표시한다
 var seen_relation := {}
+## 연락처에 있는 인물 id (추가한 순서). 엄마는 처음부터, 나머지는 이야기가 해금할 때(이벤트 효과 contact) 들어온다
+var contacts: Array[String] = []
 
 
 # ---------- 받기 ----------
@@ -87,6 +89,17 @@ func _expire(career: CareerState) -> void:
 		var m := _def(career, id)
 		if m.has("ignore"):
 			career.book.apply_effects(career, m["ignore"])
+
+
+## 연락처에 넣는다 (이미 있으면 그대로)
+func add_contact(id: String) -> void:
+	if not contacts.has(id):
+		contacts.append(id)
+
+
+## 이야기 장면에서 주고받은 문자를 그 대화방 기록에 남긴다 (읽은 것으로). from: 인물 id 또는 ME
+func add_story_line(room: String, from: String, text: String, tw: int, event_id: String) -> void:
+	_add(room, from, text, tw, event_id)
 
 
 func _add(room: String, from: String, text: String, tw: int, msg: String, bump: bool = true) -> void:

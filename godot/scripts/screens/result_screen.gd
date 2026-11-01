@@ -34,6 +34,8 @@ func _ready() -> void:
 	var line := _game.my_line
 	var my_text := _line_text(line) if _game.me_playing else _game.absent_text
 	col.add_child(UiKit.label("%s: %s" % [career.player.name, my_text], Tokens.FONT_BODY, Tokens.PRIMARY, Tokens.FONT_BOLD))
+	if not _game.my_fields.is_empty():
+		col.add_child(UiKit.label("수비: " + _field_text(_game.my_fields), Tokens.FONT_CAPTION, Tokens.INK))
 	col.add_child(UiKit.label("훈련: %s" % career.last_training, Tokens.FONT_CAPTION, Tokens.INK_SOFT))
 	if notes.is_empty():
 		col.add_child(UiKit.label("이번 경기 성장 없음", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
@@ -131,6 +133,13 @@ func _show_next() -> void:
 
 func _next() -> void:
 	_app.next_week()
+
+
+## 이번 경기 내 수비 (유격수 땅볼 처리 결과를 차례로): "땅볼 2 — 아웃 · 실책"
+static func _field_text(fields: Array[int]) -> String:
+	var names := {FieldPlay.Kind.BONUS: "레이저 송구 아웃", FieldPlay.Kind.NORMAL: "아웃", FieldPlay.Kind.WILD: "악송구 실책",
+		FieldPlay.Kind.MISS: "포구 실책", FieldPlay.Kind.LATE: "내야안타 허용"}
+	return "유격수 땅볼 %d — %s" % [fields.size(), " · ".join(fields.map(func(k: int) -> String: return names.get(k, "?")))]
 
 
 static func _line_text(l: PlayerData.SeasonStats) -> String:

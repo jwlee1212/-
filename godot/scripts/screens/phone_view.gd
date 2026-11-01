@@ -247,6 +247,11 @@ func _scroll_to_end() -> void:
 
 ## 말풍선: 받은 건 왼쪽, 보낸 건 오른쪽. name 이 있으면 위에 보낸 사람 이름 (단체방)
 func _bubble(text: String, mine: bool, name: String) -> Control:
+	return bubble(text, mine, name)
+
+
+## 말풍선 하나 (대화 화면의 이야기 속 문자도 같은 모양으로 쓴다)
+static func bubble(text: String, mine: bool, name: String) -> Control:
 	var col := UiKit.vbox(2)
 	if name != "":
 		col.add_child(UiKit.label(name, Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD))
@@ -282,7 +287,8 @@ func _build_contacts() -> void:
 	var col := _list()
 	for id: String in _career.people.by_id:
 		var person: People.Person = _career.people.by_id[id]
-		if not person.met:
+		# 연락처에 들어온 사람만 (해금되면 추가된다)
+		if not phone.contacts.has(id):
 			continue
 		var was := phone.relation_was(_career, id)
 		var top := UiKit.hbox(Tokens.SPACE_XS)

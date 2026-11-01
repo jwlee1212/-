@@ -30,6 +30,8 @@ const UNIFORM_US := Color("2f6bff")
 const UNIFORM_THEM := Color("ff4d5e")
 ## 경기장: 관중석, 관중 점 색, 전광판, 밝은 잔디 줄무늬
 const STANDS_DARK := Color("4b5d82")
+## 수비 화면(유격수 시점) 관중석 위 하늘
+const SKY := Color("a9d8ff")
 const CROWD: Array[Color] = [Color("f4f1ea"), Color("ffcf6b"), Color("ff7a7a"), Color("7fb2ff"), Color("9be3b0")]
 ## 관중 머리 색 (머리카락·얼굴) — 관중석은 머리 한 줄·옷 한 줄·의자 한 줄로 사람처럼 찍는다
 const CROWD_HEADS: Array[Color] = [Color("3b2a22"), Color("3b2a22"), Color("f6c7a0"), Color("20232f")]
@@ -61,8 +63,18 @@ const PITCH_COLORS := {
 }
 ## 능력치 색 (선수 탭 막대, 스케줄 칸), 휴식 칸
 ## 채도를 낮춰 강조색(주황)과 다투지 않게 한다 (2026-11-01)
-const STAT_COLORS := {"contact": Color("5b7db1"), "power": Color("c98a5e"), "eye": Color("5fa383"), "speed": Color("8e7cc3")}
+const STAT_COLORS := {"contact": Color("5b7db1"), "power": Color("c98a5e"), "eye": Color("5fa383"), "speed": Color("8e7cc3"), "fielding": Color("4a9fa8")}
 const REST_COLOR := Color("6fa8c7")
+## 미니게임 등급 S·A·B·C (체력 테스트 결과 도장)
+const GRADE_COLORS := {"S": Color("d99a1e"), "A": Color("4f9a74"), "B": Color("5b7db1"), "C": Color("8a8f9e")}
+## 미니게임 HUD: 호흡 게이지 바탕·목표 구간·완벽 줄, 발 버튼 자리
+const GAUGE_BG := Color(0.06, 0.09, 0.19, 0.7)
+const GAUGE_ZONE := Color("34d399")
+const GAUGE_PERFECT := Color("fbbf24")
+const FOOT_PAD := Color(1, 1, 1, 0.16)
+const FOOT_PAD_ON := Color(1, 1, 1, 0.42)
+## 미니게임 도트 무대 바깥 (무대가 화면보다 작을 때 둘레)
+const STAGE_FRAME := Color("1b2040")
 ## 스케줄 결과 도장 (대성공 · 성공 · 실패)
 const OUTCOME_COLORS := {"great": Color("d99a1e"), "success": Color("4f9a74"), "fail": Color("d0566a")}
 ## 내 방 화면: 방 그림 위에 겹치는 반투명 흰 판, 아직 안 채운 칸

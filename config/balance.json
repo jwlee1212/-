@@ -410,7 +410,8 @@
       "condition": 80,
       "scoutInterest": 5,
       "lineupSlot": 7,
-      "speed": 55
+      "speed": 55,
+      "fielding": 42
     },
     "training": {
       "_note": "훈련 하나를 고르면 해당 능력치가 성장(growth 규칙)하고 컨디션이 condition 만큼 변한다. gain 은 잠재력까지 여유가 충분할 때 한 번에 오르는 양",
@@ -437,6 +438,12 @@
         "stat": "speed",
         "gain": 1.0,
         "condition": -9
+      },
+      "fielding": {
+        "label": "수비 훈련",
+        "stat": "fielding",
+        "gain": 1.2,
+        "condition": -8
       },
       "rest": {
         "label": "휴식",
@@ -477,6 +484,159 @@
       "trainingAnimSec": 1.4,
       "trainingResultSec": 0.9
     },
+    "fitness": {
+      "_note": "입부 첫날 체력 테스트 미니게임 (2026-11-01). 세 종목(order)을 차례로 하고 종목마다 등급 S·A·B·C. 보상: 종목 등급마다 그 종목 능력치(stat)가 statGain 만큼 오른다(한 번뿐이라 반복 노가다가 없다). 세 종목 등급 점수(gradePoints) 합으로 종합 등급(overall, 위에서부터 minPoints 이상인 첫 줄)을 정하고 그 줄의 rel(감독·코치 신뢰)·reputation·flag 를 준다. 못해도 깎이지는 않는다. autoGrade: 화면 없이 진행할 때(테스트·빨리 감기) 모든 종목의 등급. 시간은 전부 초, 거리는 m. story: 시나리오 등급 — 종목 등급(S·A→high, B→mid, C→low)을 test_*_grade 변수에, 세 종목 점수 평균(high 3·mid 2·low 1)이 2.5 이상 high · 1.5 이상 mid 를 test_overall_grade 에",
+      "order": [
+        "run",
+        "lift",
+        "react"
+      ],
+      "gradePoints": {
+        "S": 3,
+        "A": 2,
+        "B": 1,
+        "C": 0
+      },
+      "statGain": {
+        "S": 3,
+        "A": 2,
+        "B": 1,
+        "C": 0
+      },
+      "autoGrade": "B",
+      "overall": [
+        {
+          "minPoints": 8,
+          "grade": "S",
+          "rel": {
+            "coach": 5,
+            "batting_coach": 3
+          },
+          "reputation": 3,
+          "flag": "fitness_ace"
+        },
+        {
+          "minPoints": 5,
+          "grade": "A",
+          "rel": {
+            "coach": 3
+          },
+          "reputation": 1
+        },
+        {
+          "minPoints": 3,
+          "grade": "B",
+          "rel": {
+            "coach": 1
+          }
+        },
+        {
+          "minPoints": 0,
+          "grade": "C"
+        }
+      ],
+      "resultSec": 1.6,
+      "fx": {
+        "_note": "연출: 성공·완벽·헛발에 화면이 shakePx 만큼 shakeMs 동안 흔들리고, 완벽하게 들거나 초록에 스윙하면 hitstopMs 동안 그림이 멈춘다. popSec: 판정 글자가 튀어나오는 시간, callHoldSec: 그 글자가 머무는 시간(그 뒤 popSec 동안 사라진다). resultSec: 종목이 끝나고 결과 카드가 뜨기까지",
+        "shakePx": 4,
+        "shakeMs": 160,
+        "hitstopMs": 80,
+        "popSec": 0.25,
+        "callHoldSec": 0.7
+      },
+      "run": {
+        "_note": "50m 달리기 → 주력. 왼발·오른발 버튼을 번갈아 누를 때마다 속도 += tapImpulse (최고 속도 = maxSpeedBase + 주력 × maxSpeedPerStat), 속도는 1초에 drag 비율로 줄어든다. 꾸준히 r 번/초 누르면 속도 ≈ tapImpulse × r / drag. 같은 발을 두 번 누르면 헛발: 속도 × sameFootKeep, stumbleSec 동안 입력 무시. 땅! 은 '차렷' 뒤 readyMinSec~readyMaxSec 사이(시드)에 울리고, 그 전에 누르면 부정 출발로 다시 준비. grades: 기록(초)이 이 값 이하면 그 등급. buddySec: 옆 레인 동기의 기록. giveUpSec: 이 시간 안에 못 들어오면 그 시간을 기록으로 끝낸다(손을 놓으면 속도가 0 으로 수렴해 영영 못 들어온다). pxPerM: 도트 1m 당 칸 수",
+        "stat": "speed",
+        "distanceM": 50,
+        "tapImpulse": 0.95,
+        "drag": 1.05,
+        "maxSpeedBase": 8.4,
+        "maxSpeedPerStat": 0.02,
+        "sameFootKeep": 0.55,
+        "stumbleSec": 0.25,
+        "readyMinSec": 1.0,
+        "readyMaxSec": 2.2,
+        "buddySec": 7.4,
+        "giveUpSec": 15,
+        "pxPerM": 10,
+        "runFpsPerMps": 1.6,
+        "grades": {
+          "S": 6.8,
+          "A": 7.4,
+          "B": 8.3
+        }
+      },
+      "lift": {
+        "_note": "스쿼트 → 파워. 누르고 있는 동안 숨을 들이마시며 내려가고(호흡 게이지가 0→1 로 찬다), 떼는 순간 내쉬며 들어올린다. 뗄 때 게이지가 목표 구간(zoneCenter ± 폭/2) 안이면 성공(가운데 ± perfectWidth/2 면 완벽), 일찍 떼면 실패, 1 까지 차도록 참으면 숨이 차서 실패. 다 차는 데 걸리는 시간 = fillSecBase × fillStepMul^단계 (단계 = (무게 − startKg) / stepKg, 한 단계 오를 때마다 그 비율로 짧아진다 — 0.88 이면 60kg 1.5초 → 100kg 0.90초 → 130kg 0.61초), 구간 폭 = zoneWidthBase + (무게 − startKg) × zoneWidthPerKg + 파워 × zoneWidthPerStat. 성공하면 stepKg 더 무겁게, maxFails 번 실패하면 끝. 기록 = 성공한 가장 무거운 무게. grades: 이 무게(kg) 이상이면 그 등급",
+        "stat": "power",
+        "startKg": 60,
+        "stepKg": 10,
+        "maxKg": 130,
+        "maxFails": 2,
+        "fillSecBase": 1.5,
+        "fillStepMul": 0.88,
+        "zoneCenter": 0.78,
+        "zoneWidthBase": 0.26,
+        "zoneWidthPerKg": -0.0022,
+        "zoneWidthPerStat": 0.0008,
+        "perfectWidth": 0.05,
+        "riseSec": 0.5,
+        "grades": {
+          "S": 120,
+          "A": 100,
+          "B": 80
+        }
+      },
+      "react": {
+        "_note": "반응 속도 → 선구안. 신호등이 꺼진 채 delayMinSec~delayMaxSec(시드) 기다렸다가 초록 또는 빨강으로 켜진다. 초록이면 최대한 빨리 눌러 스윙, 빨강이면 참는다(windowSec 동안 안 누르면 참기 성공). trials 번 중 reds 번이 빨강(순서는 시드로 섞는다). 기록 = 초록 반응 시간 평균(ms, 놓치면 missMs) + 실수(빨강에 스윙·불 켜지기 전에 누름) × mistakeMs. 불 켜지기 전에 누르면 실수 하나 세고 그 신호를 다시 한다. grades: 기록(ms)이 이 값 이하면 그 등급",
+        "stat": "eye",
+        "trials": 6,
+        "reds": 2,
+        "delayMinSec": 0.8,
+        "delayMaxSec": 2.4,
+        "windowSec": 1.0,
+        "missMs": 1000,
+        "mistakeMs": 120,
+        "grades": {
+          "S": 300,
+          "A": 360,
+          "B": 440
+        }
+      },
+      "story": {
+        "grades": {
+          "S": "high",
+          "A": "high",
+          "B": "mid",
+          "C": "low"
+        },
+        "vars": {
+          "run": "test_speed_grade",
+          "lift": "test_squat_grade",
+          "react": "test_reaction_grade"
+        },
+        "overallVar": "test_overall_grade",
+        "points": {
+          "high": 3,
+          "mid": 2,
+          "low": 1
+        },
+        "overall": [
+          [
+            2.5,
+            "high"
+          ],
+          [
+            1.5,
+            "mid"
+          ],
+          [
+            0,
+            "low"
+          ]
+        ]
+      }
+    },
     "conditionEffect": {
       "_note": "컨디션이 판정에 주는 영향: 유효 능력치 = 능력치 + (컨디션 - pivot) × perPoint",
       "pivot": 70,
@@ -495,7 +655,7 @@
     "eventChance": 0.4,
     "seed": 2026,
     "growth": {
-      "_note": "성장: 실제 오름 = gain × 성장률 × 학년 배율. 성장률 = clamp((잠재력 − 지금) / gapScale, minRate, 1). 잠재력은 능력치마다 숨겨진 값(정규분포). 잠재력을 넘지 못한다. 경기 성장은 안타·장타·볼넷·도루 성공(perStealSpeed → 주력)마다 조금씩. 겨울 훈련은 시즌이 끝날 때 모든 능력치에 winterGain × 성장률 × 학년 배율",
+      "_note": "성장: 실제 오름 = gain × 성장률 × 학년 배율. 성장률 = clamp((잠재력 − 지금) / gapScale, minRate, 1). 잠재력은 능력치마다 숨겨진 값(정규분포). 잠재력을 넘지 못한다. 경기 성장은 안타·장타·볼넷·도루 성공(perStealSpeed → 주력)·내 수비로 잡은 아웃(perAssistFielding → 수비)마다 조금씩. 겨울 훈련은 시즌이 끝날 때 모든 능력치에 winterGain × 성장률 × 학년 배율",
       "gapScale": 25,
       "minRate": 0.08,
       "gradeRate": [
@@ -512,6 +672,7 @@
       "perHomeRunPower": 0.6,
       "perWalkEye": 0.3,
       "perStealSpeed": 0.3,
+      "perAssistFielding": 0.35,
       "winterGain": 2.5,
       "conditionPerGame": -6
     },
@@ -534,7 +695,7 @@
       "weeksMax": 3
     },
     "season": {
-      "_note": "한 시즌의 순서. league = 권역 주말리그(권역 학교와 한 번씩), tournament = 전국대회(16강 토너먼트, 지면 탈락). 다른 학교끼리의 경기는 전력 차로 승패만 정한다(drawChance 무승부)",
+      "_note": "한 시즌의 순서. league = 권역 주말리그(권역 학교와 한 번씩), tournament = 전국대회(16강 토너먼트, 지면 탈락). 다른 학교끼리의 경기는 전력 차로 승패만 정한다(drawChance 무승부) phasesByGrade: 학년별 순서 (1학년은 시나리오대로 전반기 → 백호기 → 후반기, 없는 학년은 phases)",
       "phases": [
         {
           "kind": "league",
@@ -564,7 +725,23 @@
         "결승"
       ],
       "winProbScale": 25,
-      "drawChance": 0.04
+      "drawChance": 0.04,
+      "phasesByGrade": {
+        "1": [
+          {
+            "kind": "league",
+            "name": "주말리그 전반기"
+          },
+          {
+            "kind": "tournament",
+            "index": 0
+          },
+          {
+            "kind": "league",
+            "name": "주말리그 후반기"
+          }
+        ]
+      }
     },
     "teams": {
       "_note": "학교 전력은 해마다 yearlyDriftSd 만큼 흔들리고, 졸업으로 타자 graduateBatters 명·투수 graduatePitchers 명이 새 얼굴로 바뀐다",
@@ -574,7 +751,7 @@
       "myTeamStrength": 45
     },
     "story": {
-      "_note": "돌발 이벤트·스토리 (G6). 한 주에 이벤트는 maxEventsPerWeek 개까지(주 시작 + 경기 중 + 경기 뒤 합). 경기 중 대화: 내 타석 앞뒤의 순간(첫 타석 · 승부처 타석 = clutch.minInning 회 이후 · clutch.maxDiff 점 차 이내 · 득점권 주자 · 내 홈런 직후 · 내 삼진 직후)에 스토리 이벤트는 반드시, 무작위 이벤트는 gameEventChance 확률로. 스토리 이벤트·예약된 지연 결과가 먼저, 없으면 eventChance 확률로 무작위 이벤트 하나. 대타(이벤트의 pinchHit 효과가 붙은 경기만): 벤치에서 시작해 우리 공격의 승부처(clutch 와 같은 조건)에 그 타석 타자 대신 들어가 끝까지 뛴다. 승부처가 안 와도 pinchHit.forceInning 회부터는 우리 첫 타석에 나간다 (낮추면 대타가 일찍 나와 타석이 늘고, 높이면 한 타석 승부가 된다). 관계는 인물마다 0~100 (relationStart), 평판도 0~100. 새 시즌 타순은 감독 신뢰로: lineupByTrust 의 [신뢰 이상, 타순] 중 처음 맞는 것",
+      "_note": "돌발 이벤트·스토리 (G6). 한 주에 이벤트는 maxEventsPerWeek 개까지(주 시작 + 경기 중 + 경기 뒤 합). 경기 중 대화: 내 타석 앞뒤의 순간(첫 타석 · 승부처 타석 = clutch.minInning 회 이후 · clutch.maxDiff 점 차 이내 · 득점권 주자 · 내 홈런 직후 · 내 삼진 직후)에 스토리 이벤트는 반드시, 무작위 이벤트는 gameEventChance 확률로. 스토리 이벤트·예약된 지연 결과가 먼저, 없으면 eventChance 확률로 무작위 이벤트 하나. 대타(이벤트의 pinchHit 효과가 붙은 경기만): 벤치에서 시작해 우리 공격의 승부처(clutch 와 같은 조건)에 그 타석 타자 대신 들어가 끝까지 뛴다. 승부처가 안 와도 pinchHit.forceInning 회부터는 우리 첫 타석에 나간다 (낮추면 대타가 일찍 나와 타석이 늘고, 높이면 한 타석 승부가 된다). 관계는 인물마다 0~100 (relationStart), 평판도 0~100. 새 시즌 타순은 감독 신뢰로: lineupByTrust 의 [신뢰 이상, 타순] 중 처음 맞는 것 varRelation: 시나리오 호감도 변수가 오를 때 인물 관계(인물 탭)도 [인물, 배율]만큼 같이 오른다. constants: 시나리오 조건의 임계값 (EP08 스카우트 첫 평가 활약도 6·3 이상, EP06 후반기 타율 등급 [이상, 등급])",
       "maxEventsPerWeek": 2,
       "relationStart": {
         "coach": 40,
@@ -587,7 +764,10 @@
         "scout": 30,
         "manager": 20,
         "neighbor": 20,
-        "reporter": 20
+        "reporter": 20,
+        "minjae": 30,
+        "jaehyuk": 40,
+        "seongho": 40
       },
       "reputationStart": 50,
       "lineupByTrust": [
@@ -612,6 +792,38 @@
       },
       "pinchHit": {
         "forceInning": 8
+      },
+      "varRelation": {
+        "harin_affinity": [
+          "neighbor",
+          3
+        ],
+        "soyul_affinity": [
+          "manager",
+          3
+        ],
+        "minjae_trust": [
+          "minjae",
+          5
+        ]
+      },
+      "constants": {
+        "ep08ScoutChecked": 6,
+        "ep08ScoutWatching": 3,
+        "ep06SeasonAvg": [
+          [
+            0.3,
+            "high"
+          ],
+          [
+            0.22,
+            "mid"
+          ],
+          [
+            0,
+            "low"
+          ]
+        ]
       }
     },
     "economy": {
@@ -649,6 +861,15 @@
           "tier": 1,
           "bonus": {
             "eye": 1
+          }
+        },
+        "infield_glove": {
+          "label": "내야수 글러브",
+          "price": 150000,
+          "slot": "glove",
+          "tier": 1,
+          "bonus": {
+            "fielding": 2
           }
         },
         "spikes": {
@@ -741,13 +962,15 @@
         "contact": 54,
         "power": 58,
         "eye": 46,
-        "speed": 60
+        "speed": 60,
+        "fielding": 56
       },
       "potential": {
         "contact": 84,
         "power": 90,
         "eye": 78,
-        "speed": 78
+        "speed": 78,
+        "fielding": 80
       },
       "lineupSlot": 4,
       "weeklyTrainingGain": 1.1,
@@ -789,6 +1012,92 @@
     "records": {
       "_note": "기록실 분할 기록. 타구 방향이 가운데에서 이 각도(도) 안이면 '가운데', 3루 쪽으로 더 가면 '당겨친 타구', 1루 쪽이면 '밀어친 타구' (우타자 기준)",
       "centerSprayDeg": 15
+    },
+    "drills": {
+      "_note": "이야기 속 연습 수치 (content.json drills). balls: 공 수, gainPerSuccess: 성공 하나의 경험치(훈련 성장량 단위 — 한 주 훈련 gain 과 비교), autoRate: 화면 없이 할 때 성공 비율 + 보정 1점당 autoPerBoost. boostByVar: 판정 보정 [{var, stat, values{값: n} 또는 offset + 값×perPoint}] — 체력 테스트 반응 등급이 좋으면 포구 원이 천천히 줄고, 폼 적응도가 낮으면 판정 폭이 좁다 (2026-11-02 유저: 10구는 많다 → 5구)",
+      "fungo": {
+        "balls": 5,
+        "gainPerSuccess": 0.12,
+        "autoRate": 0.6,
+        "autoPerBoost": 0.02,
+        "boostByVar": [
+          {
+            "var": "test_reaction_grade",
+            "stat": "fielding",
+            "values": {
+              "high": 8,
+              "mid": 0,
+              "low": -5
+            }
+          }
+        ]
+      },
+      "dp_practice": {
+        "balls": 5,
+        "gainPerSuccess": 0.15,
+        "autoRate": 0.6,
+        "autoPerBoost": 0.02
+      },
+      "cage": {
+        "balls": 5,
+        "gainPerSuccess": 0.12,
+        "autoRate": 0.3,
+        "autoPerBoost": 0.01
+      },
+      "new_form": {
+        "balls": 5,
+        "gainPerSuccess": 0.1,
+        "autoRate": 0.3,
+        "autoPerBoost": 0.01,
+        "boostByVar": [
+          {
+            "var": "form_adaptation",
+            "stat": "contact",
+            "offset": -20,
+            "perPoint": 0.2
+          }
+        ]
+      },
+      "focus_contact": {
+        "balls": 5,
+        "gainPerSuccess": 0.25,
+        "autoRate": 0.3,
+        "autoPerBoost": 0.01,
+        "boostByVar": [
+          {
+            "var": "form_adaptation",
+            "stat": "contact",
+            "offset": -20,
+            "perPoint": 0.2
+          }
+        ]
+      },
+      "focus_power": {
+        "balls": 5,
+        "gainPerSuccess": 0.25,
+        "autoRate": 0.3,
+        "autoPerBoost": 0.01,
+        "boostByVar": [
+          {
+            "var": "form_adaptation",
+            "stat": "contact",
+            "offset": -20,
+            "perPoint": 0.2
+          }
+        ]
+      },
+      "focus_defense": {
+        "balls": 5,
+        "gainPerSuccess": 0.25,
+        "autoRate": 0.6,
+        "autoPerBoost": 0.02
+      },
+      "final_form": {
+        "balls": 5,
+        "gainPerSuccess": 0.15,
+        "autoRate": 0.35,
+        "autoPerBoost": 0.01
+      }
     }
   },
   "game": {
@@ -882,6 +1191,77 @@
       "defenseSdS": 0.12,
       "extraLeadSecondM": 1.0,
       "resultHoldMs": 1100
+    },
+    "fielding": {
+      "_note": "내 수비 (유격수 고정, 경기 화면에서만). 한 경기에 chancesMin~chancesMax 번, 상대 타석 firstPa~lastPa 번째 가운데서 시드로 고른다. ① 포구: introSec 뒤 '딱!' 하고 공이 굴러오며, 화면 아무 데(circleArea: 화면 너비·높이 비율)에 점(dotRadius)과 큰 원(ringStart, 화면 높이 비율)이 뜬다. 큰 원이 travelSec(수비 능력치로 정해진다 — stat) 동안 줄어 0 이 되는 순간 공이 점에 닿는다. 원이 점 안으로 들어온 뒤(반지름 ≤ dotRadius) 누르면 포구 — 판정 폭 = travelSec × dotRadius / ringStart. 일찍 누르거나 원이 사라진 뒤 missGraceSec 까지 안 누르면 실책. ② 송구: transferSec(수비 능력치) 뒤 송구 게이지가 뜬다. 누르고 있으면 바늘이 gaugeRiseSec 동안 0→1 로 차오르고, 뗀 순간의 칸으로 던진다(끝까지 차면 저절로 — 악송구). 칸: 0~gaugeWeakMax 회색 · 초록 · gaugePerfectCenter ± perfectWidth/2 금색(레이저 송구, 폭은 수비 능력치, 아웃이면 주자도 묶는다) · 초록 · gaugeWildMin~1 빨강(악송구). ③ 1루 판정: 아웃 확률 = outChance[칸] + (50 − 타자 주력)/50 × outChanceSpeedSwing[칸] + (내 수비 − 50)/50 × stat.outChanceSwing[칸] (회색 0.1 · 초록 0.8 · 금색 0.95 가 주력 50 기준, 주력 100 이면 초록 0.68 · 주력 0 이면 0.92). 판정 여유는 아웃이면 marginOut(× stat.marginOutMul), 세이프면 marginSafe 사이(초)에서 뽑아 공 도착 시각을 정한다. 타자 주자 1루 도착 = ballPhysics.batterStartS + 27.43m / 주력 속도. 너무 늦게 던져 stat.throwMpsMax 로도 주자보다 늦으면 세이프. 주자가 1루를 밟을 때까지 못 던져도 세이프. throwMpsWild 악송구 공 속도. 연출: catchShakePx 잡을 때 흔들림, catchFlashMs 번쩍임, 1루 클로즈업에서 판정 여유가 closeupSlowWithinSec 초 안쪽인 접전이면 도착 직전부터 closeupSlowMo 배속 슬로모션, 판정 뒤 resultHoldSec 동안 보여 준다",
+      "chancesMin": 1,
+      "chancesMax": 2,
+      "firstPa": 3,
+      "lastPa": 22,
+      "introSec": 0.9,
+      "missGraceSec": 0.1,
+      "ringStart": 0.3,
+      "dotRadius": 0.05,
+      "circleArea": {
+        "xMin": 0.18,
+        "xMax": 0.82,
+        "yMin": 0.52,
+        "yMax": 0.8
+      },
+      "gaugeRiseSec": 1.2,
+      "gaugeWeakMax": 0.66,
+      "gaugePerfectCenter": 0.875,
+      "gaugeWildMin": 0.95,
+      "outChance": {
+        "weak": 0.1,
+        "good": 0.8,
+        "perfect": 0.95
+      },
+      "outChanceSpeedSwing": {
+        "weak": 0.08,
+        "good": 0.12,
+        "perfect": 0.04
+      },
+      "stat": {
+        "_note": "내 수비 능력치(0~100, 경기용 — 컨디션·폼·글러브 보정 포함)에 따라: 포구 원이 줄어드는 시간 travelSec(높을수록 천천히 → 판정 폭이 넓다), 공 빼는 시간 transferSec, 송구 게이지 금색 폭 perfectWidth(gaugePerfectCenter 가운데), 가장 빠른 공 throwMpsMax(늦게 던져도 따라잡는 한계), 아웃 판정 여유 배율 marginOutMul(어깨가 좋을수록 공이 더 일찍·빠르게 꽂힌다), 아웃 확률 + (수비 − 50)/50 × outChanceSwing[칸]. 모두 At0~At100 사이 직선",
+        "travelSecAt0": 0.95,
+        "travelSecAt100": 1.4,
+        "transferSecAt0": 0.62,
+        "transferSecAt100": 0.38,
+        "perfectWidthAt0": 0.05,
+        "perfectWidthAt100": 0.1,
+        "throwMpsMaxAt0": 32.0,
+        "throwMpsMaxAt100": 42.0,
+        "marginOutMulAt0": 0.75,
+        "marginOutMulAt100": 1.3,
+        "outChanceSwing": {
+          "weak": 0.06,
+          "good": 0.1,
+          "perfect": 0.03
+        }
+      },
+      "marginOut": [
+        0.04,
+        0.45
+      ],
+      "marginSafe": [
+        0.03,
+        0.35
+      ],
+      "throwMpsWild": 30.0,
+      "closeupSlowMo": 0.35,
+      "closeupSlowWithinSec": 0.25,
+      "resultHoldSec": 1.4,
+      "catchShakePx": 6,
+      "catchFlashMs": 120,
+      "pitchesPerPlay": 3,
+      "auto": {
+        "_note": "화면 없이 하는 내 수비 장면(경기 대본)의 판정: 아웃 확률 = base + 수비 × perPoint (max 까지), 아웃 중 bonusShare 는 레이저 송구",
+        "base": 0.4,
+        "perPoint": 0.006,
+        "max": 0.92,
+        "bonusShare": 0.3
+      }
     },
     "autoPa": {
       "_note": "Log5: 타자 성향과 투수 성향을 리그 평균 기준으로 합친다. 능력치 0/100 일 때 값(At0/At100) 사이를 보간. 인플레이 타구는 타구 속도·발사각·방향을 뽑아 타구 물리로 결과를 낸다. 능력치 50끼리 붙으면 리그 평균이 나오도록 At0·At100 의 가운데를 리그 평균에 맞춘다",

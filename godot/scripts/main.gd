@@ -190,6 +190,32 @@ func show_settings(back: Callable = Callable()) -> void:
 	show_screen(SettingsScreen.new(self, back if back.is_valid() else show_title))
 
 
+## 체력 테스트 연습 (개발 빌드): 입부 첫날 미니게임 세 종목을 보상 없이 (폰에서 손맛 맞추기용)
+func show_fitness_practice() -> void:
+	var screen := Control.new()
+	var view := FitnessView.new(career_config, null, sound)
+	screen.add_child(UiKit.fill_parent(view))
+	view.finished.connect(show_title)
+	show_screen(screen)
+
+
+## 수비 연습 (개발 빌드): 유격수 포구·송구만 되풀이 (끝날 때마다 새 타구, 타자 주력 50, 경기·저장과 상관없다).
+## 내 수비 능력치는 커리어가 있으면 그 선수 것, 없으면 50
+func show_field_practice(round_no: int = 0) -> void:
+	var screen := Control.new()
+	var fielding: int = career.player.fielding_for_game(career_config) if career != null else 50
+	var view := FieldView.new(career_config.fielding, batting_config.ball_physics, hash("field_practice%d" % round_no), "연습 타구 %d" % (round_no + 1), 50, fielding, batting_config.input_latency_ms)
+	view.sound_requested.connect(func(sfx: SoundSynth.Sfx, volume: float, pitch_scale: float) -> void:
+		sound.play(sfx, volume * presentation.sfx_volume, pitch_scale))
+	screen.add_child(UiKit.fill_parent(view))
+	view.finished.connect(func(_kind: FieldPlay.Kind) -> void: show_field_practice(round_no + 1))
+	var back := UiKit.button("그만 ›", show_title, Tokens.INK_SOFT, Tokens.FONT_CAPTION)
+	screen.add_child(back)
+	back.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, Tokens.SPACE_SM)
+	back.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	show_screen(screen)
+
+
 ## 주루 연습 (개발 빌드): 도루·한 베이스 더·태그업만 되풀이
 func show_run_practice() -> void:
 	show_screen(RunPracticeScreen.new(self))

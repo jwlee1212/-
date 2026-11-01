@@ -21,6 +21,9 @@ static func create(cfg: CareerConfig, school: School, rng: RandomNumberGenerator
 	r.school_id = school.id
 	r.player = PlayerData.new()
 	r.player.name = Team._random_name(cfg, rng)
+	# 이름이 정해진 라이벌 (content.json people.rival.fixedName — 세계관의 강태오)
+	if cfg.people.get("rival", {}).has("fixedName"):
+		r.player.name = cfg.people["rival"]["fixedName"]
 	for s: String in PlayerData.STATS:
 		r.player.set(s, int(rc["start"][s]))
 		r.player.potential[s] = int(rc["potential"][s])

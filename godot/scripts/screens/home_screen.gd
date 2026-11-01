@@ -98,6 +98,9 @@ func _ready() -> void:
 
 ## 주 시작 이야기가 남았으면 대화 화면을 위에 띄운다 (끝나면 다음 것, 다 끝나면 허브를 다시 그린다)
 func _next_story() -> void:
+	if _app.career.pending_minigame != "":
+		_open_minigame()
+		return
 	var events: Array = _app.career.events("after" if _app.career.game_done else "start")
 	if events.is_empty():
 		_notify_messages()
@@ -110,6 +113,42 @@ func _next_story() -> void:
 		_overlay = null
 		_rebuild()
 		_next_story())
+
+
+## 대화가 연 미니게임 (입부 체력 테스트): 화면 전체를 덮고, 보상을 반영하면 저장, 끝나면 다음 이야기
+## 이야기 속 연습(drill:<id>)이면 연습 화면(DrillView), 아니면 체력 테스트 (세 종목 또는 종목 하나)
+func _open_minigame() -> void:
+	var career: CareerState = _app.career
+	if career.pending_minigame.begins_with("drill:"):
+		var drill := DrillView.new(_app, career.pending_drill())
+		_overlay = drill
+		add_child(UiKit.fill_parent(drill))
+		drill.finished.connect(func(_n: int) -> void:
+			_overlay.queue_free()
+			_overlay = null
+			_app.save_career()
+			_rebuild()
+			_next_story())
+		return
+	var view := FitnessView.new(career.cfg, career, _app.sound, career.minigame_kinds())
+	_overlay = view
+	add_child(UiKit.fill_parent(view))
+	view.completed.connect(_app.save_career)
+	view.finished.connect(func() -> void:
+		_overlay.queue_free()
+		_overlay = null
+		_rebuild()
+		_next_story())
+
+
+## 지금 떠 있는 미니게임 화면 (스크린샷 스크립트용, 없으면 null)
+func minigame_view() -> FitnessView:
+	return _overlay as FitnessView
+
+
+## 지금 떠 있는 연습 화면 (스크린샷 스크립트용, 없으면 null)
+func drill_view() -> DrillView:
+	return _overlay as DrillView
 
 
 ## 지금 떠 있는 대화 화면 (스크린샷 스크립트용, 없으면 null)
