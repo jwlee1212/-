@@ -21,7 +21,7 @@
 | `CHOICE id` | 선택지. `"말" \| 힌트 -> 효과`. `[조건]`이 붙은 항목은 조건 충족 시에만 표시 |
 | `IF / ELIF / ELSE / END` | 분기 |
 | `GAMEPLAY` | 직접 조작 구간 (미니게임·경기 장면). 여기서 카드가 끊긴다 |
-| `CUTSCENE id` | 도트 컷신 (content.json cutscenes, 그림은 scripts/make_cutscene_art.py). 카드가 그 자리에서 틀고 이어 간다 |
+| `CUTSCENE id` | 도트 컷신 (content.json cutscenes, 그림은 scripts/make_cutscene_art.py). 카드가 그 자리에서 틀고 이어 간다. 에피소드마다 하나: ep01_join · ep02_bench · ep03_sink · ep04_first · ep05_seongho · ep06_dp(병살 성공 때) · ep07_sound(폼을 바꿨을 때) · ep08_name(체크 대상일 때). 사이드 스토리 컷신(side_harin_museum · side_soyul_folder)은 데이트 문자 답장 → 다음 주 카드(content.json events y1_side_*)가 연다 |
 | `UI` | 휴대폰·화이트보드·전광판 등 화면 표시 |
 | `ITEM_SHOW` | 쪽지 화면 |
 | `SYSTEM` | 알림, 변수 변경, 해금 |
@@ -80,6 +80,7 @@
 ### SCENE ep01_01 | 3월 초 | 서림고 야구부
 
 ```
+CUTSCENE ep01_join
 NARR: 3월, 서림고 야구부. 부원 열넷 중 1학년은 둘.
 coach_oh: 오 감독이다. 길게 말 안 한다. 오늘은 체력 테스트만 한다.
 ```
@@ -184,6 +185,7 @@ CHOICE ep02_warmup:
   - "(최대한 세게 스윙해서 몸을 데운다)" | 고교 첫 타석에서 파워 ▲ · 컨택 ▼ -> warmup_effect = eager
 
 NARR: 차례는 오지 않았다. 1 대 10, 8회 콜드게임.
+CUTSCENE ep02_bench
 SYSTEM: 해금 — phone_records_team (기록실: 팀 경기 기록)
 ```
 
@@ -224,6 +226,7 @@ END
 ### SCENE ep03_05 | 경기 후 | 야구장 뒤 수돗가
 
 ```
+CUTSCENE ep03_sink
 NARR: 수돗가. 강태오가 얼굴에 물을 끼얹고 있다.
 
 CHOICE ep03_taeo_sink:
@@ -255,6 +258,7 @@ NARR: 주말리그, 한빛고 원정. 오늘도 벤치에서 시작한다.
 ```
 NARR: 7회 초 2사 1루. 대기 타석의 정민재를 감독이 부른다.
 coach_oh: 민재야, 잠깐. {player}. 대타.
+CUTSCENE ep04_first
 soyul: (지나가며) 초구 직구 80퍼센트. 2스트라이크면 바깥쪽 슬라이더.
 ```
 
@@ -440,6 +444,7 @@ GAMEPLAY fielding id=ep06_dp
   result -> ep06_dp_result
 
 IF ep06_dp_result == success:
+  CUTSCENE ep06_dp
   NARR: 6-4-3 병살! 정민재가 글러브로 허벅지를 한 번 친다.
 ELSE:
   NARR: 토스가 살짝 높았다. 타자 주자 세이프.
@@ -536,6 +541,7 @@ NARR: 1월 마지막 날. 배팅 케이지에 혼자.
 GAMEPLAY batting_practice id=ep07_final
 
 IF form_answer == change:
+  CUTSCENE ep07_sound
   NARR: 7구째. 소리가 다르다. 짧고 단단하다.
   soyul: (부실 안에서) 감독님, 방금 그 소리 맞죠? 맞죠?
   SYSTEM: form_adaptation = 100 — 타격폼 개조 완료
@@ -639,6 +645,7 @@ SYSTEM: ep08_performance 계산 (3장 공식)
 
 ```
 IF ep08_performance >= 6:
+  CUTSCENE ep08_name
   na_scout: 9번 유격수, 1학년이라고? ...이름.
   coach_oh: {player}.
   na_scout: 봄에 주말리그 일정 보내줘.

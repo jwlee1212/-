@@ -9,7 +9,8 @@ extends RefCounted
 ##               또는 "fps": n + "loop": [장…] (되풀이), "from"/"to": 이 시각 사이에만 보인다}],
 ##   "captions": [{"from", "to", "who"?, "text"}], "hold": [t, 초] (멈춤 — 맞는 순간 히트스톱: 그동안 인물·카메라 시간이 멈춘다),
 ##   "flash": [t, 초] (번쩍임이 1 → 0), "shake": [t, 초, 세기(그림 픽셀)], "fadeIn"/"fadeOut": 초 (컷 앞뒤 암전),
-##   "sfx": [[t, 소리 이름(SoundSynth.Sfx), 크기?, 빠르기?]…]}
+##   "sfx": [[t, 소리 이름(SoundSynth.Sfx), 크기?, 빠르기?]…],
+##   "camLinear": true (카메라 키 사이를 같은 빠르기로 — 달리는 사람을 따라 흐를 때), 인물의 "linear": true (그 인물 path 도 같은 빠르기로)}
 ## t 는 모두 컷 시작부터의 초. hold 가 있으면 인물·카메라는 "멈춘 시간을 뺀 시각"을 본다 (자막·소리·번쩍임은 실제 시각).
 
 ## 정의 전체 길이 (초)
@@ -47,7 +48,7 @@ static func frame(cs: Dictionary, t: float) -> Dictionary:
 	var shot: Dictionary = cs["shots"][at[0]]
 	var lt: float = at[1]
 	var mt := motion_time(shot, lt)
-	var cam := _path(shot.get("cam", [[0, 0, 0]]), mt)
+	var cam := _path(shot.get("cam", [[0, 0, 0]]), mt, bool(shot.get("camLinear", false)))
 	if shot.has("shake"):
 		var sk: Array = shot["shake"]
 		var k := (lt - float(sk[0])) / float(sk[1])
@@ -59,7 +60,7 @@ static func frame(cs: Dictionary, t: float) -> Dictionary:
 	for a: Dictionary in shot.get("actors", []):
 		if lt < float(a.get("from", 0.0)) or lt >= float(a.get("to", 1e9)):
 			continue
-		var pos: Vector2 = _path(a["path"], mt) if a.has("path") else Vector2(float(a["at"][0]), float(a["at"][1]))
+		var pos: Vector2 = _path(a["path"], mt, bool(a.get("linear", false))) if a.has("path") else Vector2(float(a["at"][0]), float(a["at"][1]))
 		actors.append({"row": a["row"], "frame": _cell(a, mt), "pos": Vector2i(roundi(pos.x), roundi(pos.y))})
 	var flash := 0.0
 	if shot.has("flash"):
@@ -145,8 +146,8 @@ static func validate(id: String, cs: Dictionary, panels: Dictionary, rows: Dicti
 
 # ---------- 안쪽 ----------
 
-## 키 [[t, x, y]…] 사이를 부드럽게 (가속·감속) 잇는다. 키가 하나면 그 자리
-static func _path(keys: Array, t: float) -> Vector2:
+## 키 [[t, x, y]…] 사이를 부드럽게 (가속·감속) 잇는다 — linear 면 같은 빠르기로. 키가 하나면 그 자리
+static func _path(keys: Array, t: float, linear := false) -> Vector2:
 	var first: Array = keys[0]
 	if keys.size() == 1 or t <= float(first[0]):
 		return Vector2(float(first[1]), float(first[2]))
@@ -155,7 +156,8 @@ static func _path(keys: Array, t: float) -> Vector2:
 		if t <= float(b[0]):
 			var a: Array = keys[i - 1]
 			var k := (t - float(a[0])) / maxf(float(b[0]) - float(a[0]), 0.0001)
-			k = k * k * (3.0 - 2.0 * k)
+			if not linear:
+				k = k * k * (3.0 - 2.0 * k)
 			return Vector2(lerpf(float(a[1]), float(b[1]), k), lerpf(float(a[2]), float(b[2]), k))
 	var last: Array = keys[-1]
 	return Vector2(float(last[1]), float(last[2]))
