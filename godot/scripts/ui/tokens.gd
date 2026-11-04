@@ -103,6 +103,12 @@ const BUBBLE_ME_TEXT := Color("ffffff")
 const BADGE := ACCENT
 const SHADOW := Color(0, 0, 0, 0.25)
 const SCRIM := Color(0, 0, 0, 0.6)
+## 컷신 (애니메이션 영화풍 도트 장면): 위아래 검은 띠(자막 자리), 맞는 순간 번쩍임, 암전, 자막 글자·화자 이름
+const CUTSCENE_BAR := Color("07080f")
+const CUTSCENE_FLASH := Color(1, 0.97, 0.9, 1)
+const CUTSCENE_FADE := Color("07080f")
+const CUTSCENE_TEXT := Color("fff6e8")
+const CUTSCENE_WHO := Color("ffb37a")
 ## 로비: 데모 타석 위에 메뉴를 얹는 오른쪽 판
 const LOBBY_PANEL := Color(BACKGROUND, 0.93)
 const CONFETTI: Array[Color] = [PRIMARY, ACCENT, GOOD, WARN, BAD]

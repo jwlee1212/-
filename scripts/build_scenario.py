@@ -8,8 +8,11 @@
 문서를 고치면 다시 실행한다:  python3 scripts/build_scenario.py
   → content.json 의 events 중 id 가 ep 로 시작하는 것과 vars 를 새로 쓴다 (다른 이벤트는 그대로).
 
-문서 문법 (docs/scenario 0장): SCENE · NARR · 화자: 대사 · CHOICE id: (- "말" -> 효과 ; goto A) · A: …
-IF / ELIF / ELSE / END · UI 종류: · AUTO: · ITEM_SHOW · SYSTEM · GAMEPLAY (들여쓰기 2칸)
+문서 문법 (docs/scenario 0장): SCENE · NARR · 화자: 대사 · CHOICE id: (- "말" | 힌트 -> 효과 ; goto A) · A: …
+IF / ELIF / ELSE / END · UI 종류: · AUTO: · ITEM_SHOW · SYSTEM · GAMEPLAY · CUTSCENE id (들여쓰기 2칸)
+
+2026-11-04 카드판: 모든 이야기 이벤트에 card: true 를 붙인다 (DialogueView 카드 모드 — 대사를 한 장에 모아 보이고,
+선택지 아래 힌트를 보인다). 하린·소율·준수의 곁가지 이야기는 문서가 아니라 content.json messages(m_y1_*)에 있다.
 """
 import json
 import re
@@ -36,18 +39,17 @@ UI_KINDS = {"phone_message": "phone", "laptop_folder": "laptop", "tv": "tv", "wh
 # ---------- 변수 (문서 2장 + 회차별 결과 변수 + 선택 지점 id) ----------
 GRADE3 = ["high", "mid", "low"]
 VARS = {
-    "harin_affinity": {"type": "int"}, "soyul_affinity": {"type": "int"}, "minjae_trust": {"type": "int"},
-    "stats.at_bat_video_count": {"type": "int"}, "stats.fielding_video_count": {"type": "int"},
+    "minjae_trust": {"type": "int"},
+    "stats.at_bat_video_count": {"type": "int"}, "stats.fielding_video_count": {"type": "int"},  # 경기마다 CareerState 가 센다
     "test_speed_grade": {"type": "enum", "values": GRADE3}, "test_squat_grade": {"type": "enum", "values": GRADE3},
     "test_reaction_grade": {"type": "enum", "values": GRADE3}, "test_overall_grade": {"type": "enum", "values": GRADE3},
     "warmup_effect": {"type": "enum", "values": ["calm", "eager"]},
-    "taeo_interest": {"type": "bool"}, "taeo_first_talk": {"type": "bool"}, "taeo_ball_fielded": {"type": "bool"},
+    "taeo_first_talk": {"type": "bool"}, "taeo_ball_fielded": {"type": "bool"},
     "first_ab_result": {"type": "enum", "values": ["hit", "out", "strikeout"]},
-    "seongho_tee": {"type": "bool"}, "doyun_talk": {"type": "bool"}, "team_goal": {"type": "string"},
+    "seongho_tee": {"type": "bool"}, "team_goal": {"type": "string"},
     "ep06_game_result": {"type": "enum", "values": ["win", "lose"]}, "dongin_first_win": {"type": "bool"},
-    "form_answer": {"type": "enum", "values": ["immediate", "question"]}, "form_adaptation": {"type": "int"},
+    "form_answer": {"type": "enum", "values": ["change", "keep"]}, "form_adaptation": {"type": "int"},
     "training_direction": {"type": "enum", "values": ["contact", "power", "defense_run"]},
-    "soyul_restaurant_invite": {"type": "bool"},
     "scout_interest": {"type": "enum", "values": ["checked", "watching", "none"]},
     "scout_visited_teams": {"type": "list"}, "school_year": {"type": "int", "default": 1},
     "phone_contacts": {"type": "bool"}, "phone_records_team": {"type": "bool"}, "phone_profile_taeo": {"type": "bool"},
@@ -72,12 +74,12 @@ NOTE_VARS = ("시나리오 변수 (docs/scenario 2장의 ID 그대로 — script
 
 # ---------- 장소 (SCENE → places id) ----------
 PLACES = {
-    "ep01_01": "road", "ep01_02": "clubroom", "ep01_03": "clubroom", "ep01_04": "field", "ep01_05": "field",
+    "ep01_01": "clubroom", "ep01_02": "clubroom", "ep01_03": "clubroom", "ep01_04": "field", "ep01_05": "field",
     "ep01_06": "field", "ep01_07": "bedroom",
     "ep02_01": "field", "ep02_02": "clubroom", "ep02_03": "dugout", "ep02_04": "bus", "ep02_05": "playground",
     "ep03_01": "cheongun_field", "ep03_02": "cheongun_field", "ep03_03": "dugout", "ep03_04": "cheongun_field",
     "ep03_05": "sink", "ep03_06": "bus", "ep03_07": "bedroom",
-    "ep04_01": "clubroom", "ep04_02": "store", "ep04_03": "dugout", "ep04_04": "stadium", "ep04_05": "stadium",
+    "ep04_01": "clubroom", "ep04_02": "dugout", "ep04_03": "dugout", "ep04_04": "stadium", "ep04_05": "stadium",
     "ep04_06": "dugout", "ep04_07": "bedroom",
     "ep05_01": "dugout", "ep05_02": "cage", "ep05_03": "bus", "ep05_04": "stadium", "ep05_05": "stadium",
     "ep05_06": "dugout", "ep05_07": "hallway", "ep05_08": "bus", "ep05_09": "convenience",
@@ -212,17 +214,20 @@ EP08_PERF = [  # 문서 3장 공식
     by_var("ep08_ab2_result", {"extra_base": [{"do": {"add": {"ep08_performance": 3}}}], "rbi_hit": [{"do": {"add": {"ep08_performance": 2}}}]}),
     by_var("ep08_ab3_result", {"hit": [{"do": {"add": {"ep08_performance": 3}}}], "out": [{"do": {"add": {"ep08_performance": 1}}}]}),
 ]
-# 능력치 대폭 상승 (EP07 #6, 임시 수치): 모두 +2, 고른 방향 +3 더
+# 능력치 대폭 상승 (EP07 #6 폼을 바꿨을 때, 임시 수치): 모두 +2, 고른 방향 +3 더
 STAT_JUMP = [{"do": {"contact": 2, "power": 2, "eye": 2, "speed": 1, "fielding": 2}},
              by_var("training_direction", {"contact": [{"do": {"contact": 3, "eye": 2}}], "power": [{"do": {"power": 4}}],
                                            "defense_run": [{"do": {"fielding": 3, "speed": 2}}]})]
+# 폼을 지켰을 때 (EP07 #1 갈림길, 2026-11-04): 모두 +1, 고른 방향 +1~2 — 새 폼 훈련의 고생이 없는 대신 상승 폭이 작다
+KEEP_JUMP = [{"do": {"contact": 1, "power": 1, "eye": 1, "fielding": 1}},
+             by_var("training_direction", {"contact": [{"do": {"contact": 2}}], "power": [{"do": {"power": 2}}],
+                                           "defense_run": [{"do": {"fielding": 1, "speed": 1}}]})]
 SYSTEM_FX = {
+    "SYSTEM: 능력치 상승 (폼 유지)": [{"ui": "system", "text": "능력치 상승"}] + KEEP_JUMP,
     "SYSTEM: 초기 능력치가 결정되었습니다.": [{"ui": "system", "text": "초기 능력치가 결정되었습니다."}],
     "SYSTEM: test_overall_grade = 3종목 등급의 평균 (high=3, mid=2, low=1 → 평균 2.5 이상 high, 1.5 이상 mid, 미만 low)": [],
     "SYSTEM: 주요 경기는 직접 조작 / 나머지 경기는 자동 진행 (주인공 능력치 기반 결과 산출)": [
         {"ui": "system", "text": "주요 경기는 직접 조작 / 나머지 경기는 자동 진행"}],
-    "SYSTEM: 타석마다 stats.at_bat_video_count += 1, 수비 조작마다 stats.fielding_video_count += 1": [],
-    "SYSTEM: form_adaptation 증가 (최종 SCENE ep07_06에서 100 도달하도록 조정)": [{"do": {"add": {"form_adaptation": 30}}}],
     "SYSTEM: 능력치 대폭 상승 (training_direction에 따라 추가 보너스)": [{"ui": "system", "text": "능력치 대폭 상승"}] + STAT_JUMP,
     "SYSTEM: ep08_performance 계산 (3장 공식)": EP08_PERF,
     "SYSTEM: 이번 경기 활약도가 스카우트 관심도 첫 평가에 반영됩니다": [{"ui": "system", "text": "이번 경기 활약도가 스카우트 관심도 첫 평가에 반영됩니다"}],
@@ -288,6 +293,9 @@ META = {
     **{k: {"timing": "game", "moment": "scene"} for k in ["ep08_03", "ep08_03b", "ep08_03c", "ep08_03d"]},
     **{k: dict(camp(4), timing="after") for k in ["ep08_03e", "ep08_04", "ep08_05", "ep08_06", "ep08_07"]},
 }
+# 조건이 맞을 때만 뜨는 장면 (when). 앞뒤 이야기 순서(after)는 이 장면들을 건너뛰고 잇는다
+FORM_CHANGE = {"var": "form_answer", "eq": "change"}
+WHEN = {"ep07_02": FORM_CHANGE, "ep07_02b": FORM_CHANGE}
 # 장면을 이어 붙인다 (False: 앞 이벤트에 이어서 한 화면으로) — 경기 장면 대화가 SCENE 경계를 넘을 때
 JOIN = {"ep01_03", "ep01_04", "ep01_06", "ep04_04", "ep04_05", "ep05_05"}
 # 이벤트 앞·뒤에 덧붙이는 노드 (엔진 효과 — 문서의 SYSTEM·modifiers 를 옮긴 것)
@@ -316,6 +324,11 @@ APPEND = {
 }
 # 선택지에 붙는 엔진 효과 (선택 지점 id, 선택지 번호 → 효과)
 CHOICE_FX = {
+    # 카드판 (2026-11-04): 고르면 반드시 무언가 바뀐다 — 문서의 힌트와 맞출 것
+    ("ep03_taeo_sink", 0): {"train": {"fielding": 1.5}},
+    ("ep03_taeo_sink", 1): {"condition": 5},
+    ("ep05_seongho", 0): {"rel": {"seongho": 10}, "reputation": 2},
+    ("ep05_seongho", 1): {"train": {"contact": 1.5}},
     ("ep07_training", 0): {"campFocus": "contact"},
     ("ep07_training", 1): {"campFocus": "power"},
     ("ep07_training", 2): {"campFocus": "fielding"},
@@ -386,7 +399,7 @@ def cond(expr: str):
 
 
 def effects(spec: str):
-    """'harin_affinity += 1 ; taeo_interest = true ; goto A' → (효과, goto)"""
+    """'minjae_trust += 1 ; taeo_first_talk = true ; goto A' → (효과, goto)"""
     fx = {}
     goto = None
     for part in spec.split(";"):
@@ -463,6 +476,8 @@ class Parser:
             return [{"branch": arms}]
         if t.startswith("CHOICE "):
             return self.choice(t[7:].rstrip(":").strip(), level)
+        if t.startswith("CUTSCENE "):
+            return [{"cutscene": t[9:].strip()}]  # 컷신 (content.json cutscenes — make_cutscene_art.py 그림)
         if t.startswith("GAMEPLAY "):
             self.body(level)
             return [{"hook": t[9:].strip()}]
@@ -526,6 +541,7 @@ class Parser:
             fx = {"set": {m.group(1): True}}
             if m.group(1) in CONTACTS:
                 fx["addContact"] = CONTACTS[m.group(1)]
+                fx["meet"] = CONTACTS[m.group(1)]  # 메인 카드에 안 나오는 하린도 여기서 만난다 (그래야 문자가 온다)
             return [{"do": fx}, {"ui": "system", "text": "해금 — " + (m.group(2) or m.group(1))}]
         m = re.match(r"^([\w.]+) \+= (\d+)$", text)
         if m:
@@ -551,8 +567,9 @@ class Parser:
                 guard = cond(m.group(1))
                 s = m.group(2)
             label, _, spec = s.partition(" -> ")
+            label, _, hint = label.partition(" | ")
             fx, goto = effects(spec)
-            opts.append({"label": label.strip().strip('"'), "fx": fx, "goto": goto, "if": guard})
+            opts.append({"label": label.strip().strip('"'), "hint": hint.strip(), "fx": fx, "goto": goto, "if": guard})
         labels = {}
         cont = []
         while self.peek() is not None and ind(self.peek()) == level and re.fullmatch(r"[A-Z][A-Z_]*:", self.peek().strip()):
@@ -564,6 +581,8 @@ class Parser:
             c = {"label": o["label"]}
             letter = o["goto"] if o["goto"] and len(o["goto"]) == 1 else "ABCDEFGH"[k]
             c["key"] = letter
+            if o["hint"]:
+                c["hint"] = o["hint"]
             if o["if"]:
                 c["if"] = o["if"]
             fx = dict(o["fx"])
@@ -608,26 +627,12 @@ def label_body(lines, name):
     return out
 
 
-def ep04_07_lines(lines):
-    """EP04 #7 은 goto RESULT / END_SCENE 이 엇갈려서 같은 뜻의 IF/CHOICE 로 다시 짠다 (글자는 문서 그대로)"""
-    result = label_body(lines, "RESULT")
-    end = label_body(lines, "END_SCENE")
-    phone = [l for l in lines[lines.index("IF ep04_harin_store == B:") + 1:] if True][:2]
-    sub = ["IF ep04_harin_store == B:"] + phone + ["  " + l for l in result]
-    sub += ["ELSE:", "  CHOICE ep04_text_first:",
-            '    - "(하린에게 먼저 보낸다) 오늘 경기 나갔어" -> harin_affinity += 1 ; goto A',
-            '    - "(안 보낸다)" -> goto B', "  A:"] + ["    " + l for l in result] + ["END"] + end
-    return sub
-
-
 def build():
     md = DOC.read_text(encoding="utf-8")
     scenes = scenes_of(md)
     stream = []  # [(scene id, block index, nodes)]
     for sid, title, blocks in scenes:
         for bi, block in enumerate(blocks):
-            if sid == "ep04_07":
-                block = ep04_07_lines(block)
             nodes = Parser(block).block(0)
             stream.append((sid, bi, title, nodes))
     events = []
@@ -659,7 +664,7 @@ def build():
             _hooks_inside(node)
             cur["script"].append(node)
     # 빈 이벤트 (끊은 뒤 남은 줄이 없음) 는 뺀다
-    events = [e for e in events if any("text" in n or "choices" in n or "branch" in n for n in e["script"])]
+    events = [e for e in events if any("text" in n or "choices" in n or "branch" in n or "cutscene" in n for n in e["script"])]
     return events
 
 
@@ -689,7 +694,8 @@ def speakers_in(nodes, out):
 
 def finish(events):
     order = []
-    prev = None
+    prev = None       # 바로 앞 이벤트
+    prev_always = None  # 바로 앞의 조건 없는 이벤트 (조건부 장면을 건너뛸 때도 순서가 끊기지 않게)
     for e in events:
         eid = e["id"]
         meta = META.get(eid)
@@ -702,11 +708,14 @@ def finish(events):
         if hidden:
             script.insert(0, {"do": {"meet": hidden}})
         people = [s for s in sp if s not in ("player",) and not s[0] >= "가"]
-        out = {"id": eid, "story": True, "free": True}
+        out = {"id": eid, "story": True, "free": True, "card": True}
         out.update(meta)
+        if eid in WHEN:
+            out["when"] = WHEN[eid]
         if meta.get("timing") != "game":
-            if prev is not None:
-                out["after"] = [prev]
+            before = prev if eid in WHEN else prev_always
+            if before is not None:
+                out["after"] = [before]
         out["episode"] = int(eid[2:4])
         out["speaker"] = people[0] if people else "coach"
         out["title"] = e["title"]
@@ -714,6 +723,8 @@ def finish(events):
         out["script"] = script
         order.append(out)
         prev = eid
+        if eid not in WHEN:
+            prev_always = eid
     return order
 
 

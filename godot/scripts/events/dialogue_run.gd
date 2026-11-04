@@ -5,7 +5,9 @@ extends RefCounted
 ## next() 가 돌려주는 걸음:
 ##   {"type": "line", "who": 인물 id | "player" | "" (지문) | "?" (인물이 아닌 화자), "name", "role", "portrait", "face", "text"}
 ##   face: 대본 줄의 표정 (EventBook.FACES, 없으면 "" = 기본) — 화면은 portraits/<id>_<face>.png, 없으면 <id>.png
-##   {"type": "choice", "options": [{"label", "cost", "block"}]}   → choose(번호)를 불러야 다음으로 간다
+##   {"type": "choice", "options": [{"label", "cost", "block", "hint"}]}   hint: 카드 화면에서 선택지 아래 보이는 결과 힌트 ("" 없음)
+##     → choose(번호)를 불러야 다음으로 간다
+##   {"type": "cutscene", "id"}                                     → 화면이 컷신(content.json cutscenes)을 틀고 다음 걸음으로 (화면 없이 진행하면 그냥 지나간다)
 ##   {"type": "end"}                                               → commit() 으로 효과를 반영한다
 ## 선택하면 그 선택지의 then(뒤따르는 대사)이 이어지고, 다 끝나면 선택 지점 다음 줄로 돌아온다.
 ## 효과·돈은 고르는 순간이 아니라 commit() 에서 한꺼번에 반영한다 — 대화 도중에 꺼도 반쯤 적용된 상태가 남지 않는다.
@@ -72,6 +74,8 @@ func next() -> Dictionary:
 	if node.has("do"):
 		_add_effects(node["do"])
 		return next()
+	if node.has("cutscene"):
+		return {"type": "cutscene", "id": node["cutscene"]}
 	if node.has("choices"):
 		_node = node
 		_options = []
@@ -164,7 +168,8 @@ func _choice_step() -> Dictionary:
 	var out := []
 	for i in _options.size():
 		var c: Dictionary = _options[i]
-		out.append({"label": EventBook.fill(career, c["label"]), "cost": int(c.get("cost", 0)), "block": block(i)})
+		out.append({"label": EventBook.fill(career, c["label"]), "cost": int(c.get("cost", 0)), "block": block(i),
+			"hint": EventBook.fill(career, str(c.get("hint", "")))})
 	return {"type": "choice", "options": out, "ui": _node.get("ui", ""), "room": _node.get("room", phone_room)}
 
 

@@ -17,6 +17,7 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build/shots"))
 	_app = load("res://scenes/batting.tscn").instantiate()
 	_app.save_path = "user://shots.save"
+	_app.show_tips = false  # 튜토리얼 팁 카드가 흐름을 막지 않게
 	SaveGame.delete(_app.save_path)
 	add_child(_app)
 	await _wait_ms(300)

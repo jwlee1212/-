@@ -34,6 +34,9 @@ var schedule: Dictionary
 var fitness: Dictionary
 ## 미니게임 글 (content.json minigames: id -> 제목·종목 설명·감독 한마디)
 var minigames: Dictionary = {}
+## 컷신 (content.json cutscenes: id -> {shots}) · 컷신 연출 수치 (balance.json career.cutscene: 검은 띠·자막·빠르기)
+var cutscenes: Dictionary = {}
+var cutscene: Dictionary = {}
 ## 폰 (한 주 문자 수, 답장 기한, 말풍선 연출 시간)
 var phone: Dictionary
 ## 폰 뉴스: 수치(balance.json career.news)와 문장 틀(content.json news)
@@ -76,6 +79,8 @@ var places: Dictionary = {}
 ## 폰 문자 (content.json messages), 단체방 (phone.rooms: id -> {name})
 var messages: Array = []
 var phone_rooms: Dictionary = {}
+## 튜토리얼 팁 카드 (content.json tutorial, id → {title, steps}). Tutorial 이 읽는다
+var tips: Dictionary = {}
 ## 시나리오 변수 선언 (content.json vars: id -> {"type": int|bool|enum|string|list, "default", "values"?(enum)}).
 ## 플래그(flags)와 달리 값이 있는 이야기 상태 — 호감도·테스트 등급·경기 장면 결과 (docs/scenario 문서의 ID 그대로)
 var vars: Dictionary = {}
@@ -116,6 +121,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.phone = car["phone"]
 	c.news_cfg = car["news"]
 	c.fitness = car["fitness"]
+	c.cutscene = car.get("cutscene", {})
 
 	var g: Dictionary = balance["game"]
 	c.innings = int(BattingConfig.num(g, "innings"))
@@ -140,6 +146,9 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.pending_events = content.get("pendingEvents", [])
 	c.coach_lines = content["coachLines"]
 	c.minigames = content.get("minigames", {})
+	for id: String in content.get("cutscenes", {}):
+		if not id.begins_with("_"):
+			c.cutscenes[id] = content["cutscenes"][id]
 	c.game_title = content["gameTitle"]
 	for id: String in content["people"]:
 		if not id.begins_with("_"):
@@ -151,6 +160,9 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 			c.places[id] = content["places"][id]
 	c.news = content.get("news", {})
 	c.messages = content.get("messages", [])
+	for id: String in content.get("tutorial", {}):
+		if not id.begins_with("_"):
+			c.tips[id] = content["tutorial"][id]
 	var drill_numbers: Dictionary = car.get("drills", {})
 	for id: String in content.get("drills", {}):
 		if not id.begins_with("_"):

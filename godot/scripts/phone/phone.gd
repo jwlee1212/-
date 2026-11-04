@@ -14,7 +14,8 @@ const KEYS := ["id", "speaker", "room", "text", "lines", "replies", "ignore", "r
 	"grade", "week", "requires", "forbids", "met", "forbidsMet", "minScout", "maxScout", "minRel", "maxRel", "minRep", "maxRep",
 	"maxForm", "maxCondition", "injured", "partner", "minMoney", "winter", "campWeek",
 	"recentGames", "recentMinHits", "recentMaxHits",
-	"lastResult", "lastMinHits", "lastMaxHits", "lastMinHomeRuns", "lastPhaseEnd", "lastNational", "lastOpponent", "seasonOver"]
+	"lastResult", "lastMinHits", "lastMaxHits", "lastMinHomeRuns", "lastPhaseEnd", "lastNational", "lastOpponent", "seasonOver",
+	"after"]
 ## 문자 답장에 쓸 수 있는 효과 (가벼운 것만 — 타순·부상·경기 결과 같은 큰 변화는 대화 이벤트에서, schedule 로 이어 준다)
 const EFFECTS := ["condition", "form", "reputation", "money", "rel", "meet", "flag", "clearFlag", "schedule"]
 ## 보낸 사람: 내가 보낸 답장, 안내 줄(답장할 때를 놓쳤다 · 변화 설명)
@@ -321,6 +322,10 @@ static func validate(cfg: CareerConfig) -> Array[String]:
 		for f: String in m.get("requires", []):
 			if not flags.has(f):
 				errors.append("%s: requires %s 를 세우는 선택지가 없다" % [where, f])
+		# after: 이 이야기 장면(이벤트)들을 다 본 뒤에만 온다 — 사이드 스토리를 메인 카드 흐름에 맞춘다
+		for eid: String in m.get("after", []):
+			if not cfg.events.any(func(e: Dictionary) -> bool: return e["id"] == eid):
+				errors.append("%s: after 이벤트 %s 없음" % [where, eid])
 		for k in ["met", "forbidsMet"]:
 			for pid: String in m.get(k, []):
 				if not cfg.people.has(pid):

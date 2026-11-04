@@ -16,6 +16,7 @@ func _ready() -> void:
 	_app = load("res://scenes/batting.tscn").instantiate()
 	# 유저 저장을 건드리지 않게 따로 저장하고, 매번 빈 저장에서 시작한다
 	_app.save_path = "user://shots.save"
+	_app.show_tips = false  # 튜토리얼 팁 카드가 흐름을 막지 않게
 	SaveGame.delete(_app.save_path)
 	add_child(_app)
 	await _frames(10)
@@ -38,7 +39,7 @@ func _ready() -> void:
 			view.advance()
 		await _frames(3)
 	# 일러스트 확인: 동기 · 매니저가 말하는 장면
-	for id: String in ["ep01_07", "ep03_05", "ep04_01", "ep06_03", "ep07_01", "ep08_04"]:
+	for id: String in ["ep01_01", "ep02_03", "ep03_05", "ep05_02b", "ep07_01", "ep08_04"]:
 		for e: Dictionary in _app.career.cfg.events:
 			if e.id == id:
 				var dv := DialogueView.new(_app.career, e)
@@ -52,12 +53,17 @@ func _ready() -> void:
 				dv.queue_free()
 				await _frames(3)
 	await _frames(10)
-	# 체력 테스트 화면이 떠 있으면 화면 없이 끝내고 연락처를 본다
-	if _app._current.minigame_view() != null:
-		_app.career.auto_minigame()
-		_app.show_home()
+	# 체력 테스트·연습(펑고)·남은 카드는 화면 없이 끝내고 연락처를 본다 (카드가 떠 있으면 폰을 못 연다)
+	var rest := 0
+	while rest < 20 and _app._current.has_method("story_view") and (_app._current.minigame_view() != null or _app._current.drill_view() != null or _app._current.story_view() != null):
+		rest += 1
+		if _app._current.minigame_view() != null or _app._current.drill_view() != null:
+			_app.career.auto_minigame()
+			_app.show_home()
+		else:
+			_app._current.story_view().skip()
 		await _frames(10)
-	if _app._current.has_method("open_phone"):
+	if _app._current.has_method("open_phone") and _app._current.story_view() == null:
 		_app._current.open_phone()
 		_app._current.phone_view().show_tab(PhoneView.TAB_CONTACTS)
 		await _frames(10)

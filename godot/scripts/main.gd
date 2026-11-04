@@ -12,8 +12,10 @@ var career_config: CareerConfig
 var sound: SoundPlayer
 var music: MusicPlayer
 var career: CareerState
-## 유저 설정 (주루 설정)
+## 유저 설정 (주루 설정·본 튜토리얼 팁)
 var settings := Settings.new()
+## 튜토리얼 팁 카드를 띄우나 (스크린샷 스크립트는 끈다 — 흐름을 막지 않게)
+var show_tips := true
 ## 저장을 못 읽은 이유 (로비에 보여 준다, "" 이면 문제없음)
 var save_error := ""
 ## 저장 파일 (스크린샷 스크립트는 다른 파일을 써서 유저 저장을 건드리지 않는다)
@@ -226,6 +228,29 @@ func new_batting_session() -> BattingSession:
 	var s := BattingSession.new(batting_config, presentation)
 	s.sound_requested.connect(sound.play)
 	return s
+
+
+# ---------- 튜토리얼 ----------
+
+## 아직 안 본 팁이면 host 위에 팁 카드(TipCard)를 띄우고, 닫히면 then 을 부른다. 볼 팁이 없으면 then 을 바로 부른다.
+## 띄웠으면 그 카드를, 아니면 null 을 돌려준다 (경기 화면은 카드가 떠 있는 동안 경기를 멈춘다)
+func show_tip(host: Control, id: String, then: Callable = Callable()) -> TipCard:
+	if not show_tips or not Tutorial.pending(career_config.tips, settings, id):
+		if then.is_valid():
+			then.call()
+		return null
+	var card := TipCard.new(career_config.tips[id], id)
+	host.add_child(UiKit.fill_parent(card))
+	card.finished.connect(func(skip_all: bool) -> void:
+		settings.mark_seen(id)
+		if skip_all:
+			for t: String in Tutorial.IDS:
+				settings.mark_seen(t)
+		settings.save()
+		card.queue_free()
+		if then.is_valid():
+			then.call())
+	return card
 
 
 # ---------- 저장 ----------

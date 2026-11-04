@@ -11,6 +11,7 @@ func _ready() -> void:
 	get_window().size = Vector2i(1688, 780)
 	var app: Control = load("res://scenes/batting.tscn").instantiate()
 	app.save_path = "user://shots.save"
+	app.show_tips = false  # 튜토리얼 팁 카드가 흐름을 막지 않게
 	add_child(app)
 	app.visible = false
 	await get_tree().process_frame

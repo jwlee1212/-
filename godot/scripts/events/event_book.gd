@@ -24,7 +24,7 @@ const CONDITION_KEYS := ["id", "speaker", "title", "text", "choices", "script", 
 	"maxForm", "maxCondition", "injured", "opponent", "scheduledOnly",
 	"recentGames", "recentMinHits", "recentMaxHits", "stage",
 	"lastResult", "lastMinHits", "lastMaxHits", "lastMinHomeRuns", "lastPhaseEnd", "lastNational", "lastOpponent", "seasonOver",
-	"after", "when", "episode"]
+	"after", "when", "episode", "card"]
 const EFFECT_KEYS := ["condition", "scoutInterest", "lineupSlot", "contact", "power", "eye", "speed", "fielding", "form",
 	"reputation", "injury", "rel", "meet", "flag", "clearFlag", "schedule", "path", "money", "partner", "campFocus", "gear", "gameBoost", "pinchHit",
 	"matchOverride", "injuryLabel", "minigame", "set", "add", "train", "gamePlan", "gradeVar", "addContact"]
@@ -1033,6 +1033,9 @@ static func validate(cfg: CareerConfig) -> Array[String]:
 		var texts: Array = []
 		var found := {"choices": [], "lines": []}
 		_collect(script_of(e), found)
+		for cid: String in found.get("cutscenes", []):
+			if not cfg.cutscenes.has(cid):
+				errors.append("%s: 컷신 %s 없음 (content.json cutscenes)" % [where, cid])
 		for line: Dictionary in found["lines"]:
 			texts.append(line.get("text", ""))
 			if str(line.get("text", "")) == "":
@@ -1217,6 +1220,9 @@ static func _collect(nodes: Array, found: Dictionary) -> void:
 			continue
 		if node.has("do"):
 			found.get_or_add("dos", []).append(node["do"])
+			continue
+		if node.has("cutscene"):
+			found.get_or_add("cutscenes", []).append(node["cutscene"])
 			continue
 		if not node.has("choices"):
 			found["lines"].append(node)

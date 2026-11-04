@@ -16,7 +16,7 @@ Claude Code가 이 저장소에서 작업할 때 가장 먼저 읽는 파일이�
 - **손맛이 1순위.** 탭 한 번에 소리·히트스톱·흔들림·파편이 따라온다. 판정은 타이밍과 능력치로 정한다
 - **캐주얼 우선.** 게임빌 프로야구 같은 밝은 SD 캐릭터와 통통 튀는 연출. 현실 고증은 "그럴듯함"을 줄 만큼만 한다. 게임빌 프로야구는 분위기 참고일 뿐, 캐릭터·에셋·UI를 베끼지 않는다
 - **몰입은 돌발 이벤트와 서사에서.** 스카우트 방문, 학부모 뒷돈, 인성 찌라시, 진학 vs 프로, 군 입대, 라이벌, 러브라인. 이벤트는 게임빌식 대화 화면(일러스트 + 대사창)으로 보여 준다
-- **메인 스토리는 컷신, 사이드 스토리·일상 대화는 폰 메신저 (2026-10-12 결정).** 챕터를 끌고 가는 장면은 지금처럼 대화 화면(`events`, 일러스트 + 대사창)으로, 곁가지 이야기와 일상 대화는 폰 문자(`messages`)로 만든다. 문자가 큰 장면으로 이어져야 하면 답장의 `schedule` 효과로 컷신을 예약한다
+- **읽는 스토리 → 고르는 카드 (2026-11-04 결정, 10-12 결정 대체).** 지인 테스트에서 스토리를 전부 넘겼다. 메인 이벤트는 1~3줄 카드(상황 + 선택지 + 바로 보이는 결과)로 보여 주고, 선택은 반드시 능력치·관계·진로 중 하나를 바꾼다. 연애 같은 사이드 이야기는 폰 문자(`messages`) 속 선택지 카드로만 하고, 원하는 사람만 한다(호감도는 실제 보상으로 이어진다). 경기 대본·미니게임은 직접 하는 플레이라 그대로 둔다. 압축안은 `docs/scenario/card-plan.md`, 옛 대본은 태그 `pre-card-events`
 - **돈은 쓸 곳이 있어야 번다.** 용돈·활약 보너스로 벌고 장비(경기 보정)·레슨·관리·선물·데이트·이벤트 선택지에 쓴다
 - 실제 구단명·선수명·학교명·로고·마스코트·팀 컬러는 **절대 사용하지 않는다** (상표·초상권)
 - 게임 이름 미정 — 가제 **"퍼스트픽 / FIRST PICK"** (2026-10-07, 화면에는 `config/content.json` 의 `gameTitle` 에서만 읽는다)
@@ -69,7 +69,7 @@ python3 scripts/build_scenario.py                               # 시나리오 �
 3. **밸런스·손맛 수치는 코드에 하드코딩하지 않는다.** 판정 폭·공 속도·확률·연출 시간은 `config/balance.json`에서 읽는다. 원본은 저장소 루트의 그 파일 하나이고, 웹 빌드 때 `godot/data/`로 복사된다.
 4. **시간은 하나의 시계로 잰다.** 타이밍 판정은 `Time.get_ticks_usec()` 기준으로, 공을 놓은 순간과 탭한 순간을 같은 시계로 잰다. 프레임 수로 시간을 세지 않는다 (프레임이 떨어져도 판정은 정확해야 한다).
 5. **디자인은 토큰으로만.** 색·간격·글자 크기·모서리·글꼴은 `godot/scripts/ui/tokens.gd`에서만 가져온다. 화면 코드에 색상값을 직접 쓰지 않는다. 세부 규칙은 `docs/02-design.md`.
-6. **그림체는 둘로 나눈다: 인게임은 도트, 일러스트는 애니메이션풍 (2026-10-31 도트 확정).** 경기·타석·중계 화면(경기장·타자·투수·수비수·주자·미트)은 **코드로 찍은 도트**로 그린다 — `scripts/make_pixel_art.py` 가 관절 좌표·손으로 찍은 판으로 `godot/art/pixel/` 시트를 만든다(바깥 윤곽만 1픽셀 남색, 색은 빛·바탕·그늘·깊은 그늘 4단계 — 그늘은 푸르게 틀고, 부위끼리 겹친 안쪽 선은 앞 부위의 깊은 그늘색). AI 로 포즈 그림을 뽑아 맞추는 게 너무 힘들어서 바꿨다(옛 SD 카툰 그림은 커밋 `809d631` 에 있다). 도트는 정수 배율·같은 격자(`PixelArt.snap`)로만 그리고 돌리지 않는다. 공·조준 표시·타격 이펙트·HUD 는 매끈하게 그대로 둔다. 대화 화면의 인물 일러스트·배경(`godot/art/portraits/`, `backgrounds/`)과 로비 일러스트는 애니메이션풍 그대로. 실사 얼굴·사실적(사진 같은) AI 생성 얼굴은 금지. AI로 만든 그림·소리를 넣을 때는 쓴 도구와 그 도구의 상업적 이용 허용 여부를 `licenses/assets.md`에 기록한다. 기록 없는 에셋은 넣지 않는다.
+6. **그림체는 둘로 나눈다: 인게임은 도트, 일러스트는 애니메이션풍 (2026-10-31 도트 확정).** 경기·타석·중계 화면(경기장·타자·투수·수비수·주자·미트)은 **코드로 찍은 도트**로 그린다 — `scripts/make_pixel_art.py` 가 관절 좌표·손으로 찍은 판으로 `godot/art/pixel/` 시트를 만든다(바깥 윤곽만 1픽셀 남색, 색은 빛·바탕·그늘·깊은 그늘 4단계 — 그늘은 푸르게 틀고, 부위끼리 겹친 안쪽 선은 앞 부위의 깊은 그늘색). AI 로 포즈 그림을 뽑아 맞추는 게 너무 힘들어서 바꿨다(옛 SD 카툰 그림은 커밋 `809d631` 에 있다). 도트는 정수 배율·같은 격자(`PixelArt.snap`)로만 그리고 돌리지 않는다. 공·조준 표시·타격 이펙트·HUD 는 매끈하게 그대로 둔다. 대화 화면의 인물 일러스트·배경(`godot/art/portraits/`, `backgrounds/`)과 로비 일러스트는 애니메이션풍 그대로. **컷신도 도트 (2026-11-05)**: 이야기의 큰 순간은 게임 화면을 쓰지 않고 컷마다 따로 그린 판·인물 칸으로 "애니메이션 영화"처럼 보여 준다(`scripts/make_cutscene_art.py`, 정의는 `content.json` cutscenes, 대본에서 `CUTSCENE <id>`). **컷신 그림 규칙 (2026-11-05 유저 결정 — Claude 가 찍는 인물 그림이 약하다)**: 인물은 **실루엣 위주로**, 얼굴은 그리지 않는다(누구든). 얼굴 외 요소도 자세히 묘사하지 않는다 — 큰 덩어리·윤곽·빛(노을 테두리 등)으로 보여 준다. 장 수는 적어도 된다(컷마다 1~3장, 움직임은 카메라·자리 이동·히트스톱으로). 첫 컷신 `ep05_seongho` 는 이 규칙 이전에 그린 것(얼굴 클로즈업 있음)이라 다시 그려야 한다. 실사 얼굴·사실적(사진 같은) AI 생성 얼굴은 금지. AI로 만든 그림·소리를 넣을 때는 쓴 도구와 그 도구의 상업적 이용 허용 여부를 `licenses/assets.md`에 기록한다. 기록 없는 에셋은 넣지 않는다.
 7. **캐릭터 애니메이션은 도트 시트의 칸을 갈아 끼워 만든다.** 동작을 단계(타자: 스탠스·로드·스트라이드·랜딩·회전·컨택(높이별)·팔로스루·번트, 투수: 준비 → 다리 들기 → 내딛기 → 팔 젖히기 → 공 놓기 → 마무리)로 나눠 한 칸씩 찍고, 진행에 맞춰 바꾼다(`PixelArt.batter_cell`·`pitcher_cell`). 칸 크기·발 자리·순서는 스크립트가 `pixel_meta.gd` 로 만들어 준다 — 손으로 고치지 않는다. 같은 함수가 모든 칸을 그리니 칸끼리 크기·얼굴이 어긋나지 않는다. 손맛은 장 수가 아니라 히트스톱·흔들림·소리에서 나온다.
 8. **테스트가 통과해야 다음 마일스톤으로 간다** (§7).
 
@@ -77,7 +77,7 @@ python3 scripts/build_scenario.py                               # 시나리오 �
 
 ```
 config/balance.json        밸런스·손맛 수치 원본 (구종 8개는 batting.pitches · batting.pitch_common)
-config/content.json        콘텐츠 원본 (학교·이름·이벤트·대사·폰 문자). 1학년 이야기(ep01~ep08 이벤트·vars)는 docs/scenario 문서에서 만든다 — 손으로 고치지 않는다
+config/content.json        콘텐츠 원본 (학교·이름·이벤트·대사·폰 문자). 1학년 이야기 카드(ep01~ep08 이벤트·vars)는 docs/scenario 문서에서 만든다 — 손으로 고치지 않는다. 1학년 사이드 스토리는 messages m_y1_*
 godot/                     Godot 프로젝트
 ├─ project.godot, export_presets.cfg
 ├─ scenes/                 장면 (화면은 가능한 한 코드로 조립한다)
@@ -92,25 +92,28 @@ godot/                     Godot 프로젝트
 │  ├─ events/              돌발 이벤트·스토리 엔진: 조건·효과·시나리오 변수(event_book) + 대본을 한 걸음씩 읽는 대화 진행(dialogue_run — IF/ELSE 갈래·조건부 선택지·화면 표시 줄) (로직, 정의는 content.json)
 │  ├─ minigames/           미니게임 로직: 입부 체력 테스트(FitnessTest 등급·보상) + 50m(RunTest)·스쿼트(LiftTest)·반응(ReactTest) — 화면은 screens/fitness_view.gd
 │  ├─ phone/               폰 문자: 도착·답장·만료·대화방 기록 (로직, 정의는 content.json messages — 조건·효과는 events 와 같은 검사기·처리기) · 폰 뉴스 NewsFeed: 경기 기록으로 기사·커뮤니티 글·댓글을 만든다 (문장 틀은 content.json news)
+│  ├─ cutscene/            컷신 진행 CutscenePlan: 정의 + 지난 시간 → 판·카메라·인물 칸·번쩍임·암전·자막·소리 (로직) — 화면은 screens/cutscene_view.gd (위아래 검은 띠·자막, 이야기 카드가 대본 걸음으로 튼다)
 │  ├─ fielding/            내 수비: 유격수 포구(줄어드는 원)·송구(눌렀다 떼는 게이지)·1루 판정(칸별 아웃 확률) FieldPlay (로직) — 화면은 screens/field_view.gd(유격수 시점 + 1루 클로즈업)
 │  ├─ game/                한 경기: 상태·주루·자동 진행, 경기 대본(gamePlan: 장면마다 내 타석·수비), 내 주루 조작(RunControl)·도루(Steal)·런다운(Rundown) (로직)
+│  ├─ tutorial/            튜토리얼: 처음 만나는 조작마다 한 번 뜨는 팁(Tutorial — 본 팁은 기기 설정에, 내용은 content.json tutorial) (로직) — 카드는 screens/tip_card.gd
 │  ├─ save/                커리어 저장·불러오기 (SaveGame: 객체를 통째로 이진 저장, 자동 저장)
 │  ├─ screens/             화면: 타이틀·선수 만들기·홈(위 바·내 선수 카드·아래 탭 바 = screens/home/ 부품 + 주간 스케줄 달력)·폰(메시지·연락처)·경기(도루 화면·베이스 버튼·유격수 수비 화면)·결과·시즌·연습(타격·주루·수비)·기록실·설정(주루: 자동·보조·수동)
 │  ├─ balance_loader.gd, balance_source.gd   수치 읽기·저장 (맥은 파일, 웹은 개발 서버)
-│  ├─ settings.gd          유저 설정 (주루 설정 — 커리어 저장과 따로 user://settings.json)
+│  ├─ settings.gd          유저 설정 (주루 설정·본 튜토리얼 팁 — 커리어 저장과 따로 user://settings.json)
 │  └─ main.gd
-├─ art/pixel/              인게임 도트 시트 (field·batter·pitcher·catcher·mitt·fielders·closeup(1루수·타자 주자·루심)·closeup_bg — make_pixel_art.py, training — make_training_art.py, minigame·minigame_bg — make_minigame_art.py). 손으로 고치지 않는다
+├─ art/pixel/              인게임 도트 시트 (field·batter·pitcher·catcher·mitt·fielders·closeup(1루수·타자 주자·루심)·closeup_bg — make_pixel_art.py, training — make_training_art.py, minigame·minigame_bg — make_minigame_art.py, cutscene·cutscene_bg — make_cutscene_art.py). 손으로 고치지 않는다
 ├─ art/portraits/, backgrounds/  대화 화면 일러스트·배경 (파일 목록은 art/README.md, 없으면 자리만 보인다)
 ├─ audio/bgm/              배경음악 루프 WAV 3곡 (lobby·home 은 음악, game 은 음악 없이 관중 웅성거림·떼창 응원가) — scripts/make_bgm.py 가 만든다
 ├─ audio/sfx/              미리 만든 효과음 (관중 함성 cheer_small·cheer_big, 심판 콜 call_strike·call_strikeout — scripts/make_bgm.py). 없는 소리는 SoundSynth 가 실행 중에 합성
 ├─ fonts/                  Pretendard (OFL)
-├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_lobby 로비 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_steal 도루·주루 버튼·런다운 · shots_run_game 실제 경기 화면에서 내 주루 · shots_run_practice 주루 연습 · shots_batter 타자 포즈 · shots_effects 타격 이펙트 · shots_hud 타석 중계 그래픽 · shots_pitches 8개 구종 궤적 · shots_pitch_flight 실제 타석 화면에서 구종별 날아오는 공 · shots_fitness 입부 체력 테스트 세 종목 · shots_field 유격수 수비 · shots_news 폰 뉴스), calibrate.gd(가상 타자 튜닝 도구), export_sfx.gd(효과음을 build/sfx/ 에 WAV 로 꺼내 들어 보기), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
+├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_lobby 로비 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_steal 도루·주루 버튼·런다운 · shots_run_game 실제 경기 화면에서 내 주루 · shots_run_practice 주루 연습 · shots_batter 타자 포즈 · shots_effects 타격 이펙트 · shots_hud 타석 중계 그래픽 · shots_pitches 8개 구종 궤적 · shots_pitch_flight 실제 타석 화면에서 구종별 날아오는 공 · shots_fitness 입부 체력 테스트 세 종목 · shots_field 유격수 수비 · shots_news 폰 뉴스 · shots_tutorial 튜토리얼 팁 카드 · shots_cutscene 컷신 컷마다), calibrate.gd(가상 타자 튜닝 도구), export_sfx.gd(효과음을 build/sfx/ 에 WAV 로 꺼내 들어 보기), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
 └─ data/                   빌드 때 복사되는 balance.json (저장소에 넣지 않음)
 scripts/godot-web.sh       웹 빌드(개발용) + 개발 서버 실행
 scripts/dev_server.py      개발 서버: 웹 빌드 + 원본 balance.json 실시간 제공·저장
 scripts/build_scenario.py  시나리오 문서(docs/scenario) → content.json 이야기 이벤트·변수. 문서에 없는 엔진 정보(어느 주·경기 대본 gamePlan·연습 drill·장소)만 이 파일에 적는다
 scripts/make_bgm.py        배경음악 3곡·관중 함성·심판 콜(목소리 합성)을 코드로 합성 (외부 라이브러리 없음, 곡을 고치면 다시 실행)
 scripts/make_minigame_art.py  미니게임 도트(체력 테스트 배경·인물 칸) → godot/art/pixel/minigame*.png + minigame_meta.gd (make_pixel_art.py 의 도구를 쓴다)
+scripts/make_cutscene_art.py  컷신 도트(판·인물 칸) → godot/art/pixel/cutscene*.png + cutscene_meta.gd (make_pixel_art.py 의 도구를 쓴다)
 scripts/make_pixel_art.py  인게임 도트 그림 전부(관절 좌표·손으로 찍은 판·팔레트) → godot/art/pixel/ + pixel_meta.gd (pillow 필요). 그림을 고치면 다시 실행
 docs/                      기획·개발 기록
 licenses/                  글꼴 라이선스, assets.md(에셋 출처)
@@ -142,7 +145,7 @@ licenses/                  글꼴 라이선스, assets.md(에셋 출처)
 | 테스트 | 기준 |
 |---|---|
 | 판정 | 타이밍·능력치·볼배합·노려치기 → 기획대로, 스트라이크 = 공이 존에 조금이라도 걸침(zoneBallRadius), 손맛 조절 패널의 저장 경로 |
-| 경기·커리어 | 주루 규칙, 9이닝 진행·끝내기, 200경기 점수 합 일치·평균 득점 범위, 훈련·성장·이벤트·시즌 기록실(경기별·대회별·분할 기록 합 = 시즌 기록) 저장·불러오기(불러온 뒤 진행 = 원래 진행) 겨울 캠프 · 이벤트 대타 · 시나리오용 조건·효과 · 1학년 시나리오 흐름(EP01~08 이 정한 주·경기 대본대로, 결과 변수·활약도 공식·해금) · 대본 분기(IF/ELSE·조건부 선택지·선택 지점 id) · 실제 콘텐츠만으로 3년 진행 · 폰 문자(도착·답장·만료·저장·`Phone.validate`) · 폰 뉴스(`NewsFeed.validate`, 숫자·괄호 뒤 조사, 매체 단계, 연속 안타, 모든 틀이 치환 없이 채워짐, 한 주 상한, 재현성·저장, 이야기 속 뉴스 알림 → 속보) · 내 주루 조작(주루 설정 자동·보조·수동, 베이스 버튼·태그업·도루: 보조에서 안 누르면 자동 경기와 같은 결과, 앞 주자 추월 금지, 내 타구는 내야여도 1루 앞 판단, 달리는 중 방향 바꾸기, 기본 보조) · 주력 피로(한 바퀴 넘게 달리면 느려짐) · 런다운(결과·기록 맞물림·재현성·대부분 아웃·내 주자 방향 선택·느린 화면) · 투구 궤적(도착점·직선 구간·변화 방향·좌우 반전·감속 단조성·투구 위치별 변화폭·화면에서 공이 솟지 않음)·구종 데이터 검증 · 주간 스케줄(칸 순서·컨디션 합·이어 쓰기·대성공/실패 비율) · 투수 실투(카운트별 확률·행잉·보너스) · 배경음악 곡 파일·루프 · 홈런 장면 건너뛰기 · 입부 체력 테스트(50m 연타 속도·헛발·부정 출발·프레임 무관, 스쿼트 호흡 구간·실패, 반응 신호 시드·실수 벌점, 등급 → 보상·저장) · 내 수비(포구 판정 폭·더듬기·빠짐, 송구 게이지 눌렀다 떼기·칸, 칸별 아웃 확률(회색·초록·금색)·주력 영향·늦은 송구·악송구·못 던짐, 종류별 주자·기록, 한 경기 1~2번·점수 합) · 수비 능력치(판정 폭·공 빼기·금색 폭·송구 힘·아웃 확률, 수비 훈련·보살 성장·글러브·옛 저장 호환) (테스트 전체 143건) |
+| 경기·커리어 | 주루 규칙, 9이닝 진행·끝내기, 200경기 점수 합 일치·평균 득점 범위, 훈련·성장·이벤트·시즌 기록실(경기별·대회별·분할 기록 합 = 시즌 기록) 저장·불러오기(불러온 뒤 진행 = 원래 진행) 겨울 캠프 · 이벤트 대타 · 시나리오용 조건·효과 · 1학년 시나리오 흐름(EP01~08 이 정한 주·경기 대본대로, 결과 변수·활약도 공식·해금) · 대본 분기(IF/ELSE·조건부 선택지·선택 지점 id) · 실제 콘텐츠만으로 3년 진행 · 폰 문자(도착·답장·만료·저장·`Phone.validate`) · 폰 뉴스(`NewsFeed.validate`, 숫자·괄호 뒤 조사, 매체 단계, 연속 안타, 모든 틀이 치환 없이 채워짐, 한 주 상한, 재현성·저장, 이야기 속 뉴스 알림 → 속보) · 내 주루 조작(주루 설정 자동·보조·수동, 베이스 버튼·태그업·도루: 보조에서 안 누르면 자동 경기와 같은 결과, 앞 주자 추월 금지, 내 타구는 내야여도 1루 앞 판단, 달리는 중 방향 바꾸기, 기본 보조) · 주력 피로(한 바퀴 넘게 달리면 느려짐) · 런다운(결과·기록 맞물림·재현성·대부분 아웃·내 주자 방향 선택·느린 화면) · 투구 궤적(도착점·직선 구간·변화 방향·좌우 반전·감속 단조성·투구 위치별 변화폭·화면에서 공이 솟지 않음)·구종 데이터 검증 · 주간 스케줄(칸 순서·컨디션 합·이어 쓰기·대성공/실패 비율) · 투수 실투(카운트별 확률·행잉·보너스) · 배경음악 곡 파일·루프 · 홈런 장면 건너뛰기 · 입부 체력 테스트(50m 연타 속도·헛발·부정 출발·프레임 무관, 스쿼트 호흡 구간·실패, 반응 신호 시드·실수 벌점, 등급 → 보상·저장) · 내 수비(포구 판정 폭·더듬기·빠짐, 송구 게이지 눌렀다 떼기·칸, 칸별 아웃 확률(회색·초록·금색)·주력 영향·늦은 송구·악송구·못 던짐, 종류별 주자·기록, 한 경기 1~2번·점수 합) · 수비 능력치(판정 폭·공 빼기·금색 폭·송구 힘·아웃 확률, 수비 훈련·보살 성장·글러브·옛 저장 호환) · 튜토리얼 팁(내용 검사·한 번만·다시 보기) · 이야기 카드(모든 장면 카드·선택지 힌트·카드 길이·폼 개조 갈림길·사이드 스토리 문자와 호감 보상) · 컷신(시간 → 같은 그림·정의 검증·히트스톱·소리 시각·카메라 따라가기·대본 걸음) (테스트 전체 146건) |
 | 재현성 | 같은 시드·같은 입력 → 완전히 같은 결과 |
 | 경기 무결성 | (G4~) 자동 시뮬레이션 경기에서 점수·아웃·주자 수가 맞는다 |
 | 이벤트 무결성 | (G6~) `EventBook.validate` 통과, 모든 선택지가 유효한 결과로 이어지고, 고교 3년 자동 진행에서 스토리가 다 나온다 |
@@ -160,7 +163,7 @@ licenses/                  글꼴 라이선스, assets.md(에셋 출처)
 | `docs/dev-log.md` | 개발 기록 (옛 컨셉 시절 기록 포함) |
 | `docs/ios-setup.md` | 옛 Kotlin 앱의 아이폰 설치 방법 (Godot iOS 내보내기는 G9에서 새로 쓴다) |
 | `config/balance.json` | 밸런스·손맛 수치 |
-| `config/content.json` | 콘텐츠: 학교·이름·돌발 이벤트·폰 문자·뉴스 문장 틀·감독 대사 (모두 가상) |
+| `config/content.json` | 콘텐츠: 학교·이름·돌발 이벤트·폰 문자·뉴스 문장 틀·감독 대사·튜토리얼 팁 (모두 가상) |
 | `licenses/assets.md` | 외부·AI 생성 에셋 출처와 상업 이용 가능 여부 |
 | `docs/worldview.md` | 세계관: 학교·인물·구단·대회·제도·연표. 이름은 여기 있는 것만 쓴다 |
 | `docs/scenario/` | 시나리오 원본 (`scenario_y1_ep01-08.md` = 1학년 EP01~08). 대사는 여기서만 고친다 → `python3 scripts/build_scenario.py` 가 `content.json` 이벤트로 만든다 |

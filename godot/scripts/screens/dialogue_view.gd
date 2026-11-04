@@ -14,6 +14,11 @@ extends Control
 ##   일러스트 godot/art/portraits/<인물 id>.png  (주인공은 얼굴을 보이지 않는다 — 유저가 자기를 넣어 몰입하도록, 2026-11-01)
 ##   배경     godot/art/backgrounds/<장소 id>.png (EventBook.place_of, 장소 이름은 content.json places)
 ## 글자 속도는 balance.json career.story.dialogueCharsPerSec.
+##
+## 카드 모드 (이벤트에 card: true — 1학년 이야기, 2026-11-04 유저 결정 "읽는 스토리 → 고르는 카드"):
+## 한 줄씩 탭해서 넘기지 않는다. 가운데 카드 한 장에 대사를 한꺼번에 보여 주고, 선택지는 버튼 + 그 아래 결과 힌트(hint),
+## 고르면 뒤따르는 줄이 같은 카드에 붙고, 끝나면 변화(능력치·관계)를 카드 아래에 보여 준 뒤 [확인]으로 닫는다.
+## 건너뛰기 버튼은 없다 (카드가 짧아서). 일러스트는 왼쪽에 작게.
 
 signal finished
 
@@ -37,7 +42,8 @@ var _text: Label
 var _parts: Label
 var _more: Label
 var _choices: VBoxContainer
-var _choice_buttons: Array[Button] = []
+## 선택지 버튼 (카드 모드는 그 아래 힌트 글자도 — 고르면 같이 지운다)
+var _choice_buttons: Array[Control] = []
 var _skip_button: Button
 ## 건너뛰기 확인 창 (없으면 null)
 var _confirm: Control
@@ -51,6 +57,15 @@ var _phone_list: VBoxContainer
 var _phone_choices: VBoxContainer
 ## 지금 폰에 열린 대화방 (인물 id, "" 없음)
 var _phone_room := ""
+## 카드 모드 (이벤트 card: true): 카드 몸체 · 줄 목록 · 선택지 자리 · 변화 · [확인]
+var _card_mode := false
+var _card_scroll: ScrollContainer
+var _card_lines: VBoxContainer
+var _card_choices: VBoxContainer
+var _card_parts: Label
+var _card_ok: Button
+## 틀고 있는 컷신 (없으면 null)
+var _cutscene: CutsceneView
 
 
 func _init(career: CareerState, event: Dictionary) -> void:
@@ -71,6 +86,11 @@ func _ready() -> void:
 	_portrait.offset_bottom = -Tokens.SPACE_LG  # 대사창 아래로 삐져나오지 않게
 	_portrait.clip_contents = true
 	add_child(_portrait)
+	_card_mode = _event.get("card", false)
+	if _card_mode:
+		_portrait.anchor_left = 0.02
+		_portrait.anchor_right = 0.27
+		_portrait.anchor_top = 0.16
 	_build_header()
 	_build_box()
 	_choices = UiKit.vbox(Tokens.SPACE_SM)
@@ -82,6 +102,9 @@ func _ready() -> void:
 	_choices.alignment = BoxContainer.ALIGNMENT_END
 	add_child(_choices)
 	_build_skip()
+	if _card_mode:
+		_box_area.visible = false
+		_build_card()
 	_step()
 
 
@@ -92,7 +115,7 @@ func _process(delta: float) -> void:
 		if _text.visible_characters >= _text.get_total_character_count():
 			_text.visible_ratio = 1.0
 	_more.visible = _text.visible_ratio >= 1.0 and _stage != Stage.CHOICE
-	_skip_button.visible = (_stage == Stage.LINES or _stage == Stage.CHOICE) and _confirm == null
+	_skip_button.visible = (_stage == Stage.LINES or _stage == Stage.CHOICE) and _confirm == null and not _card_mode
 
 
 func _gui_input(e: InputEvent) -> void:
@@ -129,6 +152,14 @@ func choose(index: int) -> void:
 	_run.choose(index)
 	_clear_choices()
 	_stage = Stage.LINES
+	if _card_mode:
+		# 고른 말을 카드에 내 줄로 남기고(괄호 행동은 지문으로), 다음 선택 지점이나 끝까지 이어 붙인다
+		if _run.last_echo:
+			var act := label.begins_with("(")
+			_card_line({"who": "" if act else "player", "name": "" if act else _career.player.name, "role": "", "ui": "",
+				"text": label.trim_prefix("(").trim_suffix(")") if act else label})
+		_step()
+		return
 	# 폰 선택지: 보낸 말을 내 말풍선으로 (괄호만 있는 행동이면 말풍선 없이) 바로 다음 줄로
 	if _run.last_was_phone:
 		if _run.last_phone_text != "" and _run.last_echo:
@@ -215,6 +246,9 @@ func is_chosen() -> bool:
 
 ## 대본의 다음 걸음
 func _step() -> void:
+	if _card_mode:
+		_card_step()
+		return
 	var step := _run.next()
 	match step["type"]:
 		"line":
@@ -223,6 +257,8 @@ func _step() -> void:
 			if step.get("ui", "") == "phone":
 				_phone_on(step.get("room", ""))
 			_show_choices(step["options"])
+		"cutscene":
+			_play_cutscene(step["id"])
 		"end":
 			_end()
 
@@ -281,9 +317,17 @@ func _clear_choices() -> void:
 
 
 ## 대화 끝: 효과를 반영하고, 변화가 있으면 마지막 줄 아래에 보여 준 뒤 한 번 더 탭하면 닫는다
+## (카드 모드는 변화가 없어도 [확인]을 누를 때까지 카드를 둔다 — 한 번에 보여 준 줄을 읽을 시간)
 func _end() -> void:
 	_run.commit()
 	var parts := _career.book.last_parts
+	if _card_mode:
+		_stage = Stage.RESULT
+		_card_parts.text = " · ".join(parts)
+		_card_parts.visible = not parts.is_empty()
+		_card_ok.visible = true
+		_card_scroll_end.call_deferred()
+		return
 	if parts.is_empty():
 		_stage = Stage.DONE
 		finished.emit()
@@ -593,3 +637,160 @@ func _build_box() -> void:
 	_name_label = UiKit.label("", Tokens.FONT_LABEL, Tokens.SURFACE, Tokens.FONT_BOLD)
 	_name_plate.add_child(_name_label)
 	area.add_child(_name_plate)
+
+
+# ---------- 컷신 ----------
+
+## 대본 속 컷신: 화면 전체를 덮어 틀고, 끝나면(또는 건너뛰면) 대본의 다음 걸음으로.
+## 트리에 붙지 않은 상태(헤드리스 테스트)면 틀지 않고 바로 넘어간다
+func _play_cutscene(id: String) -> void:
+	if not is_inside_tree() or not _career.cfg.cutscenes.has(id):
+		_step()
+		return
+	var cv := CutsceneView.new(_career, id)
+	add_child(UiKit.fill_parent(cv))
+	_cutscene = cv
+	cv.finished.connect(func() -> void:
+		cv.queue_free()
+		_cutscene = null
+		_step())
+
+
+## 지금 틀고 있는 컷신 (스크린샷 스크립트용, 없으면 null)
+func cutscene_view() -> CutsceneView:
+	return _cutscene
+
+
+# ---------- 카드 모드 ----------
+
+## 다음 선택 지점이나 끝까지 줄을 모아 카드에 붙인다
+func _card_step() -> void:
+	while true:
+		var step := _run.next()
+		match step["type"]:
+			"line":
+				_card_line(step)
+			"choice":
+				_card_show_choices(step["options"])
+				return
+			"cutscene":
+				_play_cutscene(step["id"])
+				return
+			"end":
+				_end()
+				return
+
+
+## 카드에 줄 하나: 이름(문자면 "문자 · 이름") + 글자. 지문은 흐린 색, 알림·화면 표시 줄은 초록 굵게, 내 말은 파랑
+func _card_line(line: Dictionary) -> void:
+	if line.get("portrait", "") != "" and line.get("who", "") != "player" and _portrait_key(line) != _portrait_id:
+		_set_portrait(line["portrait"], line["name"], line.get("face", ""))
+	var col := UiKit.vbox(0)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var who: String = line.get("who", "")
+	var ui: String = line.get("ui", "")
+	var name: String = line.get("name", "")
+	var role: String = line.get("role", "")
+	if who != "" and name != "":
+		var head := name if role == "" or name.contains(role) or ui != "phone" else "%s · %s" % [role, name]
+		col.add_child(UiKit.label(head, Tokens.FONT_CAPTION, Tokens.PRIMARY if who == "player" else Tokens.NAVY_SOFT, Tokens.FONT_BOLD))
+	var color := Tokens.INK
+	var font := Tokens.FONT_REGULAR
+	var text: String = line["text"]
+	if who == "":
+		if ui != "":
+			color = Tokens.GOOD
+			font = Tokens.FONT_BOLD
+			if name != "":
+				text = "%s · %s" % [name, text]
+		else:
+			color = Tokens.NARRATION
+	elif who == "player":
+		color = Tokens.PRIMARY
+	var body := UiKit.label(text, Tokens.FONT_BODY, color, font)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(body)
+	_card_lines.add_child(col)
+	_card_scroll_end.call_deferred()
+
+
+## 선택지: 버튼 + 그 아래 작은 결과 힌트 (이벤트 대본 선택지의 hint)
+func _card_show_choices(options: Array) -> void:
+	_stage = Stage.CHOICE
+	for i in options.size():
+		var o: Dictionary = options[i]
+		var text: String = o["label"]
+		if int(o["cost"]) > 0:
+			text += "  · %s" % PlayerData.money_text(int(o["cost"]))
+		var b := UiKit.button(text, func() -> void: choose(i), Tokens.PRIMARY, Tokens.FONT_LABEL)
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if o["block"] != "":
+			b.disabled = true
+			b.text += "  (돈 부족)"
+		_card_choices.add_child(b)
+		_choice_buttons.append(b)
+		var hint: String = o.get("hint", "")
+		if hint != "":
+			var h := UiKit.label(hint, Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD)
+			h.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			_card_choices.add_child(h)
+			_choice_buttons.append(h)
+	_card_scroll_end.call_deferred()
+
+
+func _card_scroll_end() -> void:
+	if not is_inside_tree():
+		return
+	await get_tree().process_frame
+	if is_instance_valid(_card_scroll):
+		_card_scroll.scroll_vertical = int(_card_scroll.get_v_scroll_bar().max_value)
+
+
+## 카드 몸체: 일러스트 오른쪽, 머리말 아래. 위에서부터 제목 · 줄 목록 · 선택지 · 변화 · [확인]
+func _build_card() -> void:
+	var card := UiKit.card()
+	card.anchor_left = 0.29
+	card.anchor_right = 0.97
+	card.anchor_top = 0.0
+	card.anchor_bottom = 1.0
+	card.offset_top = Tokens.SPACE_LG * 3
+	card.offset_bottom = -Tokens.SPACE_MD
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(card)
+	var col := UiKit.vbox(Tokens.SPACE_SM)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(col)
+	col.add_child(UiKit.title(EventBook.fill(_career, str(_event.get("title", ""))), Tokens.FONT_TITLE - 4))
+	col.add_child(UiKit.divider())
+	_card_scroll = ScrollContainer.new()
+	_card_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_card_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_card_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+	col.add_child(_card_scroll)
+	var inner := UiKit.vbox(Tokens.SPACE_SM)
+	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card_scroll.add_child(inner)
+	_card_lines = UiKit.vbox(Tokens.SPACE_SM)
+	_card_lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_child(_card_lines)
+	_card_choices = UiKit.vbox(Tokens.SPACE_XS)
+	inner.add_child(_card_choices)
+	var bottom := UiKit.hbox(Tokens.SPACE_SM)
+	_card_parts = UiKit.label("", Tokens.FONT_CAPTION + 1, Tokens.GOOD, Tokens.FONT_BOLD)
+	_card_parts.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_card_parts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_card_parts.visible = false
+	bottom.add_child(_card_parts)
+	_card_ok = UiKit.button("확인", advance, Tokens.ACCENT, Tokens.FONT_LABEL)
+	_card_ok.visible = false
+	bottom.add_child(_card_ok)
+	col.add_child(bottom)
+	# 머리말·건너뛰기 위에 카드가 덮이지 않게 앞쪽으로
+	move_child(card, get_child_count() - 1)
+
+
+## 카드에 붙은 줄 수 (테스트·스크린샷용)
+func card_lines() -> int:
+	return 0 if _card_lines == null else _card_lines.get_child_count()

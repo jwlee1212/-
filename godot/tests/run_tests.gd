@@ -88,6 +88,8 @@ func _init() -> void:
 		"test_dialogue_lines",
 		"test_dialogue_run",
 		"test_first_day",
+		"test_story_cards",
+		"test_cutscene",
 		"test_game_events",
 		"test_camp",
 		"test_camp_save_and_repeat",
@@ -148,6 +150,7 @@ func _init() -> void:
 		"test_interactive_game_matches_and_stays_consistent",
 		"test_my_at_bat_run_control",
 		"test_settings_running_mode",
+		"test_tutorial_tips",
 		"test_one_training_per_week",
 		"test_week_schedule",
 		"test_schedule_outcome_odds",
@@ -1135,12 +1138,10 @@ func test_events_flow() -> void:
 	var career := CareerState.new(_career_cfg(), "테스트", _config)
 	var book := career.book
 	var first := _event(career.cfg, "ep01_01")
-	var second := _event(career.cfg, "ep01_02")
+	var second := _event(career.cfg, "ep01_05")
 	check(not book.eligible(career, second), "앞 장면(after)을 보기 전엔 뒤 장면이 안 나온다")
-	var rel := career.people.relation("neighbor")
 	career.resolve_event(first, 0)
-	check(int(career.player.vars["harin_affinity"]) == 1 and career.player.vars["ep01_harin_club"] == "A" and career.player.lineup_slot == 0, "선택 → 변수·효과 (하린 호감 +1, 선택 지점 id = A, 입부하면 벤치)")
-	check(career.people.relation("neighbor") == rel + int(career.cfg.story.varRelation.harin_affinity[1]) and career.people.is_met("neighbor"), "호감도 변수 → 인물 관계도 오른다, 말한 사람을 만난다")
+	check(career.player.lineup_slot == 0 and first.get("card", false) and career.people.is_met("coach"), "입부하면 벤치, 1학년 이야기는 카드")
 	check(book.eligible(career, second), "앞 장면을 보면 뒤 장면이 열린다")
 	check(not book.eligible(career, first), "한 번 나온 이벤트는 다시 안 나온다")
 	career.week = 2
@@ -1444,7 +1445,7 @@ func test_story_three_years() -> void:
 	var titles := {}
 	for entry: Dictionary in career.book.log:
 		titles[entry.title] = true
-	for t in ["학교 가는 길", "체력 테스트", "대수비", "마지막 타석", "은하식당", "서림고 vs 서호대 (연습경기)", "겨울 과제", "후배", "주장", "진로"]:
+	for t in ["서림고 야구부", "체력 테스트", "대수비", "마지막 타석", "배팅 케이지", "서림고 vs 서호대 (연습경기)", "겨울 과제", "후배", "주장", "진로"]:
 		check(titles.has(t), "고교 3년 이야기에 '%s' 가 나온다" % t)
 	check(career.path == "draft", "진로가 정해진다 (%s)" % career.path)
 	check(career.player.grade == 3 and career.history.size() == 2, "3학년까지, 지난 시즌 기록 2개")
@@ -1680,13 +1681,15 @@ func _read(run: DialogueRun, picks: Array = []) -> Array:
 func test_dialogue_lines() -> void:
 	var cfg := _career_cfg()
 	var career := CareerState.new(cfg, "테스트", _config)
-	var meet := _event(cfg, "ep01_02")
+	# 대본 진행 규칙은 이야기 글자와 상관없이 작은 시험 대본으로 본다 (1학년 이야기는 2026-11-04 카드로 줄었다)
+	var meet := {"id": "t_meet", "speaker": "buddy", "place": "clubroom", "script": [{"text": "부실 앞. 1학년 한 명이 먼저 서 있다."},
+		{"speaker": "buddy", "text": "어, 너도 입부?"}, {"speaker": "player", "text": "응."}]}
 	var steps := _read(DialogueRun.new(career, meet))
 	check(steps[0].type == "line" and steps[0].who == "" and steps[1].who == "buddy" and steps[2].who == "player", "지문 → 준수 → 나가 번갈아 말한다 (만나기 do 는 줄이 아니다)")
 	check(steps[1].portrait == "buddy" and steps[1].name == "준수" and steps[0].portrait == "", "말하는 사람의 일러스트 자리·부르는 이름")
 	check(EventBook.place_of(career, meet) == "clubroom" and EventBook.portrait_of(career, meet) == "buddy", "배경은 장면 장소, 일러스트 기본값은 대표 화자")
 	# 대사 맨 앞 괄호는 지문으로 따로: "(작게) 감독님 웃으셨어."
-	var bus := _read(DialogueRun.new(career, _event(cfg, "ep03_01")))
+	var bus := _read(DialogueRun.new(career, {"id": "t_bus", "speaker": "buddy", "script": [{"speaker": "buddy", "text": "(작게) 감독님 웃으셨어."}]}))
 	var found := false
 	for i in bus.size() - 1:
 		if bus[i].type == "line" and bus[i].text == "작게":
@@ -1698,24 +1701,27 @@ func test_dialogue_lines() -> void:
 	for f: String in EventBook.FACES:
 		check(ResourceLoader.exists("res://art/portraits/manager_%s.png" % f), "매니저 표정 그림 %s" % f)
 	# 화면 표시 줄: 문자는 이름표에 '문자', 노트북 화면은 이름표가 '노트북'
-	var night := _read(DialogueRun.new(career, _event(cfg, "ep01_07")))
+	var night := _read(DialogueRun.new(career, {"id": "t_night", "speaker": "neighbor", "script": [{"speaker": "neighbor", "text": "학원 끝남", "ui": "phone"}]}))
 	check(night.any(func(st: Dictionary) -> bool: return st.type == "line" and st.who == "neighbor" and st.ui == "phone" and st.role == "문자"), "폰 문자 줄")
-	var laptop := _read(DialogueRun.new(career, _event(cfg, "ep04_01")))
+	var laptop := _read(DialogueRun.new(career, {"id": "t_laptop", "speaker": "manager", "script": [{"ui": "laptop", "text": "{player}_1학년\n  └ 타석 (0)"}]}))
 	check(laptop.any(func(st: Dictionary) -> bool: return st.type == "line" and st.ui == "laptop" and st.name == "노트북" and st.text.contains("테스트_1학년")), "노트북 화면 줄 ({player} 치환)")
 	# IF/ELSE: 체력 테스트 등급에 따라 다른 반응
 	var fast := CareerState.new(cfg, "테스트", _config)
 	fast.player.vars["test_speed_grade"] = "high"
 	var lines_high := _read(DialogueRun.new(fast, _event(cfg, "ep01_05b"))).map(func(st: Dictionary) -> String: return st.get("text", ""))
 	var lines_low := _read(DialogueRun.new(career, _event(cfg, "ep01_05b"))).map(func(st: Dictionary) -> String: return st.get("text", ""))
-	check(lines_high.has("오, 빠르다! 2학년 평균보다 빨라.") and not lines_high.has("준수야, 넌 꼴찌였어."), "high 갈래")
-	check(lines_low.has("준수야, 넌 꼴찌였어.") and not lines_low.has("오, 빠르다! 2학년 평균보다 빨라."), "기본값(없음)은 ELSE 갈래")
-	# 조건부 선택지: [조건: taeo_interest == true] 는 조건이 맞을 때만 보인다
-	var sink := _event(cfg, "ep03_05")
+	check(lines_high.has("오, 빠르다! 2학년 평균보다 빨라.") and not lines_high.has("나보다는 빠르네."), "high 갈래")
+	check(lines_low.has("나보다는 빠르네.") and not lines_low.has("오, 빠르다! 2학년 평균보다 빨라."), "기본값(없음)은 ELSE 갈래")
+	# 조건부 선택지: [조건: …] 는 조건이 맞을 때만 보인다
+	var sink := {"id": "t_sink", "speaker": "rival", "script": [{"text": "수돗가."}, {"id": "ep03_taeo_sink", "choices": [
+		{"label": "아까 3회 그 수비요.", "key": "A", "if": {"var": "taeo_ball_fielded", "eq": true}, "effects": {"set": {"taeo_first_talk": true}},
+			"echo": false, "then": [{"speaker": "player", "text": "아까 3회 그 수비요. 먼저 움직이던데."}]},
+		{"label": "...수고하셨습니다.", "key": "B"}, {"label": "(고개만 숙인다)", "key": "C"}]}]}
 	var no_interest := DialogueRun.new(career, sink)
 	while not no_interest.at_choice():
 		no_interest.next()
 	var keen := CareerState.new(cfg, "테스트", _config)
-	keen.player.vars["taeo_interest"] = true
+	keen.player.vars["taeo_ball_fielded"] = true
 	var interest := DialogueRun.new(keen, sink)
 	while not interest.at_choice():
 		interest.next()
@@ -1723,7 +1729,12 @@ func test_dialogue_lines() -> void:
 	interest.choose(0)
 	check(interest.overlay.get("ep03_taeo_sink", "") == "A" and interest.overlay.get("taeo_first_talk", false) == true and not interest.last_echo, "고른 선택지 key·효과가 대화 안 분기에 바로 보인다, 같은 말 반복은 안 한다")
 	# 폰 화면: 문자 상대가 바뀌면 그 사람 대화방으로 넘어간다 (EP06 #8 준수 → 소율) — 앞 사람 말풍선이 남지 않는다
-	var dv := DialogueView.new(CareerState.new(cfg, "테스트", _config), _event(cfg, "ep06_08"))
+	var rooms_event := {"id": "t_rooms", "speaker": "buddy", "script": [
+		{"speaker": "buddy", "text": "감독님이 뭐래", "ui": "phone"}, {"speaker": "buddy", "text": "혼났어?", "ui": "phone"},
+		{"id": "t_rooms_pick", "ui": "phone", "room": "buddy", "choices": [{"label": "겨울에 할 얘기 있대", "then": [{"speaker": "buddy", "text": "헐", "ui": "phone"}]},
+			{"label": "모름. 방학 첫날 나오래", "then": [{"speaker": "buddy", "text": "헐", "ui": "phone"}]}]},
+		{"speaker": "manager", "text": "감독님이 너 영상 다 달라고 하셔서 드렸어", "ui": "phone"}, {"speaker": "manager", "text": "후반기 거 전부", "ui": "phone"}]}
+	var dv := DialogueView.new(CareerState.new(cfg, "테스트", _config), rooms_event)
 	dv._ready()  # 헤드리스 테스트에선 트리에 붙이지 않고 직접 조립한다
 	var rooms: Array[String] = []
 	var first_soyul := -1
@@ -1822,15 +1833,16 @@ func test_first_day() -> void:
 		check(pending.size() == 1, "한 번에 하나씩 뜬다 (%s)" % [pending.map(func(e: Dictionary) -> String: return e.id)])
 		order.append(pending[0].id)
 		career.resolve_event(pending[0], 0)
-	check(order == ["ep01_01", "ep01_02", "ep01_05", "ep01_05b", "ep01_05c", "ep01_05d", "ep01_07", "ep02_01", "ep02_01b", "ep02_02"], "첫 주 순서: %s" % [order])
+	check(order == ["ep01_01", "ep01_05", "ep01_05b", "ep01_05c", "ep01_05d", "ep02_01", "ep02_01b", "ep02_02"], "첫 주 순서: %s" % [order])
 	var v := career.player.vars
 	check(career.fitness.size() == 3 and career.pending_minigame == "", "체력 테스트 세 종목은 화면 없이 autoGrade 로 끝난다")
 	check(v["test_speed_grade"] == "mid" and v["test_squat_grade"] == "mid" and v["test_reaction_grade"] == "mid" and v["test_overall_grade"] == "mid", "autoGrade B → mid: %s" % [v])
-	check(v["phone_contacts"] == true and int(v["harin_affinity"]) >= 2 and int(v["soyul_affinity"]) >= 2, "연락처 해금, 호감도 누적")
+	check(v["phone_contacts"] == true, "연락처 해금")
 	check(career.phone.contacts == (["mom", "neighbor", "manager", "buddy"] as Array[String]), "해금되면 연락처에 하린·소율·준수가 들어온다 (엄마는 처음부터): %s" % [career.phone.contacts])
-	var texts: Array = career.phone.lines("neighbor").map(func(l: Dictionary) -> String: return l.text)
-	check(texts.has("학원 끝남") and texts.has("야구부 들어갔어?") and career.phone.lines("neighbor").any(func(l: Dictionary) -> bool: return l.from == Phone.ME),
-		"이야기 속 문자가 하린 대화방에 남는다 (내가 보낸 것 포함): %s" % [texts])
+	# 하린·소율 이야기는 메인 카드가 아니라 폰 문자로 온다 (입부 뒤 첫 문자)
+	for mid in ["m_y1_harin_club", "m_y1_soyul_folder"]:
+		var first_msg: Dictionary = cfg.messages.filter(func(m: Dictionary) -> bool: return m.id == mid)[0]
+		check(career.phone.eligible(career, first_msg), "입부 뒤 사이드 스토리 문자 %s 가 올 수 있다" % mid)
 	check(DialogueRun.phone_text("(하린에게 먼저 보낸다) 오늘 경기 나갔어") == "오늘 경기 나갔어" and DialogueRun.phone_text("(안 보낸다)") == "", "폰 선택지 글자 → 보낼 말")
 	check(int(career.book._count.get(career.total_week, 0)) == 0, "이야기는 한 주 개수에 안 들어간다")
 	check(career.people.is_met("neighbor") and career.people.is_met("manager") and not career.people.is_met("rival"), "하린·소율을 만났다. 강태오는 아직")
@@ -1840,16 +1852,121 @@ func test_first_day() -> void:
 	check(career.book.log.any(func(x: Dictionary) -> bool: return x.title == "펑고 수비 연습"), "펑고 연습 기록")
 	# 종목 하나씩: 50m 뒤에는 50m 등급만
 	var b := CareerState.new(cfg, "테스트", _config)
-	for k in 3:
+	for k in 2:
 		b.resolve_event(b.events("start")[0], 2)
 	check(b.fitness.keys() == ["run"] and b.player.vars["test_speed_grade"] == "mid" and EventBook.var_of(b, "test_overall_grade") == "", "50m 만 끝났다")
-	check(b.player.vars["ep01_harin_club"] == "B" and not b.player.vars.has("harin_affinity"), "세 번째 선택지는 goto B → key B, 호감도 그대로")
 	var loaded := _reload(b)
 	check(loaded.events("start").size() == 1 and loaded.events("start")[0].id == "ep01_05b", "불러오면 50m 반응부터")
 	# 이름 조사 ({player}이가 · {player}이 · {player}아)
 	check(EventBook.player_josa("{player}이가 영상", "김민준") == "김민준이가 영상" and EventBook.player_josa("{player}이가 영상", "이지우") == "이지우가 영상", "{player}이가")
 	check(EventBook.player_josa("{player}이 얘기", "이지우") == "이지우 얘기" and EventBook.player_josa("{player}아!", "이지우") == "이지우야!", "{player}이 · {player}아")
 	check(EventBook.player_josa("{player}이(가)", "이지우") == "{player}이(가)", "옛 표기 이(가) 는 그대로 (josa 가 처리)")
+
+
+func test_story_cards() -> void:
+	# 1학년 이야기 카드판 (2026-11-04): 모든 장면이 카드, 선택지마다 결과 힌트, 장면이 짧다, 폼 개조는 진짜 갈림길,
+	# 하린·소율 이야기는 폰 문자로 오고 관계가 오르면 보상 문자가 온다
+	var cfg := _career_cfg()
+	var story: Array = cfg.events.filter(func(e: Dictionary) -> bool: return str(e.id).begins_with("ep0"))
+	var longest := 0
+	for e: Dictionary in story:
+		check(e.get("card", false), "%s 는 카드" % e.id)
+		var found := {"choices": [], "lines": []}
+		EventBook._collect(EventBook.script_of(e), found)
+		longest = maxi(longest, (found["lines"] as Array).size())
+		for c: Dictionary in found["choices"]:
+			check(str(c.get("hint", "")) != "", "%s 선택지 '%s' 에 결과 힌트" % [e.id, c.label])
+	check(longest <= 14, "가장 긴 카드도 갈래 다 합쳐 14줄 이하 (%d)" % longest)
+	# 카드 화면: 대사를 한 장에 모아 보이고 선택지에서 멈춘다 → 고르면 변화를 보이고 [확인]으로 닫는다
+	var career := CareerState.new(cfg, "테스트", _config)
+	var sink := _event(cfg, "ep03_05")
+	var dv := DialogueView.new(career, sink)
+	dv._ready()
+	check(dv._stage == DialogueView.Stage.CHOICE and dv.card_lines() == 1 and dv._card_choices.get_child_count() == 4, "카드: 지문 한 줄 + 선택지 둘(각각 힌트) (%d줄)" % dv.card_lines())
+	dv.choose(0)
+	check(dv.is_chosen() and dv._card_parts.visible and dv._card_parts.text.contains("수비") and dv._card_ok.visible, "고르면 변화(수비 성장)와 [확인]: %s" % dv._card_parts.text)
+	check(career.player.vars["taeo_first_talk"] == true and dv.card_lines() >= 3, "고른 말과 태오 대답이 같은 카드에 붙는다")
+	var closed := [false]
+	dv.finished.connect(func() -> void: closed[0] = true)
+	dv.advance()
+	check(closed[0], "[확인] → 닫힌다")
+	dv.free()
+	# 폼 개조 갈림길: 지키면 새 폼 훈련 장면이 안 나오고 판정 손해(form_adaptation)도 없다, 순서(after)는 끊기지 않는다
+	for want in [0, 1]:
+		var c := CareerState.new(cfg, "테스트", _config)
+		var run := DialogueRun.new(c, _event(cfg, "ep07_01"))
+		run.auto(want)
+		run.commit()
+		var keep: bool = want == 1
+		check(c.player.vars["form_answer"] == ("keep" if keep else "change") and int(c.player.vars["form_adaptation"]) == (100 if keep else 0), "폼 %s → 적응도 %d" % [c.player.vars["form_answer"], int(c.player.vars["form_adaptation"])])
+		c.book.fired["ep06_07"] = 0
+		var w2 := _event(cfg, "ep07_02")
+		check(EventBook.test(c, w2["when"]) != keep, "새 폼 1주차는 바꿨을 때만")
+		check(_event(cfg, "ep07_05")["after"] == ["ep07_01"], "훈련 방향 장면은 면담 바로 뒤 — 새 폼 장면을 건너뛰어도 막히지 않는다")
+	# 사이드 스토리 문자: 검증 통과, 이야기 장면 뒤에 온다, 관계가 오르면 보상 문자
+	check(Phone.validate(cfg).is_empty(), "문자 정의 검증: %s" % [Phone.validate(cfg)])
+	var side: Array = cfg.messages.filter(func(m: Dictionary) -> bool: return str(m.id).begins_with("m_y1_"))
+	check(side.size() >= 15 and side.all(func(m: Dictionary) -> bool: return m.has("after") or m.has("minRel")), "1학년 사이드 문자 %d통, 모두 이야기 뒤나 관계 조건" % side.size())
+	var cheer: Dictionary = side.filter(func(m: Dictionary) -> bool: return m.id == "m_y1_harin_cheer")[0]
+	var h := CareerState.new(cfg, "테스트", _config)
+	h.people.meet("neighbor")
+	h.book.fired["ep04_05b"] = 0
+	check(not h.phone.eligible(h, cheer), "하린 관계가 낮으면 응원 문자가 안 온다")
+	h.people.add_relation("neighbor", 30 - h.people.relation("neighbor"))
+	check(h.phone.eligible(h, cheer), "하린 관계 30 → 경기 날 응원 문자 (컨디션)")
+	check(cheer.replies[0].effects.has("condition"), "응원 문자 답장은 컨디션을 올린다")
+
+
+func test_cutscene() -> void:
+	# 도트 컷신 (2026-11-05): 시간만으로 같은 그림, 정의 검증, 멈춤(히트스톱) 동안 인물이 멈춘다, 소리 시각, 이야기 대본 속 걸음
+	var cfg := _career_cfg()
+	check(cfg.cutscenes.has("ep05_seongho"), "EP05 김성호 컷신이 있다")
+	for id: String in cfg.cutscenes:
+		var errs := CutscenePlan.validate(id, cfg.cutscenes[id], CutsceneMeta.PANELS, CutsceneMeta.ROWS)
+		check(errs.is_empty(), "컷신 %s 정의 검증: %s" % [id, errs])
+	check(ResourceLoader.exists("res://art/pixel/cutscene.png") and ResourceLoader.exists("res://art/pixel/cutscene_bg.png"), "컷신 도트 그림 파일")
+	for k in ["bar", "captionFadeSec", "speed", "skipAfterSec"]:
+		check(cfg.cutscene.has(k), "balance.json career.cutscene.%s" % k)
+	var cs: Dictionary = cfg.cutscenes["ep05_seongho"]
+	var total := CutscenePlan.duration(cs)
+	check(total > 8.0 and total < 25.0, "길이 %.1f초 (8~25)" % total)
+	# 같은 시각이면 같은 그림 (부른 순서와 상관없이)
+	var a := CutscenePlan.frame(cs, 7.3)
+	CutscenePlan.frame(cs, 1.0)
+	check(str(CutscenePlan.frame(cs, 7.3)) == str(a), "같은 시각 → 같은 장면")
+	check(CutscenePlan.frame(cs, 0.0).fade > 0.9 and CutscenePlan.frame(cs, total - 0.01).fade > 0.9, "첫 컷은 암전에서 열리고 끝 컷은 암전으로 닫힌다")
+	# 타석 컷: 맞는 순간 멈춤 — 멈춘 동안 타자 장·카메라가 그대로, 번쩍임이 있다, 소리는 그 순간에 한 번
+	var plate := 3
+	var shot: Dictionary = cs.shots[plate]
+	var start := CutscenePlan.shot_start(cs, plate)
+	var hold: Array = shot.hold
+	var f1 := CutscenePlan.frame(cs, start + float(hold[0]) + 0.02)
+	var f2 := CutscenePlan.frame(cs, start + float(hold[0]) + float(hold[1]) - 0.02)
+	check(f1.panel == "plate" and f1.actors[0].frame == f2.actors[0].frame and f1.actors[0].frame == 2, "히트스톱 동안 맞는 순간(2장)에 멈춘다")
+	check(CutscenePlan.motion_time(shot, float(hold[0]) + float(hold[1]) + 0.1) < float(hold[0]) + float(hold[1]) + 0.1, "멈춘 시간만큼 인물 시간이 늦다")
+	check(f1.flash > 0.5, "맞는 순간 번쩍임")
+	var cracks := CutscenePlan.cues(cs, start + float(hold[0]) - 0.1, start + float(hold[0]) + 0.1)
+	check(cracks.size() == 1 and cracks[0].sfx == "CRACK_SOLID" and cracks[0].pitch < 1.0, "딱! 소리는 그 순간 한 번 (느리게)")
+	check(CutscenePlan.cues(cs, 0.0, total).size() == CutscenePlan.cues(cs, 0.0, total / 2.0).size() + CutscenePlan.cues(cs, total / 2.0, total).size(), "소리 구간을 나눠도 빠지거나 겹치지 않는다")
+	# 달리기 컷: 헬멧이 벗겨진 뒤에는 헬멧 없는 장, 카메라가 따라간다
+	var run_i := 4
+	var rs := CutscenePlan.shot_start(cs, run_i)
+	var early := CutscenePlan.frame(cs, rs + 0.3)
+	var late := CutscenePlan.frame(cs, rs + 2.3)
+	check(early.actors[0].frame < 4 and late.actors.any(func(x: Dictionary) -> bool: return x.row == "run" and x.frame >= 4), "헬멧이 날아간 뒤엔 헬멧 없는 달리기")
+	check(late.cam.x > early.cam.x + 100 and absi((late.actors[0].pos.x - late.cam.x) - (early.actors[0].pos.x - early.cam.x)) <= 4, "카메라가 달리는 사람을 따라간다 (화면 속 자리는 그대로)")
+	# 잘못된 정의는 걸린다
+	var bad := {"shots": [{"panel": "nowhere", "dur": 1.0, "actors": [{"row": "face", "at": [0, 0], "frames": [[0, 9]]}], "sfx": [[2.0, "NOPE"]]}]}
+	check(CutscenePlan.validate("bad", bad, CutsceneMeta.PANELS, CutsceneMeta.ROWS).size() >= 3, "없는 판·장·소리는 검증에 걸린다")
+	# 이야기 대본: EP05 #6 카드가 컷신 걸음을 낸다, 화면 없이 진행하면 그냥 지나간다
+	var career := CareerState.new(cfg, "테스트", _config)
+	var ev := _event(cfg, "ep05_06")
+	var run := DialogueRun.new(career, ev)
+	check(run.next().type == "cutscene", "EP05 #6 은 컷신부터")
+	var auto := DialogueRun.new(career, ev)
+	auto.auto(0)
+	auto.commit()
+	check(career.player.vars["team_goal"] == "national_first_win", "화면 없이 진행해도 컷신 뒤 대본이 이어진다")
 
 
 func test_game_events() -> void:
@@ -2194,7 +2311,7 @@ func test_y1_story() -> void:
 				check(false, "못 본 장면 %s" % id)
 		check(all_seen and p.grade == 2 and p.flags.has("y1_done") and int(v["school_year"]) == 2, "EP01~08 이 다 나오고 2학년이 된다")
 		# EP01·02: 첫 주 — 관전 경기 1-10 8회 콜드
-		check(seen.ep02_02 == "w1" and seen.ep02_05 == "w1", "EP02 는 첫 주 (경기 뒤 버스·놀이터까지)")
+		check(seen.ep02_02 == "w1" and seen.ep02_04 == "w1", "EP02 는 첫 주 (경기 뒤 버스까지)")
 		var g1: GameRunner = games["w1"]
 		check(g1.fixed and not g1.me_playing and g1.opponent.id == "dongin" and g1.state.innings == 8 and g1.state.score[g1.my_side] == 1 and g1.state.score[1 - g1.my_side] == 10, "동인고전 1-10 8회 콜드, 나는 벤치")
 		# EP03: 둘째 주 청운고 연습경기 — 7회 말 대수비 하나, 1-8
@@ -2222,7 +2339,7 @@ func test_y1_story() -> void:
 		check(v["ep06_game_result"] == ("win" if g6.my_result() > 0 else "lose") and v["ep06_dp_result"] in ["success", "fail"], "경기 결과 변수 = 실제 결과")
 		check(plog.size() == 3 and plog[2].name == "주말리그 후반기" and v["ep06_season_avg_grade"] in ["high", "mid", "low"], "1학년 시즌은 전반기 → 백호기 → 후반기")
 		# EP07·08: 겨울 캠프 1~4주
-		check(seen.ep07_01 == "c1" and seen.ep07_03 == "c2" and seen.ep07_05 == "c3" and seen.ep08_01 == "c4", "겨울: 1주 면담 · 2주 연말 · 3주 훈련 방향 · 4주 서호대")
+		check(seen.ep07_01 == "c1" and seen.ep07_02 == "c1" and seen.ep07_05 == "c3" and seen.ep07_07 == "c3" and seen.ep08_01 == "c4", "겨울: 1주 면담·새 폼(바꾸기를 골랐다) · 3주 훈련 방향·예고 · 4주 서호대")
 		check(int(v["form_adaptation"]) == 100 and v["training_direction"] == "contact" and career.book.log.any(func(x: Dictionary) -> bool: return x.title == "변화구 배팅 연습"),
 			"폼 개조 완료, 훈련 방향(컨택)에 맞는 집중 훈련")
 		var g8: GameRunner = games["c4"]
@@ -3641,6 +3758,34 @@ func test_settings_running_mode() -> void:
 	check(not g.controls_running() and g.situation()["control"] == "", "자동: 조작 없음")
 	g.running_mode = RunControl.MANUAL
 	check(g.controls_running() and g.situation()["control"] == RunControl.MANUAL, "수동: 타석에 주루 설정이 전달된다")
+
+
+func test_tutorial_tips() -> void:
+	var tips := _career_cfg().tips
+	var errors := Tutorial.validate(tips)
+	check(errors.is_empty(), "튜토리얼 팁 내용: %s" % ", ".join(errors))
+	check(not Tutorial.validate({}).is_empty(), "팁이 없으면 검사에 걸린다")
+	check(not Tutorial.validate({"home": {"title": "x", "steps": ["1", "2", "3", "4", "5"]}}).is_empty(), "단계가 너무 많으면 걸린다")
+	# 본 팁은 기기 설정에 남는다
+	var path := "user://test_settings_tips.json"
+	DirAccess.remove_absolute(path)
+	var s := Settings.load_from(path)
+	check(Tutorial.pending(tips, s, Tutorial.BATTING), "처음에는 타석 팁을 보여 준다")
+	s.mark_seen(Tutorial.BATTING)
+	s.mark_seen(Tutorial.BATTING)
+	check(s.seen_tips.size() == 1, "같은 팁은 한 번만 적힌다")
+	s.save(path)
+	var again := Settings.load_from(path)
+	check(not Tutorial.pending(tips, again, Tutorial.BATTING) and Tutorial.pending(tips, again, Tutorial.HOME), "본 팁만 다시 안 뜬다")
+	check(again.running == RunControl.ASSIST, "팁을 저장해도 주루 설정은 그대로")
+	again.reset_tips()
+	check(Tutorial.pending(tips, again, Tutorial.BATTING), "다시 보기 → 또 뜬다")
+	check(not Tutorial.pending(tips, again, "없는팁"), "내용 없는 팁은 안 뜬다")
+	DirAccess.remove_absolute(path)
+	# 버튼 이름 강조: 대괄호 안만 굵은 강조색, 나머지 대괄호는 글자 그대로
+	var b := TipCard.bbcode("[스윙]을 눌러요")
+	check(b.begins_with("[b][color=#") and b.contains("[lb]스윙][/color][/b]을 눌러요"), "버튼 이름 강조: %s" % b)
+	check(TipCard.bbcode("괄호 [ 하나") == "괄호 [lb] 하나", "짝 없는 대괄호는 글자로")
 
 
 func test_season_stats_details() -> void:

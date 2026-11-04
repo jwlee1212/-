@@ -14,6 +14,7 @@ func _ready() -> void:
 	_app = load("res://scenes/batting.tscn").instantiate()
 	# 유저 저장을 건드리지 않게 따로 저장하고, 매번 빈 저장에서 시작한다
 	_app.save_path = "user://shots.save"
+	_app.show_tips = false  # 튜토리얼 팁 카드가 흐름을 막지 않게
 	SaveGame.delete(_app.save_path)
 	add_child(_app)
 	await _until(func() -> bool: return _app._current != null)

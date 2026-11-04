@@ -12,6 +12,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	var app: Control = load("res://scenes/batting.tscn").instantiate()
 	app.save_path = "user://shots.save"
+	app.show_tips = false  # 튜토리얼 팁 카드가 흐름을 막지 않게
 	add_child(app)
 	await _until(func() -> bool: return app._current != null)
 	app.show_practice()

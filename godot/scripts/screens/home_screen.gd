@@ -46,6 +46,8 @@ var _training: TrainingPopup
 var _float_host: Control
 ## 주 시작 이야기 대화 화면 (없으면 null)
 var _overlay: Control
+## 튜토리얼 팁 카드 (없으면 null)
+var _tip: TipCard
 ## 상점에서 마지막으로 쓴 서비스 결과
 var _last_shop_note := ""
 ## 떠 있는 폰 화면 (없으면 null), 새 문자 알림 띠
@@ -103,7 +105,10 @@ func _next_story() -> void:
 		return
 	var events: Array = _app.career.events("after" if _app.career.game_done else "start")
 	if events.is_empty():
-		_notify_messages()
+		# 이야기가 다 끝나고 처음 홈을 보는 순간: 한 주 흐름 팁 (본 적 있으면 바로 문자 알림)
+		_tip = _app.show_tip(self, Tutorial.HOME, func() -> void:
+			_tip = null
+			_notify_messages())
 		return
 	var view := DialogueView.new(_app.career, events[0])
 	_overlay = view
@@ -154,6 +159,11 @@ func drill_view() -> DrillView:
 ## 지금 떠 있는 대화 화면 (스크린샷 스크립트용, 없으면 null)
 func story_view() -> DialogueView:
 	return _overlay as DialogueView
+
+
+## 지금 떠 있는 팁 카드 (스크린샷 스크립트용, 없으면 null)
+func tip_card() -> TipCard:
+	return _tip
 
 
 # ---------- 폰 ----------

@@ -4,6 +4,7 @@ extends Control
 ##   kind field — 유격수 수비 화면(FieldView)을 balls 번 되풀이. 아웃(레이저·보통 송구)이 성공
 ##   kind bat   — 타석 화면(BattingSession)을 공 balls 개를 던질 때까지 되풀이. 정타(SOLID)가 성공
 ## 위에 제목과 "3 / 10 · 성공 2" 를 띄우고, 끝나면 결과 카드 → [확인] → finished(성공 수).
+## 첫 공 전에 아직 안 본 수비·타석 팁이 있으면 팁 카드부터 (Tutorial).
 ## 판정 폭 보정(drill_boost — 체력 테스트 등급·폼 적응도)은 이 연습에만 붙는다. 로직은 FieldPlay·AtBat 그대로 (원칙 1).
 
 signal finished(successes: int)
@@ -63,10 +64,11 @@ func _next() -> void:
 	if _done >= _balls:
 		_open_result()
 		return
+	# 이야기 속 연습이 수비·타격을 처음 만나는 자리일 수 있다: 아직 안 본 팁이면 먼저 (튜토리얼)
 	if _drill["kind"] == "field":
-		_open_field()
+		_app.show_tip(self, Tutorial.FIELDING, _open_field)
 	else:
-		_open_bat()
+		_app.show_tip(self, Tutorial.BATTING, _open_bat)
 
 
 func _stat(id: String) -> int:

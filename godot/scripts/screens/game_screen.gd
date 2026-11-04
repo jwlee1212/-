@@ -34,6 +34,8 @@ var _steal: StealView
 var _field: FieldView
 ## 경기 중 대화 (떠 있는 동안 경기가 멈춘다)
 var _dialogue: DialogueView
+## 튜토리얼 팁 카드 (처음 만나는 조작 직전에 한 번, 떠 있는 동안 경기가 멈춘다)
+var _tip: TipCard
 
 
 func _init(app) -> void:
@@ -98,12 +100,12 @@ func _process(_delta: float) -> void:
 	if _session != null:
 		_session.tick()
 		return
-	if _dialogue != null or _game.state.over or _highlight != null or _run_view != null or _steal != null or _field != null:
+	if _dialogue != null or _tip != null or _game.state.over or _highlight != null or _run_view != null or _steal != null or _field != null:
 		return
 	if _waiting_for_turn:
 		if _now() >= _banner_until:
 			_waiting_for_turn = false
-			_open_batting()
+			_with_tip(Tutorial.BATTING, _open_batting)
 		return
 	if _now() < _next_step_at:
 		return
@@ -118,17 +120,17 @@ func _process(_delta: float) -> void:
 			# 타석 전에 할 이야기가 있으면 먼저 (끝나면 배너 → 타석)
 			_show_dialogue(_app.career.game_event(_app.career.pa_moment(_game), _game))
 		"my_steal":
-			_show_steal(int(step.from))
+			_with_tip(Tutorial.STEAL, _show_steal.bind(int(step.from)))
 		"my_run":
-			_show_run(step.control, step.batter)
+			_with_tip(Tutorial.RUNNING, _show_run.bind(step.control, step.batter))
 		"my_field":
 			# 경기 대본의 수비 장면: 장면 대화가 있으면 먼저 (끝나면 수비 화면)
 			var scene: Dictionary = _app.career.scene_event(_game) if _game.planned else {}
 			if scene.is_empty():
-				_show_field(int(step.seed), step.batter, int(step.runner_speed), int(step.fielding))
+				_with_tip(Tutorial.FIELDING, _show_field.bind(int(step.seed), step.batter, int(step.runner_speed), int(step.fielding)))
 			else:
 				_show_dialogue(scene, func() -> void:
-					_show_field(int(step.seed), step.batter, int(step.runner_speed), _app.career.player.fielding_for_game(_app.career_config)))
+					_with_tip(Tutorial.FIELDING, _show_field.bind(int(step.seed), step.batter, int(step.runner_speed), _app.career.player.fielding_for_game(_app.career_config))))
 		"auto":
 			_next_step_at = _now() + (_app.career_config.fast_step_ms if _fast else _app.career_config.auto_step_ms)
 			# 점수가 난 안타·홈런은 중계 화면 하이라이트로 (빠르게 모드면 건너뜀)
@@ -275,6 +277,18 @@ func _on_at_bat_finished(result: AtBat.Result) -> void:
 	_refresh()
 	# 홈런·삼진 뒤에 할 이야기가 있으면 (경기가 끝났어도 더그아웃 이야기는 한다)
 	_show_dialogue(_app.career.game_event(CareerState.result_moment(result.outcome), _game))
+
+
+## 처음 만나는 조작이면 팁 카드를 먼저 띄우고, 닫히면(또는 볼 팁이 없으면 바로) then
+func _with_tip(id: String, then: Callable) -> void:
+	_tip = _app.show_tip(self, id, func() -> void:
+		_tip = null
+		then.call())
+
+
+## 지금 떠 있는 팁 카드 (스크린샷 스크립트용, 없으면 null)
+func tip_card() -> TipCard:
+	return _tip
 
 
 ## 경기 중 대화를 띄운다 (이벤트가 없으면 아무 일도 없다). 끝나면 경기가 이어진다
