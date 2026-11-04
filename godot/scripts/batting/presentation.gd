@@ -44,6 +44,10 @@ var select_ms: float
 ## 타석이 시작될 때 왼쪽 아래 타자 자막이 떠 있는 시간 (첫 공을 던지면 그 전이라도 들어간다), 미끄러져 나오고 들어가는 시간
 var batter_card_ms: float
 var batter_card_slide_ms: float
+## 소율의 구종 힌트 메모 (PitchHint): 다 보이는 시간, 사라지는 시간, 글자 틀(%s = 결정구 이름)
+var pitch_memo_ms: float
+var pitch_memo_fade_ms: float
+var pitch_memo_text: String
 ## 로비 메뉴 판이 미끄러져 들어오는 시간, 메뉴 줄이 하나씩 나타나는 간격
 ## 타자가 앞발을 내디뎌 땅을 딛는 때 (공이 날아오는 시간 중 비율). 그 전에 스트라이드, 뒤에는 발사 자세
 var stride_land_at: float
@@ -89,6 +93,9 @@ static func from_balance(balance: Dictionary) -> Presentation:
 	p.select_ms = BattingConfig.num(s, "selectMs")
 	p.batter_card_ms = BattingConfig.num(s, "batterCardMs")
 	p.batter_card_slide_ms = BattingConfig.num(s, "batterCardSlideMs")
+	p.pitch_memo_ms = BattingConfig.num(s, "pitchMemo.showMs")
+	p.pitch_memo_fade_ms = BattingConfig.num(s, "pitchMemo.fadeMs")
+	p.pitch_memo_text = str(s["pitchMemo"]["text"])
 	p.lobby_menu_slide_ms = BattingConfig.num(s, "lobby.menuSlideMs")
 	p.lobby_menu_stagger_ms = BattingConfig.num(s, "lobby.menuStaggerMs")
 	p.stride_land_at = BattingConfig.num(s, "strideLandAt")

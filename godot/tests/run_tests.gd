@@ -166,6 +166,7 @@ func _init() -> void:
 		"test_save_then_continue_is_same",
 		"test_save_file_and_errors",
 		"test_bgm_tracks",
+		"test_pitch_hint",
 	]:
 		var only := OS.get_environment("ONLY")
 		if only != "" and not test.contains(only):
@@ -1173,7 +1174,7 @@ func test_event_integrity() -> void:
 			while step.type != "end":
 				if step.type == "line":
 					check(step.text != "" and not step.text.contains("{"), "%s 대사 치환: %s" % [e.id, step.text])
-				else:
+				elif step.type == "choice":  # 컷신 걸음(cutscene)은 글자가 없어 넘어간다
 					for o: Dictionary in step.options:
 						check(not o.label.contains("{"), "%s 선택지 치환: %s" % [e.id, o.label])
 					reader.choose(reader.pick(i))
@@ -4726,3 +4727,71 @@ func test_news_content() -> void:
 	var loaded := _reload(runs[0])
 	check(titles.call(loaded.feed) == titles.call(feed) and loaded.feed.unread_count() == feed.unread_count(), "저장 → 불러오기에 기사가 남는다")
 
+
+func test_pitch_hint() -> void:
+	# 소율의 구종 힌트 (폰 문자 m_y1_soyul_hint 답장): 결정구 계산 · 메모 글자 · 첫 타석에만 · 경기 하나 뒤 사라짐 · 저장·불러오기
+	# 1. 결정구 = 2스트라이크 이후 가장 많이 던지는 구종. 계산한 기대 비율이 실제 볼배합(PitchCaller)을 굴린 결과와 맞는다
+	for pid: String in _config.pitchers:
+		var pitcher: BattingConfig.PitcherProfile = _config.pitchers[pid]
+		var shares := PitchHint.two_strike_shares(_config, pitcher)
+		var sum := 0.0
+		for id: String in shares:
+			sum += float(shares[id])
+		var best := PitchHint.putaway_type(_config, pitcher)
+		check(absf(sum - 1.0) < 0.001 and _config.pitches.has(best), "%s: 비율 합 %.3f, 결정구 %s" % [pid, sum, best])
+		check(PitchHint.putaway_type(_config, pitcher) == best, "%s: 같은 투수면 같은 결정구 (난수 없음)" % pid)
+		var counts := {}
+		var rng := _rng(4242)
+		for k in 6000:
+			var cnt: Array = PitchHint.TWO_STRIKE_COUNTS[k % 4]
+			var pitch := _caller.next(pitcher, cnt[0], cnt[1], _average, rng)
+			counts[pitch.type] = int(counts.get(pitch.type, 0)) + 1
+		var top := ""
+		for id: String in counts:
+			if top == "" or counts[id] > counts[top]:
+				top = id
+		check(top == best, "%s: 굴려 본 2S 이후 최다 구종 %s = 계산 %s (%s)" % [pid, top, best, counts])
+	# 2. 메모 글자: 틀(balance.json batting.presentation.pitchMemo.text) + 구종 한글 이름
+	var pres := Presentation.from_balance(BalanceLoader.load_balance())
+	var some: BattingConfig.PitcherProfile = _config.pitchers.values()[0]
+	var memo := PitchHint.memo(_config, some, pres.pitch_memo_text)
+	check(memo.begins_with("소율 메모: 2S 이후 ") and memo.ends_with(_config.catalog.spec(PitchHint.putaway_type(_config, some)).name_ko), "메모: %s" % memo)
+	check(pres.pitch_memo_ms > 0.0 and pres.pitch_memo_fade_ms > 0.0, "표시 시간은 balance.json")
+	check(PitchHint.memo_alpha(-1.0, 2000.0, 500.0) == 0.0 and PitchHint.memo_alpha(1000.0, 2000.0, 500.0) == 1.0
+		and is_equal_approx(PitchHint.memo_alpha(2250.0, 2000.0, 500.0), 0.5) and PitchHint.memo_alpha(2600.0, 2000.0, 500.0) == 0.0, "메모가 보이는 정도: 다 보임 → 사라짐")
+	# 3. 문자 답장 → 힌트 (폼 +0.5 임시 처리 대신). 다른 답장은 힌트 없음
+	var cfg := _real_cfg()
+	var msg: Dictionary = {}
+	for m: Dictionary in cfg.messages:
+		if m.get("id", "") == "m_y1_soyul_hint":
+			msg = m
+	check(not msg.is_empty() and not msg.replies[0].effects.has("form"), "답장 보상은 더 이상 폼이 아니다")
+	for i in 2:
+		var c := CareerState.new(cfg, "테스트", _config)
+		for id: String in c.people.by_id:
+			c.people.meet(id)
+		c.phone._receive(c, msg)
+		c.phone.reply(c, Phone.room_of(msg), i)
+		check(PitchHint.active(c.player) == (i == 0), "답장 %d → 힌트 %s" % [i, i == 0])
+	# 4. 다음 경기 하나: 첫 타석에만 보이고, 경기가 끝나면 사라진다. 저장·불러오기에도 남는다
+	var career := CareerState.new(_career_cfg(), "테스트", _config)
+	career.player.flags[PitchHint.FLAG] = true
+	var loaded: CareerState = SaveGame.from_bytes(SaveGame.to_bytes(career), career.cfg, _config)["career"]
+	check(loaded != null and PitchHint.active(loaded.player), "저장·불러오기 뒤에도 힌트가 남는다")
+	career = loaded
+	career.train("rest")
+	var game := career.new_game()
+	var shown := []
+	while not game.state.over:
+		if game.step().type == "my_turn":
+			shown.append(PitchHint.show_now(career.player, game.my_line.pa))
+			game.apply_my_result(AtBat.Result.new(SwingJudge.Outcome.STRIKEOUT, SwingJudge.BattedBall.NONE, 3, null))
+	check(shown.size() >= 2 and shown[0] == true and not shown.slice(1).has(true), "첫 타석에만 메모 (%s)" % [shown])
+	career.finish_game(game)
+	check(not PitchHint.active(career.player), "경기를 한 번 하면 사라진다")
+	var again: CareerState = SaveGame.from_bytes(SaveGame.to_bytes(career), career.cfg, _config)["career"]
+	check(again != null and not PitchHint.active(again.player), "쓴 힌트는 불러와도 없다")
+	# 5. 옛 저장(힌트 플래그가 없던 때): 저장 형식에 새 칸이 없어서 그대로 불러온다 — 힌트 없음
+	var old := CareerState.new(_career_cfg(), "옛날", _config)
+	var old_loaded: CareerState = SaveGame.from_bytes(SaveGame.to_bytes(old), old.cfg, _config)["career"]
+	check(old_loaded != null and not PitchHint.active(old_loaded.player) and not PitchHint.show_now(old_loaded.player, 0), "힌트 없는 저장은 메모 없음")

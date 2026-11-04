@@ -337,7 +337,13 @@
       "trailMs": 110,
       "trailDots": 7,
       "movementScaleX": 1.0,
-      "movementScaleY": 0.9
+      "movementScaleY": 0.9,
+      "pitchMemo": {
+        "_note": "소율의 구종 힌트 메모 (폰 문자 m_y1_soyul_hint 답장 → 다음 경기 첫 타석에만, scripts/batting/pitch_hint.gd). showMs: 다 보이는 시간, fadeMs: 사라지는 시간, text: %s 자리에 결정구 이름. 폰 확인 필요 — 길면 첫 공을 기다리는 동안 눈이 메모로 가고, 짧으면 못 읽는다",
+        "showMs": 2200,
+        "fadeMs": 500,
+        "text": "소율 메모: 2S 이후 %s"
+      }
     },
     "swingTypes": {
       "_note": "스윙 종류 (더쇼 방식). windowMul = 판정 폭 배율, evMul = 타구 속도 배율, launchShiftDeg = 발사각 평균 이동. 번트는 battedBall.bunt 의 따로 정한 타구를 낸다",

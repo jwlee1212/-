@@ -719,6 +719,7 @@ func finish_game(game: GameRunner) -> Array[String]:
 	assert(not game_done, "이번 주 경기는 이미 끝났다")
 	game_done = true
 	player.game_boost.clear()
+	PitchHint.consume(player)  # 소율의 구종 힌트는 경기 하나에만 (타석에 안 섰어도)
 	player.bench_next = false
 	match_override = {}
 	game_plan = {}

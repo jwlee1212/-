@@ -28,6 +28,8 @@ var game: GameRunner = null
 var info_text: Callable = func() -> String: return ""
 ## 타자 자막에 보여 줄 값 (타석이 시작될 때 한 번 부른다): {"number", "name", "sub", "today", "season"}. 비면 자막을 띄우지 않는다
 var batter_card: Callable = func() -> Dictionary: return {}
+## 소율의 구종 힌트 메모 (PitchHint.memo — 이 타석에 보일 것이 없으면 ""). 타석이 시작되면 위 가운데에 잠깐 떴다가 사라진다
+var pitch_memo := ""
 var show_menu := true
 
 var _bug: ScoreBug
@@ -45,6 +47,8 @@ var _swing: SwingButton
 var _card_at_bat: AtBat = null
 var _card_since := 0.0
 var _card_out_at := INF
+var _memo: PanelContainer
+var _memo_since := -1.0
 
 
 func _init(p_session: BattingSession) -> void:
@@ -61,6 +65,7 @@ func _ready() -> void:
 	_build_swing_button()
 	_build_card()
 	_build_toast()
+	_build_memo()
 
 
 func _process(_delta: float) -> void:
@@ -70,6 +75,7 @@ func _process(_delta: float) -> void:
 	_refresh_speed()
 	_refresh_card()
 	_refresh_toast()
+	_refresh_memo()
 	if _shown_type != session.swing_type:
 		_refresh_swing_types()
 	_swing.label = _swing_label()
@@ -199,6 +205,39 @@ func _refresh_toast() -> void:
 		_toast_bar.value = 1.0 - p
 		_toast_label.text = "%s 스윙 · 바꾸려면 왼쪽" % session.config.swing_type(session.swing_type).label
 		_toast.position.x = (size.x - _toast.size.x) / 2.0
+
+
+# ---------- 위 가운데: 소율 메모 (구종 힌트) ----------
+
+func _build_memo() -> void:
+	_memo = UiKit.glass_panel(Tokens.RADIUS_BROADCAST)
+	add_child(_memo)
+	_memo.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE)
+	_memo.position.y = MARGIN
+	var l := UiKit.label(pitch_memo, Tokens.FONT_CAPTION, Tokens.ACCENT, Tokens.FONT_BOLD)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_memo.add_child(l)
+	_memo.visible = false
+
+
+## 타석이 시작되면(공을 기다리는 동안) 나타나 pitchMemo.showMs 동안 있다가 fadeMs 동안 사라진다. 시간은 화면 연출용 (판정과 무관)
+func _refresh_memo() -> void:
+	if pitch_memo == "" or session.at_bat == null:
+		_memo.visible = false
+		return
+	if _memo_since < 0.0:
+		_memo_since = BattingSession.now_ms()
+	var pr := session.presentation
+	var a := PitchHint.memo_alpha(BattingSession.now_ms() - _memo_since, pr.pitch_memo_ms, pr.pitch_memo_fade_ms)
+	_memo.visible = a > 0.0
+	_memo.modulate.a = a
+	_memo.position.x = (size.x - _memo.size.x) / 2.0
+
+
+## 지금 메모가 보이나 (스크린샷·테스트용)
+func memo_visible() -> bool:
+	return _memo != null and _memo.visible
 
 
 # ---------- 왼쪽 아래: 타자 자막 ----------
