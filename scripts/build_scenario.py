@@ -6,7 +6,8 @@
 엔진의 무엇으로 이을지(HOOKS — 체력 테스트 종목, 연습 drill, 경기 대본 gamePlan), 장소(PLACES), 화자 id(SPEAKERS).
 
 문서를 고치면 다시 실행한다:  python3 scripts/build_scenario.py
-  → content.json 의 events 중 id 가 ep 로 시작하는 것과 vars 를 새로 쓴다 (다른 이벤트는 그대로).
+  → content.json 의 events 중 id 가 epNN_ 로 시작하는 것과 vars 를 새로 쓴다 (다른 이벤트는 그대로).
+  읽는 문서: DOCS (1학년 scenario_y1_ep01-08.md → 2학년 scenario_y2_ep09-13.md, 2026-11-05).
 
 문서 문법 (docs/scenario 0장): SCENE · NARR · 화자: 대사 · CHOICE id: (- "말" | 힌트 -> 효과 ; goto A) · A: …
 IF / ELIF / ELSE / END · UI 종류: · AUTO: · ITEM_SHOW · SYSTEM · GAMEPLAY · CUTSCENE id (들여쓰기 2칸)
@@ -20,7 +21,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DOC = ROOT / "docs/scenario/scenario_y1_ep01-08.md"
+# 학년 순서대로 읽는다 (1학년 EP01~08 → 2학년 EP09~13). 장면 순서(after)는 문서를 넘어 이어진다
+DOCS = [ROOT / "docs/scenario/scenario_y1_ep01-08.md", ROOT / "docs/scenario/scenario_y2_ep09-13.md"]
 CONTENT = ROOT / "config/content.json"
 
 # ---------- 문서 화자 id → 게임 인물 id (또는 인물이 아닌 화자의 한글 이름) ----------
@@ -29,9 +31,10 @@ SPEAKERS = {
     "senior_a": "2학년 선배", "taeo": "rival", "cheongun_coach": "청운고 감독", "cheongun_player": "청운고 선수",
     "umpire": "심판", "first_base_coach": "1루 코치", "minjae": "minjae", "doyun": "senior", "seongho": "seongho",
     "jaehyuk": "jaehyuk", "mom": "mom", "na_scout": "scout",
+    "junior": "junior",  # 2학년: 새 1학년 후배 (이름은 게임이 뽑는다)
 }
 # 처음 말할 때 만나는(인물 탭에 열리는) 인물
-HIDDEN = {"manager", "neighbor", "rival", "scout", "minjae", "jaehyuk", "seongho"}
+HIDDEN = {"manager", "neighbor", "rival", "scout", "minjae", "jaehyuk", "seongho", "junior"}
 
 UI_KINDS = {"phone_message": "phone", "laptop_folder": "laptop", "tv": "tv", "whiteboard": "whiteboard",
             "whiteboard_stats": "whiteboard", "scoreboard_lineup": "scoreboard", "phone_news_notification": "news"}
@@ -67,6 +70,10 @@ VARS = {
     "ep08_ab2_result": {"type": "enum", "values": ["rbi_hit", "extra_base", "out", "strikeout"]},
     "ep08_ab3_result": {"type": "enum", "values": ["hit", "out", "strikeout"]},
     "ep08_performance": {"type": "int"},
+    # 2학년 (docs/scenario/scenario_y2_ep09-13.md 2장)
+    "scout_revisit": {"type": "bool"}, "ep11_result": {"type": "enum", "values": ["win", "lose"]},
+    "national_first_win_done": {"type": "bool"}, "sangbi_called": {"type": "bool"}, "taeo_knows_name": {"type": "bool"},
+    "career_lean": {"type": "enum", "values": ["draft", "college"]},
 }
 NOTE_VARS = ("시나리오 변수 (docs/scenario 2장의 ID 그대로 — scripts/build_scenario.py 가 쓴다). type: int|bool|enum|string|list, "
              "values(enum), default. 이벤트 효과 set{변수: 값}·add{변수: n}, 대본 branch·선택지 if·이벤트 when 의 조건 {var, eq|ne|gte|lte|gt|lt|in}. "
@@ -89,10 +96,14 @@ PLACES = {
     "ep07_06": "cage", "ep07_07": "clubroom", "ep07_08": "bedroom",
     "ep08_01": "seoho_field", "ep08_02": "dugout", "ep08_03": "seoho_field", "ep08_04": "stands",
     "ep08_05": "restaurant", "ep08_06": "clubroom", "ep08_07": "bedroom",
+    # 2학년
+    "ep09_01": "field", "ep10_01": "dugout", "ep11_01": "clubroom", "ep11_02": "dugout", "ep12_01": "clubroom",
+    "ep12_02": "national_camp", "ep13_01": "clubroom",
 }
 NEW_PLACES = {"road": "학교 가는 길", "clubroom": "야구부실", "bedroom": "내 방", "playground": "아파트 놀이터",
               "cheongun_field": "청운고 야구장", "sink": "수돗가", "store": "매점", "cage": "배팅 케이지",
-              "hallway": "야구장 복도", "convenience": "아파트 앞 편의점", "restaurant": "은하식당", "seoho_field": "서호대 야구장"}
+              "hallway": "야구장 복도", "convenience": "아파트 앞 편의점", "restaurant": "은하식당", "seoho_field": "서호대 야구장",
+              "national_camp": "상비군 훈련장"}
 
 # ---------- 경기 대본 (gamePlan) — 문서의 경기 상황을 엔진 장면으로 ----------
 HITS = {"single": "hit", "double": "hit", "triple": "hit", "home_run": "hit"}
@@ -255,6 +266,7 @@ UI_FX = {
 W1 = {"grade": [1, 1], "week": [1, 1]}
 G1 = {"grade": [1, 1]}
 LEAGUE_END = {"grade": [1, 1], "lastPhaseEnd": "leagueEnd"}
+G2 = {"grade": [2, 2]}
 def camp(w):
     return {"grade": [1, 1], "winter": True, "campWeek": [w, w]}
 META = {
@@ -292,6 +304,14 @@ META = {
     **{k: dict(camp(4), timing="start") for k in ["ep08_01", "ep08_02"]},
     **{k: {"timing": "game", "moment": "scene"} for k in ["ep08_03", "ep08_03b", "ep08_03c", "ep08_03d"]},
     **{k: dict(camp(4), timing="after") for k in ["ep08_03e", "ep08_04", "ep08_05", "ep08_06", "ep08_07"]},
+    # ---- 2학년 (2026-11-05). 경기 대본 없이 평소 커리어 경기 사이에 뜬다 ----
+    "ep09_01": dict(G2, week=[1, 1], timing="start"),           # 새 시즌 첫 주
+    "ep10_01": dict(G2, week=[3, 3], timing="start"),           # 주말리그 셋째 주 경기 전 (스카우트 재방문)
+    "ep11_01": dict(G2, lastPhaseEnd="leagueEnd", timing="after"),  # 전반기 최종전 뒤 → 백호기
+    "ep11_02": dict(G2, lastNational=True, timing="after"),     # 백호기 첫 경기 뒤 (이기든 지든)
+    "ep12_01": dict(G2, lastPhaseEnd="leagueEnd", timing="after"),  # 후반기 최종전 뒤 (ep11 을 본 뒤라 후반기)
+    "ep12_02": dict(G2, timing="start"),                        # 그다음 주 (상비군 훈련)
+    "ep13_01": {"grade": [2, 2], "winter": True, "campWeek": [1, 1], "timing": "start"},  # 2학년 겨울 캠프 첫 주
 }
 # 조건이 맞을 때만 뜨는 장면 (when). 앞뒤 이야기 순서(after)는 이 장면들을 건너뛰고 잇는다
 FORM_CHANGE = {"var": "form_answer", "eq": "change"}
@@ -316,6 +336,9 @@ PREPEND = {
     # EP08 훈련 방향 보정 (경기 전체)
     "ep08_03": [by_var("training_direction", {"contact": [gb({"eye": 8})], "power": [gb({"power": 8})],
                                               "defense_run": [gb({"fielding": 8, "speed": 6})]})],
+    # EP11 백호기 첫 경기: 실제 승패로 (무승부는 진 것으로)
+    "ep11_02": [{"branch": [{"if": {"lastResult": "win"}, "then": [{"do": {"set": {"ep11_result": "win"}}}]},
+                            {"then": [{"do": {"set": {"ep11_result": "lose"}}}]}]}],
 }
 APPEND = {
     # 1학년이 끝나면 2학년부터 원래 커리어 (진행 플래그)
@@ -332,6 +355,21 @@ CHOICE_FX = {
     ("ep07_training", 0): {"campFocus": "contact"},
     ("ep07_training", 1): {"campFocus": "power"},
     ("ep07_training", 2): {"campFocus": "fielding"},
+    # 2학년 (2026-11-05)
+    ("ep09_junior", 0): {"rel": {"junior": 10}, "train": {"contact": 1.0}},
+    ("ep09_junior", 1): {"train": {"power": 1.5}},
+    ("ep10_checked", 0): {"scoutInterest": 3, "reputation": 2, "rel": {"scout": 5}},
+    ("ep10_checked", 1): {"gameBoost": {"contact": 6}},
+    ("ep10_watching", 0): {"scoutInterest": 2, "gameBoost": {"power": 4}},
+    ("ep10_watching", 1): {"gameBoost": {"eye": 6}},
+    ("ep10_none", 0): {"gameBoost": {"power": 8, "contact": -4}},
+    ("ep10_none", 1): {"condition": 5},
+    ("ep11_meeting", 0): {"rel": {"coach": 6}, "condition": -5},
+    ("ep11_meeting", 1): {"train": {"contact": 1.0, "power": 1.0}},
+    ("ep12_name", 0): {"rel": {"rival": 10}},
+    ("ep12_name", 1): {"rel": {"rival": 15}, "condition": -4},
+    ("ep13_path", 0): {"scoutInterest": 3},
+    ("ep13_path", 1): {"rel": {"coach": 6}},
 }
 # 조건 임계값을 상수로 (문서 "상수로 분리할 것")
 CONSTS = {("ep08_performance", "gte", 6): "ep08ScoutChecked", ("ep08_performance", "gte", 3): "ep08ScoutWatching"}
@@ -628,8 +666,9 @@ def label_body(lines, name):
 
 
 def build():
-    md = DOC.read_text(encoding="utf-8")
-    scenes = scenes_of(md)
+    scenes = []
+    for doc in DOCS:
+        scenes.extend(scenes_of(doc.read_text(encoding="utf-8")))
     stream = []  # [(scene id, block index, nodes)]
     for sid, title, blocks in scenes:
         for bi, block in enumerate(blocks):
@@ -731,7 +770,7 @@ def finish(events):
 def main():
     events = finish(build())
     content = json.loads(CONTENT.read_text(encoding="utf-8"))
-    kept = [e for e in content["events"] if not e["id"].startswith("ep0")]
+    kept = [e for e in content["events"] if not re.match(r"ep\d\d_", e["id"])]
     content["events"] = events + kept
     content["vars"] = {"_note": NOTE_VARS, **VARS}
     for vid, d in list(VARS.items()):
