@@ -196,6 +196,8 @@ func _run_play(c: SwingJudge.Contact, choices: Array = []) -> PlaySimulator.Play
 		if i == batter:
 			return my_speed
 		return given.call(i) if given.is_valid() else 50
+	# 내 타석에서만 수비 실책이 난다 (타구 결과를 바꾸므로 중계 화면도 같은 공을 그린다)
+	BattedBallSim.roll_error(_config.ball_physics, c.ball, my_speed, _rng)
 	var controlled: int = batter if str(situation.get("control", "")) != "" else -1
 	return PlaySimulator.new(_config.ball_physics, c.ball, batter, bases, speed_of, int(situation.get("outs", 0)), _rng, controlled, choices).run()
 

@@ -825,4 +825,5 @@ static func outcome_label(o: SwingJudge.Outcome) -> String:
 		SwingJudge.Outcome.FLY_OUT: return "뜬공 아웃"
 		SwingJudge.Outcome.LINE_OUT: return "직선타 아웃"
 		SwingJudge.Outcome.SAC_BUNT: return "희생번트"
+		SwingJudge.Outcome.REACH_ON_ERROR: return "실책 출루"
 	return "?"

@@ -168,6 +168,9 @@ static func _fielder_at(name: String, positions: Dictionary, cfg: BattedBallSim.
 		var ball := r.path[clampi(int(clampf(t, 0.0, r.duration()) / BattedBallSim.DT), 0, r.path.size() - 1)]
 		var drift := clampf((t - 0.5) / 2.0, 0.0, 1.0) * 3.0
 		at = at.move_toward(Vector2(ball.x, ball.y), drift)
+	if play != null:
+		# 송구 실책으로 빠진 공을 쫓아간다
+		at = _chase_pos(cfg, play, name, t, at)
 	return at
 
 
@@ -228,6 +231,19 @@ static func _play_ball(cfg: BattedBallSim.Config, r: BattedBallSim.Result, play:
 		var b: int = th.base
 		# 중계맨에게 가는 공은 중계 자리로
 		var to: Vector2 = th.to if th.get("cut", false) else (Vector2.ZERO if b >= 4 else cfg.base_pos(b))
+		if th.get("error", false):
+			# 송구 실책: 베이스까지 날아간 공이 빠져 loose 로 굴러간다
+			var reach := float(th.reach)
+			if t < reach:
+				var k1 := clampf((t - float(th.release)) / maxf(reach - float(th.release), 0.01), 0.0, 1.0)
+				at = Vector3(from.x, from.y, 1.5).lerp(Vector3(to.x, to.y, 1.3), k1)
+				at.z += sin(k1 * PI) * minf(3.0, from.distance_to(to) * 0.08)
+			else:
+				var k2 := clampf((t - reach) / maxf(float(th.arrive) - reach, 0.01), 0.0, 1.0)
+				var roll := 1.0 - pow(1.0 - minf(1.0, k2 * 1.6), 2.0)
+				var p2 := to.lerp(th.loose as Vector2, roll)
+				at = Vector3(p2.x, p2.y, absf(sin(roll * TAU)) * 0.5 * (1.0 - roll))
+			continue
 		var k := clampf((t - float(th.release)) / maxf(float(th.arrive) - float(th.release), 0.01), 0.0, 1.0)
 		if th.get("carry", false):
 			var p := from.lerp(to, k)
@@ -258,6 +274,18 @@ static func _carry_pos(cfg: BattedBallSim.Config, play: PlaySimulator.PlayResult
 		var to := Vector2.ZERO if b >= 4 else cfg.base_pos(b)
 		var k := clampf((t - float(th.release)) / maxf(float(th.arrive) - float(th.release), 0.01), 0.0, 1.0)
 		at = (th.from as Vector2).lerp(to, k)
+	return at
+
+
+## 송구 실책으로 빠진 공을 쫓는 수비수의 자리: 공이 베이스에 닿은 뒤 빠진 자리로 뛰어가 다시 잡는다 (아니면 at 그대로)
+static func _chase_pos(cfg: BattedBallSim.Config, play: PlaySimulator.PlayResult, name: String, t: float, at: Vector2) -> Vector2:
+	for th: Dictionary in play.throws:
+		if not th.get("error", false) or th.get("chaser", "") != name or t < float(th.reach):
+			continue
+		var b: int = th.base
+		var bag := Vector2.ZERO if b >= 4 else cfg.base_pos(b)
+		var k := clampf((t - float(th.reach)) / maxf(float(th.arrive) - float(th.reach), 0.01), 0.0, 1.0)
+		at = bag.lerp(th.loose as Vector2, k)
 	return at
 
 

@@ -10,7 +10,8 @@ enum Quality { SOLID, WEAK, FOUL, MISS }
 enum BattedBall { NONE, GROUND, FLY, LINE }
 
 ## 타석 결과. 이름은 옛 Kotlin 엔진의 PaOutcome 과 같게 맞췄다 (나중에 리그 시뮬레이션과 연결할 때 그대로 쓰려고)
-enum Outcome { SINGLE, DOUBLE, TRIPLE, HOME_RUN, WALK, STRIKEOUT, GROUND_OUT, FLY_OUT, LINE_OUT, SAC_BUNT }
+## REACH_ON_ERROR: 실책 출루 — 타수에는 들어가고 안타·출루에는 들어가지 않는다 (저장·기록실이 번호로 저장하므로 새 값은 끝에 붙인다)
+enum Outcome { SINGLE, DOUBLE, TRIPLE, HOME_RUN, WALK, STRIKEOUT, GROUND_OUT, FLY_OUT, LINE_OUT, SAC_BUNT, REACH_ON_ERROR }
 
 const HITS := [Outcome.SINGLE, Outcome.DOUBLE, Outcome.TRIPLE, Outcome.HOME_RUN]
 

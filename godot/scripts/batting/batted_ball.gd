@@ -12,6 +12,7 @@ extends RefCounted
 ## 2. 공중 포구: 공이 잡을 수 있는 높이 아래로 내려온 순간, 반응 시간 뒤 달려온 수비수가 거기 있으면 아웃
 ## 3. 땅볼·빠진 공: 튀어서 굴러가는 공을 가장 먼저 막는 수비수가 줍는다
 ## 4. 내야수가 주우면 1루 송구 vs 타자 주루, 외야수가 주우면 2·3루 송구 vs 타자 주루로 단타·2루타·3루타
+## 5. (내 타석만) 실책: roll_error() 가 아웃이 될 타구를 포구 실책·낙구로 바꾸거나 송구 실책을 예약한다
 
 const DT := 0.02
 const MAX_TIME := 14.0
@@ -58,6 +59,15 @@ class Config:
 	var line_fence: float
 	var center_fence: float
 	var fence_height: float
+	## 실책 (balance.json fielding.errors)
+	var errors_enabled := false
+	var error_fumble_chance := 0.0
+	var error_throw_chance := 0.0
+	var error_drop_chance := 0.0
+	var error_fumble_s := Vector2.ZERO  # [최소, 최대] 초
+	var error_wild_s := Vector2.ZERO
+	var error_drop_s := Vector2.ZERO
+	var error_wild_roll_m := 0.0
 	## 주루 수치 (balance.json game.running) — 주자 FSM 이 쓴다
 	var running: Dictionary
 
@@ -109,6 +119,16 @@ class Config:
 		c.center_fence = BattingConfig.num(f, "park.centerFenceM")
 		c.fence_height = BattingConfig.num(f, "park.fenceHeightM")
 		c.running = balance["game"]["running"]
+		if f.has("errors"):
+			var e: Dictionary = f["errors"]
+			c.errors_enabled = bool(e["enabled"])
+			c.error_fumble_chance = BattingConfig.num(e, "groundFumbleChance")
+			c.error_throw_chance = BattingConfig.num(e, "groundThrowChance")
+			c.error_drop_chance = BattingConfig.num(e, "flyDropChance")
+			c.error_fumble_s = Vector2(float(e["fumbleS"][0]), float(e["fumbleS"][1]))
+			c.error_wild_s = Vector2(float(e["wildThrowS"][0]), float(e["wildThrowS"][1]))
+			c.error_drop_s = Vector2(float(e["dropS"][0]), float(e["dropS"][1]))
+			c.error_wild_roll_m = BattingConfig.num(e, "wildThrowRollM")
 		return c
 
 	## 방향별 펜스 거리 (좌우 끝 → 가운데로 갈수록 멀어진다)
@@ -172,6 +192,13 @@ class Result:
 	var base_distance := 27.43
 	## 1루 판정 여유: 타자 도착 시각 − 공 도착 시각 (+면 아웃, 0 이하면 세이프)
 	var play_margin := 0.0
+	## 실책: "" 없음, "fumble" 땅볼 포구 실책, "drop" 뜬공 낙구, "throw" 송구 실책 (PlaySimulator 가 아웃이 될 첫 송구에 일으킨다)
+	var error := ""
+	## 공을 놓친 시각과 자리 (포구 실책·낙구)
+	var error_t := -1.0
+	var error_pos := Vector2.ZERO
+	## 송구 실책: 빠진 공을 다시 잡기까지 더 걸리는 시간 (초)
+	var error_s := 0.0
 
 	func duration() -> float:
 		return maxf(path.size() - 1, 0) * DT
@@ -304,14 +331,20 @@ static func simulate(cfg: Config, ev_kmh: float, launch_deg: float, spray_deg: f
 		return r
 
 	# 4. 송구 vs 타자 주루
+	_resolve_fielded(cfg, r, positions, gp, t, runner_speed)
+	return r
+
+
+## 땅에 있는 공을 시각 t 에 지점 gp 에서 주운 뒤: 내야수면 1루 판정, 외야수면 2·3루 송구 vs 타자 주루로 안타 종류
+static func _resolve_fielded(cfg: Config, r: Result, positions: Dictionary, gp: Vector2, t: float, runner_speed: int) -> void:
 	r.runner_mps = lerpf(cfg.batter_run_at0, cfg.batter_run_at100, clampi(runner_speed, 0, 100) / 100.0)
 	r.runner_start = cfg.batter_start_s
 	r.round_base_s = cfg.round_base_s
 	r.base_distance = cfg.base_distance
 	r.runner_first = r.runner_time(1)
-	if fielded in cfg.infield:
+	if r.fielder in cfg.infield:
 		_first_base_play(cfg, r, positions, gp, t)
-		return r
+		return
 	# 외야로 빠진 공: 줍고 던지는 시간 vs 타자가 2·3루를 밟는 시간
 	var ready := t + cfg.pickup_s
 	var throw2 := ready + outfield_to_base_s(cfg, gp.distance_to(cfg.base_pos(2)))
@@ -329,7 +362,65 @@ static func simulate(cfg: Config, ev_kmh: float, launch_deg: float, spray_deg: f
 		r.outcome = SwingJudge.Outcome.SINGLE
 		r.throw_base = 2
 		r.throw_arrive = throw2
-	return r
+
+
+## 실책 판정 (내 타석에서만 부른다). 평범한 수비면 아웃이었을 타구만 대상이다 (기록 규칙):
+## - 잡힌 뜬공·라이너 → 낙구: 글러브에서 튄 공이 떨어지고, 수비수가 다시 주워 그 뒤는 빠진 공과 같다
+## - 내야 땅볼 아웃 → 포구 실책: 공을 더듬어 늦게 줍는다 (1루 송구가 늦어 타자가 산다)
+## - 내야 땅볼 아웃 → 송구 실책: 여기서는 예약만 한다. PlaySimulator 가 아웃이 될 첫 송구를 빠뜨린다
+## 시드 난수만 쓰고, 대상 타구일 때만 난수를 뽑는다 (원칙 2)
+static func roll_error(cfg: Config, r: Result, runner_speed: int, rng: RandomNumberGenerator) -> void:
+	if not cfg.errors_enabled or r.home_run or r.error != "":
+		return
+	if r.caught:
+		if rng.randf() < cfg.error_drop_chance:
+			_drop(cfg, r, runner_speed, rng.randf_range(cfg.error_drop_s.x, cfg.error_drop_s.y))
+		return
+	if r.outcome != SwingJudge.Outcome.GROUND_OUT or not (r.fielder in cfg.infield):
+		return
+	var roll := rng.randf()
+	if roll < cfg.error_fumble_chance:
+		_fumble(cfg, r, runner_speed, rng.randf_range(cfg.error_fumble_s.x, cfg.error_fumble_s.y))
+	elif roll < cfg.error_fumble_chance + cfg.error_throw_chance:
+		r.error = "throw"
+		r.error_s = rng.randf_range(cfg.error_wild_s.x, cfg.error_wild_s.y)
+
+
+## 포구 실책: 공이 글러브에 맞고 발밑에서 튄다 (두 번 통통). extra_s 뒤에 다시 쥐고 1루 판정을 새로 한다
+static func _fumble(cfg: Config, r: Result, runner_speed: int, extra_s: float) -> void:
+	var gp := r.fielder_to
+	r.error = "fumble"
+	r.error_t = r.duration()
+	r.error_pos = gp
+	var dir := gp.normalized() if gp.length() > 0.01 else Vector2(0, 1)
+	var n := maxi(1, roundi(extra_s / DT))
+	for i in range(1, n + 1):
+		var k := float(i) / n
+		var off := dir * 1.2 * sin(k * PI)
+		r.path.append(Vector3(gp.x + off.x, gp.y + off.y, absf(sin(k * TAU)) * 0.7 * (1.0 - k)))
+	_resolve_fielded(cfg, r, fielder_positions(cfg, r.bunt), gp, r.duration(), runner_speed)
+
+
+## 낙구: 잡은 자리에서 공이 튀어 1m 앞에 떨어져 멈추고, extra_s 뒤에 줍는다. 그 뒤는 땅에 떨어진 공과 같다
+static func _drop(cfg: Config, r: Result, runner_speed: int, extra_s: float) -> void:
+	var q := r.path[r.path.size() - 1]
+	var at := Vector2(q.x, q.y)
+	var dir := at.normalized() if at.length() > 0.01 else Vector2(0, 1)
+	var spot := at + dir
+	r.caught = false
+	r.error = "drop"
+	r.error_t = r.duration()
+	r.error_pos = at
+	var n := maxi(2, roundi(extra_s / DT))
+	var fall := mini(n, maxi(2, roundi(0.4 / DT)))
+	for i in range(1, n + 1):
+		var k := minf(1.0, float(i) / fall)
+		var p := at.lerp(spot, k)
+		# 땅에 닿은 뒤는 정확히 0 (주자는 z <= 0 인 순간 "떨어졌다"를 읽는다)
+		var z := 0.0 if k >= 1.0 else maxf(0.0, q.z * (1.0 - k) + sin(k * PI) * 0.6)
+		r.path.append(Vector3(p.x, p.y, z))
+	r.fielder_to = spot
+	_resolve_fielded(cfg, r, fielder_positions(cfg, r.bunt), spot, r.duration(), runner_speed)
 
 
 ## 내야 땅볼의 1루 판정: 공이 1루에서 받는 사람 미트에 들어가는 시각 vs 타자 주자가 1루를 밟는 시각.
