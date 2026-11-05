@@ -249,7 +249,8 @@ func finish_week(career: CareerState, game: GameRunner) -> Array[String]:
 	# 주급 (연봉 ÷ 정규시즌 주 수)
 	if phase == PHASE_REGULAR or (phase == PHASE_POST and league.post_results.size() <= 1):
 		var pay := salary / int(cfg.pro["weeks"])
-		if phase == PHASE_REGULAR:
+		# 복무 중엔 구단 연봉이 없다
+		if phase == PHASE_REGULAR and level != LEVEL_MILITARY:
 			career.player.money += pay
 			career.last_income = [["주급", pay]]
 	_update_trust(career, week_line, lines.size())
