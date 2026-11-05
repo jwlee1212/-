@@ -46,7 +46,17 @@ func _team_table(side: int) -> Control:
 		var b: Team.Batter = team.lineup[i]
 		var l: BoxScore.BatterLine = _game.box.batters[side][i]
 		var color := Tokens.PRIMARY if b.is_me else Tokens.INK
-		grid.add_child(_cell("%d %s" % [i + 1, b.name], color, b.is_me))
+		# 교체돼 나간 선수가 먼저, 들어온 선수는 그 아래 줄에
+		var subbed := false
+		for r: Dictionary in _game.box.replaced[side]:
+			if r["slot"] != i:
+				continue
+			var rl: BoxScore.BatterLine = r["line"]
+			grid.add_child(_cell("%d %s" % [i + 1, r["name"]], Tokens.INK_SOFT, false))
+			for v in [rl.ab, rl.h, rl.hr, rl.rbi, rl.r, rl.bb, rl.so]:
+				grid.add_child(_cell(str(v), Tokens.INK_SOFT, false))
+			subbed = true
+		grid.add_child(_cell(("  대타 %s" % b.name) if subbed else "%d %s" % [i + 1, b.name], color, b.is_me))
 		for v in [l.ab, l.h, l.hr, l.rbi, l.r, l.bb, l.so]:
 			grid.add_child(_cell(str(v), color, b.is_me))
 	col.add_child(grid)

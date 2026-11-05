@@ -14,6 +14,7 @@ func _ready() -> void:
 	_app = load("res://scenes/batting.tscn").instantiate()
 	# 유저 저장을 건드리지 않게 따로 저장하고, 매번 빈 저장에서 시작한다
 	_app.save_path = "user://shots.save"
+	_app.show_tips = false  # 튜토리얼 팁 카드가 흐름을 막지 않게
 	SaveGame.delete(_app.save_path)
 	add_child(_app)
 	await _until(func() -> bool: return _app._current != null)
@@ -32,20 +33,28 @@ func _ready() -> void:
 		var view: DialogueView = _app._current.story_view()
 		view.choose(0)
 		await _wait_ms(200)
-		view.finished.emit()
+		view.skip()
 		await _wait_ms(200)
 	await _shot("3-home")
 	_app._current._train("contact")
 	await _wait_ms(200)
 	await _shot("4-home-trained")
 
+	# 1학년 1주차의 나는 벤치라 경기 화면 없이 결과로 넘어간다. 경기 화면을 찍으려고 여기서만 선발 5번에 넣는다
+	if _app.career.next_role() == "bench":
+		_app.career.player.lineup_slot = 5
 	_app.show_game()
-	var game_screen: Control = _app._current
+	if not _app._current is GameScreen:
+		push_error("경기 화면이 아니다: %s" % _app._current)
+		get_tree().quit(1)
+		return
+	var game_screen: GameScreen = _app._current
 	await _wait_ms(100)
 	await _wait_ms(1500)
 	await _shot("5-game")
 	# 보통 속도로 두고 하이라이트가 나오면 찍는다 (최대 40초), 그다음 빠르게
 	await _until(func() -> bool:
+		_skip_dialogue(game_screen)
 		if game_screen._session != null and game_screen._session.phase == BattingSession.Phase.OVER:
 			game_screen._session.tap()
 		elif game_screen._session != null and game_screen._session.phase == BattingSession.Phase.WAITING:
@@ -57,13 +66,14 @@ func _ready() -> void:
 		await _wait_ms(1500)
 		await _shot("5b-highlight")
 		if game_screen._highlight != null:
-			game_screen._highlight.finished.emit()
+			game_screen._highlight.finished.emit()  # 화면을 탭한 것과 같다
 	game_screen._fast = true
 
 	var turn := 0
 	var started := Time.get_ticks_msec()
 	var last_print := 0
 	while not game_screen._game.state.over and Time.get_ticks_msec() - started < 120000:
+		_skip_dialogue(game_screen)
 		if Time.get_ticks_msec() - last_print > 3000:
 			last_print = Time.get_ticks_msec()
 			var gs = game_screen._game.state
@@ -72,13 +82,18 @@ func _ready() -> void:
 		if game_screen._session != null:
 			turn += 1
 			var s: BattingSession = game_screen._session
-			await _until(func() -> bool: return s.phase == BattingSession.Phase.WINDUP)
+			await _until(func() -> bool:
+				s.ready_now()  # 공 사이 대기(스윙 고르는 시간)를 건너뛴다
+				return s.phase == BattingSession.Phase.WINDUP)
 			if turn == 1:
 				await _wait_ms(s.presentation.windup_ms * 0.6)
 				await _shot("6-my-turn")
 			# 볼은 거르고 스트라이크는 공이 도착하는 순간에 친다
 			var t0 := Time.get_ticks_msec()
 			while game_screen._session == s and s.phase != BattingSession.Phase.OVER and Time.get_ticks_msec() - t0 < 30000:
+				_skip_dialogue(game_screen)
+				if turn > 1:
+					s.ready_now()
 				if s.phase == BattingSession.Phase.FLIGHT and not s.swung and s.pitch.is_strike() \
 						and s.since(s.phase_since_ms) >= s.pitch.flight_ms - 4.0:
 					s.tap()
@@ -132,6 +147,14 @@ func _ready() -> void:
 	get_tree().quit()
 
 
+## 경기 중 이야기(대타 호출 등)가 뜨면 첫 선택지로 넘긴다 — 안 넘기면 경기가 멈춘다
+func _skip_dialogue(game_screen: GameScreen) -> void:
+	var view := game_screen.story_view()
+	if view != null:
+		view.choose(0)
+		view.skip()
+
+
 func _until(cond: Callable, timeout_ms: int = 20000) -> void:
 	var start := Time.get_ticks_msec()
 	while not cond.call() and Time.get_ticks_msec() - start < timeout_ms:
@@ -147,3 +170,4 @@ func _wait_ms(ms: float) -> void:
 func _shot(name: String) -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("res://build/shots/%s.png" % name)
+	print("shot %s %dms" % [name, Time.get_ticks_msec()])

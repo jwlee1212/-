@@ -1,6 +1,6 @@
 class_name SeasonScreen
 extends Control
-## 시즌 결산 → (시즌 끝 이야기) → 겨울 훈련 → 다음 시즌 / 3학년이면 진로 선택 뒤 졸업
+## 시즌 결산 → (시즌 끝 이야기) → 겨울 캠프 시작 (허브로) / 3학년이면 진로 선택 뒤 졸업
 
 var _app
 var _overlay: Control
@@ -48,48 +48,37 @@ func _build() -> void:
 	col.add_child(UiKit.label("이번 시즌 성장: " + " · ".join(growth), Tokens.FONT_CAPTION, Tokens.GOOD, Tokens.FONT_BOLD))
 	col.add_child(UiKit.stat_bar("스카우트", p.scout_interest, 100, Tokens.BAD))
 	col.add_child(UiKit.label("유망주 랭킹 %d위 · %s" % [career.prospect_rank(), career.projection()["text"]], Tokens.FONT_BODY, Tokens.INK, Tokens.FONT_BOLD))
-	var winter := UiKit.label("", Tokens.FONT_BODY, Tokens.GOOD, Tokens.FONT_BOLD)
-	col.add_child(winter)
 	var row := UiKit.hbox(Tokens.SPACE_SM)
 	row.add_child(UiKit.button("타이틀로", _app.show_title, Tokens.INK_SOFT))
 	if p.grade < 3:
-		var next: Button
-		next = UiKit.button("겨울 훈련 ▶", func() -> void:
-			if career.winter_gains.is_empty():
-				career.winter_training()
-				_app.save_career()
-				_show_winter(winter, next)
-			else:
-				career.start_next_season()
-				_app.show_home(), Tokens.ACCENT, Tokens.FONT_LABEL)
-		# 겨울 훈련을 이미 했으면 (불러온 커리어) 결과와 다음 시즌 버튼
-		if not career.winter_gains.is_empty():
-			_show_winter(winter, next)
+		var camp := career.cfg.camp
+		col.add_child(UiKit.label("겨울 캠프 %d주: 훈련 효과 ×%.1f (집중 과제 ×%.1f) · 연습경기 %d번" % [
+			int(camp["weeks"]), float(camp["trainingMultiplier"]), float(camp["focusMultiplier"]), (camp["gameWeeks"] as Array).size()],
+			Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+		var next := UiKit.button("겨울 캠프 시작 ▶", func() -> void:
+			career.start_camp()
+			_app.save_career()
+			_app.show_home(), Tokens.ACCENT, Tokens.FONT_LABEL)
 		next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(next)
 	else:
+		# 고교 졸업 → 프로 입단 (드래프트 결과 · 대학을 고르면 4년 요약 뒤 대졸 드래프트)
 		var text := "고교 졸업!"
-		match career.path:
-			"draft":
-				text += " 드래프트 신청 — 지명 결과는 다음 업데이트(G7)에서."
-			"college":
-				text += " 대학 진학 — 대학 리그는 다음 업데이트(G7)에서."
+		if not career.draft.is_empty():
+			text += " " + str(career.draft["text"])
+		elif career.path == "college":
+			text += " 대학 진학 — 4년 뒤 대졸 드래프트"
 		var l := UiKit.label(text, Tokens.FONT_BODY, Tokens.ACCENT, Tokens.FONT_BOLD)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(l)
+		var go := UiKit.button("프로 입단 ▶" if career.path != "college" else "대학 4년 → 드래프트 ▶", func() -> void:
+			career.start_pro()
+			_app.save_career()
+			_app.show_home(), Tokens.ACCENT, Tokens.FONT_LABEL)
+		go.disabled = _overlay != null
+		row.add_child(go)
 	col.add_child(row)
-
-
-func _show_winter(winter: Label, next: Button) -> void:
-	var career: CareerState = _app.career
-	var gains: Dictionary = career.winter_gains
-	var parts := []
-	for st: String in gains:
-		if gains[st] > 0:
-			parts.append("%s +%d" % [PlayerData.STAT_LABELS[st], gains[st]])
-	winter.text = "겨울 훈련: " + (", ".join(parts) if not parts.is_empty() else "큰 변화 없음")
-	next.text = "%d학년 시즌 시작 ▶" % (career.player.grade + 1)
 
 
 ## 시즌 끝 이야기가 남았으면 대화 화면을 띄우고, 다 고르면 결산을 다시 그린다 (진로가 반영되게)

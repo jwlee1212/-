@@ -33,12 +33,21 @@ static var TYPES := {
 	"CareerRecords": CareerRecords,
 	"GameEntry": CareerRecords.GameEntry,
 	"PhaseEntry": CareerRecords.PhaseEntry,
+	"Phone": Phone,
+	"NewsFeed": NewsFeed,
+	"ProCareer": ProCareer,
+	"ProLeague": ProLeague,
+	"ProTeam": ProTeam,
+	"ProPlayer": ProPlayer,
+	"PitchStats": ProPlayer.PitchStats,
+	"ProFeed": ProFeed,
 }
 
 ## 저장하지 않는 필드 (종류 -> 필드). 설정에서 다시 만든다
 const SKIP := {
 	"CareerState": ["cfg", "batting"],
 	"EventBook": ["defs", "order"],
+	"ProCareer": ["_pending"],
 }
 
 
@@ -77,6 +86,10 @@ static func delete(path: String = PATH) -> void:
 
 ## 로비·선수 만들기 화면에 보여 줄 한 줄 ("김도윤 · 2학년 · 주말리그 후반기 3/6")
 static func summary(career: CareerState) -> String:
+	if career.in_camp():
+		return "%s · %d학년 겨울 · 캠프 %s" % [career.player.name, career.player.grade, career.round_text()]
+	if career.camp_finished():
+		return "%s · %d학년 겨울 · 캠프 결산" % [career.player.name, career.player.grade]
 	if career.is_season_over():
 		return "%s · %d학년 · 시즌 결산" % [career.player.name, career.player.grade]
 	return "%s · %d학년 · %s %s" % [career.player.name, career.player.grade, career.phase_name(), career.round_text()]
@@ -111,6 +124,7 @@ static func from_bytes(bytes: PackedByteArray, cfg: CareerConfig, batting: Batti
 	_create_all(root["f"], memo, cfg)
 	var filled := {int(root["$id"]): true}
 	_fill(career, "CareerState", root["f"], memo, filled, cfg)
+	career.upgrade_old_save()
 	return {"career": career, "error": ""}
 
 

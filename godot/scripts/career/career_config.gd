@@ -26,6 +26,22 @@ var records: Dictionary
 var economy: Dictionary
 var shop: Dictionary
 var romance: Dictionary
+## 겨울 캠프 (주 수, 연습경기 주차, 훈련 보너스)
+var camp: Dictionary
+## 주간 스케줄 (평일 칸, 대성공·성공·실패 확률)
+var schedule: Dictionary
+## 입부 체력 테스트 미니게임 수치 (balance.json career.fitness)
+var fitness: Dictionary
+## 미니게임 글 (content.json minigames: id -> 제목·종목 설명·감독 한마디)
+var minigames: Dictionary = {}
+## 컷신 (content.json cutscenes: id -> {shots}) · 컷신 연출 수치 (balance.json career.cutscene: 검은 띠·자막·빠르기)
+var cutscenes: Dictionary = {}
+var cutscene: Dictionary = {}
+## 폰 (한 주 문자 수, 답장 기한, 말풍선 연출 시간)
+var phone: Dictionary
+## 폰 뉴스: 수치(balance.json career.news)와 문장 틀(content.json news)
+var news_cfg: Dictionary
+var news: Dictionary = {}
 
 var innings: int
 var auto_step_ms: float
@@ -33,14 +49,24 @@ var fast_step_ms: float
 var auto_pa: Dictionary
 var roster: Dictionary
 var running: Dictionary
+## 도루 (투수 동작·수비 시간)
+var steal: Dictionary
+## 내 수비 (유격수 포구·송구 미니게임) — balance.json game.fielding
+var fielding: Dictionary
 
 var my_school: Dictionary
 var regional_schools: Array
 var national_schools: Array
+## 리그·대회에는 안 나오고 연습경기 상대로만 쓰는 팀 (대학팀 등 — content.json exhibitionSchools)
+var exhibition_schools: Array = []
 var tournaments: Array
 var surnames: Array
 var given_names: Array
 var events: Array
+## 아직 세우는 이벤트가 없는 플래그 (content.json pendingFlags — 검증에서 requires 로 써도 된다)
+var pending_flags: Array = []
+## 아직 없는 이벤트 id (content.json pendingEvents — schedule 대상으로 써도 된다, 예약은 이벤트가 들어올 때까지 쉰다)
+var pending_events: Array = []
 var coach_lines: Dictionary
 ## 게임 이름 (가제) {ko, en, kicker, version}
 var game_title: Dictionary
@@ -48,8 +74,22 @@ var game_title: Dictionary
 var people: Dictionary = {}
 var pro_teams: Array
 var chapters: Dictionary
+## 프로 편 수치 (balance.json career.pro) · 콘텐츠 (content.json pro: 뉴스·SNS 문장 틀, 기념 순간, 매체, 구단 사람)
+var pro: Dictionary = {}
+var pro_content: Dictionary = {}
 ## 대화 화면 배경 자리 (id -> 이름)
 var places: Dictionary = {}
+## 폰 문자 (content.json messages), 단체방 (phone.rooms: id -> {name})
+var messages: Array = []
+var phone_rooms: Dictionary = {}
+## 튜토리얼 팁 카드 (content.json tutorial, id → {title, steps}). Tutorial 이 읽는다
+var tips: Dictionary = {}
+## 시나리오 변수 선언 (content.json vars: id -> {"type": int|bool|enum|string|list, "default", "values"?(enum)}).
+## 플래그(flags)와 달리 값이 있는 이야기 상태 — 호감도·테스트 등급·경기 장면 결과 (docs/scenario 문서의 ID 그대로)
+var vars: Dictionary = {}
+## 이야기 속 연습 미니게임 (이벤트 효과 minigame "drill:<id>"): content.json drills(제목·결과 변수) 에
+## balance.json career.drills(공 수·성장량·보정) 를 겹친 것. id -> 정의
+var drills: Dictionary = {}
 
 
 static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
@@ -78,6 +118,14 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.economy = car["economy"]
 	c.shop = car["shop"]
 	c.romance = car["romance"]
+	c.camp = car["camp"]
+	c.schedule = car["schedule"]
+	assert(not (c.schedule["slots"] as Array).is_empty(), "balance.json: career.schedule.slots 가 비었다")
+	c.phone = car["phone"]
+	c.news_cfg = car["news"]
+	c.fitness = car["fitness"]
+	c.cutscene = car.get("cutscene", {})
+	c.pro = car.get("pro", {})
 
 	var g: Dictionary = balance["game"]
 	c.innings = int(BattingConfig.num(g, "innings"))
@@ -86,22 +134,49 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.auto_pa = g["autoPa"]
 	c.roster = g["roster"]
 	c.running = g["running"]
+	c.steal = g["steal"]
+	c.fielding = g["fielding"]
 
 	c.my_school = content["mySchool"]
 	c.regional_schools = content["regionalSchools"]
 	c.national_schools = content["nationalSchools"]
+	c.exhibition_schools = content.get("exhibitionSchools", [])
 	c.tournaments = content["tournaments"]
 	c.surnames = content["surnames"]
 	c.given_names = content["givenNames"]
 	c.events = content["events"]
+	EventBook.prepare(c.events)
+	c.pending_flags = content.get("pendingFlags", [])
+	c.pending_events = content.get("pendingEvents", [])
 	c.coach_lines = content["coachLines"]
+	c.minigames = content.get("minigames", {})
+	for id: String in content.get("cutscenes", {}):
+		if not id.begins_with("_"):
+			c.cutscenes[id] = content["cutscenes"][id]
 	c.game_title = content["gameTitle"]
 	for id: String in content["people"]:
 		if not id.begins_with("_"):
 			c.people[id] = content["people"][id]
 	c.pro_teams = content["proTeams"]
+	c.pro_content = content.get("pro", {})
 	c.chapters = content["chapters"]
 	for id: String in content["places"]:
 		if not id.begins_with("_"):
 			c.places[id] = content["places"][id]
+	c.news = content.get("news", {})
+	c.messages = content.get("messages", [])
+	for id: String in content.get("tutorial", {}):
+		if not id.begins_with("_"):
+			c.tips[id] = content["tutorial"][id]
+	var drill_numbers: Dictionary = car.get("drills", {})
+	for id: String in content.get("drills", {}):
+		if not id.begins_with("_"):
+			var d: Dictionary = (content["drills"][id] as Dictionary).duplicate(true)
+			d.merge(drill_numbers.get(id, {}), true)
+			c.drills[id] = d
+	for id: String in content.get("vars", {}):
+		if not id.begins_with("_"):
+			c.vars[id] = content["vars"][id]
+	for id: String in content.get("phone", {}).get("rooms", {}):
+		c.phone_rooms[id] = content["phone"]["rooms"][id]
 	return c

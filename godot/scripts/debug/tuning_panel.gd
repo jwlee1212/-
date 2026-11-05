@@ -1,17 +1,29 @@
 class_name TuningPanel
 extends Control
 ## 개발 빌드 전용 손맛 조절 패널 (CLAUDE.md §3-7). 왼쪽 아래 ⚙ 버튼으로 연다.
+## ⚙ 버튼은 끌어서 옮길 수 있다 (화면 아래 글자를 가릴 때). 살짝 누르면 패널이 열리고, 끌면 자리만 바뀐다.
 ## 슬라이더를 움직이면 다음 공부터 바로 반영되고, [저장]하면 맥의 config/balance.json 에 기록된다.
 
 signal changed(id: String, value: float)
 signal save_requested
 signal reload_requested
 signal reset_requested
+## 구종 버튼: "" = 볼배합대로, "random" = 아무거나, 그 밖 = 그 구종만
+signal pitch_forced(id: String)
 
 var _panel: PanelContainer
 var _sliders := {}
 var _value_labels := {}
 var _status: Label
+var _gear: Button
+var _pitch_row: HFlowContainer
+## 지금 고른 구종 버튼 ("" = 볼배합대로). 수치를 다시 읽어도 유지된다
+var forced_pitch := ""
+## 끌기: 누른 채인가, 누른 뒤 움직인 거리(이만큼 넘으면 누르기가 아니라 끌기), 누른 곳(버튼 안 좌표)
+const DRAG_START_PX := 8.0
+var _gear_down := false
+var _gear_dragged := false
+var _gear_grab := Vector2.ZERO
 
 
 func _ready() -> void:
@@ -21,10 +33,11 @@ func _ready() -> void:
 	var gear := Button.new()
 	gear.text = "⚙ 손맛"
 	gear.focus_mode = Control.FOCUS_NONE
-	gear.pressed.connect(func() -> void: _panel.visible = not _panel.visible)
+	gear.gui_input.connect(_on_gear_input)
 	add_child(gear)
-	gear.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, Tokens.SPACE_XS)
-	gear.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_gear = gear
+	# 처음 자리는 왼쪽 아래. 그 뒤로는 끌어 놓은 자리에 둔다
+	_place_gear.call_deferred()
 
 	_panel = PanelContainer.new()
 	_panel.visible = false
@@ -48,6 +61,10 @@ func _ready() -> void:
 	col.add_child(_label("손맛 조절 (다음 공부터 반영)", Tokens.FONT_LABEL, Tokens.INK, Tokens.FONT_BOLD))
 	for knob: Dictionary in Tuning.KNOBS:
 		col.add_child(_knob_row(knob))
+	_pitch_row = HFlowContainer.new()
+	_pitch_row.add_theme_constant_override("h_separation", Tokens.SPACE_XS)
+	_pitch_row.add_theme_constant_override("v_separation", Tokens.SPACE_XS)
+	col.add_child(_pitch_row)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", Tokens.SPACE_XS)
 	for b in [["저장", save_requested], ["다시 읽기", reload_requested], ["되돌리기", reset_requested]]:
@@ -63,12 +80,59 @@ func _ready() -> void:
 	col.add_child(_status)
 
 
+func _place_gear() -> void:
+	_gear.position = Vector2(Tokens.SPACE_XS, size.y - _gear.size.y - Tokens.SPACE_XS)
+
+
+## ⚙ 버튼: 누르고 움직이면 끌기(화면 안에서만), 그냥 떼면 패널 열기·닫기. 터치는 마우스로 들어온다
+func _on_gear_input(e: InputEvent) -> void:
+	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+		if e.pressed:
+			_gear_down = true
+			_gear_dragged = false
+			_gear_grab = e.position
+		elif _gear_down:
+			_gear_down = false
+			if not _gear_dragged:
+				_panel.visible = not _panel.visible
+	elif e is InputEventMouseMotion and _gear_down:
+		if not _gear_dragged and e.position.distance_to(_gear_grab) < DRAG_START_PX:
+			return
+		_gear_dragged = true
+		var p: Vector2 = _gear.position + e.position - _gear_grab
+		_gear.position = p.clamp(Vector2.ZERO, size - _gear.size)
+
+
 ## 패널 값을 다시 맞춘다 (다시 읽기·되돌리기 뒤)
 func show_values(values: Dictionary) -> void:
 	for knob: Dictionary in Tuning.KNOBS:
 		var s: HSlider = _sliders[knob.id]
 		s.set_value_no_signal(values[knob.id])
 		_value_labels[knob.id].text = knob.fmt % values[knob.id]
+
+
+## 구종 버튼 줄을 만든다. names = [[id, 표시 이름], …] (구종 목록은 balance.json 에서 온다)
+func set_pitches(names: Array) -> void:
+	for child in _pitch_row.get_children():
+		child.queue_free()
+	# 줄 하나 아끼려고 제목도 버튼과 같은 줄에 (폰 가로 화면 높이가 빠듯하다)
+	var title := _label("구종 고정", Tokens.FONT_CAPTION, Tokens.INK, Tokens.FONT_BOLD)
+	title.custom_minimum_size.x = 112
+	_pitch_row.add_child(title)
+	var group := ButtonGroup.new()
+	for pair: Array in [["", "볼배합"], ["random", "랜덤"]] + names:
+		var id: String = pair[0]
+		var btn := Button.new()
+		btn.text = pair[1]
+		btn.toggle_mode = true
+		btn.button_group = group
+		btn.button_pressed = id == forced_pitch
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.add_theme_font_size_override("font_size", Tokens.FONT_CAPTION)
+		btn.pressed.connect(func() -> void:
+			forced_pitch = id
+			pitch_forced.emit(id))
+		_pitch_row.add_child(btn)
 
 
 func set_status(text: String) -> void:

@@ -2,6 +2,7 @@ extends Control
 ## 앱 루트: 수치·콘텐츠를 읽고 화면을 바꿔 끼운다.
 ##
 ## 화면 흐름: 타이틀 → 선수 만들기 → [홈(훈련) → 경기 → 결과·이벤트] × 시즌 주차 → 시즌 결산
+##   → 겨울 캠프 [홈(훈련) → (연습경기) → 이벤트] × 4주 → 캠프 결산 → 다음 시즌
 ## 타이틀의 "타격 연습"은 능력치 슬라이더가 있는 연습 화면 (손맛 튜닝용).
 ## 개발 빌드면 어느 화면에서나 왼쪽 아래 "⚙ 손맛" 패널을 쓸 수 있다 (CLAUDE.md §3-7).
 
@@ -9,11 +10,21 @@ var batting_config: BattingConfig
 var presentation: Presentation
 var career_config: CareerConfig
 var sound: SoundPlayer
+var music: MusicPlayer
 var career: CareerState
+## 유저 설정 (주루 설정·본 튜토리얼 팁)
+var settings := Settings.new()
+## 튜토리얼 팁 카드를 띄우나 (스크린샷 스크립트는 끈다 — 흐름을 막지 않게)
+var show_tips := true
 ## 저장을 못 읽은 이유 (로비에 보여 준다, "" 이면 문제없음)
 var save_error := ""
 ## 저장 파일 (스크린샷 스크립트는 다른 파일을 써서 유저 저장을 건드리지 않는다)
 var save_path := SaveGame.PATH
+
+## 테스트 커리어 저장 파일 (개발 빌드의 "테스트 시작" — 유저의 진짜 저장과 따로 둔다)
+const TEST_SAVE := "user://test.save"
+## 지금 테스트 커리어를 하고 있나
+var test_mode := false
 
 var _source: BalanceSource
 var _screen_root: Control
@@ -25,7 +36,7 @@ var _fps_label: Label
 
 
 func _ready() -> void:
-	theme = _make_theme()
+	theme = ThemeBuilder.build()
 	var bg := ColorRect.new()
 	bg.color = Tokens.BACKGROUND
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -36,8 +47,11 @@ func _ready() -> void:
 	add_child(_source)
 	sound = SoundPlayer.new()
 	add_child(sound)
+	music = MusicPlayer.new()
+	add_child(music)
 	await _load_configs()
 	_load_save()
+	settings = Settings.load_from()
 	if OS.is_debug_build():
 		_add_tuning_panel()
 		_add_fps()
@@ -59,7 +73,17 @@ func show_screen(screen: Control) -> void:
 	if _current != null:
 		_current.queue_free()
 	_current = screen
+	music.play(_track_for(screen))
 	_screen_root.add_child(UiKit.fill_parent(screen))
+
+
+## 화면별 배경음악: 로비(타이틀·선수 만들기) · 경기(경기·연습) · 그 밖은 홈
+static func _track_for(screen: Control) -> String:
+	if screen is TitleScreen or screen is CreateScreen:
+		return "lobby"
+	if screen is GameScreen or screen is PracticeScreen or screen is RunPracticeScreen:
+		return "game"
+	return "home"
 
 
 func show_title() -> void:
@@ -78,7 +102,16 @@ func start_career(player_name: String) -> void:
 
 ## 이어하기: 시즌이 끝났으면 시즌 결산, 아니면 허브 (경기를 마친 주면 허브가 남은 이야기와 [다음 주]를 보여 준다)
 func continue_career() -> void:
-	if career.is_season_over():
+	_show_current()
+
+
+## 지금 커리어 상태에 맞는 화면: 캠프 중이면 허브, 캠프를 마쳤으면 캠프 결산, 시즌이 끝났으면 시즌 결산
+func _show_current() -> void:
+	if career.in_camp():
+		show_home()
+	elif career.camp_finished():
+		show_camp_end()
+	elif career.is_season_over():
 		show_season()
 	else:
 		show_home()
@@ -87,19 +120,26 @@ func continue_career() -> void:
 ## 경기 뒤 다음 주로 (결과 화면·허브의 [다음 주])
 func next_week() -> void:
 	career.advance_week()
-	if career.is_season_over():
-		show_season()
-	else:
-		show_home()
+	_show_current()
 
 
 func show_home() -> void:
+	# 프로 편은 프로 허브 (경기 화면·결과 화면은 고교와 같은 것을 쓴다)
+	if career != null and career.pro != null:
+		show_screen(ProHubScreen.new(self))
+		return
 	show_screen(HomeScreen.new(self))
 
 
 func show_game() -> void:
 	if career.game_done:
 		show_home()  # 이번 주 경기는 이미 했다 (불러온 뒤 같은 경기를 다시 하지 않는다)
+		return
+	if career.next_role() == "bench":
+		# 벤치에서 대타로도 안 나가는 날: 지켜볼 타석이 없으니 경기를 건너뛰고 결과만 본다
+		var game := career.new_game()
+		game.run_to_end()
+		show_result(game)
 		return
 	show_screen(GameScreen.new(self))
 
@@ -109,7 +149,41 @@ func show_result(game: GameRunner) -> void:
 
 
 func show_season() -> void:
+	if career != null and career.pro != null:
+		show_screen(ProSeasonScreen.new(self))
+		return
 	show_screen(SeasonScreen.new(self))
+
+
+func show_camp_end() -> void:
+	show_screen(CampScreen.new(self))
+
+
+# ---------- 테스트 시작 (개발 빌드) ----------
+
+func show_jump() -> void:
+	show_screen(JumpScreen.new(self))
+
+
+## 빨리 감은 테스트 커리어로 시작한다. 저장은 TEST_SAVE 로 가서 진짜 저장을 덮지 않는다
+func start_test_career(test_career: CareerState) -> void:
+	if not test_mode:
+		save_path = TEST_SAVE
+		test_mode = true
+	career = test_career
+	save_career()
+	_show_current()
+
+
+## 테스트를 끝내고 진짜 저장으로 돌아간다
+func end_test() -> void:
+	SaveGame.delete(TEST_SAVE)
+	save_path = SaveGame.PATH
+	test_mode = false
+	career = null
+	save_error = ""
+	_load_save()
+	show_title()
 
 
 func show_records() -> void:
@@ -120,11 +194,70 @@ func show_practice() -> void:
 	show_screen(PracticeScreen.new(self))
 
 
+## 설정 (back: [돌아가기]로 갈 화면, 없으면 로비)
+func show_settings(back: Callable = Callable()) -> void:
+	show_screen(SettingsScreen.new(self, back if back.is_valid() else show_title))
+
+
+## 체력 테스트 연습 (개발 빌드): 입부 첫날 미니게임 세 종목을 보상 없이 (폰에서 손맛 맞추기용)
+func show_fitness_practice() -> void:
+	var screen := Control.new()
+	var view := FitnessView.new(career_config, null, sound)
+	screen.add_child(UiKit.fill_parent(view))
+	view.finished.connect(show_title)
+	show_screen(screen)
+
+
+## 수비 연습 (개발 빌드): 유격수 포구·송구만 되풀이 (끝날 때마다 새 타구, 타자 주력 50, 경기·저장과 상관없다).
+## 내 수비 능력치는 커리어가 있으면 그 선수 것, 없으면 50
+func show_field_practice(round_no: int = 0) -> void:
+	var screen := Control.new()
+	var fielding: int = career.player.fielding_for_game(career_config) if career != null else 50
+	var view := FieldView.new(career_config.fielding, batting_config.ball_physics, hash("field_practice%d" % round_no), "연습 타구 %d" % (round_no + 1), 50, fielding, batting_config.input_latency_ms)
+	view.sound_requested.connect(func(sfx: SoundSynth.Sfx, volume: float, pitch_scale: float) -> void:
+		sound.play(sfx, volume * presentation.sfx_volume, pitch_scale))
+	screen.add_child(UiKit.fill_parent(view))
+	view.finished.connect(func(_kind: FieldPlay.Kind) -> void: show_field_practice(round_no + 1))
+	var back := UiKit.button("그만 ›", show_title, Tokens.INK_SOFT, Tokens.FONT_CAPTION)
+	screen.add_child(back)
+	back.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, Tokens.SPACE_SM)
+	back.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	show_screen(screen)
+
+
+## 주루 연습 (개발 빌드): 도루·한 베이스 더·태그업만 되풀이
+func show_run_practice() -> void:
+	show_screen(RunPracticeScreen.new(self))
+
+
 ## 새 타격 세션 (설정은 앱이 들고 있는 것을 같이 쓴다 → 손맛 패널 조절이 바로 반영)
 func new_batting_session() -> BattingSession:
 	var s := BattingSession.new(batting_config, presentation)
 	s.sound_requested.connect(sound.play)
 	return s
+
+
+# ---------- 튜토리얼 ----------
+
+## 아직 안 본 팁이면 host 위에 팁 카드(TipCard)를 띄우고, 닫히면 then 을 부른다. 볼 팁이 없으면 then 을 바로 부른다.
+## 띄웠으면 그 카드를, 아니면 null 을 돌려준다 (경기 화면은 카드가 떠 있는 동안 경기를 멈춘다)
+func show_tip(host: Control, id: String, then: Callable = Callable()) -> TipCard:
+	if not show_tips or not Tutorial.pending(career_config.tips, settings, id):
+		if then.is_valid():
+			then.call()
+		return null
+	var card := TipCard.new(career_config.tips[id], id)
+	host.add_child(UiKit.fill_parent(card))
+	card.finished.connect(func(skip_all: bool) -> void:
+		settings.mark_seen(id)
+		if skip_all:
+			for t: String in Tutorial.IDS:
+				settings.mark_seen(t)
+		settings.save()
+		card.queue_free()
+		if then.is_valid():
+			then.call())
+	return card
 
 
 # ---------- 저장 ----------
@@ -155,6 +288,7 @@ func _load_configs() -> void:
 	var content: Dictionary = await _source.fetch("content.json")
 	batting_config = BattingConfig.from_balance(balance)
 	presentation = Presentation.from_balance(balance)
+	music.configure(presentation)
 	career_config = CareerConfig.from(balance, content)
 	if career != null:
 		career.cfg = career_config
@@ -171,6 +305,9 @@ func _add_tuning_panel() -> void:
 		_tuning.reset(batting_config, presentation)
 		_panel.show_values(_tuning.values)
 		_panel.set_status("처음 값으로 되돌림"))
+	_panel.pitch_forced.connect(func(id: String) -> void:
+		batting_config.forced_pitch_type = id
+		_panel.set_status("구종: %s" % ("볼배합대로" if id == "" else "랜덤" if id == "random" else batting_config.catalog.spec(id).name_ko)))
 	_panel.save_requested.connect(_save_tuning)
 	_panel.reload_requested.connect(_reload)
 
@@ -178,6 +315,12 @@ func _add_tuning_panel() -> void:
 func _reset_tuning() -> void:
 	_tuning = Tuning.new(batting_config, presentation)
 	_panel.show_values(_tuning.values)
+	# 구종 버튼: 수치를 새로 읽으면 config 가 새것이라 고른 구종을 다시 넣는다
+	batting_config.forced_pitch_type = _panel.forced_pitch if batting_config.pitches.has(_panel.forced_pitch) or _panel.forced_pitch == "random" else ""
+	var names := []
+	for id: String in batting_config.pitches:
+		names.append([id, batting_config.catalog.spec(id).name_ko])
+	_panel.set_pitches(names)
 	_panel.set_status("수치 출처: %s" % _source.last_origin)
 
 
@@ -232,47 +375,3 @@ func _add_rotate_hint() -> void:
 	cover.add_child(UiKit.fill_parent(text))
 	add_child(_rotate_hint)
 	_rotate_hint.visible = false
-
-
-## Godot 기본 테마는 어두운 회색이라 슬라이더·버튼을 토큰 색으로 바꾼다
-func _make_theme() -> Theme:
-	var t := Theme.new()
-	t.default_font = Tokens.FONT_REGULAR
-	t.default_font_size = Tokens.FONT_BODY
-	var track := StyleBoxFlat.new()
-	track.bg_color = Color(Tokens.PRIMARY, 0.15)
-	track.set_corner_radius_all(4)
-	track.content_margin_top = 4
-	track.content_margin_bottom = 4
-	var filled := track.duplicate() as StyleBoxFlat
-	filled.bg_color = Tokens.PRIMARY
-	t.set_stylebox("slider", "HSlider", track)
-	t.set_stylebox("grabber_area", "HSlider", filled)
-	t.set_stylebox("grabber_area_highlight", "HSlider", filled)
-	var button := StyleBoxFlat.new()
-	button.bg_color = Tokens.PRIMARY
-	button.set_corner_radius_all(Tokens.RADIUS_CARD)
-	button.content_margin_left = Tokens.SPACE_MD
-	button.content_margin_right = Tokens.SPACE_MD
-	button.content_margin_top = Tokens.SPACE_XS
-	button.content_margin_bottom = Tokens.SPACE_XS
-	var pressed := button.duplicate() as StyleBoxFlat
-	pressed.bg_color = Tokens.PRIMARY.darkened(0.2)
-	for state in ["normal", "hover", "focus"]:
-		t.set_stylebox(state, "Button", button)
-	t.set_stylebox("pressed", "Button", pressed)
-	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		t.set_color(state, "Button", Tokens.SURFACE)
-	t.set_font("font", "Button", Tokens.FONT_BOLD)
-	t.set_font_size("font_size", "Button", Tokens.FONT_CAPTION)
-	var edit := StyleBoxFlat.new()
-	edit.bg_color = Tokens.SURFACE
-	edit.border_color = Tokens.PRIMARY
-	edit.set_border_width_all(2)
-	edit.set_corner_radius_all(Tokens.SPACE_SM)
-	edit.set_content_margin_all(Tokens.SPACE_SM)
-	t.set_stylebox("normal", "LineEdit", edit)
-	t.set_stylebox("focus", "LineEdit", edit)
-	t.set_color("font_color", "LineEdit", Tokens.INK)
-	t.set_font_size("font_size", "LineEdit", Tokens.FONT_TITLE)
-	return t

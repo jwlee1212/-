@@ -22,7 +22,7 @@ func _ready() -> void:
 	var gap := Control.new()
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(gap)
-	var who := UiKit.label("%s · %s %d학년 · %d번 타자" % [career.player.name, career.my_school.name, career.player.grade, career.player.lineup_slot],
+	var who := UiKit.label("%s · %s %d학년 · %s" % [career.player.name, career.my_school.name, career.player.grade, career.player.role_text()],
 		Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD)
 	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.add_child(who)

@@ -2,8 +2,8 @@ class_name PlayerData
 extends RefCounted
 ## 내 선수. 능력치 0~99, 컨디션 0~100, 스카우트 관심도 0~100.
 
-const STATS := ["contact", "power", "eye", "speed"]
-const STAT_LABELS := {"contact": "컨택", "power": "파워", "eye": "선구안", "speed": "주력"}
+const STATS := ["contact", "power", "eye", "speed", "fielding"]
+const STAT_LABELS := {"contact": "컨택", "power": "파워", "eye": "선구안", "speed": "주력", "fielding": "수비"}
 
 
 ## 시즌 누적 기록
@@ -20,9 +20,15 @@ class SeasonStats:
 	var strikeouts := 0
 	var sac_flies := 0
 	var sac_bunts := 0
+	## 도루·도루 실패(견제사 포함) — 내가 직접 뛴 것만 (다른 주자는 아직 도루하지 않는다)
+	var steals := 0
+	var caught_stealing := 0
 	## 인플레이 타구 수와 타구 속도 합 (기록실 분할 기록의 평균 타구 속도용. 타구 물리가 있는 내 타석만 센다)
 	var balls_in_play := 0
 	var ev_sum := 0.0
+	## 내 수비(유격수, 직접 한 것만): 땅볼을 잡아 1루에서 잡은 아웃(보살)·실책(포구 실책·악송구)
+	var assists := 0
+	var errors := 0
 
 	## sac_fly: 희생플라이였는가 (타수에 넣지 않는다)
 	func add(outcome: SwingJudge.Outcome, runs_batted_in: int, sac_fly: bool = false) -> void:
@@ -64,8 +70,12 @@ class SeasonStats:
 		strikeouts += o.strikeouts
 		sac_flies += o.sac_flies
 		sac_bunts += o.sac_bunts
+		steals += o.steals
+		caught_stealing += o.caught_stealing
 		balls_in_play += o.balls_in_play
 		ev_sum += o.ev_sum
+		assists += o.assists
+		errors += o.errors
 
 	## 인플레이 타구 하나의 속도를 더한다
 	func add_ball(ev_kmh: float) -> void:
@@ -91,6 +101,8 @@ class SeasonStats:
 		s.strikeouts = b.so
 		s.sac_flies = b.sf
 		s.sac_bunts = b.sh
+		s.steals = b.sb
+		s.caught_stealing = b.cs
 		return s
 
 	## "4타수 2안타 1홈런" 처럼 짧게
@@ -102,6 +114,10 @@ class SeasonStats:
 			parts.append("%d타점" % rbi)
 		if walks > 0:
 			parts.append("%d볼넷" % walks)
+		if steals > 0:
+			parts.append("%d도루" % steals)
+		if errors > 0:
+			parts.append("%d실책" % errors)
 		return " ".join(parts)
 
 	## 출루율 = (안타 + 볼넷) / (타수 + 볼넷 + 희생플라이). 몸에 맞는 공은 아직 없다
@@ -152,6 +168,8 @@ var power := 40
 var eye := 40
 ## 주력 (아직 훈련으로 오르지 않음)
 var speed := 50
+## 수비 (유격수): 포구 원이 줄어드는 속도·공 빼는 시간·송구 게이지 금색 폭·송구 힘(아웃 확률)에 들어간다 (balance.json game.fielding.stat)
+var fielding := 40
 var condition := 80
 var scout_interest := 5
 ## 평판 (인성·언론 이미지, 0~100). 스카우트 평가에 들어간다
@@ -160,10 +178,16 @@ var reputation := 50
 var money := 0
 ## 산 장비 (상점 gear id -> true)
 var gear := {}
-## 타순 (1~9)
+## 이번 경기에만 붙는 보정 {능력치: +n} (경기 중 대화의 gameBoost 효과 — 경기가 시작·끝날 때 지운다)
+var game_boost := {}
+## 타순 (1~9). 0 = 벤치 (선발 제외 — 이야기가 대타로 부를 때만 나간다)
 var lineup_slot := 7
+## 다음 경기는 벤치에서 시작해 대타로 나간다 (이벤트의 pinchHit 효과 — 그 경기가 끝나면 지운다)
+var bench_next := false
 ## 이벤트가 남긴 표시 (나중에 결과가 돌아오는 이벤트용)
 var flags := {}
+## 시나리오 변수 (content.json vars 에 선언한 id -> 값). 없는 변수는 선언한 기본값으로 본다 (EventBook.var_of)
+var vars := {}
 var season := SeasonStats.new()
 ## 숨겨진 잠재력 (능력치 → 최대치). 화면에는 "성장 여력" 말로만 보인다
 var potential := {}
@@ -173,6 +197,8 @@ var progress := {}
 var form := 0.0
 ## 남은 부상 주 수 (0 이면 건강)
 var injury_weeks := 0
+## 부상 이름 (이벤트의 injuryLabel 효과, "" 이면 그냥 "부상"). 나으면 지운다
+var injury_label := ""
 ## 시즌 시작 때 능력치 (시즌 결산에서 성장 비교)
 var season_start := {}
 
@@ -183,6 +209,7 @@ static func create(player_name: String, cfg: CareerConfig) -> PlayerData:
 	for stat in STATS:
 		p.set(stat, int(cfg.start[stat]))
 	p.speed = int(cfg.start.get("speed", 50))
+	p.fielding = int(cfg.start.get("fielding", 40))
 	p.condition = int(cfg.start["condition"])
 	p.scout_interest = int(cfg.start["scoutInterest"])
 	p.lineup_slot = int(cfg.start["lineupSlot"])
@@ -203,6 +230,16 @@ func mark_season_start() -> void:
 
 func is_injured() -> bool:
 	return injury_weeks > 0
+
+
+## "부상" 또는 이벤트가 붙인 이름 ("발목 염좌")
+func injury_text() -> String:
+	return injury_label if injury_label != "" else "부상"
+
+
+## "7번 타자" 또는 "벤치"
+func role_text() -> String:
+	return "%d번 타자" % lineup_slot if lineup_slot > 0 else "벤치"
 
 
 ## 종합 능력치 (네 능력치 평균, 반올림)
@@ -245,9 +282,27 @@ func potential_average() -> float:
 func skills_for_game(cfg: CareerConfig) -> BatterSkills:
 	var bonus := (condition - cfg.condition_pivot) * cfg.condition_per_point + form * float(cfg.form["skillPerPoint"])
 	var g := gear_bonus(cfg)
+	for s: String in game_boost:
+		g[s] = int(g.get(s, 0)) + int(game_boost[s])
 	return BatterSkills.new(
 		clampi(roundi(contact + bonus + g.get("contact", 0)), 1, 99), clampi(roundi(power + bonus + g.get("power", 0)), 1, 99),
 		clampi(roundi(eye + bonus + g.get("eye", 0)), 1, 99), clampi(speed + int(g.get("speed", 0)), 1, 99))
+
+
+## 경기에서 쓰는 수비 능력치 (타격 능력치처럼 컨디션·폼·장비·경기 보정이 붙는다)
+func fielding_for_game(cfg: CareerConfig) -> int:
+	var bonus := (condition - cfg.condition_pivot) * cfg.condition_per_point + form * float(cfg.form["skillPerPoint"])
+	return clampi(roundi(fielding + bonus + int(gear_bonus(cfg).get("fielding", 0)) + int(game_boost.get("fielding", 0))), 1, 99)
+
+
+## 옛 저장(능력치가 넷이던 때)을 불러왔을 때: 잠재력·시즌 시작 값이 없는 능력치를 채운다.
+## 잠재력은 rng(시드)로 뽑고, 능력치 값 자체는 변수 기본값(수비 40)을 그대로 쓴다
+func fill_missing_stats(cfg: CareerConfig, rng: RandomNumberGenerator, potentials: Dictionary = {}) -> void:
+	for s in STATS:
+		if not potential.has(s):
+			potential[s] = int(potentials[s]) if potentials.has(s) else Growth.roll_potential(cfg, stat(s), rng)
+		if not season_start.has(s):
+			season_start[s] = stat(s)
 
 
 ## 장비 보정 {능력치: +n}. 같은 자리(slot)는 등급(tier)이 가장 높은 것 하나만

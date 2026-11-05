@@ -71,6 +71,19 @@ func _init(cfg: CareerConfig = null) -> void:
 		_center_deg = float(cfg.records["centerSprayDeg"])
 
 
+## 내가 나온 최근 n 경기의 안타 합 (n 보다 적게 나왔으면 있는 만큼). 나온 경기가 없으면 -1
+func recent_hits(n: int) -> int:
+	var sum := 0
+	var seen := 0
+	for i in range(games.size() - 1, -1, -1):
+		if seen >= n:
+			break
+		if games[i].playing:
+			sum += games[i].line.hits
+			seen += 1
+	return sum if seen > 0 else -1
+
+
 ## 경기 하나를 넣는다. pas: GameRunner.my_pas (내 타석들)
 func add_game(entry: GameEntry, pas: Array[Dictionary]) -> void:
 	games.append(entry)

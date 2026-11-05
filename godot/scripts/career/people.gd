@@ -1,6 +1,6 @@
 class_name People
 extends RefCounted
-## 고정 인물 (content.json people): 감독·엄마·동기·라이벌·스카우트 + 연애 후보(매니저·소꿉친구·방송부).
+## 고정 인물 (content.json people): 감독·코치·선배·엄마·동기·후배·라이벌·스카우트 + 연애 후보(매니저·소꿉친구·방송부).
 ## 인물마다 관계 수치(0~100)와 만났는지가 있다. 관계는 이벤트 조건(minRel·maxRel)과 새 시즌 타순(감독 신뢰)에 쓰인다.
 ## 연애 후보의 관계는 호감. 사귀는 사람(partner)은 한 명 — 이벤트에서 "partner" 라고 부르면 그 사람이다.
 
@@ -31,9 +31,17 @@ var by_id := {}
 var partner := ""
 
 
-## extra: {"rival": 라이벌 이름, "scoutTeam": 스카우트 구단 이름}
+## extra: {"rival": 라이벌 이름, "scoutTeam": 스카우트 구단 이름, "player": 내 이름}
+## 뽑는 이름은 인물끼리 겹치지 않고, 내 선수와 이름(성 뺀 부분)이 같지 않게 한다
 static func create(cfg: CareerConfig, rng: RandomNumberGenerator, extra: Dictionary) -> People:
 	var ps := People.new()
+	var taken := {}
+	for key in ["rival", "player"]:
+		if extra.has(key):
+			taken[str(extra[key]).substr(1)] = true
+	for id: String in cfg.people:
+		if cfg.people[id].has("fixedName"):
+			taken[str(cfg.people[id]["fixedName"]).substr(1)] = true
 	var starts: Dictionary = cfg.story["relationStart"]
 	for id: String in cfg.people:
 		var d: Dictionary = cfg.people[id]
@@ -46,6 +54,11 @@ static func create(cfg: CareerConfig, rng: RandomNumberGenerator, extra: Diction
 			p.name = extra["rival"]
 		else:
 			p.name = Team._random_name(cfg, rng)
+			for tries in 30:
+				if not taken.has(p.name.substr(1)):
+					break
+				p.name = Team._random_name(cfg, rng)
+			taken[p.name.substr(1)] = true
 		p.call = str(d["callFormat"]).replace("{name}", p.name)
 		p.desc = d["desc"]
 		p.rel_label = d["relLabel"]

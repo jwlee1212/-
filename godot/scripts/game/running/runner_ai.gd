@@ -17,6 +17,7 @@ enum State {
 	SAFE,       ## 베이스에 살아서 멈춤 (플레이 끝까지 그 자리)
 	OUT,        ## 아웃 (필드에서 빠진다)
 	SCORED,     ## 득점
+	RUNDOWN,    ## 두 베이스 사이에 갇혀 수비에 쫓기는 중 (런다운 — 움직임은 Rundown 이 정한다)
 }
 
 signal state_changed(runner: RunnerAI, from: State, to: State)
@@ -37,6 +38,8 @@ var forced := false
 var pos := Vector2.ZERO
 var speed := 0.0
 var top_speed: float
+## 이 플레이에서 달린 거리 (m) — 한 바퀴(홈→1→2→3→홈)를 넘기면 지쳐서 느려진다 (런다운이 끝없이 이어지지 않게)
+var run_dist := 0.0
 ## 위치 기록 (DT 간격) — 중계 화면이 그대로 그린다
 var track := PackedVector2Array()
 ## 상태 변화 기록 [[시각, 상태], ...] (테스트·디버그)
@@ -146,6 +149,14 @@ func return_to_base(t: float) -> void:
 	_set_state(State.RETURNING, t)
 
 
+## 지금 낼 수 있는 최고 속도: 한 바퀴 거리(4 × 베이스 간 거리)를 넘게 달리면 넘은 1m 마다 fatigueSlowPerM 씩 줄어든다 (최저 fatigueMinFactor 배)
+func speed_cap() -> float:
+	var over := run_dist - 4.0 * _phys.base_distance
+	if over <= 0.0:
+		return top_speed
+	return top_speed * maxf(float(_run["fatigueMinFactor"]), 1.0 - over * float(_run["fatigueSlowPerM"]))
+
+
 ## 남은 경로 거리
 func remaining() -> float:
 	if curve == null:
@@ -173,7 +184,7 @@ func eta_to_base(b: int) -> float:
 
 func _eta(d: float, v0: float) -> float:
 	var a: float = _run["accelMps2"]
-	var vmax := top_speed
+	var vmax := speed_cap()
 	if v0 >= vmax:
 		return d / vmax
 	var d_acc := (vmax * vmax - v0 * v0) / (2.0 * a)
@@ -279,7 +290,7 @@ func _back_to_bag_for_tag(t: float) -> void:
 
 ## 한 간격 진행: 경로를 따라 가속·감속하며 움직인다. 슬라이딩은 PlaySimulator 가 접전이면 켠다
 func step(dt: float, t: float) -> void:
-	if is_done() or state == State.OUT:
+	if is_done() or state == State.OUT or state == State.RUNDOWN:
 		track.append(pos)
 		return
 	var moving := (state == State.RUN or state == State.RETURNING or state == State.SLIDING or state == State.HALFWAY
@@ -290,7 +301,7 @@ func step(dt: float, t: float) -> void:
 		track.append(pos)
 		return
 	var a: float = _run["accelMps2"]
-	var vmax := top_speed
+	var vmax := speed_cap()
 	# 라운딩 구간(경로 중간 베이스 근처)에서는 조금 느려진다
 	if curve.point_count > 3 and remaining() > float(_run["roundingStartM"]):
 		vmax *= float(_run["roundingSpeedFactor"]) if _near_corner() else 1.0
@@ -303,7 +314,9 @@ func step(dt: float, t: float) -> void:
 		speed = minf(minf(speed + a * dt, vmax), maxf(v_stop, 1.0))
 	else:
 		speed = minf(speed + a * dt, vmax)
+	var before := offset
 	offset = minf(offset + speed * dt, curve.get_baked_length())
+	run_dist += offset - before
 	pos = curve.sample_baked(offset)
 	track.append(pos)
 
@@ -339,6 +352,11 @@ func set_scored(t: float) -> void:
 
 func set_out(t: float) -> void:
 	_set_state(State.OUT, t)
+
+
+## 런다운에 갇혔다 (그 뒤 위치는 Rundown 이 직접 옮긴다)
+func enter_rundown(t: float) -> void:
+	_set_state(State.RUNDOWN, t)
 
 
 ## 지나간 베이스 갱신 (경로 위에서 베이스를 밟았으면)

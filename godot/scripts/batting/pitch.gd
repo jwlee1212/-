@@ -3,19 +3,25 @@ extends RefCounted
 ## 공 하나.
 ##
 ## 좌표는 스트라이크존 기준: 가운데가 (0, 0), 존 가장자리가 ±1, y 는 아래가 +, x 는 +가 바깥쪽(타자에게서 먼 쪽).
-## 공은 휘기 전 직선으로 오다가 break_start 이후 휘어서 마지막에 target 에 도착한다.
-## 그래서 막판에 휘는 공은 일찍 판단하기 어렵다.
+## 공의 움직임은 trajectory(PitchTrajectory)가 정한다: 구종마다 휘기 시작하는 때·꺾이는 모양이 달라
+## 막판에 휘는 공은 일찍 판단하기 어렵다. 어떻게 휘든 flight_ms 에 정확히 target 에 도착한다.
 
-## 구종 id (balance.json pitches 의 키: "fastball", "slider", "changeup" …)
+## 구종 id (balance.json batting.pitches 의 키: "four_seam", "slider", "curve" …)
 var type: String
 var label: String
+## 투수 손을 떠나 홈플레이트까지 걸리는 시간 (ms) = 타이밍 판정 기준 시각
 var flight_ms: float
+## 화면에 보여 줄 구속
+var speed_kmh: int
+## 던진 손 "R" | "L"
+var hand := "R"
 ## 실제로 도착하는 곳
 var target := Vector2.ZERO
 ## 포수가 미트를 댄 곳 = 투수가 노린 곳. 제구가 흔들리면 target 과 달라진다
 var intended := Vector2.ZERO
-var break_vec := Vector2.ZERO
-var break_start: float
+var trajectory: PitchTrajectory
+## 스트라이크로 인정되는 공 중심의 범위 (존 반폭 단위) = 1 + 공 반지름. 공이 조금이라도 존에 걸치면 스트라이크
+var reach := 1.0
 ## 비행 진행률이 이 값을 넘으면 구종이 화면에 드러난다 (선구안)
 var reveal_fraction: float
 ## 볼배합 의도 (화면 설명·테스트용)
@@ -25,27 +31,28 @@ var is_mistake := false
 
 
 func is_strike() -> bool:
-	return absf(target.x) <= 1.0 and absf(target.y) <= 1.0
+	return absf(target.x) <= reach and absf(target.y) <= reach
 
 
-## 진행률 progress(0=투수 손, 1=홈플레이트)에서 공의 존 좌표
-func zone_position_at(progress: float) -> Vector2:
-	var p := clampf(progress, 0.0, 1.0)
-	var bend := 0.0
-	if p > break_start:
-		var k := (p - break_start) / (1.0 - break_start)
-		bend = k * k
-	return (target - break_vec) * p + break_vec * bend
+## 공이 스트라이크 범위(reach)에서 벗어난 거리 (존 반폭 단위, 스트라이크면 0). 모서리 밖이면 두 축을 합친 직선 거리
+func outside_distance() -> float:
+	return Vector2(maxf(absf(target.x) - reach, 0.0), maxf(absf(target.y) - reach, 0.0)).length()
+
+
+## 공을 놓고 t_ms 뒤 공의 존 좌표
+func position_at(t_ms: float) -> Vector2:
+	return trajectory.position_at(t_ms)
 
 
 func is_revealed_at(progress: float) -> bool:
 	return progress >= reveal_fraction
 
 
-## 존 3×3 칸 번호 (0~8, 왼쪽 위부터). 존 밖이면 -1 — 노려치기 판정에 쓴다
-static func cell_of(pos: Vector2) -> int:
-	if absf(pos.x) > 1.0 or absf(pos.y) > 1.0:
+## 존 3×3 칸 번호 (0~8, 왼쪽 위부터). 존 밖이면 -1 — 노려치기 판정에 쓴다.
+## reach: 이 범위를 존 전체로 보고 3등분한다 (공 위치면 pitch.reach — 존에 걸친 공은 가장자리 칸, 화면 탭이면 1)
+static func cell_of(pos: Vector2, reach_: float = 1.0) -> int:
+	if absf(pos.x) > reach_ or absf(pos.y) > reach_:
 		return -1
-	var col := clampi(int(floor((pos.x + 1.0) / 2.0 * 3.0)), 0, 2)
-	var row := clampi(int(floor((pos.y + 1.0) / 2.0 * 3.0)), 0, 2)
+	var col := clampi(int(floor((pos.x / reach_ + 1.0) / 2.0 * 3.0)), 0, 2)
+	var row := clampi(int(floor((pos.y / reach_ + 1.0) / 2.0 * 3.0)), 0, 2)
 	return row * 3 + col
