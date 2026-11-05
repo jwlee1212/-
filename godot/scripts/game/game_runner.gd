@@ -88,7 +88,7 @@ func step() -> Dictionary:
 	var idx: int = state.batter_index[side]
 	var batter := teams[side].lineup[idx]
 	var pitcher := current_pitcher()
-	var pa := AutoPa.simulate(cfg.auto_pa, bc, batter.skills, pitcher, _rng)
+	var pa := AutoPa.simulate(cfg.auto_pa, bc, batter.skills, pitcher, _rng, BattedBallSim.dp_situation(state.bases, state.outs))
 	var half := state.half_text()
 	var r := _apply(pa.outcome, pa.ball, pa.pitches, false, null)
 	var text := "[%s] %s %d번 %s — %s%s" % [half, team_short(side), idx + 1, batter.name, outcome_label(r.outcome), _runs_text(r)]
@@ -192,7 +192,9 @@ func _after_pa(r: Dictionary) -> void:
 
 func _runs_text(r: Dictionary) -> String:
 	var parts := []
-	if r.note != "" and r.note != "희생번트":
+	if r.note == "병살" and r.get("fielding", "") != "":
+		parts.append("%s 병살" % r.fielding)  # 예: 6-4-3 병살
+	elif r.note != "" and r.note != "희생번트":
 		parts.append(r.note)
 	if r.runs > 0:
 		parts.append("%d점!" % r.runs)

@@ -24,17 +24,19 @@ func _ready() -> void:
 	frame.phys = phys
 	add_child(frame)
 	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	# 1) 1·2루, 좌중간 안타  2) 1루, 유격수 땅볼 (병살 기회)  3) 2루, 먼 외야 안타 (중계 플레이)
+	# 1) 1·2루, 좌중간 안타  2) 1루, 유격수 땅볼 (병살 수비 위치 → 6-4-3)  3) 2루, 먼 외야 안타 (중계 플레이)
 	var cases := [["single", 140, 12, -15, [1, 2, -1]], ["dp", 135, -8, -12, [1, -1, -1]], ["relay", 155, 14, 20, [-1, 2, -1]]]
 	for c: Array in cases:
 		var play := _make(phys, c[1], c[2], c[3], c[4])
 		if c[0] == "dp":
-			# 병살이 나는 타구를 찾는다
-			for spray in range(-30, 10, 2):
-				var p2 := _make(phys, c[1], c[2], spray, c[4])
-				if p2.double_play:
-					play = p2
-					break
+			# 6-4-3 병살이 나는 타구를 찾는다 (무사 1루라 병살 수비 위치)
+			var found := false
+			for ev in [135, 120, 150]:
+				for spray in range(-30, 10, 2):
+					var p2 := _make(phys, ev, c[2], spray, c[4])
+					if not found and p2.double_play and p2.fielding == "6-4-3":
+						play = p2
+						found = true
 		if c[0] == "relay":
 			# 중계맨을 거치는 송구가 나오는 타구를 찾는다
 			for spray in range(-40, 41, 4):
@@ -43,7 +45,7 @@ func _ready() -> void:
 					play = p3
 					break
 		frame.play = play
-		print("%s: %s %s, 득점 %s, 주자 %s, 송구 %d, 판정 %s, %.2f초" % [c[0], SwingJudge.Outcome.keys()[play.batter_outcome], play.note, play.scorers, play.bases,
+		print("%s: %s %s %s, 득점 %s, 주자 %s, 송구 %d, 판정 %s, %.2f초" % [c[0], SwingJudge.Outcome.keys()[play.batter_outcome], play.fielding, play.note, play.scorers, play.bases,
 			play.throws.size(), play.calls.map(func(x: Dictionary) -> String: return x.text), play.duration])
 		for k in [0.0, 0.25, 0.5, 0.65, 0.75, 1.0]:
 			frame.t = play.duration * k
@@ -53,7 +55,7 @@ func _ready() -> void:
 
 
 func _make(phys: BattedBallSim.Config, ev: float, la: float, spray: float, bases: Array) -> PlaySimulator.PlayResult:
-	var ball := BattedBallSim.simulate(phys, ev, la, spray, 50)
+	var ball := BattedBallSim.simulate(phys, ev, la, spray, 50, false, BattedBallSim.dp_situation(bases, 0))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	return PlaySimulator.new(phys, ball, 4, bases, func(_i: int) -> int: return 50, 0, rng).run()

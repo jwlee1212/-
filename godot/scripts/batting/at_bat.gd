@@ -137,7 +137,7 @@ func swing(tap_ms: float) -> PitchOutcome:
 					strikes += 1
 				o = PitchOutcome.new(Call.FOUL, true, diff, c, null)
 		_:
-			_judge.outcome_of(c, skills)
+			_judge.outcome_of(c, skills, BattedBallSim.dp_situation(situation.get("bases", [-1, -1, -1]), int(situation.get("outs", 0))))
 			# 주자·수비까지 진행해 최종 결과를 정한다 (화면도 이 플레이를 그린다)
 			var play := _run_play(c)
 			var res := Result.new(play.batter_outcome, c.batted_ball, pitch_count, c)

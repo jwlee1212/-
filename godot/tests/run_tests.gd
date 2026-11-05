@@ -96,6 +96,7 @@ func _init() -> void:
 		"test_play_records_and_hit_credit",
 		"test_base_running_rates",
 		"test_fielder_steps_on_near_base",
+		"test_six_four_three_double_play",
 		"test_no_pointless_throws",
 		"test_force_outs_and_cover",
 		"test_relay_play",
@@ -552,7 +553,7 @@ func _play_full_game(seed_value: int) -> GameRunner:
 		guard += 1
 		var step := game.step()
 		if step.type == "my_turn":
-			var pa := AutoPa.simulate(cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng)
+			var pa := AutoPa.simulate(cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng, BattedBallSim.dp_situation(game.state.bases, game.state.outs))
 			var c: SwingJudge.Contact = null
 			if pa.ball != null:
 				c = SwingJudge.Contact.new(SwingJudge.Quality.SOLID, pa.ball.spray_deg, pa.ball.distance_m, pa.ball.batted_ball)
@@ -1062,7 +1063,7 @@ func _auto_week(career: CareerState, training_id: String) -> GameRunner:
 	var rng := _rng(career.week * 31 + career.season_no)
 	while not game.state.over:
 		if game.step().type == "my_turn":
-			var pa := AutoPa.simulate(career.cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng)
+			var pa := AutoPa.simulate(career.cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng, BattedBallSim.dp_situation(game.state.bases, game.state.outs))
 			game.apply_my_result(AtBat.Result.new(pa.outcome, SwingJudge.BattedBall.NONE, pa.pitches, null))
 	return game
 
@@ -1528,12 +1529,13 @@ func test_base_running_rates() -> void:
 	pitcher.control = 50
 	var st := {"s2": 0, "s2y": 0, "dp_n": 0, "dp": 0, "sf_n": 0, "sf": 0}
 	for i in 4000:
-		var pa := AutoPa.simulate(cfg.auto_pa, _config, batter, pitcher, rng)
-		if pa.ball == null or pa.ball.home_run:
-			continue
 		var k := i % 3
 		var bases := [-1, 1, -1] if k == 0 else ([1, -1, -1] if k == 1 else [-1, -1, 3])
 		var outs := i % 2
+		# 실제 경기처럼 무사·1사 1루면 병살 수비 위치로 선다
+		var pa := AutoPa.simulate(cfg.auto_pa, _config, batter, pitcher, rng, BattedBallSim.dp_situation(bases, outs))
+		if pa.ball == null or pa.ball.home_run:
+			continue
 		var res := PlaySimulator.new(p, pa.ball, 4, bases, func(_x: int) -> int: return 50, outs, rng).run()
 		if k == 0 and res.batter_outcome == SwingJudge.Outcome.SINGLE:
 			st.s2 += 1
@@ -1567,6 +1569,50 @@ func test_fielder_steps_on_near_base() -> void:
 	var far := _sim(130, -5, -30)
 	var res2 := PlaySimulator.new(p, far, 4, [1, -1, -1], func(_x: int) -> int: return 50, 0, _rng(1)).run()
 	check(not res2.throws.is_empty() and not res2.throws[0].carry, "멀리서 잡으면 송구")
+
+
+func test_six_four_three_double_play() -> void:
+	# 무사 1루 유격수 땅볼: 유격수(6) → 2루 커버 2루수(4) → 1루수(3) 병살
+	var p := _config.ball_physics
+	check(BattedBallSim.dp_situation([1, -1, -1], 0) and BattedBallSim.dp_situation([1, 2, -1], 1), "무사·1사 1루면 병살 수비")
+	check(not BattedBallSim.dp_situation([1, -1, -1], 2) and not BattedBallSim.dp_situation([-1, 2, -1], 0), "2사·1루 비면 보통 수비")
+	# 병살 수비면 유격수·2루수만 2루 쪽으로 당겨 선다
+	var normal := BattedBallSim.fielder_positions(p, false)
+	var dp_pos := BattedBallSim.fielder_positions(p, false, true)
+	var bag2 := p.base_pos(2)
+	check(dp_pos["SS"].distance_to(bag2) < normal["SS"].distance_to(bag2) and dp_pos["2B"].distance_to(bag2) < normal["2B"].distance_to(bag2), "유격수·2루수가 2루에 가까워진다")
+	check(dp_pos["3B"] == normal["3B"] and dp_pos["1B"] == normal["1B"], "다른 수비수는 그대로")
+	var found: PlaySimulator.PlayResult = null
+	var tried := 0
+	for ev in [120, 135, 150]:
+		for spray in range(-24, -3, 2):
+			var ball := BattedBallSim.simulate(p, ev, -8, spray, 50, false, true)
+			if ball.fielder != "SS" or ball.caught:
+				continue
+			tried += 1
+			var play := PlaySimulator.new(p, ball, 4, [1, -1, -1], func(_x: int) -> int: return 50, 0, _rng(3)).run()
+			if play.double_play and found == null:
+				found = play
+	check(tried > 0, "유격수 땅볼이 있다")
+	check(found != null, "유격수 땅볼 병살이 나온다 (%d개 중)" % tried)
+	if found == null:
+		return
+	check(found.fielding == "6-4-3", "기록 표기 6-4-3 (%s)" % found.fielding)
+	check(found.outs == 2 and found.note == "병살" and found.bases == [-1, -1, -1], "2아웃, 주자 없음")
+	check(found.throws.size() >= 2 and found.throws[0].base == 2 and found.throws[0].cover.name == "2B" and found.throws[1].base == 1, "2루수가 2루 커버 → 1루 송구")
+	var texts: Array = found.calls.map(func(c: Dictionary) -> String: return c.text)
+	check(texts == ["2루 아웃!", "1루 아웃!"], "판정 순서 %s" % [texts])
+	check(found.rbi == 0, "병살은 타점 없음")
+	# 경기 기록 한 줄에도 표기가 붙는다
+	var g := GameState.new(9, _career_cfg().running, p)
+	g.bases = [1, -1, -1]
+	var r := g.apply_play(found)
+	check(r.fielding == "6-4-3" and g.outs == 2, "경기 상태에 반영")
+	# 1루 포스 아웃 하나뿐인 땅볼은 6-3
+	var one := BattedBallSim.simulate(p, 150, -8, -14, 50)
+	var single_out := PlaySimulator.new(p, one, 4, [-1, -1, -1], func(_x: int) -> int: return 50, 0, _rng(3)).run()
+	if single_out.outs == 1 and one.fielder == "SS":
+		check(single_out.fielding == "6-3", "유격수 땅볼 아웃은 6-3 (%s)" % single_out.fielding)
 
 
 func test_no_pointless_throws() -> void:
@@ -1746,7 +1792,7 @@ func _records_week(career: CareerState) -> void:
 	var rng := _rng(career.week * 17 + career.season_no)
 	while not game.state.over:
 		if game.step().type == "my_turn":
-			var pa := AutoPa.simulate(career.cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng)
+			var pa := AutoPa.simulate(career.cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng, BattedBallSim.dp_situation(game.state.bases, game.state.outs))
 			var c: SwingJudge.Contact = null
 			if pa.ball != null:
 				c = SwingJudge.Contact.new(SwingJudge.Quality.SOLID, pa.ball.spray_deg, pa.ball.distance_m, pa.ball.batted_ball)
@@ -1829,7 +1875,7 @@ func _save_week(career: CareerState) -> void:
 	var rng := _rng(career.week * 17 + career.season_no)
 	while not game.state.over:
 		if game.step().type == "my_turn":
-			var pa := AutoPa.simulate(career.cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng)
+			var pa := AutoPa.simulate(career.cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng, BattedBallSim.dp_situation(game.state.bases, game.state.outs))
 			var c: SwingJudge.Contact = null
 			if pa.ball != null:
 				c = SwingJudge.Contact.new(SwingJudge.Quality.SOLID, pa.ball.spray_deg, pa.ball.distance_m, pa.ball.batted_ball)

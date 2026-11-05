@@ -120,7 +120,7 @@ func _ready() -> void:
 	rng2.seed = 77
 	while not g2.state.over:
 		if g2.step().type == "my_turn":
-			var pa2 := AutoPa.simulate(career.cfg.auto_pa, career.batting, g2.current_batter().skills, g2.current_pitcher(), rng2)
+			var pa2 := AutoPa.simulate(career.cfg.auto_pa, career.batting, g2.current_batter().skills, g2.current_pitcher(), rng2, BattedBallSim.dp_situation(g2.state.bases, g2.state.outs))
 			g2.apply_my_result(AtBat.Result.new(pa2.outcome, SwingJudge.BattedBall.NONE, pa2.pitches, null))
 	career.finish_game(g2)
 	_app.save_career()
@@ -167,7 +167,7 @@ func _auto_week(career: CareerState) -> void:
 	rng.seed = career.week
 	while not game.state.over:
 		if game.step().type == "my_turn":
-			var pa := AutoPa.simulate(career.cfg.auto_pa, career.batting, game.current_batter().skills, game.current_pitcher(), rng)
+			var pa := AutoPa.simulate(career.cfg.auto_pa, career.batting, game.current_batter().skills, game.current_pitcher(), rng, BattedBallSim.dp_situation(game.state.bases, game.state.outs))
 			# 기록실 분할 기록이 차도록 타구와 카운트도 붙인다
 			var c: SwingJudge.Contact = null
 			if pa.ball != null:

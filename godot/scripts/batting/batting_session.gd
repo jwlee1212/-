@@ -338,6 +338,10 @@ func _show_result_callout(r: AtBat.Result) -> void:
 			detail = "%s%s · 1루 %.2f초 차" % [aim_text(swing_outcome.aim), direction_text(r.contact.angle_deg), absf(ball.play_margin)]
 		# 인플레이 타구는 중계 화면에서 플레이가 끝난 뒤에 결과를 띄운다
 		delay = hit_play_end_ms() + presentation.after_play_hold_ms * 0.3
+	if r.play != null and r.play.double_play:
+		# 병살은 공이 거친 수비수를 기록지 표기로 (6-4-3 = 유격수 → 2루수 → 1루수)
+		_set_callout("병살", "%s 더블플레이 · %s" % [r.play.fielding, direction_text(r.contact.angle_deg)], tone, delay)
+		return
 	_set_callout(outcome_text(r.outcome), detail, tone, delay)
 
 
