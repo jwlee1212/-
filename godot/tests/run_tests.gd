@@ -91,6 +91,7 @@ func _init() -> void:
 		"test_pro_retire",
 		"test_every_choice_path",
 		"test_full_career_every_strategy",
+		"test_pro_feed_variety",
 		"test_real_content",
 		"test_training_and_growth",
 		"test_condition_affects_skills",
@@ -5985,3 +5986,37 @@ func test_full_career_every_strategy() -> void:
 		check(int(sum["years"]) >= 1 and (sum["line"] as PlayerData.SeasonStats).games > 0, "%s 은퇴식 요약 (%d경기)" % [tag, (sum["line"] as PlayerData.SeasonStats).games])
 		var r := _reload(c)
 		check(r.pro.retired, "%s 은퇴한 커리어도 저장된다" % tag)
+
+
+
+func test_pro_feed_variety() -> void:
+	# 프로 뉴스·SNS (2026-11-05 유저: 글을 많이, 어그로 기사도, 같은 문구는 되도록 다시 안 보게)
+	var cfg := _pro_cfg(8)
+	check(ProFeed.validate(cfg).is_empty(), "틀 검증: %s" % [ProFeed.validate(cfg)])
+	var c := _pro_career(cfg, "S", "기사")
+	c.people.meet("chae")
+	for w in 8:
+		_pro_week(c)
+	var items: Array = c.pro.feed.items
+	check(items.size() >= 8 * 8, "8주에 글 %d개 (한 주 8개 넘게)" % items.size())
+	check(items.any(func(it: Dictionary) -> bool: return it["type"] == "gossip"), "어그로 기사가 있다")
+	check(items.any(func(it: Dictionary) -> bool: return it["type"] == "fan_talk"), "팬 수다가 있다")
+	var titles := {}
+	for it: Dictionary in items:
+		titles[it["title"]] = int(titles.get(it["title"], 0)) + 1
+	check(float(titles.size()) / items.size() >= 0.9, "같은 제목이 거의 없다 (서로 다른 제목 %d / %d)" % [titles.size(), items.size()])
+	for it: Dictionary in items:
+		check(not str(it["title"]).contains("{"), "치환이 남지 않는다: %s" % it["title"])
+		var cm: Array = it["comments"]
+		var uniq := {}
+		for x: String in cm:
+			uniq[x] = true
+		check(uniq.size() == cm.size(), "한 글의 댓글이 겹치지 않는다")
+	# 같은 진행이면 같은 기사 (원칙 2), 저장해도 이어진다
+	var d := _pro_career(_pro_cfg(8), "S", "기사")
+	d.people.meet("chae")
+	for w in 8:
+		_pro_week(d)
+	check(d.pro.feed.items.map(func(it: Dictionary) -> String: return it["title"]) == items.map(func(it: Dictionary) -> String: return it["title"]), "재현성")
+	var r := _reload(c)
+	check(r.pro.feed.used.size() == c.pro.feed.used.size(), "쓴 틀 기록도 저장된다")

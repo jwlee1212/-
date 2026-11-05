@@ -415,12 +415,25 @@ MESSAGES = [
 ]
 
 
+# ---------- 늘린 틀 (같은 문구를 덜 보게 · 어그로 기사) ----------
+exec(open(Path(__file__).resolve().parent / "pro_feed_text.py", encoding="utf-8").read())
+for _k, _v in NEWS_MORE.items():
+    NEWS.setdefault(_k, [])
+    NEWS[_k] += [x for x in _v if x not in NEWS[_k]]
+for _k, _v in SNS_MORE.items():
+    SNS["posts"].setdefault(_k, [])
+    SNS["posts"][_k] += [x for x in _v if x not in SNS["posts"][_k]]
+for _k, _v in COMMENTS_MORE.items():
+    SNS["comments"].setdefault(_k, [])
+    SNS["comments"][_k] += [x for x in _v if x not in SNS["comments"][_k]]
+
+
 def main():
     c = json.loads(CONTENT.read_text(encoding="utf-8"))
     for t in c["proTeams"]:
         t.update(TEAMS[t["name"]])
     c["pro"] = {"_note": "프로 편 (scripts/pro_content.py 가 쓴다). media 매체, statNames 부문 이름, news·sns 문장 틀 (ProFeed), milestones = 상황 컷신 (Milestones — 그림이 없으면 컷신 자리 카드)",
-                "ending": ENDING, "retireText": RETIRE_TEXT, "media": MEDIA, "statNames": STAT_NAMES, "news": NEWS, "sns": SNS, "milestones": MILESTONES}
+                "ending": ENDING, "retireText": RETIRE_TEXT, "gossip": GOSSIP, "media": MEDIA, "statNames": STAT_NAMES, "news": NEWS, "sns": SNS, "milestones": MILESTONES}
     c["people"]["chae"] = CHAE
     for k, v in PLACES.items():
         c["places"][k] = v

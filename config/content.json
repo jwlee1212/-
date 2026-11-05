@@ -14078,6 +14078,178 @@
         "coach": "그 운동장에 네 사진이 걸렸다. 후배들이 매일 본다."
       }
     },
+    "gossip": {
+      "media": [
+        "스포츠 와이드",
+        "핫스포츠",
+        "야구 인사이드",
+        "더 클럽하우스",
+        "온라인 커뮤니티 발",
+        "스타 다이어리",
+        "그라운드 톡"
+      ],
+      "prefixes": [
+        "",
+        "",
+        "[단독]",
+        "[충격]",
+        "[속보]",
+        "[현장]",
+        "[이슈]",
+        "[포착]",
+        "알고 보니",
+        "결국",
+        "[썰]",
+        "[논란]",
+        "[독점]",
+        "[화제]",
+        "[TMI]"
+      ],
+      "suffixes": [
+        "",
+        "",
+        "… 팬들 '설마'",
+        " (사진)",
+        "… 구단은 침묵",
+        "… 진실은?",
+        "… 댓글 폭발",
+        "… 관계자 '노코멘트'",
+        "… 커뮤니티 발칵",
+        "?!",
+        "… 반응 엇갈려",
+        " (영상)",
+        "… 해명은?",
+        "… 이유 있었다",
+        "… 팬들 시끌"
+      ],
+      "hints": {
+        "neighbor": "미대생 A씨",
+        "manager": "대학 분석동아리 출신 B씨",
+        "reporter": "스포츠 기자 C씨",
+        "chae": "인플루언서 D씨"
+      },
+      "topics": {
+        "generic": [
+          "{player}의 경기 전 루틴, 알고 보니 '이것'",
+          "{player} 징크스 공개 — 양말은 왼쪽부터",
+          "{player}가 매일 먹는 아침 메뉴",
+          "{player} 숙소 룸메이트가 밝힌 반전 성격",
+          "{player}, 쉬는 날엔 뭐 하나",
+          "{player} 새 배트 바꿨다?",
+          "{player} 응원가 저작권 논란 해프닝",
+          "{team} 라커룸 서열 1위는 {player}?",
+          "{player}의 사인, 고교 때와 달라졌다",
+          "{player} 헤어스타일 변신",
+          "{player} 팬서비스 영상 화제",
+          "구단 직원이 말하는 {player}의 '진짜 모습'"
+        ],
+        "slump": [
+          "{player} 부진, 사생활 때문?",
+          "{player} 슬럼프 진짜 이유는 따로 있다",
+          "{player} 타격폼 무너졌다는 전문가 분석",
+          "'2군 갈 수도' {player} 위기설",
+          "{player}, 밤마다 혼자 배팅장 간다는 목격담",
+          "{player} 부진에 감독 한숨"
+        ],
+        "hot": [
+          "{player}, 메이저리그 스카우트 포착",
+          "'괴물' {player} 해외 진출설 솔솔",
+          "{player} 몸값 벌써 들썩",
+          "{player} 상승세 비결은 '이 사람'",
+          "타 구단들 '{player} 데려올 수 없나'",
+          "{player} 이번 주 성적, 팬들도 '실화냐'"
+        ],
+        "romance": [
+          "{player} 열애설… 상대는 {hint}",
+          "{player} 데이트 목격담 확산, 상대는 {hint}?",
+          "{player}의 그녀, {hint}로 밝혀져",
+          "{player} 경기 후 꽃다발 건넨 '그 사람'",
+          "{player} 결혼 임박설 — 구단 '사생활'",
+          "{player}, {hint}와 커플템 포착"
+        ],
+        "chae": [
+          "인플루언서 D씨, 프로야구 선수와 데이트 포착",
+          "{player}·인플루언서 D씨 '썸' 의혹",
+          "D씨 SNS 속 남자 손, {player}?",
+          "인플루언서 D씨 '야구 선수랑은 친구일 뿐'",
+          "{player} 측 'D씨와는 지인 사이'",
+          "D씨 라이브 방송에 {player} 목소리?"
+        ],
+        "coach": [
+          "{player}-{coach} 감독 불화설? 구단 '사실무근'",
+          "{coach} 감독, {player}에게 쓴소리",
+          "덕아웃서 굳은 표정 {player}, 감독과 무슨 일?",
+          "{player} 2군행 임박? 감독 '지켜보는 중'",
+          "{coach} 감독 '{player}, 지금이 고비'",
+          "{player} 기용 두고 코칭스태프 이견"
+        ],
+        "futures": [
+          "{player} 2군행, 감독 '시간이 필요'… 과연?",
+          "퓨처스 버스에 오른 {player}, 표정은?",
+          "{player} 2군서 무력시위, 1군 복귀 언제",
+          "'잊힌 기대주' {player}, 2군 근황"
+        ],
+        "fa": [
+          "KKG, {player} 영입전 참전설",
+          "{player} FA 대박 예고? 몸값 추정치 공개",
+          "{team} '{player} 잡는다' 총력전",
+          "{player} 에이전트 접촉설",
+          "FA 시장 최대어 {player}, 행선지는?"
+        ],
+        "rival": [
+          "{rival} vs {player}, 라이벌 신경전 재점화?",
+          "{rival} '{player}? 별로 신경 안 쓴다'",
+          "고교 라이벌 {rival}-{player}, 연봉도 경쟁",
+          "{rival}과 {player}, 술자리 포착?",
+          "팬 투표 '{rival} vs {player} 누가 위?' 결과는",
+          "{rival}, {player} 언급에 미소"
+        ],
+        "money": [
+          "{player} 첫 차는 무엇? 계약금 사용처 공개",
+          "{player}, 어머니 식당에 통 큰 선물?",
+          "{player} 연봉 대박? 구단 관계자 귀띔",
+          "{player} 명품 쇼핑 목격담… 사실은?",
+          "{player} 기부 소식 뒤늦게 알려져",
+          "{player}의 재테크 비법?"
+        ],
+        "restaurant": [
+          "은하식당 '성지순례' 줄 서는 팬들",
+          "{player} 어머니 식당, 주말 웨이팅 2시간",
+          "은하식당 벽 유니폼 앞 인증샷 열풍",
+          "'{player} 엄마 밥' 먹으러 {city}에서 왔다",
+          "은하식당 사장님 '아들 얘기는 그만'",
+          "은하식당 메뉴에 '{player} 정식' 생겼다?"
+        ],
+        "military": [
+          "{player} 입대 언제? 팬들 갑론을박",
+          "{player}, 상무 지원설",
+          "아시안게임이 마지막 기회? {player} 병역 시계",
+          "{player} '군대는 때가 되면 간다'"
+        ]
+      },
+      "comments": [
+        "기레기 또 낚시",
+        "제목 보고 들어왔는데 뭐냐",
+        "사실이면 대박",
+        "구단 공식 입장 기다린다",
+        "출처가 어디임?",
+        "선수 사생활은 좀 지켜 주자",
+        "ㅋㅋㅋ 제목 장사",
+        "이런 기사 왜 씀",
+        "근데 궁금하긴 했음",
+        "찌라시 그만",
+        "역시 핫하다",
+        "{player} 화이팅",
+        "반박 기사 나올 듯",
+        "아 이건 좀…",
+        "관심 많네 다들",
+        "다음 주면 잊힐 듯",
+        "기자님 야구 기사 좀요",
+        "이건 맞는 말",
+        "댓글 보러 옴",
+        "우리 {teamShort} 선수 건드리지 마"
+      ]
+    },
     "media": {
       "news": [
         "누리스포츠",
@@ -14103,48 +14275,95 @@
       "my_hr": [
         "'{n}호 아치' {team} {player}, 시즌 {n}호 홈런",
         "{player}의 방망이가 터졌다… 시즌 {n}호",
-        "고졸 신인 {player}, 담장 넘긴 {n}번째 타구"
+        "고졸 신인 {player}, 담장 넘긴 {n}번째 타구",
+        "{player}, 시즌 {n}호 대포… {team} 팬들 열광",
+        "담장 밖으로 사라진 타구, {player} 시즌 {n}호",
+        "'한 방이 있다' {player}, {n}호 홈런",
+        "{player} 손끝에서 터진 {n}호",
+        "{team} {player}, 시즌 {n}번째 아치 그렸다",
+        "고졸 유격수의 장타력… {player} {n}호",
+        "{player}의 {n}호 홈런, 승부 갈랐다"
       ],
       "my_hot": [
         "{team} {player}, 이번 주 {line} 맹타",
         "'무서운 신인' {player}, 일주일 사이 {line}",
-        "{player} 날았다… {team} 타선의 새 엔진"
+        "{player} 날았다… {team} 타선의 새 엔진",
+        "{player} 이번 주 {line}… 타격감 절정",
+        "{team} 상승세 중심엔 {player}",
+        "'요즘 제일 무서운 타자' {player}",
+        "{player}, 일주일 내내 뜨거웠다 ({line})",
+        "물오른 {player}, {team} 타선 이끈다",
+        "상대 투수들 '{player} 피하고 싶다'",
+        "{player} 맹타 행진, 감독도 미소"
       ],
       "futures_hot": [
         "퓨처스 폭격 중인 {player}, 1군 콜업 임박?",
-        "{team} 2군 {player}, 이번 주 {line}"
+        "{team} 2군 {player}, 이번 주 {line}",
+        "퓨처스리그 폭격 {player}, 1군 문 두드린다",
+        "2군에서 {line}… {player} 콜업 시계 빨라지나",
+        "{team} 퓨처스 {player} 무력시위",
+        "'2군은 좁다' {player}, 퓨처스 맹타"
       ],
       "my_cold": [
         "{player}, 프로의 벽… 이번 주 {line}",
-        "'신인 성장통' {player} 침묵"
+        "'신인 성장통' {player} 침묵",
+        "{player}, 길어지는 침묵",
+        "{team} {player} 타격 부진… 해법은?",
+        "{player} 이번 주 {line}, 성장통인가",
+        "'방망이가 무겁다' {player} 부진 탈출 과제",
+        "{player} 타율 하락세, 코칭스태프 고민"
       ],
       "callup": [
         "{team}, 신인 {player} 1군 등록",
-        "{player} 1군 콜업… 감독 \"수비는 이미 1군\""
+        "{player} 1군 콜업… 감독 \"수비는 이미 1군\"",
+        "{player} 1군 합류… 감독 '수비부터 본다'",
+        "퓨처스 성적 증명한 {player}, 1군 엔트리 등록",
+        "{team} 1군에 새 얼굴 {player}",
+        "기회 잡은 {player}, 1군 콜업"
       ],
       "demote": [
         "{player} 퓨처스행, 재정비 들어간다",
-        "{team} 엔트리 변동… {player} 말소"
+        "{team} 엔트리 변동… {player} 말소",
+        "{player} 2군행… '재정비 시간'",
+        "{team} 엔트리 조정, {player} 퓨처스로",
+        "부진 {player}, 1군 말소",
+        "{player} 잠시 쉼표… 퓨처스에서 재출발"
       ],
       "milestone": [
         "[기록] {player}, {title}",
-        "{team} {player} {title} — 팬들 환호"
+        "{team} {player} {title} — 팬들 환호",
+        "{player} 의미 있는 기록 — {title}",
+        "[기록실] {team} {player}, {title}",
+        "{title}! {player}의 새 이정표",
+        "축하받은 {player}, {title}"
       ],
       "streak_win": [
         "{team} {n}연승 질주",
-        "멈추지 않는 {team}, {n}연승"
+        "멈추지 않는 {team}, {n}연승",
+        "{team}, 거침없는 {n}연승",
+        "{n}연승 {team}… 분위기 최고조",
+        "멈출 줄 모르는 {team}, {n}경기 연속 승리"
       ],
       "streak_loss": [
         "{team} {n}연패 늪",
-        "{team}, 끝없는 {n}연패"
+        "{team}, 끝없는 {n}연패",
+        "{team}, {n}연패 수렁",
+        "{n}경기째 승리 없는 {team}",
+        "{team} 깊어지는 고민… {n}연패"
       ],
       "post": [
         "{winner}, {loser} 꺾고 {round} 통과 ({wins})",
-        "{round} — {winner}가 웃었다 ({wins})"
+        "{round} — {winner}가 웃었다 ({wins})",
+        "{round} — {winner} 웃었다 ({wins})",
+        "{winner}, {loser} 넘었다 ({wins})",
+        "[가을야구] {winner} 다음 무대로 ({wins})"
       ],
       "champion": [
         "{year}년 한국시리즈 우승 {team}",
-        "{team}, 정상에 서다"
+        "{team}, 정상에 서다",
+        "{team}, {year}년 정상",
+        "[한국시리즈] {team} 우승 축포",
+        "올해의 주인공은 {team}"
       ],
       "award": [
         "{name}({team}) {award} 수상",
@@ -14152,15 +14371,27 @@
       ],
       "leader": [
         "[순위] {stat} 1위 {name}({leaderTeam}) {text}",
-        "{stat} 부문 선두는 {name} — {text}"
+        "{stat} 부문 선두는 {name} — {text}",
+        "{stat} 레이스 선두 {name}({leaderTeam}) {text}",
+        "[기록] {stat} 1위 질주 {name} — {text}",
+        "{name}({leaderTeam}), {stat} 부문 맨 앞 ({text})",
+        "{stat} 왕좌 노리는 {name} ({text})"
       ],
       "rival": [
         "대륙 {rival}, 시즌 {season}",
-        "'전체 1순위' {rival} 근황: {season}"
+        "'전체 1순위' {rival} 근황: {season}",
+        "강태오는 지금? 시즌 {season}",
+        "'라이벌' {rival}({rivalTeam}) 근황: {season}",
+        "{rivalTeam} {rival}, 시즌 {season}",
+        "같은 해 입단한 {rival}, {season}"
       ],
       "standings": [
         "{week}주차 순위 — 1위 {first}, {team} {rank}위",
-        "선두 {first}… {team}은(는) {rank}위"
+        "선두 {first}… {team}은(는) {rank}위",
+        "{week}주차 — 1위 {first}, {team} {rank}위",
+        "순위 싸움 점입가경… {team} {rank}위",
+        "선두 {first}, {team}은(는) {rank}위에서 추격",
+        "[순위] {first} 1위 · {team} {rank}위"
       ],
       "my_award": [
         "{player}, {award} 영예",
@@ -14196,7 +14427,40 @@
       ],
       "salary": [
         "{player}, 내년 연봉 {salary}에 사인",
-        "{team} {player} 연봉 계약 완료 — {salary}"
+        "{team} {player} 연봉 계약 완료 — {salary}",
+        "{team}, {player}와 {salary}에 계약",
+        "{player} 연봉 {salary} — 구단 '활약 인정'",
+        "몸값 오른 {player}, {salary}"
+      ],
+      "game_hr": [
+        "{opp}전 {player} 홈런 포함 {line} ({score} {result})",
+        "{player}의 한 방, {opp}전 {score}",
+        "[경기] {team} vs {opp} {score} — {player} 홈런"
+      ],
+      "game_multi_hr": [
+        "{player} {opp}전 멀티 홈런! ({line})",
+        "하루에 두 번 넘겼다… {player} {opp}전 연타석 대포",
+        "[경기] {player}, {opp} 상대로 홈런 두 방 ({score})"
+      ],
+      "game_three_hits": [
+        "{player} {opp}전 맹타 ({line})",
+        "{opp} 마운드 두들긴 {player}, {line}",
+        "[경기] {team} {score} {result} — {player} {line}"
+      ],
+      "game_strikeouts": [
+        "{player}, {opp}전 삼진만 세 번… 숙제 남겼다",
+        "{opp} 투수진에 막힌 {player} ({line})",
+        "[경기] {player} {opp}전 침묵 ({line})"
+      ],
+      "other_team": [
+        "{starTeam} {star}, 시즌 {text}",
+        "숨은 보석 {star}({starTeam}) 주목",
+        "{starTeam} {star} 트레이드 시장 매물설",
+        "[구단 소식] {starTeam} {star} 컨디션 난조?",
+        "{star}({starTeam}), 감독 신뢰 한몸에",
+        "'깜짝 활약' {starTeam} {star}",
+        "{starTeam} 팬들 '{star} 없으면 어쩔 뻔'",
+        "{star} 부상 복귀 임박 — {starTeam} 반색"
       ]
     },
     "sns": {
@@ -14219,17 +14483,29 @@
         "my_hr": [
           "{player} 홈런 ㅋㅋㅋㅋ 이게 고졸 신인이라고?",
           "방금 {player} 타구 소리 들은 사람",
-          "{player} 시즌 홈런 갱신 중 🔥"
+          "{player} 시즌 홈런 갱신 중 🔥",
+          "홈런 각도 미쳤다 {player}",
+          "{player} 홈런 공 내가 잡을 뻔 ㅠ",
+          "이번 시즌 {player} 홈런 다 직관함",
+          "{teamShort} 유격수 홈런 치는 시대"
         ],
         "my_good": [
           "요즘 {player} 타석은 화장실도 못 감",
           "{player} 이번 주 {line} ㄷㄷ",
-          "{team} 유격수 이제 걱정 끝"
+          "{team} 유격수 이제 걱정 끝",
+          "{player} 타석 오면 기대부터 됨",
+          "{player} 요즘 공 보는 눈이 다름",
+          "{player} 응원가 따라 부르다 목 나감",
+          "이 페이스면 {player} 올스타 간다"
         ],
         "my_bad": [
           "{player} 언제 터지냐…",
           "신인한테 너무 바라지 말자 {player} 힘내",
-          "{player} 이번 주 {line}… 2군 가서 감 잡자"
+          "{player} 이번 주 {line}… 2군 가서 감 잡자",
+          "{player} 조급해 보인다… 초구 좀 참자",
+          "{player} 폼 무너진 거 아님?",
+          "그래도 수비는 {player}가 제일 낫다",
+          "{player} 슬럼프 길어지면 2군 가는 거 아님?"
         ],
         "callup": [
           "{player} 1군 왔다!!! 퓨처스 직관 간 보람",
@@ -14246,16 +14522,27 @@
         "team_win": [
           "이번 주 {team} 미쳤다",
           "{team} {rank}위… 가을 냄새 난다",
-          "오늘도 이겼다 {teamShort} 최고"
+          "오늘도 이겼다 {teamShort} 최고",
+          "{teamShort} 이번 주 미쳤다 진짜",
+          "{team} 가을야구 간다 ㄹㅇ",
+          "이기는 날 치킨이 더 맛있다",
+          "{team} 이번 주 승률 실화?"
         ],
         "team_loss": [
           "{team} 이번 주 뭐함",
           "{teamShort} 불펜 좀 어떻게 해 봐",
-          "{rank}위… 내년을 보자"
+          "{rank}위… 내년을 보자",
+          "{team} 불펜 방화범 누구냐",
+          "이번 주 {team} 경기 다 졌다… 보지 말 걸",
+          "{teamShort} 팬 하기 힘들다 진짜",
+          "감독 경질하라는 사람 또 나옴"
         ],
         "team_even": [
           "반타작 한 주 {team}",
-          "{teamShort} 이번 주 무난무난"
+          "{teamShort} 이번 주 무난무난",
+          "{team} 반반 주간",
+          "이길 경기 졌고 질 경기 이김 {teamShort}",
+          "{team} 이번 주 무난하게 지나감"
         ],
         "my_award": [
           "{player} {award} 받을 줄 알았다",
@@ -14294,6 +14581,36 @@
         "chae_post": [
           "오늘 저녁 ♥ 누군지 맞혀 보세요 #야구 #{teamShort}",
           "경기 끝나고 같이 ✌ 얼굴은 비밀"
+        ],
+        "fan_talk": [
+          "오늘 {team} 직관 후기: 핫도그는 맛있었다",
+          "{city} 구장 응원석 분위기 최고",
+          "{player} 유니폼 품절이라 못 삼 ㅠ",
+          "치킨 내기 걸었는데 {teamShort} 졌다",
+          "회사에서 몰래 중계 보는 사람 손",
+          "{player} 사인 받으려고 2시간 기다림",
+          "우리 애가 {player} 따라 유격수 한대요",
+          "{rival} vs {player} 누가 더 잘함? 싸우지 말고",
+          "야구 없는 월요일 너무 길다",
+          "{team} 응원가 중독성 미쳤음",
+          "어제 꿈에 {player}가 나옴",
+          "{teamShort} 마스코트 오늘 넘어짐 ㅋㅋ",
+          "{player} 인터뷰 말투 귀여움",
+          "직관 갈 때마다 지는 사람 = 나",
+          "{team} 시즌권 산 거 후회 없다",
+          "{player} 수비 하이라이트만 30분 봄",
+          "은하식당 다녀옴. 벽에 {player} 유니폼 진짜 있음",
+          "올해 {team} 몇 위 예상함?",
+          "{player} 신인 때부터 봤는데 많이 컸다",
+          "비 와서 우천 취소… 하루가 허전",
+          "야구장 맥주는 왜 이렇게 맛있지",
+          "{player} 응원 피켓 만들었다",
+          "{teamShort} 내야 수비 요즘 단단함",
+          "중계 캐스터가 {player} 이름 또 틀림 ㅋㅋ",
+          "{player} 다음 타석 안타에 치킨 건다",
+          "주말 3연전 표 다 매진",
+          "{city} 사는 사람들 오늘 다 야구장 간 듯",
+          "{player} 덕분에 야구 다시 봄"
         ]
       },
       "comments": {
@@ -14301,17 +14618,49 @@
           "ㅋㅋㅋㅋ",
           "인정",
           "직관 가야겠다",
-          "{teamShort} 가즈아"
+          "{teamShort} 가즈아",
+          "ㅋㅋㅋㅋㅋ",
+          "인정합니다",
+          "이건 맞지",
+          "직관 각",
+          "{teamShort} 화이팅",
+          "와 진짜?",
+          "오늘도 야구 보러 간다",
+          "ㄹㅇ",
+          "공감 100",
+          "캡처했다",
+          "이 글 저장",
+          "누가 정리 좀",
+          "다음 경기 기대",
+          "응원합니다",
+          "역시 야구",
+          "현장 갔는데 대박이었음",
+          "TV로 봐도 소름",
+          "이 맛에 야구 본다",
+          "아니 근데",
+          "팬심 인정",
+          "어제 그 장면 다시 보고 옴",
+          "기록 찾아봤는데 진짜네",
+          "오늘 밤 하이라이트 각",
+          "좋아요 누르고 감"
         ],
         "my_hr": [
           "타구 속도 실화냐",
           "{rival}보다 낫다 이제",
-          "신인왕 각"
+          "신인왕 각",
+          "넘어갔다!!",
+          "소리부터 다름",
+          "{rival}보다 낫다",
+          "홈런 세리머니 귀엽다",
+          "이건 못 막지"
         ],
         "my_bad": [
           "신인이잖아",
           "2군 보내자",
-          "기다려 줘라"
+          "기다려 줘라",
+          "멘탈 관리 필요",
+          "이것도 과정이다",
+          "다음 주엔 친다"
         ],
         "chae_post": [
           "{player} 아님?",
@@ -14323,6 +14672,14 @@
           "축하해요!!",
           "{team}의 미래",
           "연봉 대박 나겠다"
+        ],
+        "fan_talk": [
+          "나도 그거 봄",
+          "ㅋㅋㅋ 공감",
+          "다음엔 같이 가요",
+          "그 자리 명당이죠",
+          "부럽다",
+          "나만 아니면 돼"
         ]
       }
     },
