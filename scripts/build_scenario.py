@@ -83,6 +83,11 @@ VARS = {
     "draft_tier": {"type": "enum", "values": ["S", "A", "B", "C"]}, "draft_team": {"type": "string"},
     # 프로 (scenario_pro_ep23-26.md 2장)
     "bonus_use": {"type": "enum", "values": ["restaurant", "keep"]},
+    # 프로 엔진이 쓰는 변수 (ProCareer·ProService·ProFA — 이야기 카드·문자 조건용)
+    "pro_age": {"type": "int"}, "pro_trust": {"type": "int"},
+    "military_status": {"type": "enum", "values": ["none", "enlisting", "sangmu", "active", "done", "exempt"], "default": "none"},
+    "military_ask": {"type": "bool"}, "military_last": {"type": "bool"}, "military_delayed": {"type": "bool"},
+    "fa_choice": {"type": "enum", "values": ["stay", "move"]},
 }
 NOTE_VARS = ("시나리오 변수 (docs/scenario 2장의 ID 그대로 — scripts/build_scenario.py 가 쓴다). type: int|bool|enum|string|list, "
              "values(enum), default. 이벤트 효과 set{변수: 값}·add{변수: n}, 대본 branch·선택지 if·이벤트 when 의 조건 {var, eq|ne|gte|lte|gt|lt|in}. "
@@ -430,12 +435,12 @@ CHOICE_FX = {
     ("ep23_bonus", 1): {"condition": 5},
     ("ep23_number", 0): {"condition": 6},
     ("ep23_number", 1): {"rel": {"mom": 6}},
-    ("ep24_camp", 0): {"train": {"fielding": 1.5}},
-    ("ep24_camp", 1): {"train": {"power": 1.5}},
-    ("ep25_extra", 0): {"train": {"contact": 1.5}, "condition": -5},
+    ("ep24_camp", 0): {"train": {"fielding": 1.5}, "proTrust": 2},
+    ("ep24_camp", 1): {"train": {"power": 1.5}, "proTrust": 4},
+    ("ep25_extra", 0): {"train": {"contact": 1.5}, "condition": -5, "proTrust": 3},
     ("ep25_extra", 1): {"condition": 8},
     ("ep26_debut", 0): {"train": {"power": 1.0}, "fame": 2},
-    ("ep26_debut", 1): {"train": {"eye": 1.0}},
+    ("ep26_debut", 1): {"train": {"eye": 1.0}, "proTrust": 2},
 }
 # 조건 임계값을 상수로 (문서 "상수로 분리할 것")
 CONSTS = {("ep08_performance", "gte", 6): "ep08ScoutChecked", ("ep08_performance", "gte", 3): "ep08ScoutWatching"}

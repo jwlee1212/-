@@ -9,7 +9,8 @@ extends RefCounted
 
 const KINDS := ["career", "season", "game", "event", "award"]
 const STATS := ["hits", "home_runs", "rbi", "steals", "walks", "doubles", "triples", "games"]
-const EVENTS := ["debut", "callup", "post_debut", "ks_champion"]
+const EVENTS := ["debut", "callup", "post_debut", "ks_champion", "enlist", "discharge", "exempt", "national", "medal_asian", "medal_olympic",
+	"fa_stay", "fa_move"]
 
 
 ## 이번 주 경기들(lines: 내 경기 줄들)을 보고 새 기념 순간을 쌓는다. 1군 기록만 센다 (퓨처스 기록은 안 센다)

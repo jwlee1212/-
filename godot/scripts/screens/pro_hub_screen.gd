@@ -117,14 +117,34 @@ func _week_page() -> void:
 	_body.add_child(card)
 	var t := pro.team()
 	col.add_child(UiKit.kicker("%s %d위 · %d승 %d패 %d무 (승률 %s)" % [t.name, pro.league.rank_of(t.id), t.w, t.l, t.d, t.pct_text()]))
-	var level := "1군 %d번 유격수" % p.lineup_slot if pro.is_first() else "퓨처스(2군) — 1군 콜업을 노린다"
+	var level := "1군 %d번 유격수" % p.lineup_slot if pro.is_first() else pro.level_text()
+	if pro.level == ProCareer.LEVEL_MILITARY:
+		level += " — 전역까지 %d주" % pro.service_weeks_left
 	col.add_child(UiKit.label("%s · 컨디션 %d%s" % [level, p.condition, " · " + p.injury_text() + " %d주" % p.injury_weeks if p.is_injured() else ""],
 		Tokens.FONT_BODY, Tokens.INK, Tokens.FONT_BOLD))
+	# 감독 신뢰: 1군은 강등 기준, 퓨처스는 콜업 기준을 보여 주고, 기준을 넘은 채 지켜보는 중이면 몇 경기째인지
+	if pro.level != ProCareer.LEVEL_MILITARY:
+		var tc: Dictionary = cfg.pro["trust"]
+		col.add_child(UiKit.stat_bar("감독 신뢰", int(pro.trust), 100, Tokens.GOOD if pro.trust >= float(tc["callupAbove"]) else (Tokens.BAD if pro.trust < float(tc["demoteBelow"]) else Tokens.WARN)))
+		var ws := pro.watch_state(cfg)
+		var watch := ""
+		match ws["kind"]:
+			"demote":
+				watch = "감독이 지켜보는 중 — %d/%d경기 (신뢰 %d 아래면 퓨처스행)" % [ws["games"], ws["need"], int(tc["demoteBelow"])]
+			"callup":
+				watch = "1군 코치진이 지켜보는 중 — %d/%d경기 (신뢰 %d 이상 유지하면 콜업)" % [ws["games"], ws["need"], int(tc["callupAbove"])]
+			_:
+				watch = "강등 기준 %d · 콜업 기준 %d" % [int(tc["demoteBelow"]), int(tc["callupAbove"])]
+		col.add_child(UiKit.label(watch, Tokens.FONT_CAPTION, Tokens.BAD if ws["kind"] == "demote" else (Tokens.GOOD if ws["kind"] == "callup" else Tokens.INK_SOFT), Tokens.FONT_BOLD))
 	col.add_child(UiKit.label("1군 시즌: " + pro.me.line_text(), Tokens.FONT_BODY, Tokens.PRIMARY, Tokens.FONT_BOLD))
+	if pro.service_line.pa > 0 and pro.level == ProCareer.LEVEL_MILITARY:
+		var sl := pro.service_line
+		col.add_child(UiKit.label("상무: 타율 %s · %d홈런 (%d타석)" % [sl.average(), sl.home_runs, sl.pa], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
 	if not pro.is_first() or pro.futures_season.pa > 0:
 		var f := pro.futures_season
 		col.add_child(UiKit.label("퓨처스: 타율 %s · %d홈런 · OPS %s (%d타석)" % [f.average(), f.home_runs, f.ops(), f.pa], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
-	col.add_child(UiKit.label("연봉 %s · %s" % [ProCareer.money_text(pro.salary), pro.pick_text], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	col.add_child(UiKit.label("연봉 %s · FA 등록 %d/%d시즌%s · 병역 %s" % [ProCareer.money_text(pro.salary), pro.fa_seasons, ProFA.required(cfg, pro),
+		(" · 계약 %d년 남음" % pro.contract_years_left) if pro.contract_years_left > 0 else "", _military_text(pro)], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
 	# 경기 결과 (이번 주를 마쳤으면)
 	if career.game_done:
 		var res := UiKit.card()
@@ -309,6 +329,8 @@ func _club_page() -> void:
 	var mine := pro.league.awards.filter(func(a: Dictionary) -> bool: return a["id"] == pro.me.id)
 	if not mine.is_empty():
 		mc.add_child(UiKit.label("수상: " + ", ".join(mine.map(func(a: Dictionary) -> String: return "%d년 %s" % [a["year"], a["award"]])), Tokens.FONT_CAPTION, Tokens.ACCENT, Tokens.FONT_BOLD))
+	for n: Dictionary in pro.national:
+		mc.add_child(UiKit.label("%d년 %s 국가대표 — %s · %s" % [n["year"], n["name"], n["result"], (n["line"] as PlayerData.SeasonStats).line_text()], Tokens.FONT_CAPTION, Tokens.ACCENT))
 	mc.add_child(UiKit.label("기념 순간: %d개" % pro.milestones_done.size(), Tokens.FONT_CAPTION, Tokens.INK_SOFT))
 	_body.add_child(me)
 	var lg := UiKit.card()
@@ -321,6 +343,12 @@ func _club_page() -> void:
 		if a["award"] in ["MVP", "신인왕", "한국시리즈 MVP"]:
 			lc.add_child(UiKit.label("%d년 %s — %s (%s) %s" % [a["year"], a["award"], a["name"], a["team"], a["line"]], Tokens.FONT_CAPTION))
 	_body.add_child(lg)
+
+
+static func _military_text(pro: ProCareer) -> String:
+	var names := {ProService.ENLISTING: "다음 시즌 입대", ProService.SANGMU: "상무 복무 중", ProService.ACTIVE: "현역 복무 중",
+		ProService.DONE: "복무 마침", ProService.EXEMPT: "면제"}
+	return names.get(pro.military, "미필")
 
 
 func _team_def(id: String) -> Dictionary:

@@ -78,6 +78,10 @@ func _init() -> void:
 		"test_pro_save_and_continue",
 		"test_pro_content",
 		"test_pro_side_stories",
+		"test_pro_trust",
+		"test_pro_military",
+		"test_pro_national",
+		"test_pro_fa",
 		"test_real_content",
 		"test_training_and_growth",
 		"test_condition_affects_skills",
@@ -5208,14 +5212,15 @@ func test_pro_season() -> void:
 	career.start_next_pro_season()
 	check(pro.year() == 2 and pro.phase == ProCareer.PHASE_REGULAR and pro.me.history.size() == 1 and pro.me.season.games == 0, "프로 2년 차")
 	check(career.player.season == pro.me.season, "새 시즌 기록도 같은 객체")
-	# 퓨처스 → 콜업 (C 등급: 육성선수, 종합 능력치 기준을 낮춰 콜업)
+	# 퓨처스 → 콜업 (C 등급 육성선수: 감독 신뢰가 콜업 기준 위인 채 callupWatchGames 경기를 지켜보면)
 	var c2cfg := _pro_cfg(4)
-	c2cfg.pro["callup"]["overall"] = 0
+	c2cfg.pro["trust"]["callupWatchGames"] = 4
 	var c2 := _pro_career(c2cfg, "C", "육성")
-	check(not c2.pro.is_first(), "육성선수는 퓨처스에서 시작")
+	check(not c2.pro.is_first() and c2.pro.trust == float(c2cfg.pro["trust"]["startByTier"]["C"]), "육성선수는 퓨처스에서, 신뢰 %d 로 시작" % int(c2.pro.trust))
+	c2.pro.trust = 90.0
 	for i in 3:
 		_pro_week(c2)
-	check(c2.pro.is_first() and c2.player.flags.has("pro_called_up"), "퓨처스 %d주 뒤 콜업" % int(c2cfg.pro["callup"]["minWeeks"]))
+	check(c2.pro.is_first() and c2.player.flags.has("pro_called_up"), "신뢰가 높은 채 퓨처스 4경기를 지켜본 뒤 콜업")
 	check(c2.book.fired.has("ep25_01"), "퓨처스 장면")
 	check(c2.pro.futures_season.pa > 0, "퓨처스 기록 %d타석" % c2.pro.futures_season.pa)
 
@@ -5311,3 +5316,157 @@ func test_pro_side_stories() -> void:
 	# 사이드 스토리 문자: 고교 3학년 · 프로 (연인별)
 	for id: String in ["m_y2_jian_confess", "m_y3_harin_exam", "m_y3_soyul_college", "m_pro_harin_debut", "m_pro_soyul_folder", "m_pro_jian_intern", "m_pro_mom_wall", "m_pro_taeo"]:
 		check(cfg.messages.any(func(m: Dictionary) -> bool: return m.id == id), "사이드 스토리 문자 %s" % id)
+
+
+
+func test_pro_trust() -> void:
+	# 1군·퓨처스는 감독 신뢰로만: 강등 기준 아래인 채 watchGames 경기를 지켜봐야 내려간다 (한 주로는 안 내려간다)
+	var cfg := _pro_cfg(6)
+	var tc: Dictionary = cfg.pro["trust"]
+	var c := _pro_career(cfg, "S", "신뢰")
+	check(c.pro.is_first() and c.pro.trust == float(tc["startByTier"]["S"]), "S 등급은 1군, 신뢰 %d" % int(c.pro.trust))
+	c.pro.trust = 5.0
+	_pro_week(c)
+	var ws := c.pro.watch_state(cfg)
+	check(c.pro.is_first() and ws["kind"] == "demote" and int(ws["games"]) > 0 and int(ws["games"]) < int(tc["watchGames"]),
+		"한 주 뒤엔 아직 1군 — 지켜보는 중 %d/%d경기" % [ws["games"], ws["need"]])
+	_pro_week(c)
+	check(not c.pro.is_first() and c.pro.trust == float(tc["demotedSet"]) and c.pro.watch_games == 0, "기준 아래로 %d경기 → 퓨처스 (신뢰 %d)" % [int(tc["watchGames"]), int(c.pro.trust)])
+	# 기준을 다시 넘으면 지켜보던 경기 수가 0 으로
+	var d := _pro_career(_pro_cfg(6), "S", "회복")
+	d.pro.trust = 5.0
+	_pro_week(d)
+	check(d.pro.watch_games > 0, "지켜보는 중")
+	d.pro.trust = 80.0
+	_pro_week(d)
+	check(d.pro.is_first() and d.pro.watch_games == 0, "신뢰가 회복되면 다시 0 (1군 유지)")
+	# 이야기 효과 proTrust
+	var before := d.pro.trust
+	d.book.apply_effects(d, {"proTrust": 5})
+	check(is_equal_approx(d.pro.trust, minf(100.0, before + 5.0)) and int(d.player.vars["pro_trust"]) == int(d.pro.trust), "proTrust 효과")
+
+
+func test_pro_military() -> void:
+	var cfg := _pro_cfg(3)
+	var mc: Dictionary = cfg.pro["military"]
+	# 상무 심사: 1군 경기도 신뢰도 모자라면 불합격, 신뢰가 있으면 합격 → 다음 시즌 입대 → 상무 경기 → 전역
+	var c := _pro_career(cfg, "C", "상무")
+	c.pro.trust = 10.0
+	check(ProService.decide(c, c.pro, "sangmu").contains("불합격") and c.pro.military == ProService.NONE, "상무 불합격이면 그대로")
+	c.pro.trust = float(mc["sangmuMinTrust"])
+	ProService.decide(c, c.pro, "sangmu")
+	check(c.pro.military == ProService.ENLISTING and c.player.vars["military_status"] == "enlisting", "상무 합격 → 입대 예정")
+	c.start_next_pro_season()
+	check(c.pro.military == ProService.SANGMU and c.pro.level == ProCareer.LEVEL_MILITARY and c.pro.service_weeks_left == int(mc["serviceWeeks"]) and c.player.flags.has("enlisted"),
+		"새 시즌에 입대 (%s, %d주)" % [c.pro.military, c.pro.service_weeks_left])
+	check(c.pro.has_direct_game(c), "상무는 경기가 있다")
+	_pro_week(c)
+	check(c.pro.service_line.pa > 0 and c.pro.service_weeks_left == int(mc["serviceWeeks"]) - 1, "상무 기록 %d타석, 남은 %d주" % [c.pro.service_line.pa, c.pro.service_weeks_left])
+	check(c.pro.me.season.games == 0, "복무 중엔 1군 기록이 없다")
+	c.pro.service_weeks_left = 1
+	_pro_week(c)
+	check(c.pro.military == ProService.DONE and c.pro.level == ProCareer.LEVEL_FUTURES and c.player.flags.has("discharged"), "전역 → 퓨처스")
+	# 현역: 경기 없음
+	var a := _pro_career(_pro_cfg(3), "B", "현역")
+	ProService.decide(a, a.pro, "active")
+	a.start_next_pro_season()
+	check(a.pro.military == ProService.ACTIVE and not a.pro.has_direct_game(a), "현역은 경기가 없다")
+	_pro_week(a)
+	check(a.pro.service_weeks_left == int(mc["serviceWeeks"]) - 1, "현역도 주를 센다")
+	# 나이가 차면 강제 현역
+	var f := _pro_career(_pro_cfg(3), "B", "강제")
+	f.pro.me.age = int(mc["forcedAge"]) - 1
+	f.start_next_pro_season()
+	check(f.pro.military == ProService.ACTIVE, "만 %d세 미필 → 현역" % int(mc["forcedAge"]))
+	# 입대 카드: 물을 나이 · 미루기는 마지막 해에 없다
+	var card := _event(cfg, "pro_military_card")
+	var k := _pro_career(_pro_cfg(3), "B", "카드")
+	k.pro.me.age = int(mc["askAge"])
+	k.pro.close_season(k)
+	check(k.player.vars["military_ask"] == true and k.book.eligible(k, card), "만 %d세 시즌 결산에 입대 카드" % int(mc["askAge"]))
+	var last_run := DialogueRun.new(k, card)
+	k.player.vars["military_last"] = true
+	var step := last_run.next()
+	while step.type != "choice":
+		step = last_run.next()
+	check(step.options.size() == 2, "마지막 해엔 미루기가 없다 (%d)" % step.options.size())
+	var hs := CareerState.new(cfg, "고교", _config)
+	hs.player.vars["military_ask"] = true
+	check(not hs.book.eligible(hs, card), "고교에서는 안 나온다")
+
+
+func test_pro_national() -> void:
+	# 아시안게임 금메달 → 병역 면제 (복무 중이면 조기 전역). 대회 주·4년 주기는 balance.json 대로
+	var cfg := _pro_cfg(3)
+	for ev: Dictionary in cfg.pro["national"]["events"]:
+		ev["week"] = 99
+	var asian: Dictionary = cfg.pro["national"]["events"].filter(func(e: Dictionary) -> bool: return e.id == "asian")[0]
+	asian["offset"] = 1
+	asian["week"] = 1
+	asian["pickTop"] = 999
+	asian["medals"] = [["금메달", 1.0]]
+	var c := _pro_career(cfg, "S", "대표")
+	_pro_week(c)
+	check(c.pro.national.size() == 1 and c.pro.national[0]["result"] == "금메달", "아시안게임 대표 · 금메달 (%s)" % [c.pro.national])
+	check(c.pro.military == ProService.EXEMPT and c.player.flags.has("military_exempt") and c.player.flags.has("national_asian"), "금메달 → 병역 면제")
+	check(c.pro.milestones_done.has("national") and c.pro.milestones_done.has("asian_gold"), "대표·금메달 기념 순간")
+	_pro_week(c)
+	check(c.pro.national.size() == 1, "같은 해에 두 번 안 열린다")
+	# 상무 복무 중 금메달 → 조기 전역
+	var s := _pro_career(cfg, "C", "상무 금")
+	s.pro.trust = 99.0
+	ProService.decide(s, s.pro, "sangmu")
+	s.start_next_pro_season()
+	asian["offset"] = s.pro.league.year % 4
+	_pro_week(s)
+	check(s.pro.military == ProService.EXEMPT and s.pro.level == ProCareer.LEVEL_FUTURES, "상무 중 금메달 → 조기 전역 (%s)" % s.pro.military)
+	# 뽑히지 않으면 대회도 없다
+	asian["offset"] = 1
+	asian["pickTop"] = 0
+	asian["youngPickTop"] = 0
+	var n := _pro_career(cfg, "S", "탈락")
+	_pro_week(n)
+	check(n.pro.national.is_empty() and n.pro.military == ProService.NONE, "명단에 못 들면 그대로")
+
+
+func test_pro_fa() -> void:
+	var cfg := _pro_cfg(3)
+	var fc: Dictionary = cfg.pro["fa"]
+	var c := _pro_career(cfg, "S", "FA")
+	c.pro.fa_seasons = ProFA.required(cfg, c.pro) - 1
+	c.pro.first_weeks = int(fc["faWeeks"])
+	c.pro.value_history = [5.0, 5.0]
+	c.pro.close_season(c)
+	check(c.pro.fa_pending and c.pro.season_note.contains("FA"), "등록 %d시즌 → FA (%s)" % [c.pro.fa_seasons, c.pro.season_note])
+	var offers := ProFA.offers(cfg, c.pro)
+	check(offers[0]["home"] and offers.size() == 1 + int(fc["maxBidders"]), "원 소속 + 다른 구단 %d곳 제안" % (offers.size() - 1))
+	check(offers.slice(1).all(func(o: Dictionary) -> bool: return int(o["annual"]) >= int(offers[-1]["annual"])), "다른 구단은 금액 순")
+	check(offers.any(func(o: Dictionary) -> bool: return o["team"] == fc["bigSpender"]), "큰손 구단이 제안한다")
+	var old := c.pro.team()
+	var pick: Dictionary = offers[1]
+	var money := c.player.money
+	ProFA.sign(c, c.pro, pick)
+	var nt := c.pro.team()
+	check(nt.id == pick["team"] and nt.bench.has(c.pro.me) and not old.bench.has(c.pro.me) and not old.lineup.has(c.pro.me), "이적: 명단이 옮겨진다")
+	check(c.player.money == money + int(pick["bonus"]) and c.pro.salary == int(pick["annual"]) and c.pro.contract_years_left == int(fc["years"]), "계약금·연봉·계약 해")
+	check(c.pro.ending == "move" and c.player.flags.has("main_ending") and c.pro.milestones_done.has("fa_move"), "첫 FA 는 메인 엔딩 (이적)")
+	c.start_next_pro_season()
+	_pro_week(c)
+	check(c.pro.me.season.games > 0 and c.pro.me.team_id == nt.id, "새 구단에서 뛴다 (%d경기)" % c.pro.me.season.games)
+	# 계약 중에는 연봉이 그대로, 다시 FA 는 계약이 끝난 뒤
+	var salary := c.pro.salary
+	c.pro.close_season(c)
+	check(c.pro.salary == salary and not c.pro.fa_pending and c.pro.contract_years_left == int(fc["years"]) - 1, "계약 중 연봉 그대로 (%d년 남음)" % c.pro.contract_years_left)
+	# 기여도가 낮으면 원 소속만
+	var low := _pro_career(_pro_cfg(3), "B", "낮음")
+	low.pro.value_history = [0.0]
+	check(ProFA.offers(low.cfg, low.pro).size() == 1, "기여도가 낮으면 원 소속 구단만")
+	# 잔류 엔딩
+	var stay := _pro_career(_pro_cfg(3), "A", "잔류")
+	stay.pro.fa_seasons = 99
+	stay.pro.close_season(stay)
+	ProFA.sign(stay, stay.pro, ProFA.offers(stay.cfg, stay.pro)[0])
+	check(stay.pro.ending == "stay" and stay.player.vars["fa_choice"] == "stay", "잔류 엔딩")
+	# 저장에도 남는다
+	var r := _reload(c)
+	check(r.pro.contract_years_left == c.pro.contract_years_left and r.pro.team_id == c.pro.team_id and r.pro.ending == "move", "FA 상태 저장")

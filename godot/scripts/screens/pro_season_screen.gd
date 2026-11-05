@@ -62,6 +62,18 @@ func _build() -> void:
 		if int(a["year"]) == lg.year:
 			col.add_child(UiKit.label("%s — %s (%s) · %s" % [a["award"], a["name"], a["team"], a["line"]], Tokens.FONT_CAPTION,
 				Tokens.PRIMARY if a["id"] == pro.me.id else Tokens.INK))
+	# FA: 구단 제안을 고른다 (고르기 전에는 다음 시즌으로 못 간다)
+	if pro.fa_pending:
+		col.add_child(UiKit.divider())
+		col.add_child(UiKit.kicker("FA — 구단 제안 (등록 %d시즌, 최근 기여도 %.1f)" % [pro.fa_seasons, ProFA.recent_value(pro)]))
+		for o: Dictionary in ProFA.offers(career.cfg, pro):
+			var text := "%s%s — %d년 · 연평균 %s · 계약금 %s" % [o["name"], " (원 소속)" if o["home"] else "", int(o["years"]),
+				ProCareer.money_text(int(o["annual"])), ProCareer.money_text(int(o["bonus"]))]
+			col.add_child(UiKit.button(text, func() -> void:
+				ProFA.sign(career, pro, o)
+				_app.save_career()
+				_build()
+				_next_story(), Tokens.PRIMARY if o["home"] else Tokens.NAVY_SOFT, Tokens.FONT_CAPTION))
 	var row := UiKit.hbox(Tokens.SPACE_SM)
 	row.add_child(UiKit.button("타이틀로", _app.show_title, Tokens.INK_SOFT))
 	var next := UiKit.button("다음 시즌 ▶", func() -> void:
@@ -69,6 +81,7 @@ func _build() -> void:
 		_app.save_career()
 		_app.show_home(), Tokens.ACCENT, Tokens.FONT_LABEL)
 	next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	next.disabled = pro.fa_pending
 	row.add_child(next)
 	col.add_child(row)
 
@@ -97,6 +110,26 @@ func _next_story() -> void:
 			center.add_child(card)
 			card.custom_minimum_size.x = 560
 			_show(center)
+		return
+	# 메인 스토리 엔딩 (첫 FA 계약 뒤 한 번 — content.json pro.ending)
+	if pro.ending != "" and not career.player.flags.has("ending_seen"):
+		career.player.flags["ending_seen"] = true
+		var card := UiKit.card()
+		var c := UiKit.vbox(Tokens.SPACE_SM)
+		card.add_child(c)
+		var ed: Dictionary = career.cfg.pro_content["ending"][pro.ending]
+		c.add_child(UiKit.kicker("메인 스토리 엔딩"))
+		c.add_child(UiKit.title(EventBook.fill(career, ed["title"]), Tokens.FONT_TITLE))
+		for ln: String in ed["lines"]:
+			var l := UiKit.label(EventBook.fill(career, ln), Tokens.FONT_BODY)
+			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			c.add_child(l)
+		c.add_child(UiKit.label("이제부터 커리어 모드 — 은퇴까지 자유롭게", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+		c.add_child(UiKit.button("확인", _closed, Tokens.ACCENT))
+		card.custom_minimum_size.x = 600
+		var center := CenterContainer.new()
+		center.add_child(card)
+		_show(center)
 		return
 	var events: Array = career.events("seasonEnd")
 	if events.is_empty():

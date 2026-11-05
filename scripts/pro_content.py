@@ -54,6 +54,11 @@ NEWS = {
     "rival": ["대륙 {rival}, 시즌 {season}", "'전체 1순위' {rival} 근황: {season}"],
     "standings": ["{week}주차 순위 — 1위 {first}, {team} {rank}위", "선두 {first}… {team}은(는) {rank}위"],
     "my_award": ["{player}, {award} 영예", "[시상] {team} {player} {award}"],
+    "national": ["[대표팀] {team} {player}, {title}", "태극마크 단 {player} — {title}"],
+    "enlist": ["{team} {player}, {title}… \"돌아와서 더 잘하겠다\"", "[병역] {player} {title}"],
+    "discharge": ["{player} {title}, {team} 복귀 준비", "돌아온 {player} — {title}"],
+    "fa_stay": ["{player}, {team} 잔류 FA 계약", "'원클럽맨' {player}, {team}에 남는다"],
+    "fa_move": ["[FA] {player}, {team} 이적!", "{player} 새 유니폼 — {team}"],
     "salary": ["{player}, 내년 연봉 {salary}에 사인", "{team} {player} 연봉 계약 완료 — {salary}"],
 }
 SNS = {
@@ -71,6 +76,11 @@ SNS = {
         "team_loss": ["{team} 이번 주 뭐함", "{teamShort} 불펜 좀 어떻게 해 봐", "{rank}위… 내년을 보자"],
         "team_even": ["반타작 한 주 {team}", "{teamShort} 이번 주 무난무난"],
         "my_award": ["{player} {award} 받을 줄 알았다", "{award} {player} 🏆 수원의 자랑"],
+        "national": ["{player} 대표팀 ㅠㅠ 자랑스럽다", "{title} 실화냐", "태극마크 {player} 🇰🇷"],
+        "enlist": ["{player} 군대 간다… 기다릴게", "건강하게만 다녀와 {player}"],
+        "discharge": ["{player} 돌아왔다!!!", "전역 축하 {player} 이제 1군 가자"],
+        "fa_stay": ["{player} 남는다!! {team} 영원히", "원클럽맨 {player} 사랑해"],
+        "fa_move": ["{player} 결국 {team}로… 그동안 고마웠다", "새 팀에서도 응원한다 {player}"],
         "chae_post": ["오늘 저녁 ♥ 누군지 맞혀 보세요 #야구 #{teamShort}", "경기 끝나고 같이 ✌ 얼굴은 비밀"],
     },
     "comments": {
@@ -107,8 +117,26 @@ MILESTONES = [
     ms("mvp", "정규시즌 MVP", "MVP 트로피 너머로 은하식당 가족 테이블이 보인다.", {"kind": "award", "award": "MVP"}, 15),
     ms("ks_mvp", "한국시리즈 MVP", "샴페인 속에서 누군가 내 이름을 외친다.", {"kind": "award", "award": "한국시리즈 MVP"}, 12),
     ms("hr_king", "홈런왕", "시즌 마지막 날, 홈런 순위표 맨 위의 내 이름.", {"kind": "award", "award": "홈런왕"}, 8),
+    ms("national", "첫 국가대표", "대표팀 라커에 걸린 유니폼, 등 뒤 이름 위로 태극마크가 보인다.", {"kind": "event", "event": "national"}, 6),
+    ms("asian_gold", "아시안게임 금메달", "시상대 위 실루엣들, 목에 걸린 금빛. 병역 특례 소식이 덕아웃에 퍼진다.", {"kind": "event", "event": "medal_asian"}, 12),
+    ms("olympic_medal", "올림픽 메달", "올림픽 경기장 조명 아래 메달을 깨무는 실루엣.", {"kind": "event", "event": "medal_olympic"}, 12),
+    ms("exempt", "병역 특례", "엄마의 문자 한 줄: \"뉴스 봤다\".", {"kind": "event", "event": "exempt"}, 3),
+    ms("enlist", "입대", "훈련소 정문 앞, 짧게 깎은 뒷머리. 은하식당 앞치마를 두른 엄마가 손을 흔든다.", {"kind": "event", "event": "enlist"}, 2),
+    ms("discharge", "전역", "부대 정문을 나서는 실루엣, 어깨에 걸친 배트 가방.", {"kind": "event", "event": "discharge"}, 3),
+    ms("fa_stay", "FA 잔류", "구단 사무실, 같은 유니폼을 다시 입는다. 메인 스토리 엔딩.", {"kind": "event", "event": "fa_stay"}, 10),
+    ms("fa_move", "FA 이적", "새 구장 조명 아래 낯선 색의 유니폼. 메인 스토리 엔딩.", {"kind": "event", "event": "fa_move"}, 10),
     ms("batting_title", "타격왕", "마지막 타석이 끝나고 기록원이 고개를 끄덕인다.", {"kind": "award", "award": "타격왕"}, 8),
 ]
+
+# ---------- 메인 스토리 엔딩 (첫 FA, worldview 6장) — 시즌 결산 화면이 계약 뒤 한 번 보여 준다 ----------
+ENDING = {
+    "stay": {"title": "{proTeam}의 {player}", "lines": [
+        "8년 전 계약서에 사인하던 그 사무실. 이번엔 펜을 쥔 손이 떨리지 않는다.",
+        "은하식당 벽의 유니폼은 바뀌지 않는다. 엄마가 액자 유리만 새로 닦았다."]},
+    "move": {"title": "새 유니폼, {proTeam}", "lines": [
+        "낯선 구장, 낯선 덕아웃. 라커 이름표만 그대로다.",
+        "은하식당 벽에 유니폼이 한 장 더 걸렸다. 엄마는 둘 다 내 거라고 했다."]},
+}
 
 # ---------- 새 인물: 윤채아 ----------
 CHAE = {"role": "인플루언서", "fixedName": "윤채아", "callFormat": "채아",
@@ -184,6 +212,21 @@ EVENTS = [
                    [say("chae", "그래. 오빠는 그럴 줄 알았어. …경기 잘해.")]),
         ]},
     ], proYear=[1, 5], timing="start", requires=["chae_dinner"], forbids=CHAE_END, minRel={"chae": 30}, partner="none"),
+    # 병역 결정 (시즌 결산, 만 22세부터 해마다 — 미루기는 27세 전까지). 입대는 다음 시즌 시작에
+    card("pro_military_card", "mom", "입대 통지", "restaurant", [
+        {"branch": [{"if": {"var": "military_last", "eq": True}, "then": [narr("병무청 우편. 더는 미룰 수 없다.")]},
+                    {"then": [narr("은하식당 계산대 옆에 병무청 우편이 놓여 있다.")]}]},
+        say("mom", "상무 간 선수들은 거기서도 야구 한다더라. …엄마는 네가 정해."),
+        {"choices": [
+            choice("상무에 지원한다", "국군체육부대 — 상무 팀으로 뛰며 복무 (1군 40경기 또는 감독 신뢰 45 필요)", {"military": "sangmu"},
+                   [say("mom", "합격하면 엄마가 떡 돌린다.")]),
+            choice("현역으로 간다", "1년 반 야구 공백 · 능력치가 조금 녹슨다", {"military": "active"},
+                   [say("mom", "…밥은 잘 먹고 다녀.")]),
+            choice("1년 미룬다", "아시안게임·올림픽 메달이면 면제 · 내년 결산에 다시 묻는다", {"set": {"military_delayed": True}},
+                   [say("mom", "그래. 대신 내년엔 진짜 정해."), ], **{"if": {"var": "military_last", "eq": False}}),
+        ]},
+    ], proYear=[1, 30], timing="seasonEnd", repeat=True, cooldownWeeks=10,
+        when={"all": [{"var": "military_ask", "eq": True}, {"var": "military_status", "eq": "none"}]}),
     card("pro_side_chae_return", "chae", "한강 둔치", "han_river", [
         narr("1년 만의 한강. 채아가 편의점 봉투 두 개를 들고 온다."),
         say("chae", "빚 다 정리했어. 이번엔 진짜 내 돈으로 샀어. 삼각김밥이지만."),
@@ -256,6 +299,23 @@ MESSAGES = [
     msg("m_pro_scout", "scout", ["나성만이다. 고등학교 때 1루 관중석", "1군 첫 안타 봤다. 그 공 버리지 마라"],
         [rep("수첩에 적어 두세요", {"rel": {"scout": 5}, "reputation": 1}, ["벌써 적었다"]), rep("감사합니다", {"rel": {"scout": 3}}, ["감사는 은퇴할 때 해라"])],
         proYear=[1, 3], requires=["ms_first_hit"]),
+    # ---- 프로: 병역 · 대표팀 · FA ----
+    msg("m_pro_mom_enlist", "mom", ["입대 날짜 나왔다며", "그날은 가게 문 닫고 엄마가 데려다줄게"],
+        [rep("고마워 엄마", {"rel": {"mom": 4}}, ["고맙긴. 머리는 엄마가 깎아 줄까"]), rep("혼자 갈게", {"rel": {"mom": -1}, "condition": 2}, ["…그래. 그럼 문 앞까지만"])],
+        proYear=[1, 30], requires=["enlisted"]),
+    msg("m_pro_harin_enlist", "neighbor", ["면회 갈게", "그림 그려서. 네 부대 그려 줄게"],
+        [rep("기다릴게", {"rel": {"neighbor": 5}, "condition": 3}, ["나도"]), rep("멀어. 오지 마", {"rel": {"neighbor": -3}}, ["갈 거야"])],
+        proYear=[1, 30], partner="neighbor", requires=["enlisted"]),
+    msg("m_pro_mom_exempt", "mom", ["뉴스 봤다", "엄마 오늘 가게에서 울었어. 손님들이 다 박수 쳤다"], proYear=[1, 30], requires=["military_exempt"]),
+    msg("m_pro_taeo_national", "rival", ["대표팀 같은 방이다", "코 골지 마라"],
+        [rep("너나 골지 마", {"rel": {"rival": 5}}, ["…안 곤다"]), rep("유격수는 누가 봐?", {"rel": {"rival": 8}, "condition": -2}, ["감독이 정하겠지. 나다"])],
+        proYear=[1, 30], requires=["national_asian"]),
+    msg("m_pro_junsu_discharge", "buddy", ["전역 축하한다 ㅋㅋ", "네 퓨처스 기록 정리해 놨다. 1군까지 몇 경기 남았는지도"],
+        [rep("몇 경기 남았는데", {"rel": {"buddy": 3}, "condition": 3}, ["감독님 마음이지 뭐. 잘 쳐"]), rep("고맙다 기록원", {"rel": {"buddy": 3}}, ["평생 계약이라며"])],
+        proYear=[1, 30], requires=["discharged"]),
+    msg("m_pro_mom_fa", "mom", ["계약 기사 봤다", "어디서 뛰든 은하식당 벽엔 네 유니폼 걸려 있을 거야"],
+        [rep("엄마 가게 넓히자", {"rel": {"mom": 6}, "money": -30000000}, ["…이번 한 번만 받는다"]), rep("고마워", {"rel": {"mom": 3}}, ["밥 먹으러 와"])],
+        proYear=[1, 30], requires=["fa_signed"]),
     # ---- 프로: 연인 (고교에서 이어진 사람) ----
     msg("m_pro_harin_debut", "neighbor", ["데뷔 축하해", "TV로 봤어. 유니폼이 좀 커 보이더라 ㅋㅋ"],
         [rep("금방 맞게 된다", {"rel": {"neighbor": 3}, "condition": 3}, ["그럼 그 유니폼 그려 줄게"]), rep("직관 와", {"rel": {"neighbor": 4}}, ["주말에 갈게. 3루 쪽"])],
@@ -319,7 +379,7 @@ def main():
     for t in c["proTeams"]:
         t.update(TEAMS[t["name"]])
     c["pro"] = {"_note": "프로 편 (scripts/pro_content.py 가 쓴다). media 매체, statNames 부문 이름, news·sns 문장 틀 (ProFeed), milestones = 상황 컷신 (Milestones — 그림이 없으면 컷신 자리 카드)",
-                "media": MEDIA, "statNames": STAT_NAMES, "news": NEWS, "sns": SNS, "milestones": MILESTONES}
+                "ending": ENDING, "media": MEDIA, "statNames": STAT_NAMES, "news": NEWS, "sns": SNS, "milestones": MILESTONES}
     c["people"]["chae"] = CHAE
     for k, v in PLACES.items():
         c["places"][k] = v

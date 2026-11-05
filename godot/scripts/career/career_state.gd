@@ -1442,6 +1442,9 @@ func start_pro() -> void:
 ## 프로 다음 시즌 (프로 시즌 결산 화면의 [다음 시즌])
 func start_next_pro_season() -> void:
 	pro.close_season(self)
+	# FA 를 고르지 않고 넘어가면 원 소속 구단 제안 (화면은 고르기 전에는 [다음 시즌]을 막는다 — 자동 진행·테스트용)
+	if pro.fa_pending:
+		ProFA.sign(self, pro, ProFA.offers(cfg, pro)[0])
 	for s in PlayerData.STATS:
 		Growth.apply(cfg, player, s, float(cfg.pro["winterGain"]))
 	pro.start_next_season(self)

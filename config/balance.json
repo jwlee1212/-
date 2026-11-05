@@ -408,7 +408,7 @@
   },
   "career": {
     "pro": {
-      "_note": "프로 편 (KBA, docs/worldview.md 5장). 한 시즌 weeks 주 × gamesPerWeek 경기(3연전 seriesPerWeek 개) = 144경기. 구단 전력 = teamStrength[세계관 강·중·약] ± strengthJitter, 선수 능력치 = 전력 ± game.roster.ratingSd. 퓨처스는 전력 − futuresGap. 나이별 한 해 변화 growthByAge [[이 나이까지, 변화]] ± growthJitter, retireAge 에 은퇴하고 rookieAge 신인(전력 − rookieGap)이 들어온다. 드래프트: 유망주 랭킹 → tierByRank 등급 → tiers(구단·순번·계약금, worldview 5-3). 콜업: 퓨처스 callup.minWeeks 주 이상 + (퓨처스 OPS ≥ futuresOps 이고 minPa 타석 이상, 또는 종합 능력치 ≥ overall). 강등: 1군 demote.minPa 타석 이상에 OPS < demote.ops. 연봉: 시즌 기여도(ProPlayer.value) 구간별 인상률 raiseByValue × (1군 타석 / fullPa), 상마다 awardBonus. 포스트시즌: 4위가 1승 안고 시작하는 와일드카드 → 준PO(5전 3선승) → PO → 한국시리즈(7전 4선승)",
+      "_note": "프로 편 (KBA, docs/worldview.md 5장). 한 시즌 weeks 주 × gamesPerWeek 경기(3연전 seriesPerWeek 개) = 144경기. 구단 전력 = teamStrength[세계관 강·중·약] ± strengthJitter, 선수 능력치 = 전력 ± game.roster.ratingSd. 퓨처스는 전력 − futuresGap. 나이별 한 해 변화 growthByAge [[이 나이까지, 변화]] ± growthJitter, retireAge 에 은퇴하고 rookieAge 신인(전력 − rookieGap)이 들어온다. 드래프트: 유망주 랭킹 → tierByRank 등급 → tiers(구단·순번·계약금, worldview 5-3). 1군·퓨처스 오르내림은 감독 신뢰(trust). 연봉: 시즌 기여도(ProPlayer.value) 구간별 인상률 raiseByValue × (1군 타석 / fullPa), 상마다 awardBonus. 포스트시즌: 4위가 1승 안고 시작하는 와일드카드 → 준PO(5전 3선승) → PO → 한국시리즈(7전 4선승)",
       "weeks": 24,
       "gamesPerWeek": 6,
       "seriesPerWeek": 2,
@@ -459,16 +459,6 @@
       ],
       "debutSlot": 9,
       "futuresAutoGames": 3,
-      "callup": {
-        "minWeeks": 2,
-        "minPa": 30,
-        "futuresOps": 0.82,
-        "overall": 66
-      },
-      "demote": {
-        "minPa": 80,
-        "ops": 0.5
-      },
       "lineupMinPa": 40,
       "slotByOpsRank": [
         3,
@@ -631,6 +621,187 @@
           "need": 4,
           "maxGames": 7
         }
+      },
+      "trust": {
+        "_note": "감독 신뢰 (0~100). 1군·퓨처스 오르내림은 이 수치로만 정한다. 매주 변화 = clamp((이번 주 OPS − pivot) × scale, ±maxWeekly) + 홈런 × perHomeRun − 실책 × perError + (훈련했으면 workBonus). 퓨처스는 futuresPivot·futuresScale. 그 주 타석이 minPa 보다 적으면 OPS 변화는 없다. 1군에서 demoteBelow 아래인 채 watchGames 경기를 지켜보면 강등(신뢰는 demotedSet 으로), 퓨처스에서 callupAbove 이상인 채 callupWatchGames 경기를 지켜보면 콜업 — 기준을 다시 넘으면 지켜보던 경기 수가 0 으로. 시작값은 드래프트 등급별 startByTier, 전역 뒤 afterService, FA 이적 뒤 afterTransfer",
+        "startByTier": {
+          "S": 62,
+          "A": 52,
+          "B": 46,
+          "C": 38
+        },
+        "pivot": 0.72,
+        "scale": 20,
+        "maxWeekly": 6,
+        "futuresPivot": 0.8,
+        "futuresScale": 14,
+        "perHomeRun": 0.6,
+        "perError": 1.0,
+        "workBonus": 0.5,
+        "minPa": 6,
+        "demoteBelow": 40,
+        "watchGames": 12,
+        "callupAbove": 55,
+        "callupWatchGames": 8,
+        "afterService": 48,
+        "afterTransfer": 52,
+        "demotedSet": 42
+      },
+      "military": {
+        "_note": "병역 (worldview 5-5). 만 askAge 세부터 시즌 결산마다 묻는다(상무 지원 · 현역 · 미루기 — 미루기는 lastAge 세 전까지). 상무(국군체육부대)는 1군 통산 sangmuMinGames 경기 이상 또는 감독 신뢰 sangmuMinTrust 이상이면 합격 — 전력 sangmuStrength 상무 팀으로 퓨처스 팀과 뛰며 serviceWeeks 주(정규시즌 주만 센다, 약 18개월) 복무, 성장은 × sangmuGrowth. 현역은 serviceWeeks 주 동안 경기 없이 주마다 activeDecayChance 확률로 능력치 하나 −1. forcedAge 세 시즌이 되도록 안 갔으면 현역 강제. 아시안게임 금·올림픽 메달이면 면제(복무 중이면 조기 전역)",
+        "askAge": 22,
+        "lastAge": 27,
+        "forcedAge": 28,
+        "serviceWeeks": 36,
+        "sangmuMinGames": 40,
+        "sangmuMinTrust": 45,
+        "sangmuStrength": 52,
+        "sangmuAutoGames": 3,
+        "activeDecayChance": 0.25,
+        "sangmuGrowth": 0.7
+      },
+      "national": {
+        "_note": "국가대표 (worldview 5-6). 대회마다 4년 주기 (프로 year % every == offset), week 주 정규시즌을 마친 뒤 (useLastSeason 이면 지난 시즌 기여도 순위로 — 세계야구클래식은 개막 전). 뽑힘: 리그 타자 기여도 순위 ≤ pickTop, 또는 나이 ≤ youngAge 이고 순위 ≤ youngPickTop. 대회는 games 경기 × paPerGame 자동 타석(상대 투수 전력 opponentStrength). 결과는 medals [[이름, 누적 확률]…] 을 위에서부터 (내 대회 OPS ≥ .900 이면 hotBonus 만큼 위로). exempt: 병역 면제가 되는 결과",
+        "events": [
+          {
+            "id": "classic",
+            "name": "세계야구클래식",
+            "every": 4,
+            "offset": 3,
+            "week": 1,
+            "useLastSeason": true,
+            "pickTop": 18,
+            "youngAge": 0,
+            "youngPickTop": 0,
+            "games": 5,
+            "paPerGame": 4,
+            "opponentStrength": 70,
+            "medals": [
+              [
+                "우승",
+                0.08
+              ],
+              [
+                "준우승",
+                0.2
+              ],
+              [
+                "4강",
+                0.45
+              ],
+              [
+                "8강",
+                0.75
+              ],
+              [
+                "1라운드 탈락",
+                1.0
+              ]
+            ],
+            "exempt": []
+          },
+          {
+            "id": "olympic",
+            "name": "올림픽",
+            "every": 4,
+            "offset": 0,
+            "week": 14,
+            "useLastSeason": false,
+            "pickTop": 16,
+            "youngAge": 0,
+            "youngPickTop": 0,
+            "games": 5,
+            "paPerGame": 4,
+            "opponentStrength": 66,
+            "medals": [
+              [
+                "금메달",
+                0.15
+              ],
+              [
+                "은메달",
+                0.35
+              ],
+              [
+                "동메달",
+                0.55
+              ],
+              [
+                "4위",
+                0.8
+              ],
+              [
+                "예선 탈락",
+                1.0
+              ]
+            ],
+            "exempt": [
+              "금메달",
+              "은메달",
+              "동메달"
+            ]
+          },
+          {
+            "id": "asian",
+            "name": "아시안게임",
+            "every": 4,
+            "offset": 2,
+            "week": 20,
+            "useLastSeason": false,
+            "pickTop": 14,
+            "youngAge": 24,
+            "youngPickTop": 45,
+            "games": 5,
+            "paPerGame": 4,
+            "opponentStrength": 58,
+            "medals": [
+              [
+                "금메달",
+                0.62
+              ],
+              [
+                "은메달",
+                0.82
+              ],
+              [
+                "동메달",
+                0.94
+              ],
+              [
+                "노메달",
+                1.0
+              ]
+            ],
+            "exempt": [
+              "금메달"
+            ]
+          }
+        ],
+        "hotBonus": 0.08,
+        "famePerPick": 4,
+        "growth": 1.0
+      },
+      "fa": {
+        "_note": "FA (worldview 5-4). 1군에 faWeeks 주 이상 있던 시즌만 등록 시즌으로 센다 (복무 시즌은 안 센다). 고졸 seasonsHigh · 대졸 seasonsCollege 시즌이면 시즌 결산에서 FA. 연평균 = max(지금 연봉, minAnnual, baseAnnual + 최근 3시즌 평균 기여도 × perValue) × 구단 배율 (teamFactor[전력], bigSpender 구단은 bigSpenderFactor), 원 소속 구단은 감독 신뢰 loyaltyTrust 이상이면 × homeBonus. 기여도가 minValueForBids 아래면 원 소속 구단만 제안, 아니면 원 소속 + 다른 구단 maxBidders 곳. 계약 years 년, 계약금 = 연평균 × bonusShare. 계약이 끝나면 다시 FA",
+        "faWeeks": 16,
+        "seasonsHigh": 8,
+        "seasonsCollege": 7,
+        "baseAnnual": 100000000,
+        "perValue": 120000000,
+        "minAnnual": 50000000,
+        "teamFactor": {
+          "강": 1.15,
+          "중": 1.0,
+          "약": 0.92
+        },
+        "bigSpender": "kkg",
+        "bigSpenderFactor": 1.3,
+        "homeBonus": 1.05,
+        "loyaltyTrust": 55,
+        "minValueForBids": 1.0,
+        "maxBidders": 3,
+        "years": 4,
+        "bonusShare": 1.0
       }
     },
     "status": "draft",

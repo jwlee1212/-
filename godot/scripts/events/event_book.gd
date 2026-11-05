@@ -27,7 +27,7 @@ const CONDITION_KEYS := ["id", "speaker", "title", "text", "choices", "script", 
 	"after", "when", "episode", "card", "proYear", "proLevel", "proPhase", "minFame"]
 const EFFECT_KEYS := ["condition", "scoutInterest", "lineupSlot", "contact", "power", "eye", "speed", "fielding", "form",
 	"reputation", "injury", "rel", "meet", "flag", "clearFlag", "schedule", "path", "money", "partner", "campFocus", "gear", "gameBoost", "pinchHit",
-	"matchOverride", "injuryLabel", "minigame", "set", "add", "train", "gamePlan", "gradeVar", "addContact", "draft", "fame", "proSns"]
+	"matchOverride", "injuryLabel", "minigame", "set", "add", "train", "gamePlan", "gradeVar", "addContact", "draft", "fame", "proSns", "proTrust", "military"]
 ## 대본 줄의 화면 표시 (ui, 없으면 보통 대사·지문): 폰 문자 · 노트북 화면 · TV · 화이트보드 · 전광판 · 쪽지 · 시스템 알림
 const UI_KINDS := ["phone", "laptop", "tv", "whiteboard", "scoreboard", "item", "system", "news"]
 ## 조건(cond)의 비교 키: {"var": id, <키>: 값}
@@ -35,7 +35,8 @@ const COMPARES := ["eq", "ne", "gte", "lte", "gt", "lt", "in"]
 const PATHS := ["draft", "college"]
 const PHASE_ENDS := ["champion", "eliminated", "leagueEnd"]
 ## 엔진(프로 편)이 직접 세우는 플래그 — 이벤트·문자의 requires 로 써도 된다. 기념 순간은 ms_<id> 도 세운다 (content.json pro.milestones)
-const ENGINE_FLAGS := ["drafted", "undrafted", "pro_called_up", "pro_debut", "pro_post_debut"]
+const ENGINE_FLAGS := ["drafted", "undrafted", "pro_called_up", "pro_debut", "pro_post_debut", "enlisted", "discharged", "military_exempt",
+	"national_classic", "national_olympic", "national_asian", "fa_signed", "main_ending"]
 
 ## id -> 정의, content 순서
 var defs := {}
@@ -539,6 +540,15 @@ func apply_effects(career: CareerState, fx: Dictionary) -> Array[String]:
 				if career.pro != null:
 					career.pro.fame = clampi(career.pro.fame + int(v), 0, 100)
 					parts.append("인기 %+d" % int(v))
+			"proTrust":
+				# 감독 신뢰 (프로 1군·퓨처스 오르내림)
+				if career.pro != null:
+					career.pro.add_trust(career, float(v))
+					parts.append("감독 신뢰 %+d" % int(v))
+			"military":
+				# 병역 결정 (sangmu 상무 지원 · active 현역 · delay 미루기) — 입대는 다음 시즌 시작에
+				if career.pro != null:
+					parts.append(ProService.decide(career, career.pro, str(v)))
 			"proSns":
 				# 이야기가 프로 SNS 에 글을 올린다 (content.json pro.sns.posts 의 그 종류)
 				if career.pro != null:
@@ -1169,6 +1179,8 @@ static func validate(cfg: CareerConfig) -> Array[String]:
 				errors.append("%s: gear %s 없음" % [where, fx["gear"]])
 			if fx.has("path") and not fx["path"] in PATHS:
 				errors.append("%s: path %s" % [where, fx["path"]])
+			if fx.has("military") and not fx["military"] in [ProService.SANGMU, ProService.ACTIVE, "delay"]:
+				errors.append("%s: military %s" % [where, fx["military"]])
 			if fx.has("proSns") and not (cfg.pro_content.get("sns", {}).get("posts", {}) as Dictionary).has(fx["proSns"]):
 				errors.append("%s: proSns 종류 %s 없음 (content.json pro.sns.posts)" % [where, fx["proSns"]])
 		for t: String in texts:

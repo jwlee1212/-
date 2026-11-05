@@ -5569,11 +5569,12 @@
             {
               "label": "펑고부터 받겠습니다",
               "key": "A",
-              "hint": "수비 경험치 · 주장 눈도장",
+              "hint": "수비 경험치 · 감독 신뢰 ▲",
               "effects": {
                 "train": {
                   "fielding": 1.5
-                }
+                },
+                "proTrust": 2
               },
               "then": [
                 {
@@ -5585,11 +5586,12 @@
             {
               "label": "배팅 케이지 남는 시간 주세요",
               "key": "B",
-              "hint": "파워 경험치 · 감독 눈도장",
+              "hint": "파워 경험치 · 감독 신뢰 ▲▲",
               "effects": {
                 "train": {
                   "power": 1.5
-                }
+                },
+                "proTrust": 4
               },
               "then": [
                 {
@@ -5638,12 +5640,13 @@
             {
               "label": "(손을 든다)",
               "key": "A",
-              "hint": "컨택 경험치 · 컨디션 ▼",
+              "hint": "컨택 경험치 · 감독 신뢰 ▲ · 컨디션 ▼",
               "effects": {
                 "train": {
                   "contact": 1.5
                 },
-                "condition": -5
+                "condition": -5,
+                "proTrust": 3
               },
               "then": [
                 {
@@ -5734,11 +5737,12 @@
             {
               "label": "끝까지 본다",
               "key": "B",
-              "hint": "선구안 경험치",
+              "hint": "선구안 경험치 · 감독 신뢰 ▲",
               "effects": {
                 "train": {
                   "eye": 1.0
-                }
+                },
+                "proTrust": 2
               },
               "then": [
                 {
@@ -6444,6 +6448,111 @@
                 {
                   "speaker": "chae",
                   "text": "그래. 오빠는 그럴 줄 알았어. …경기 잘해."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pro_military_card",
+      "story": true,
+      "free": true,
+      "card": true,
+      "proYear": [
+        1,
+        30
+      ],
+      "timing": "seasonEnd",
+      "repeat": true,
+      "cooldownWeeks": 10,
+      "when": {
+        "all": [
+          {
+            "var": "military_ask",
+            "eq": true
+          },
+          {
+            "var": "military_status",
+            "eq": "none"
+          }
+        ]
+      },
+      "speaker": "mom",
+      "title": "입대 통지",
+      "place": "restaurant",
+      "script": [
+        {
+          "branch": [
+            {
+              "if": {
+                "var": "military_last",
+                "eq": true
+              },
+              "then": [
+                {
+                  "text": "병무청 우편. 더는 미룰 수 없다."
+                }
+              ]
+            },
+            {
+              "then": [
+                {
+                  "text": "은하식당 계산대 옆에 병무청 우편이 놓여 있다."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "speaker": "mom",
+          "text": "상무 간 선수들은 거기서도 야구 한다더라. …엄마는 네가 정해."
+        },
+        {
+          "choices": [
+            {
+              "label": "상무에 지원한다",
+              "hint": "국군체육부대 — 상무 팀으로 뛰며 복무 (1군 40경기 또는 감독 신뢰 45 필요)",
+              "effects": {
+                "military": "sangmu"
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "합격하면 엄마가 떡 돌린다."
+                }
+              ]
+            },
+            {
+              "label": "현역으로 간다",
+              "hint": "1년 반 야구 공백 · 능력치가 조금 녹슨다",
+              "effects": {
+                "military": "active"
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "…밥은 잘 먹고 다녀."
+                }
+              ]
+            },
+            {
+              "label": "1년 미룬다",
+              "hint": "아시안게임·올림픽 메달이면 면제 · 내년 결산에 다시 묻는다",
+              "if": {
+                "var": "military_last",
+                "eq": false
+              },
+              "effects": {
+                "set": {
+                  "military_delayed": true
+                }
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "그래. 대신 내년엔 진짜 정해."
                 }
               ]
             }
@@ -10405,6 +10514,222 @@
       ]
     },
     {
+      "id": "m_pro_mom_enlist",
+      "speaker": "mom",
+      "proYear": [
+        1,
+        30
+      ],
+      "requires": [
+        "enlisted"
+      ],
+      "lines": [
+        "입대 날짜 나왔다며",
+        "그날은 가게 문 닫고 엄마가 데려다줄게"
+      ],
+      "replies": [
+        {
+          "label": "고마워 엄마",
+          "effects": {
+            "rel": {
+              "mom": 4
+            }
+          },
+          "then": [
+            "고맙긴. 머리는 엄마가 깎아 줄까"
+          ]
+        },
+        {
+          "label": "혼자 갈게",
+          "effects": {
+            "rel": {
+              "mom": -1
+            },
+            "condition": 2
+          },
+          "then": [
+            "…그래. 그럼 문 앞까지만"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_pro_harin_enlist",
+      "speaker": "neighbor",
+      "proYear": [
+        1,
+        30
+      ],
+      "partner": "neighbor",
+      "requires": [
+        "enlisted"
+      ],
+      "lines": [
+        "면회 갈게",
+        "그림 그려서. 네 부대 그려 줄게"
+      ],
+      "replies": [
+        {
+          "label": "기다릴게",
+          "effects": {
+            "rel": {
+              "neighbor": 5
+            },
+            "condition": 3
+          },
+          "then": [
+            "나도"
+          ]
+        },
+        {
+          "label": "멀어. 오지 마",
+          "effects": {
+            "rel": {
+              "neighbor": -3
+            }
+          },
+          "then": [
+            "갈 거야"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_pro_mom_exempt",
+      "speaker": "mom",
+      "proYear": [
+        1,
+        30
+      ],
+      "requires": [
+        "military_exempt"
+      ],
+      "lines": [
+        "뉴스 봤다",
+        "엄마 오늘 가게에서 울었어. 손님들이 다 박수 쳤다"
+      ]
+    },
+    {
+      "id": "m_pro_taeo_national",
+      "speaker": "rival",
+      "proYear": [
+        1,
+        30
+      ],
+      "requires": [
+        "national_asian"
+      ],
+      "lines": [
+        "대표팀 같은 방이다",
+        "코 골지 마라"
+      ],
+      "replies": [
+        {
+          "label": "너나 골지 마",
+          "effects": {
+            "rel": {
+              "rival": 5
+            }
+          },
+          "then": [
+            "…안 곤다"
+          ]
+        },
+        {
+          "label": "유격수는 누가 봐?",
+          "effects": {
+            "rel": {
+              "rival": 8
+            },
+            "condition": -2
+          },
+          "then": [
+            "감독이 정하겠지. 나다"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_pro_junsu_discharge",
+      "speaker": "buddy",
+      "proYear": [
+        1,
+        30
+      ],
+      "requires": [
+        "discharged"
+      ],
+      "lines": [
+        "전역 축하한다 ㅋㅋ",
+        "네 퓨처스 기록 정리해 놨다. 1군까지 몇 경기 남았는지도"
+      ],
+      "replies": [
+        {
+          "label": "몇 경기 남았는데",
+          "effects": {
+            "rel": {
+              "buddy": 3
+            },
+            "condition": 3
+          },
+          "then": [
+            "감독님 마음이지 뭐. 잘 쳐"
+          ]
+        },
+        {
+          "label": "고맙다 기록원",
+          "effects": {
+            "rel": {
+              "buddy": 3
+            }
+          },
+          "then": [
+            "평생 계약이라며"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_pro_mom_fa",
+      "speaker": "mom",
+      "proYear": [
+        1,
+        30
+      ],
+      "requires": [
+        "fa_signed"
+      ],
+      "lines": [
+        "계약 기사 봤다",
+        "어디서 뛰든 은하식당 벽엔 네 유니폼 걸려 있을 거야"
+      ],
+      "replies": [
+        {
+          "label": "엄마 가게 넓히자",
+          "effects": {
+            "rel": {
+              "mom": 6
+            },
+            "money": -30000000
+          },
+          "then": [
+            "…이번 한 번만 받는다"
+          ]
+        },
+        {
+          "label": "고마워",
+          "effects": {
+            "rel": {
+              "mom": 3
+            }
+          },
+          "then": [
+            "밥 먹으러 와"
+          ]
+        }
+      ]
+    },
+    {
       "id": "m_pro_harin_debut",
       "speaker": "neighbor",
       "proYear": [
@@ -11370,6 +11695,40 @@
       "values": [
         "restaurant",
         "keep"
+      ]
+    },
+    "pro_age": {
+      "type": "int"
+    },
+    "pro_trust": {
+      "type": "int"
+    },
+    "military_status": {
+      "type": "enum",
+      "values": [
+        "none",
+        "enlisting",
+        "sangmu",
+        "active",
+        "done",
+        "exempt"
+      ],
+      "default": "none"
+    },
+    "military_ask": {
+      "type": "bool"
+    },
+    "military_last": {
+      "type": "bool"
+    },
+    "military_delayed": {
+      "type": "bool"
+    },
+    "fa_choice": {
+      "type": "enum",
+      "values": [
+        "stay",
+        "move"
       ]
     },
     "ep02_warmup": {
@@ -13515,6 +13874,22 @@
   },
   "pro": {
     "_note": "프로 편 (scripts/pro_content.py 가 쓴다). media 매체, statNames 부문 이름, news·sns 문장 틀 (ProFeed), milestones = 상황 컷신 (Milestones — 그림이 없으면 컷신 자리 카드)",
+    "ending": {
+      "stay": {
+        "title": "{proTeam}의 {player}",
+        "lines": [
+          "8년 전 계약서에 사인하던 그 사무실. 이번엔 펜을 쥔 손이 떨리지 않는다.",
+          "은하식당 벽의 유니폼은 바뀌지 않는다. 엄마가 액자 유리만 새로 닦았다."
+        ]
+      },
+      "move": {
+        "title": "새 유니폼, {proTeam}",
+        "lines": [
+          "낯선 구장, 낯선 덕아웃. 라커 이름표만 그대로다.",
+          "은하식당 벽에 유니폼이 한 장 더 걸렸다. 엄마는 둘 다 내 거라고 했다."
+        ]
+      }
+    },
     "media": {
       "news": [
         "누리스포츠",
@@ -13603,6 +13978,26 @@
         "{player}, {award} 영예",
         "[시상] {team} {player} {award}"
       ],
+      "national": [
+        "[대표팀] {team} {player}, {title}",
+        "태극마크 단 {player} — {title}"
+      ],
+      "enlist": [
+        "{team} {player}, {title}… \"돌아와서 더 잘하겠다\"",
+        "[병역] {player} {title}"
+      ],
+      "discharge": [
+        "{player} {title}, {team} 복귀 준비",
+        "돌아온 {player} — {title}"
+      ],
+      "fa_stay": [
+        "{player}, {team} 잔류 FA 계약",
+        "'원클럽맨' {player}, {team}에 남는다"
+      ],
+      "fa_move": [
+        "[FA] {player}, {team} 이적!",
+        "{player} 새 유니폼 — {team}"
+      ],
       "salary": [
         "{player}, 내년 연봉 {salary}에 사인",
         "{team} {player} 연봉 계약 완료 — {salary}"
@@ -13669,6 +14064,27 @@
         "my_award": [
           "{player} {award} 받을 줄 알았다",
           "{award} {player} 🏆 수원의 자랑"
+        ],
+        "national": [
+          "{player} 대표팀 ㅠㅠ 자랑스럽다",
+          "{title} 실화냐",
+          "태극마크 {player} 🇰🇷"
+        ],
+        "enlist": [
+          "{player} 군대 간다… 기다릴게",
+          "건강하게만 다녀와 {player}"
+        ],
+        "discharge": [
+          "{player} 돌아왔다!!!",
+          "전역 축하 {player} 이제 1군 가자"
+        ],
+        "fa_stay": [
+          "{player} 남는다!! {team} 영원히",
+          "원클럽맨 {player} 사랑해"
+        ],
+        "fa_move": [
+          "{player} 결국 {team}로… 그동안 고마웠다",
+          "새 팀에서도 응원한다 {player}"
         ],
         "chae_post": [
           "오늘 저녁 ♥ 누군지 맞혀 보세요 #야구 #{teamShort}",
@@ -13948,6 +14364,94 @@
           "award": "홈런왕"
         },
         "fame": 8
+      },
+      {
+        "id": "national",
+        "title": "첫 국가대표",
+        "line": "대표팀 라커에 걸린 유니폼, 등 뒤 이름 위로 태극마크가 보인다.",
+        "cutscene": "pro_national",
+        "when": {
+          "kind": "event",
+          "event": "national"
+        },
+        "fame": 6
+      },
+      {
+        "id": "asian_gold",
+        "title": "아시안게임 금메달",
+        "line": "시상대 위 실루엣들, 목에 걸린 금빛. 병역 특례 소식이 덕아웃에 퍼진다.",
+        "cutscene": "pro_asian_gold",
+        "when": {
+          "kind": "event",
+          "event": "medal_asian"
+        },
+        "fame": 12
+      },
+      {
+        "id": "olympic_medal",
+        "title": "올림픽 메달",
+        "line": "올림픽 경기장 조명 아래 메달을 깨무는 실루엣.",
+        "cutscene": "pro_olympic_medal",
+        "when": {
+          "kind": "event",
+          "event": "medal_olympic"
+        },
+        "fame": 12
+      },
+      {
+        "id": "exempt",
+        "title": "병역 특례",
+        "line": "엄마의 문자 한 줄: \"뉴스 봤다\".",
+        "cutscene": "pro_exempt",
+        "when": {
+          "kind": "event",
+          "event": "exempt"
+        },
+        "fame": 3
+      },
+      {
+        "id": "enlist",
+        "title": "입대",
+        "line": "훈련소 정문 앞, 짧게 깎은 뒷머리. 은하식당 앞치마를 두른 엄마가 손을 흔든다.",
+        "cutscene": "pro_enlist",
+        "when": {
+          "kind": "event",
+          "event": "enlist"
+        },
+        "fame": 2
+      },
+      {
+        "id": "discharge",
+        "title": "전역",
+        "line": "부대 정문을 나서는 실루엣, 어깨에 걸친 배트 가방.",
+        "cutscene": "pro_discharge",
+        "when": {
+          "kind": "event",
+          "event": "discharge"
+        },
+        "fame": 3
+      },
+      {
+        "id": "fa_stay",
+        "title": "FA 잔류",
+        "line": "구단 사무실, 같은 유니폼을 다시 입는다. 메인 스토리 엔딩.",
+        "cutscene": "pro_fa_stay",
+        "when": {
+          "kind": "event",
+          "event": "fa_stay"
+        },
+        "fame": 10
+      },
+      {
+        "id": "fa_move",
+        "title": "FA 이적",
+        "line": "새 구장 조명 아래 낯선 색의 유니폼. 메인 스토리 엔딩.",
+        "cutscene": "pro_fa_move",
+        "when": {
+          "kind": "event",
+          "event": "fa_move"
+        },
+        "fame": 10
       },
       {
         "id": "batting_title",
