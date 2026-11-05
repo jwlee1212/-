@@ -82,6 +82,12 @@ func _init() -> void:
 		"test_pro_military",
 		"test_pro_national",
 		"test_pro_fa",
+		"test_calendar",
+		"test_pro_daily",
+		"test_pro_sim_until",
+		"test_hs_sim",
+		"test_sim_to_end",
+		"test_age_curve",
 		"test_real_content",
 		"test_training_and_growth",
 		"test_condition_affects_skills",
@@ -4993,7 +4999,6 @@ func _pro_cfg(weeks: int = 3) -> CareerConfig:
 	var cfg := _real_cfg()
 	cfg.pro = cfg.pro.duplicate(true)
 	cfg.pro["weeks"] = weeks
-	cfg.pro["futuresAutoGames"] = 1
 	return cfg
 
 
@@ -5014,12 +5019,15 @@ func _pro_week(career: CareerState) -> void:
 	while not career.events("start").is_empty() and g < 20:
 		g += 1
 		career.resolve_event(career.events("start")[0], 0)
-	if career.pro.has_direct_game(career):
-		career.finish_game(_auto_week(career, "rest"))
-	else:
-		career.train("rest")
-		career.game_done = true
-		career.pro.finish_week(career, null)
+	# 날마다: 직접 할 수 있으면 직접 (내 타석은 자동 타석으로), 아니면 시뮬레이션 — 한 주 경기를 다 할 때까지
+	var days := 0
+	while not career.game_done and days < 12:
+		days += 1
+		if career.pro.has_direct_game(career):
+			career.finish_game(_auto_week(career, "rest"))
+		else:
+			career.train("rest")
+			career.pro.finish_day(career, null)
 	g = 0
 	while not career.events("after").is_empty() and g < 20:
 		g += 1
@@ -5217,9 +5225,10 @@ func test_pro_season() -> void:
 	c2cfg.pro["trust"]["callupWatchGames"] = 4
 	var c2 := _pro_career(c2cfg, "C", "육성")
 	check(not c2.pro.is_first() and c2.pro.trust == float(c2cfg.pro["trust"]["startByTier"]["C"]), "육성선수는 퓨처스에서, 신뢰 %d 로 시작" % int(c2.pro.trust))
+	_pro_week(c2)
+	check(not c2.pro.is_first(), "신뢰가 낮으면 퓨처스에 남는다")
 	c2.pro.trust = 90.0
-	for i in 3:
-		_pro_week(c2)
+	_pro_week(c2)
 	check(c2.pro.is_first() and c2.player.flags.has("pro_called_up"), "신뢰가 높은 채 퓨처스 4경기를 지켜본 뒤 콜업")
 	check(c2.book.fired.has("ep25_01"), "퓨처스 장면")
 	check(c2.pro.futures_season.pa > 0, "퓨처스 기록 %d타석" % c2.pro.futures_season.pa)
@@ -5331,7 +5340,7 @@ func test_pro_trust() -> void:
 	check(c.pro.is_first() and ws["kind"] == "demote" and int(ws["games"]) > 0 and int(ws["games"]) < int(tc["watchGames"]),
 		"한 주 뒤엔 아직 1군 — 지켜보는 중 %d/%d경기" % [ws["games"], ws["need"]])
 	_pro_week(c)
-	check(not c.pro.is_first() and c.pro.trust == float(tc["demotedSet"]) and c.pro.watch_games == 0, "기준 아래로 %d경기 → 퓨처스 (신뢰 %d)" % [int(tc["watchGames"]), int(c.pro.trust)])
+	check(not c.pro.is_first() and c.pro.watch_games == 0 and c.pro.trust < float(tc["callupAbove"]), "기준 아래로 %d경기 → 퓨처스 (신뢰 %d — 강등 때 %d 로 놓고 그 주 평가)" % [int(tc["watchGames"]), int(c.pro.trust), int(tc["demotedSet"])])
 	# 기준을 다시 넘으면 지켜보던 경기 수가 0 으로
 	var d := _pro_career(_pro_cfg(6), "S", "회복")
 	d.pro.trust = 5.0
@@ -5434,7 +5443,7 @@ func test_pro_fa() -> void:
 	var fc: Dictionary = cfg.pro["fa"]
 	var c := _pro_career(cfg, "S", "FA")
 	c.pro.fa_seasons = ProFA.required(cfg, c.pro) - 1
-	c.pro.first_weeks = int(fc["faWeeks"])
+	c.pro.first_days = int(fc["faWeeks"]) * int(cfg.pro["gamesPerWeek"])
 	c.pro.value_history = [5.0, 5.0]
 	c.pro.close_season(c)
 	check(c.pro.fa_pending and c.pro.season_note.contains("FA"), "등록 %d시즌 → FA (%s)" % [c.pro.fa_seasons, c.pro.season_note])
@@ -5470,3 +5479,236 @@ func test_pro_fa() -> void:
 	# 저장에도 남는다
 	var r := _reload(c)
 	check(r.pro.contract_years_left == c.pro.contract_years_left and r.pro.team_id == c.pro.team_id and r.pro.ending == "move", "FA 상태 저장")
+
+
+
+func test_calendar() -> void:
+	# 날짜 계산 (그레고리력) · 요일 · 경기 날짜 (고교 토요일, 프로 화~일 + 월요일 휴식)
+	check(GameCalendar.days_from_civil(1970, 1, 1) == 0 and GameCalendar.weekday(0) == 3, "1970-01-01 은 0번, 목요일")
+	var z := GameCalendar.days_from_civil(2028, 2, 29)
+	var c := GameCalendar.civil_from_days(z)
+	check(c["y"] == 2028 and c["m"] == 2 and c["d"] == 29 and GameCalendar.days_in_month(2028, 2) == 29 and GameCalendar.days_in_month(2027, 2) == 28, "윤년")
+	for n in range(20000, 24000, 37):
+		var d := GameCalendar.civil_from_days(n)
+		check(GameCalendar.days_from_civil(d["y"], d["m"], d["d"]) == n, "날짜 왕복 %d" % n)
+	check(GameCalendar.weekday(GameCalendar.days_from_civil(2030, 3, 26)) == GameCalendar.TUE, "2030-03-26 은 화요일")
+	check(GameCalendar.text(GameCalendar.days_from_civil(2030, 4, 13)) == "4월 13일 (토)", "글자: %s" % GameCalendar.text(GameCalendar.days_from_civil(2030, 4, 13)))
+	var cfg := _real_cfg()
+	for g in [1, 2, 3]:
+		var d1 := GameCalendar.hs_game_day(cfg, g, 1)
+		check(GameCalendar.weekday(d1) == GameCalendar.SAT and GameCalendar.hs_game_day(cfg, g, 2) - d1 == 7, "고교 %d학년 경기는 토요일, 한 주 7일" % g)
+		check(GameCalendar.weekday(GameCalendar.hs_camp_day(cfg, g, 1)) == GameCalendar.SAT and GameCalendar.hs_camp_day(cfg, g, 1) > GameCalendar.hs_game_day(cfg, g, 30), "겨울 캠프는 시즌 뒤")
+	var y := int(cfg.calendar["firstYear"]) + 3
+	var open := GameCalendar.pro_opening(cfg, y)
+	check(GameCalendar.weekday(open) == GameCalendar.TUE and GameCalendar.civil_from_days(open)["m"] == 3, "프로 개막은 3월 화요일")
+	check(GameCalendar.weekday(GameCalendar.pro_day(cfg, y, 5, 5)) == GameCalendar.SUN and GameCalendar.weekday(GameCalendar.pro_monday(cfg, y, 5)) == GameCalendar.MON, "한 주: 화~일 경기, 월요일 휴식")
+	var last := GameCalendar.civil_from_days(GameCalendar.pro_day(cfg, y, int(cfg.pro["weeks"]), 5))
+	check(int(last["m"]) == 9, "정규시즌 24주는 9월에 끝난다 (%d월 %d일)" % [last["m"], last["d"]])
+
+
+func test_pro_daily() -> void:
+	# 프로 경기는 날마다 하나 — 모든 경기를 직접 하거나 시뮬레이션 (더쇼 RTTS 처럼). 월요일은 휴식일(훈련)
+	var cfg := _pro_cfg(3)
+	var c := _pro_career(cfg, "S", "하루")
+	while not c.events("start").is_empty():
+		c.resolve_event(c.events("start")[0], 0)
+	var pro := c.pro
+	check(pro.is_off_day(c) and GameCalendar.weekday(pro.today(c)) == GameCalendar.MON, "주 첫날은 월요일 휴식일")
+	c.train("contact")
+	check(not pro.is_off_day(c) and GameCalendar.weekday(pro.today(c)) == GameCalendar.TUE, "훈련 뒤 오늘은 화요일 경기")
+	var gt := pro.game_today(c)
+	check(gt["kind"] == "first" and gt["playable"] and gt["opp"] != null and gt["pitcher"] != null, "1군 경기 · 상대 · 예고 선발")
+	var date := pro.today(c)
+	pro.finish_day(c, null)
+	check(pro.day == 1 and pro.game_log.has(date) and pro.me.season.games == 1 and not c.game_done, "하루: 경기 하나 (내 기록 1경기)")
+	check(pro.league.teams.all(func(t: ProTeam) -> bool: return t.games() == 1), "그날 리그 모든 팀이 한 경기")
+	# 둘째 날은 직접 (내 타석은 자동 타석으로)
+	var g := _auto_week(c, "rest")
+	check(g.me_playing and g.my_slot >= 0, "직접 하는 경기")
+	c.finish_game(g)
+	check(pro.day == 2 and pro.me.season.games == 2 and pro.week_games.size() == 2 and bool(pro.game_log[pro.last_day]["mine"]["direct"]), "직접 한 경기도 같은 기록에 (★)")
+	while not c.game_done:
+		pro.finish_day(c, null)
+	check(pro.day == 6 and pro.league.weeks_done == 1 and pro.league.teams.all(func(t: ProTeam) -> bool: return t.games() == 6), "엿새 뒤 한 주 끝 — 모든 팀 6경기")
+	# 달력: 지난 경기 · 남은 일정
+	var d0 := GameCalendar.civil_from_days(date)
+	var cells := pro.calendar_cells(c, int(d0["y"]), int(d0["m"]))
+	check(cells.has(date) and cells[date]["state"] in ["win", "loss", "draw"], "달력에 지난 경기 결과")
+	var future := GameCalendar.pro_day(cfg, pro.cal_year(), 2, 3)
+	var fc := GameCalendar.civil_from_days(future)
+	var fcells := pro.calendar_cells(c, int(fc["y"]), int(fc["m"]))
+	check(fcells.has(future) and fcells[future]["pick"] and fcells[future]["title"] != "", "달력에 남은 일정 (상대)")
+	# 같은 시드·같은 선택이면 같은 결과
+	var c2 := _pro_career(_pro_cfg(3), "S", "하루")
+	while not c2.events("start").is_empty():
+		c2.resolve_event(c2.events("start")[0], 0)
+	c2.train("contact")
+	c2.pro.finish_day(c2, null)
+	var t1 := c2.pro.league.teams.map(func(t: ProTeam) -> String: return "%d-%d" % [t.w, t.runs])
+	var cc := _pro_career(_pro_cfg(3), "S", "하루")
+	while not cc.events("start").is_empty():
+		cc.resolve_event(cc.events("start")[0], 0)
+	cc.train("contact")
+	cc.pro.finish_day(cc, null)
+	check(cc.pro.league.teams.map(func(t: ProTeam) -> String: return "%d-%d" % [t.w, t.runs]) == t1, "재현성: 같은 날 같은 결과")
+
+
+## 시뮬레이션을 이야기에서 멈추면 이야기를 고르고 다시 — 날짜에 닿을 때까지
+func _sim_until_date(c: CareerState, target: int, stops: Dictionary, until_playable: bool = false) -> Dictionary:
+	var res := {}
+	for i in 30:
+		res = c.pro.sim_until(c, target, stops, until_playable)
+		if res["stop"] != "story":
+			return res
+		for t: String in ["start", "after"]:
+			var gg := 0
+			while not c.events(t).is_empty() and gg < 20:
+				gg += 1
+				c.resolve_event(c.events(t)[0], 0)
+	return res
+
+
+func test_pro_sim_until() -> void:
+	var cfg := _pro_cfg(4)
+	var off := {"milestone": false, "level": false, "injury": false}
+	var c := _pro_career(cfg, "S", "시뮬")
+	var start := c.events("start")
+	check(not start.is_empty() and c.pro.sim_until(c, 1 << 30, off)["stop"] == "story", "주 첫날 이야기가 남아 있으면 먼저 멈춘다")
+	# 기념 순간에서 멈춤 (켜 두면 1군 데뷔 경기 뒤에 멈춘다)
+	while not c.events("start").is_empty():
+		c.resolve_event(c.events("start")[0], 0)
+	var r := c.pro.sim_until(c, 1 << 30, {"milestone": true, "level": false, "injury": false})
+	check(r["stop"] == "milestone" and int(r["days"]) >= 1 and c.pro.milestones_done.has("debut"), "기념 순간에서 멈춤 (%s, %d일)" % [r["stop"], r["days"]])
+	# 날짜까지: 그날 경기 전에 멈춘다 (그날 경기는 직접 할 수 있다)
+	var target := GameCalendar.pro_day(cfg, c.pro.cal_year(), 3, 2)
+	r = _sim_until_date(c, target, off)
+	check(r["stop"] == "date" and c.pro.today(c) == target and c.pro.week_no() == 3 and c.pro.day == 2, "3주차 목요일 경기 전까지 (%s · %s)" % [r["stop"], GameCalendar.text(c.pro.today(c))])
+	check(not c.pro.game_log.has(target) and c.pro.game_log.has(target - 1), "그날 경기는 아직, 전날은 했다")
+	# 시즌 끝까지 (정규시즌 끝에서 한 번 멈추고, 다시 누르면 포스트시즌 → 시즌 끝)
+	r = _sim_until_date(c, 1 << 30, off)
+	check(r["stop"] == "phase" and c.pro.phase == ProCareer.PHASE_POST, "정규시즌이 끝나면 멈춘다 (%s)" % r["stop"])
+	r = _sim_until_date(c, 1 << 30, off)
+	check(r["stop"] == "season_end" and c.is_season_over() and c.pro.league.champions.size() == 1, "시즌 끝까지 (%s)" % r["stop"])
+	# 다음 출전까지 (다쳐서 못 나가는 동안)
+	var h := _pro_career(_pro_cfg(4), "S", "부상")
+	while not h.events("start").is_empty():
+		h.resolve_event(h.events("start")[0], 0)
+	h.player.injury_weeks = 1
+	check(not h.pro.game_today(h)["playable"] and h.pro.game_today(h)["kind"] == "bench", "부상이면 오늘 경기는 결장")
+	r = _sim_until_date(h, 1 << 30, off, true)
+	check(r["stop"] == "playable" and h.pro.game_today(h)["playable"] and not h.player.is_injured(), "다시 나갈 수 있을 때 멈춘다 (%s)" % r["stop"])
+
+
+func test_hs_sim() -> void:
+	# 고교: 이야기가 정한 경기가 아니면 시뮬레이션할 수 있다 (2학년 주말리그)
+	var c := CareerState.new(_real_cfg(), "고교 시뮬", _config)
+	check(FastForward.run(c, 2, "season_start"), "2학년 시작까지")
+	while not c.events("start").is_empty():
+		c.resolve_event(c.events("start")[0], 0)
+	check(HsSim.can_sim(c), "2학년 주말리그 경기는 시뮬레이션할 수 있다")
+	var games := c.records.games.size()
+	var played := c.player.season.games
+	var r := HsSim.sim_game(c)
+	check(c.game_done and c.records.games.size() == games + 1 and c.player.season.games == played + 1, "시뮬레이션도 기록·성장이 쌓인다")
+	check(HsSim.result_text(r["game"]).begins_with("vs "), "결과 한 줄: %s" % HsSim.result_text(r["game"]))
+	var day := GameCalendar.hs_game_day(c.cfg, c.player.grade, c.week)
+	var cd := GameCalendar.civil_from_days(day)
+	var cells := HsSim.calendar_cells(c, int(cd["y"]), int(cd["m"]))
+	check(cells.has(day) and cells[day]["state"] in ["win", "loss", "draw"], "고교 달력에 결과")
+	# 날짜까지 (이야기에서 멈추면 고르고 다시)
+	var target := GameCalendar.hs_game_day(c.cfg, c.player.grade, c.week + 4)
+	var res := {}
+	for i in 20:
+		res = HsSim.sim_until(c, target, {"injury": false})
+		if res["stop"] != "story" and res["stop"] != "story_game":
+			break
+		for t: String in ["after", "start"]:
+			var gg := 0
+			while not c.events(t).is_empty() and gg < 20:
+				gg += 1
+				c.resolve_event(c.events(t)[0], 0)
+		if res["stop"] == "story_game":
+			var g := _auto_week(c, "rest")
+			c.finish_game(g)
+	check(res["stop"] == "date" and GameCalendar.hs_today(c) == target and not c.game_done, "그날 경기 전까지 (%s, 오늘 %s)" % [res["stop"], GameCalendar.text(GameCalendar.hs_today(c))])
+	# 1학년 첫 경기들은 이야기 경기 — 직접 한다
+	var y1 := CareerState.new(_real_cfg(), "1학년", _config)
+	var ok_all := true
+	for w in 3:
+		while not y1.events("start").is_empty():
+			y1.resolve_event(y1.events("start")[0], 0)
+		if not y1.game_plan.is_empty():
+			ok_all = ok_all and not HsSim.can_sim(y1)
+		y1.finish_game(_auto_week(y1, "rest"))
+		while not y1.events("after").is_empty():
+			y1.resolve_event(y1.events("after")[0], 0)
+		y1.advance_week()
+	check(ok_all, "경기 대본이 있는 경기는 시뮬레이션할 수 없다")
+
+
+func test_sim_to_end() -> void:
+	# 경기 시뮬레이션 (내 타석도 자동): 끝까지 가고, 같은 시드면 같은 결과, 경기 중간부터도 된다
+	var a := CareerState.new(_career_cfg(), "끝까지", _config)
+	a.player.lineup_slot = 3
+	var ga := a.new_game()
+	ga.sim_to_end(42)
+	check(ga.state.over and ga.my_line.pa >= 3, "끝까지 (%d타석)" % ga.my_line.pa)
+	var b := CareerState.new(_career_cfg(), "끝까지", _config)
+	b.player.lineup_slot = 3
+	var gb := b.new_game()
+	gb.sim_to_end(42)
+	check(gb.log == ga.log and gb.state.score == ga.state.score, "같은 시드면 같은 경기")
+	var c := CareerState.new(_career_cfg(), "끝까지", _config)
+	c.player.lineup_slot = 3
+	var gc := c.new_game()
+	var steps := 0
+	while steps < 30 and not gc.state.over:
+		var st := gc.step()
+		steps += 1
+		if st.type == "my_turn":
+			gc.apply_my_result(AtBat.Result.new(SwingJudge.Outcome.SINGLE, SwingJudge.BattedBall.NONE, 3, null))
+	gc.sim_to_end(7)
+	check(gc.state.over and gc.state.score[0] == gc.box.team_runs(0) and gc.state.score[1] == gc.box.team_runs(1), "경기 중간부터 시뮬레이션해도 점수 = 박스스코어")
+
+
+func test_age_curve() -> void:
+	# 나이 곡선 (2026-11-05 유저): 20~28 크게 · 33세까지 점점 줄고 · 34 유지 · 35부터 내리막
+	var cfg := _real_cfg()
+	var mult := func(age: int) -> float: return float(ProLeague.age_row(cfg, age)[1])
+	var yearly := func(age: int) -> float: return float(ProLeague.age_row(cfg, age)[2])
+	check(mult.call(20) == mult.call(28) and mult.call(28) > mult.call(29) and mult.call(29) > mult.call(31) and mult.call(31) > mult.call(33) and mult.call(33) > 0.0, "성장 배율: 28세까지 같고 33세까지 줄어든다")
+	check(mult.call(34) == 0.0 and yearly.call(34) == 0.0, "34세 유지")
+	check(yearly.call(35) < 0.0 and yearly.call(37) < yearly.call(35), "35세부터 내리막, 갈수록 가파르게")
+	check(Growth.amount(cfg, 50, 80, 1.0, 3, 25) > Growth.amount(cfg, 50, 80, 1.0, 3, 0), "프로 25세 성장 > 고3 학년 배율 성장")
+	check(Growth.amount(cfg, 50, 80, 1.0, 3, 34) == 0.0, "34세엔 훈련으로 안 오른다")
+	# 내 선수: 나이가 들 때마다 한 해 변화 (오르면 한계도 같이)
+	var c := _pro_career(_pro_cfg(3), "A", "나이")
+	var p := c.player
+	c.pro.me.age = 20
+	var before := p.contact
+	var pot := int(p.potential["contact"])
+	c.pro._age_me(c)
+	check(p.contact >= before + int(floor(yearly.call(20))) and int(p.potential["contact"]) >= pot + int(floor(yearly.call(20))), "20세: 오르고 한계도 오른다 (%d→%d)" % [before, p.contact])
+	c.pro.me.age = 36
+	var old := p.power
+	c.pro._age_me(c)
+	check(p.power < old, "36세: 내려간다 (%d→%d)" % [old, p.power])
+	# 리그 선수도 같은 곡선 (흔들림이 있어 여러 명 평균으로)
+	var lg := c.pro.league
+	var means := {}
+	for age in [22, 34, 37]:
+		var sum := 0.0
+		var n := 0
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 5
+		for t: ProTeam in lg.teams:
+			for q: ProPlayer in t.lineup:
+				if q.is_me or q.is_rival:
+					continue
+				var s0 := q.batter.skills.contact + q.batter.skills.power + q.batter.skills.eye
+				q.age = age
+				lg._age_player(cfg, q, rng)
+				sum += (q.batter.skills.contact + q.batter.skills.power + q.batter.skills.eye - s0) / 3.0
+				n += 1
+		means[age] = sum / n
+	check(float(means[22]) > 1.0 and absf(float(means[34])) < 0.6 and float(means[37]) < -1.5, "리그 평균 변화 22세 %+.2f · 34세 %+.2f · 37세 %+.2f" % [means[22], means[34], means[37]])

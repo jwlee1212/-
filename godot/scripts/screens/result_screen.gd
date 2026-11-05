@@ -47,7 +47,8 @@ func _ready() -> void:
 	_right = UiKit.vbox(Tokens.SPACE_SM)
 	_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_right)
-	_queue = career.events("after").duplicate()
+	# 경기 뒤 이야기는 그 주 경기를 다 했을 때만 (프로는 하루 한 경기 — 주 중간에는 일정으로 돌아간다)
+	_queue = career.events("after").duplicate() if career.game_done else []
 	var coach := UiKit.card()
 	var cc := UiKit.vbox(Tokens.SPACE_XS)
 	coach.add_child(cc)
@@ -128,10 +129,15 @@ func _show_next() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_right.add_child(spacer)
-	_right.add_child(UiKit.button("다음 주 ▶", _next, Tokens.ACCENT, Tokens.FONT_TITLE))
+	var pro := _app.career.pro != null
+	_right.add_child(UiKit.button("일정으로 ▶" if pro else "다음 주 ▶", _next, Tokens.ACCENT, Tokens.FONT_TITLE))
 
 
+## 고교: 다음 주로. 프로: 일정(허브)으로 — 다음 경기 날·다음 주는 허브가 연다
 func _next() -> void:
+	if _app.career.pro != null:
+		_app.show_home()
+		return
 	_app.next_week()
 
 

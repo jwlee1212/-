@@ -18,6 +18,8 @@ var weeks_done := 0
 ## 포스트시즌: 지금 몇 번째 라운드 (0~3, 4 = 끝) · 라운드별 결과 [{"round", "hi", "lo", "wins": [hi, lo], "winner", "games"}]
 var post_round := 0
 var post_results: Array = []
+## 지금 포스트시즌 라운드 진행 (post_begin — {} 이면 라운드 사이)
+var post_state := {}
 ## 정규시즌 최종 순위 (팀 id, 1위부터 — 시즌이 끝나면 채운다)
 var final_order: Array = []
 ## 역대 우승 [{"year", "team", "runner"}] · 역대 시상 [{"year", "award", "name", "team", "line"}]
@@ -276,21 +278,47 @@ func _decide(game: GameRunner, arms: Array, side: int, win: bool, post: String) 
 		ps.losses += 1
 
 
-## 정규시즌 한 주의 다른 팀 경기를 모두 돌린다 (skip_team: 따로 돌리는 내 팀 — 그 팀 경기는 빼고). 돌려주는 값: 경기 결과 목록
-func sim_week_others(cfg: CareerConfig, bc: BattingConfig, week: int, skip_team: String) -> Array:
-	var out := []
+## 정규시즌 week 주차 d 번째 날(0 화 … 5 일)의 경기들 [{"away", "home", "salt"}]. 3연전 seriesPerWeek 개가 한 주:
+## d / 3 번째 3연전의 g = d % 3 번째 경기. 10구단이라 날마다 모든 팀이 한 경기씩 한다
+func day_pairs(cfg: CareerConfig, week: int, d: int) -> Array:
 	var per := int(cfg.pro["seriesPerWeek"])
 	var games_per := int(cfg.pro["gamesPerWeek"]) / per
-	for k in per:
-		var r := (week - 1) * per + k
-		for pair: Array in pairings(r):
-			if pair[0] == skip_team or pair[1] == skip_team:
-				continue
-			for g in games_per:
-				var m := make_game(cfg, bc, by_id[pair[0]], by_id[pair[1]], "w%d:r%d:%s:%d" % [week, r, pair[0], g])
-				var game: GameRunner = m["game"]
-				game.run_to_end()
-				out.append(record_game(m))
+	var r := (week - 1) * per + d / games_per
+	var g := d % games_per
+	var out := []
+	for pair: Array in pairings(r):
+		out.append({"away": pair[0], "home": pair[1], "salt": "w%d:r%d:%s:%d" % [week, r, pair[0], g]})
+	return out
+
+
+## 그날 이 팀의 경기 {"away", "home", "salt", "opponent", "is_home"}
+func team_game_on(cfg: CareerConfig, team_id: String, week: int, d: int) -> Dictionary:
+	for p: Dictionary in day_pairs(cfg, week, d):
+		if p["away"] == team_id or p["home"] == team_id:
+			var out := p.duplicate()
+			out["is_home"] = p["home"] == team_id
+			out["opponent"] = p["away"] if out["is_home"] else p["home"]
+			return out
+	return {}
+
+
+## 그날 다른 팀 경기를 모두 돌린다 (skip_team: 따로 돌리는 내 팀). 돌려주는 값: 경기 결과 목록
+func sim_day_others(cfg: CareerConfig, bc: BattingConfig, week: int, d: int, skip_team: String) -> Array:
+	var out := []
+	for p: Dictionary in day_pairs(cfg, week, d):
+		if p["away"] == skip_team or p["home"] == skip_team:
+			continue
+		var m := make_game(cfg, bc, by_id[p["away"]], by_id[p["home"]], p["salt"])
+		(m["game"] as GameRunner).run_to_end()
+		out.append(record_game(m))
+	return out
+
+
+## 정규시즌 한 주의 다른 팀 경기를 모두 (날마다 차례로 — 튜닝 도구·테스트용)
+func sim_week_others(cfg: CareerConfig, bc: BattingConfig, week: int, skip_team: String) -> Array:
+	var out := []
+	for d in int(cfg.pro["gamesPerWeek"]):
+		out.append_array(sim_day_others(cfg, bc, week, d, skip_team))
 	return out
 
 
@@ -473,48 +501,74 @@ func post_pair() -> Array:
 	return [final_order[0], post_results[-1]["winner"]]
 
 
-## 포스트시즌 한 라운드를 돌린다. direct_first: 내 팀이 나오면 1차전은 내가 직접 한 경기(이미 끝난 m) — 나머지는 자동.
+## 이번 라운드를 시작한다 (아직이면): {"round", "hi", "lo", "wins": [윗 시드, 아랫 시드], "g": 다음 경기 번호, "games": [{"hi", "lo"}]}
+func post_begin(cfg: CareerConfig) -> Dictionary:
+	if post_state.is_empty() and not post_over():
+		var r: String = POST_ROUNDS[post_round]
+		var pair := post_pair()
+		post_state = {"round": r, "hi": pair[0], "lo": pair[1], "wins": [int(cfg.pro["postseason"][r].get("hiStartWins", 0)), 0], "g": 0, "games": []}
+	return post_state
+
+
+## 이번 라운드 다음 경기를 만든다 (1·2·5·7차전은 윗 시드 홈 — KBO 2-2-1 / 2-3-2 를 단순화). direct: 내가 직접 하는 경기
+func post_next_match(cfg: CareerConfig, bc: BattingConfig, me_player: PlayerData = null, me: ProPlayer = null, me_team: String = "",
+		direct: bool = false) -> Dictionary:
+	var st := post_begin(cfg)
+	var hi: ProTeam = by_id[st["hi"]]
+	var lo: ProTeam = by_id[st["lo"]]
+	var g: int = st["g"]
+	var hi_home := g in [0, 1, 4, 6]
+	return make_game(cfg, bc, lo if hi_home else hi, hi if hi_home else lo, "post%d:%s:%d" % [year, st["round"], g], me_player, me, me_team, direct)
+
+
+## 이번 라운드 경기 하나의 결과를 넣는다. 돌려주는 값: record_game 결과 + "decided" (라운드가 끝났나) + "result" (끝났으면 라운드 결과)
+func post_record(cfg: CareerConfig, m: Dictionary, my_line: PlayerData.SeasonStats = null) -> Dictionary:
+	var st := post_begin(cfg)
+	var r: String = st["round"]
+	var rule: Dictionary = cfg.pro["postseason"][r]
+	var res := record_game(m, r, my_line)
+	var hi_home: bool = res["home"] == st["hi"]
+	var hi_score: int = res["score"][1] if hi_home else res["score"][0]
+	var lo_score: int = res["score"][0] if hi_home else res["score"][1]
+	var wins: Array = st["wins"]
+	if hi_score > lo_score:
+		wins[0] += 1
+	elif lo_score > hi_score:
+		wins[1] += 1
+	(st["games"] as Array).append({"hi": hi_score, "lo": lo_score})
+	st["g"] = int(st["g"]) + 1
+	var need := int(rule["need"])
+	res["decided"] = int(wins[0]) >= need or int(wins[1]) >= need or int(st["g"]) >= int(rule["maxGames"])
+	if res["decided"]:
+		# 정해진 경기를 다 해도 못 가렸으면(무승부) 윗 시드가 올라간다
+		var winner: String = st["lo"] if int(wins[1]) >= need else st["hi"]
+		var out := {"round": r, "hi": st["hi"], "lo": st["lo"], "wins": wins.duplicate(), "winner": winner, "games": (st["games"] as Array).duplicate()}
+		post_results.append(out)
+		post_round += 1
+		post_state = {}
+		if r == "ks":
+			champions.append({"year": year, "team": winner, "runner": out["lo"] if winner == out["hi"] else out["hi"]})
+		res["result"] = out
+	return res
+
+
+## 포스트시즌 한 라운드를 끝까지 (튜닝 도구·테스트·자동 진행용). first: 이미 끝난 1차전(내가 직접 한 경기)이 있으면 그것부터.
 ## 돌려주는 값: 이 라운드 결과
 func play_post_round(cfg: CareerConfig, bc: BattingConfig, first: Dictionary = {}, me_player: PlayerData = null, me: ProPlayer = null,
 		me_team: String = "", my_line: PlayerData.SeasonStats = null) -> Dictionary:
-	var r: String = POST_ROUNDS[post_round]
-	var rule: Dictionary = cfg.pro["postseason"][r]
-	var pair := post_pair()
-	var hi: ProTeam = by_id[pair[0]]
-	var lo: ProTeam = by_id[pair[1]]
-	var wins := [int(rule.get("hiStartWins", 0)), 0]
-	var need := int(rule["need"])
-	var max_games := int(rule["maxGames"])
-	var games := []
-	var g := 0
-	while wins[0] < need and wins[1] < need and g < max_games:
+	post_begin(cfg)
+	while true:
 		var res: Dictionary
-		if g == 0 and not first.is_empty():
-			res = record_game(first, r, my_line)
+		if not first.is_empty():
+			res = post_record(cfg, first, my_line)
+			first = {}
 		else:
-			# 1·2·5·7차전은 윗 시드 홈 (KBO 2-2-1 / 2-3-2 를 단순화)
-			var hi_home := g in [0, 1, 4, 6]
-			var m := make_game(cfg, bc, lo if hi_home else hi, hi if hi_home else lo, "post%d:%s:%d" % [year, r, g], me_player, me, me_team, false)
+			var m := post_next_match(cfg, bc, me_player, me, me_team, false)
 			(m["game"] as GameRunner).run_to_end()
-			res = record_game(m, r)
-		var hi_score: int = res["score"][1] if res["home"] == hi.id else res["score"][0]
-		var lo_score: int = res["score"][0] if res["home"] == hi.id else res["score"][1]
-		if hi_score > lo_score:
-			wins[0] += 1
-		elif lo_score > hi_score:
-			wins[1] += 1
-		games.append({"hi": hi_score, "lo": lo_score})
-		g += 1
-	# 정해진 경기를 다 해도 못 가렸으면(무승부) 윗 시드가 올라간다
-	var winner := hi.id if wins[0] >= wins[1] else lo.id
-	if wins[1] >= need:
-		winner = lo.id
-	var out := {"round": r, "hi": hi.id, "lo": lo.id, "wins": wins, "winner": winner, "games": games}
-	post_results.append(out)
-	post_round += 1
-	if r == "ks":
-		champions.append({"year": year, "team": winner, "runner": lo.id if winner == hi.id else hi.id})
-	return out
+			res = post_record(cfg, m)
+		if res["decided"]:
+			return res["result"]
+	return {}
 
 
 ## 이 팀의 올해 포스트시즌 결과 글자 ("우승" | "준우승" | "플레이오프 탈락" … | "" 진출 실패)
@@ -645,17 +699,24 @@ func next_season(cfg: CareerConfig) -> void:
 	weeks_done = 0
 	post_round = 0
 	post_results = []
+	post_state = {}
 	final_order = []
 	week_events = []
 
 
-## 나이별 성장·노쇠: growthByAge [[이 나이까지, 한 해 변화]…] + 흔들림
+## 나이 곡선의 한 줄 [이 나이까지, 성장 배율, 한 해 변화] (balance.json career.pro.ageCurve.rows)
+static func age_row(cfg: CareerConfig, age: int) -> Array:
+	var rows: Array = cfg.pro["ageCurve"]["rows"]
+	for row: Array in rows:
+		if age <= int(row[0]):
+			return row
+	return rows[-1]
+
+
+## 리그 선수의 한 해 (그 나이가 되는 시즌 시작에): 나이 곡선의 한 해 변화 × leagueYearlyScale ± 흔들림.
+## 20~28세 크게 오르고 33세까지 점점 줄고 34세 유지, 35세부터 내리막. 주력은 떨어지기만 한다 (30세부터 해마다 1 더)
 func _age_player(cfg: CareerConfig, p: ProPlayer, rng: RandomNumberGenerator) -> void:
-	var delta := 0.0
-	for row: Array in cfg.pro["growthByAge"]:
-		if p.age <= int(row[0]):
-			delta = float(row[1])
-			break
+	var delta := float(age_row(cfg, p.age)[2]) * float(cfg.pro["ageCurve"]["leagueYearlyScale"])
 	var jitter := float(cfg.pro["growthJitter"])
 	if p.is_pitcher:
 		p.arm.stuff = clampi(p.arm.stuff + roundi(delta + rng.randfn(0.0, jitter)), 15, 95)

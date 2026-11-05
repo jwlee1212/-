@@ -201,6 +201,8 @@ var injury_weeks := 0
 var injury_label := ""
 ## 시즌 시작 때 능력치 (시즌 결산에서 성장 비교)
 var season_start := {}
+## 나이 (프로 편부터 — 0 이면 고교: 성장 배율은 학년으로). 프로에서는 나이 곡선(balance.json career.pro.ageCurve)이 성장 배율을 정한다
+var age := 0
 
 
 static func create(player_name: String, cfg: CareerConfig) -> PlayerData:

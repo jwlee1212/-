@@ -204,7 +204,7 @@ func round_text() -> String:
 ## 이번 주 상대
 func opponent() -> School:
 	if pro != null:
-		var o := pro.next_opponent(cfg)
+		var o := pro.next_opponent(self)
 		return o.school if o != null else pro.team().school
 	# 경기 대본이 정한 상대 (연습경기·전국대회만 — 주말리그는 일정대로)
 	if not game_plan.is_empty() and schools.has(game_plan.get("opponent", "")) and (game_plan.get("practice", false) or not is_league()):
@@ -545,7 +545,7 @@ func run_schedule() -> Array:
 			var base := float(t["gain"]) * share * training_multiplier(id) * float(o["gainMul"])
 			r["outcome"] = outcome
 			r["outcome_label"] = o["label"]
-			r["amount"] = Growth.amount(cfg, player.stat(stat), player.potential[stat], base, player.grade)
+			r["amount"] = Growth.amount(cfg, player.stat(stat), player.potential[stat], base, player.grade, player.age)
 			r["raised"] = Growth.apply(cfg, player, stat, base)
 			sums[stat] = float(sums.get(stat, 0.0)) + float(r["amount"])
 			_week_training_id = id
@@ -737,11 +737,13 @@ func steal_seed(game: GameRunner) -> int:
 ## 경기가 끝난 뒤: 기록·성장·폼·부상·스카우트 관심도·라이벌·유망주 풀·순위표/대회 진행. 돌려주는 값: 변화 설명 목록
 func finish_game(game: GameRunner) -> Array[String]:
 	assert(not game_done, "이번 주 경기는 이미 끝났다")
+	if pro != null:
+		# 프로: 오늘 하루만 (주의 마지막 날이면 ProCareer 가 game_done 을 켠다)
+		player.game_boost.clear()
+		player.bench_next = false
+		return pro.finish_day(self, game)
 	game_done = true
 	player.game_boost.clear()
-	if pro != null:
-		player.bench_next = false
-		return pro.finish_week(self, game)
 	PitchHint.consume(player)  # 소율의 구종 힌트는 경기 하나에만 (타석에 안 섰어도)
 	player.bench_next = false
 	match_override = {}
@@ -1253,6 +1255,8 @@ func advance_week() -> void:
 	_week_training_id = ""
 	week_social = ""
 	week_services.clear()
+	if pro != null:
+		pro.new_week()
 	phone.deliver(self)
 
 

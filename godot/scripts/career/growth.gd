@@ -1,23 +1,25 @@
 class_name Growth
 extends RefCounted
 ## 성장 규칙 (balance.json career.growth).
-## 실제 오름 = 기본량 × 성장률 × 학년 배율, 성장률 = clamp((잠재력 − 지금) / gapScale, minRate, 1).
+## 실제 오름 = 기본량 × 성장률 × 학년 배율(프로는 나이 배율 — career.pro.ageCurve), 성장률 = clamp((잠재력 − 지금) / gapScale, minRate, 1).
 ## 잠재력에 가까워질수록 느려지고 잠재력을 넘지 못한다. 소수점 성장은 쌓아 두었다가 1이 차면 능력치가 1 오른다.
 
 
-## 이번 성장량 (소수)
-static func amount(cfg: CareerConfig, current: int, potential: int, base: float, grade: int) -> float:
+## 이번 성장량 (소수). age > 0 이면 프로 — 학년 배율 대신 나이 곡선의 성장 배율 (34세부터 0: 훈련으로는 더 안 오른다)
+static func amount(cfg: CareerConfig, current: int, potential: int, base: float, grade: int, age: int = 0) -> float:
 	var g := cfg.growth
 	if current >= potential:
 		return 0.0
 	var rate := clampf(float(potential - current) / float(g["gapScale"]), float(g["minRate"]), 1.0)
+	if age > 0 and cfg.pro.has("ageCurve"):
+		return base * rate * float(ProLeague.age_row(cfg, age)[1])
 	var grades: Array = g["gradeRate"]
 	return base * rate * float(grades[clampi(grade - 1, 0, grades.size() - 1)])
 
 
 ## 선수에게 성장 적용. 돌려주는 값: 실제로 오른 능력치 칸 수
 static func apply(cfg: CareerConfig, p: PlayerData, stat: String, base: float) -> int:
-	var add := amount(cfg, p.stat(stat), p.potential[stat], base, p.grade)
+	var add := amount(cfg, p.stat(stat), p.potential[stat], base, p.grade, p.age)
 	p.progress[stat] = float(p.progress.get(stat, 0.0)) + add
 	var raised := 0
 	while p.progress[stat] >= 1.0 and p.stat(stat) < mini(p.potential[stat], cfg.stat_max):

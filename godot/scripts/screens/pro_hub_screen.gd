@@ -1,13 +1,16 @@
 class_name ProHubScreen
 extends Control
-## 프로 편 허브. 탭: 이번 주 · 순위 · 개인 기록 · 뉴스 · 피치톡(SNS) · 구단·기록.
-## 이번 주: 훈련 하나 고르기 → [경기 시작] (내가 직접 하는 1경기 — 고교와 같은 경기 화면) → 결과 화면 → 다음 주.
-##   직접 할 경기가 없는 주(부상·가을야구 탈락)는 [이번 주 진행] 으로 자동 진행한다.
-## 이야기 카드(주 시작·경기 뒤)와 기념 순간(첫 안타·첫 홈런 … — 컷신, 그림이 없으면 "컷신 자리" 카드)은 허브 위에 차례로 뜬다.
+## 프로 편 허브. 탭: 일정 · 순위 · 개인 기록 · 뉴스 · 피치톡(SNS) · 구단·기록.
+## 일정 (더쇼 Road to the Show 의 일정 화면에서 착안): 달력 한 달 + 오늘 할 일.
+##   월요일은 휴식일 — 훈련을 고른다 (이야기 카드도 주 첫날에). 화~일은 경기 날 — 날마다 [경기하기] (고교와 같은 경기 화면, 내 차례만 직접)
+##   또는 [경기 시뮬레이션]. 달력에서 날짜를 고르면 [그날 경기 전까지 시뮬레이션], 그 밖에 [다음 출전까지] · [다음 주 월요일까지] · [시즌 끝까지].
+##   시뮬레이션은 이야기 카드·시즌 끝에서는 늘 멈추고, 기념 순간·1군↔퓨처스 이동·부상에서 멈출지는 체크로 고른다 (기기 설정에 남는다).
+## 이야기 카드(주 시작·한 주 경기 뒤)와 기념 순간(첫 안타·첫 홈런 … — 컷신, 그림이 없으면 "컷신 자리" 카드)은 허브 위에 차례로 뜬다.
 ## 화면 코드는 로직(ProCareer·ProLeague)을 읽어 그리기만 한다 (원칙 1). 색·간격은 Tokens.
 
 const TABS := ["week", "standings", "leaders", "news", "sns", "club"]
-const TAB_LABELS := {"week": "이번 주", "standings": "순위", "leaders": "개인 기록", "news": "뉴스", "sns": "피치톡", "club": "구단·기록"}
+const TAB_LABELS := {"week": "일정", "standings": "순위", "leaders": "개인 기록", "news": "뉴스", "sns": "피치톡", "club": "구단·기록"}
+const STOP_LABELS := {"milestone": "기념 순간", "level": "1군·퓨처스 이동", "injury": "부상"}
 
 var _app
 var _tab := "week"
@@ -15,6 +18,10 @@ var _body: VBoxContainer
 var _overlay: Control
 var _phone: PhoneView
 var _notes: Array[String] = []
+## 마지막 시뮬레이션 결과 (ProCareer.sim_until) · 달력에서 고른 날짜 (-1 없음) · 달력
+var _sim_result := {}
+var _picked := -1
+var _calendar: CalendarView
 
 
 func _init(app) -> void:
@@ -56,7 +63,7 @@ func _rebuild() -> void:
 	scroll.add_child(_body)
 	root.add_child(scroll)
 	match _tab:
-		"week": _week_page()
+		"week": _schedule_page()
 		"standings": _standings_page()
 		"leaders": _leaders_page()
 		"news": _feed_page("news")
@@ -70,7 +77,7 @@ func _top_bar() -> Control:
 	var bar := UiKit.hbox(Tokens.SPACE_MD)
 	bar.add_child(UiKit.button("‹ 타이틀", _app.show_title, Tokens.INK_SOFT, Tokens.FONT_CAPTION))
 	var col := UiKit.vbox(0)
-	col.add_child(UiKit.kicker("%s %s · 프로 %d년 차" % [pro.team().city, pro.team().name, pro.year()]))
+	col.add_child(UiKit.kicker("%s %s · 프로 %d년 차 · %s" % [pro.team().city, pro.team().name, pro.year(), GameCalendar.text(pro.today(career), true)]))
 	col.add_child(UiKit.title("%s · %s" % [career.player.name, pro.phase_text(career.cfg)], Tokens.FONT_LABEL))
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(col)
@@ -104,9 +111,28 @@ func _show_tab(t: String) -> void:
 	_rebuild()
 
 
-# ---------- 이번 주 ----------
+# ---------- 일정 ----------
 
-func _week_page() -> void:
+func _schedule_page() -> void:
+	var top := UiKit.hbox(Tokens.SPACE_SM)
+	top.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var left := UiKit.vbox(Tokens.SPACE_SM)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_child(_status_card())
+	left.add_child(_today_card())
+	if not _sim_result.is_empty():
+		left.add_child(_sim_card())
+	top.add_child(left)
+	var right := UiKit.vbox(Tokens.SPACE_SM)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_child(_calendar_card())
+	right.add_child(_week_games_card())
+	top.add_child(right)
+	_body.add_child(top)
+
+
+## 내 선수 상태: 팀 순위 · 1군/퓨처스 · 컨디션 · 감독 신뢰(지켜보는 중) · 시즌 기록 · 연봉·FA·병역
+func _status_card() -> Control:
 	var career := _career()
 	var pro := _pro()
 	var cfg := career.cfg
@@ -114,13 +140,12 @@ func _week_page() -> void:
 	var card := UiKit.card()
 	var col := UiKit.vbox(Tokens.SPACE_XS)
 	card.add_child(col)
-	_body.add_child(card)
 	var t := pro.team()
 	col.add_child(UiKit.kicker("%s %d위 · %d승 %d패 %d무 (승률 %s)" % [t.name, pro.league.rank_of(t.id), t.w, t.l, t.d, t.pct_text()]))
 	var level := "1군 %d번 유격수" % p.lineup_slot if pro.is_first() else pro.level_text()
 	if pro.level == ProCareer.LEVEL_MILITARY:
 		level += " — 전역까지 %d주" % pro.service_weeks_left
-	col.add_child(UiKit.label("%s · 컨디션 %d%s" % [level, p.condition, " · " + p.injury_text() + " %d주" % p.injury_weeks if p.is_injured() else ""],
+	col.add_child(UiKit.label("%s · 만 %d세 · 컨디션 %d%s" % [level, pro.me.age, p.condition, " · " + p.injury_text() + " %d주" % p.injury_weeks if p.is_injured() else ""],
 		Tokens.FONT_BODY, Tokens.INK, Tokens.FONT_BOLD))
 	# 감독 신뢰: 1군은 강등 기준, 퓨처스는 콜업 기준을 보여 주고, 기준을 넘은 채 지켜보는 중이면 몇 경기째인지
 	if pro.level != ProCareer.LEVEL_MILITARY:
@@ -145,61 +170,167 @@ func _week_page() -> void:
 		col.add_child(UiKit.label("퓨처스: 타율 %s · %d홈런 · OPS %s (%d타석)" % [f.average(), f.home_runs, f.ops(), f.pa], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
 	col.add_child(UiKit.label("연봉 %s · FA 등록 %d/%d시즌%s · 병역 %s" % [ProCareer.money_text(pro.salary), pro.fa_seasons, ProFA.required(cfg, pro),
 		(" · 계약 %d년 남음" % pro.contract_years_left) if pro.contract_years_left > 0 else "", _military_text(pro)], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
-	# 경기 결과 (이번 주를 마쳤으면)
+	return card
+
+
+## 오늘: 휴식일이면 훈련 고르기, 경기 날이면 [경기하기] · [경기 시뮬레이션] · 빨리 감기 버튼 · 멈출 일 체크
+func _today_card() -> Control:
+	var career := _career()
+	var pro := _pro()
+	var cfg := career.cfg
+	var card := UiKit.card()
+	var col := UiKit.vbox(Tokens.SPACE_XS)
+	card.add_child(col)
+	col.add_child(UiKit.kicker("오늘 · %s" % GameCalendar.text(pro.today(career))))
+	# 한 주 경기를 다 했다 → (이야기) → 다음 주
 	if career.game_done:
-		var res := UiKit.card()
-		var rc := UiKit.vbox(Tokens.SPACE_XS)
-		res.add_child(rc)
-		rc.add_child(UiKit.kicker("이번 주 경기"))
-		for g: Dictionary in pro.week_games:
-			var ln: PlayerData.SeasonStats = g["line"]
-			var mark: String = ["패", "무", "승"][int(g["result"]) + 1]
-			rc.add_child(UiKit.label("%s %s %s %d:%d%s%s" % ["★" if g["direct"] else "·", "홈" if g["home"] else "원정", g["opp"], g["my"], g["their"],
-				" " + mark, "  — " + ln.line_text() if ln != null else ""], Tokens.FONT_CAPTION,
-				Tokens.GOOD if int(g["result"]) > 0 else (Tokens.BAD if int(g["result"]) < 0 else Tokens.INK_SOFT)))
+		col.add_child(UiKit.title("시즌이 끝났다" if pro.phase == ProCareer.PHASE_DONE else "이번 주 경기를 다 했다", Tokens.FONT_LABEL))
 		for n: String in _notes:
-			rc.add_child(UiKit.label(n, Tokens.FONT_CAPTION, Tokens.ACCENT, Tokens.FONT_BOLD))
-		_body.add_child(res)
-		var next := UiKit.button("다음 주 ▶", _app.next_week, Tokens.ACCENT, Tokens.FONT_LABEL)
-		_body.add_child(next)
-		return
-	# 훈련 (한 주에 하나 — 고교 스케줄과 같은 규칙, 칸 셋을 모두 같은 훈련으로)
-	if career.week_training == "":
-		col.add_child(UiKit.kicker("이번 주 훈련"))
-		var row := UiKit.hbox(Tokens.SPACE_XS)
+			col.add_child(UiKit.label(n, Tokens.FONT_CAPTION, Tokens.ACCENT, Tokens.FONT_BOLD))
+		col.add_child(UiKit.button("시즌 결산 ▶" if pro.phase == ProCareer.PHASE_DONE else "다음 주 ▶", _app.next_week, Tokens.ACCENT, Tokens.FONT_LABEL))
+		return card
+	# 월요일 휴식일: 훈련 (고교 스케줄과 같은 규칙 — 칸 셋을 모두 같은 훈련으로). 안 고르고 경기를 하면 지난주 계획대로
+	if pro.is_off_day(career):
+		col.add_child(UiKit.title("휴식일 — 이번 주 훈련", Tokens.FONT_LABEL))
+		var row := HFlowContainer.new()
+		row.add_theme_constant_override("h_separation", Tokens.SPACE_XS)
 		for id: String in cfg.training:
-			var b := UiKit.button(str(cfg.training[id]["label"]), func() -> void:
+			row.add_child(UiKit.button(str(cfg.training[id]["label"]), func() -> void:
 				career.train(id)
 				_app.save_career()
-				_rebuild(), Tokens.NAVY_SOFT, Tokens.FONT_CAPTION)
-			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			row.add_child(b)
+				_rebuild(), Tokens.NAVY_SOFT, Tokens.FONT_CAPTION))
 		col.add_child(row)
+		col.add_child(UiKit.label("안 고르고 진행하면 지난주 훈련 그대로 한다", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
 	else:
 		col.add_child(UiKit.label("훈련: " + career.week_training, Tokens.FONT_CAPTION, Tokens.GOOD, Tokens.FONT_BOLD))
-	var opp := pro.next_opponent(cfg)
-	if pro.has_direct_game(career) and opp != null:
-		var vs := "%s (%d위)" % [opp.name, pro.league.rank_of(opp.id)]
-		var label := "퓨처스 경기 시작 ▶" if not pro.is_first() and pro.phase == ProCareer.PHASE_REGULAR else "경기 시작 ▶ vs " + vs
-		var go := UiKit.button(label, _app.show_game, Tokens.ACCENT, Tokens.FONT_LABEL)
-		go.disabled = career.week_training == ""
-		_body.add_child(go)
-		_body.add_child(UiKit.label("이번 주 %d경기 중 첫 경기를 직접 한다. 나머지는 능력치대로 자동 진행된다." % int(cfg.pro["gamesPerWeek"]),
+	var gt := pro.game_today(career)
+	col.add_child(UiKit.title(gt["text"], Tokens.FONT_LABEL))
+	if gt["pitcher"] != null:
+		var sp: ProPlayer = gt["pitcher"]
+		col.add_child(UiKit.label("상대 선발 %s · %d승 %d패 · 평균자책 %s" % [sp.name, sp.pitching.wins, sp.pitching.losses, sp.pitching.era_text()],
 			Tokens.FONT_CAPTION, Tokens.INK_SOFT))
-	else:
-		var why := "부상으로 이번 주는 쉰다" if career.player.is_injured() else "이번 주는 내가 나갈 경기가 없다"
-		_body.add_child(UiKit.label(why, Tokens.FONT_CAPTION, Tokens.INK_SOFT))
-		var go := UiKit.button("이번 주 진행 ▶", _sim_week, Tokens.ACCENT, Tokens.FONT_LABEL)
-		_body.add_child(go)
+	var row2 := HFlowContainer.new()
+	row2.add_theme_constant_override("h_separation", Tokens.SPACE_XS)
+	row2.add_theme_constant_override("v_separation", Tokens.SPACE_XS)
+	if gt["playable"]:
+		row2.add_child(UiKit.button("경기하기 ▶", _play, Tokens.ACCENT, Tokens.FONT_LABEL))
+	row2.add_child(UiKit.button("경기 시뮬레이션", _sim_one, Tokens.PRIMARY, Tokens.FONT_CAPTION))
+	if not gt["playable"]:
+		row2.add_child(UiKit.button("다음 출전까지", _sim_to.bind(1 << 30, true), Tokens.PRIMARY, Tokens.FONT_CAPTION))
+	row2.add_child(UiKit.button("다음 주 월요일까지", _sim_to.bind(pro.next_monday(career), false), Tokens.NAVY_SOFT, Tokens.FONT_CAPTION))
+	row2.add_child(UiKit.button("시즌 끝까지", _sim_to.bind(1 << 30, false), Tokens.NAVY_SOFT, Tokens.FONT_CAPTION))
+	col.add_child(row2)
+	if _picked > pro.today(career):
+		col.add_child(UiKit.button("%s 경기 전까지 시뮬레이션 ▶" % GameCalendar.text(_picked), _sim_to.bind(_picked, false), Tokens.ACCENT, Tokens.FONT_CAPTION))
+	# 멈출 일 (더쇼의 시뮬레이션 중단 설정)
+	var stops := HFlowContainer.new()
+	stops.add_theme_constant_override("h_separation", Tokens.SPACE_SM)
+	stops.add_child(UiKit.label("시뮬레이션 멈춤:", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	for k: String in ProCareer.STOPS:
+		var cb := CheckBox.new()
+		cb.text = STOP_LABELS[k]
+		cb.focus_mode = Control.FOCUS_NONE
+		cb.button_pressed = bool(_app.settings.sim_stops.get(k, true))
+		cb.add_theme_font_size_override("font_size", Tokens.FONT_CAPTION)
+		cb.add_theme_color_override("font_color", Tokens.INK)
+		cb.toggled.connect(func(on: bool) -> void:
+			_app.settings.sim_stops[k] = on
+			_app.settings.save())
+		stops.add_child(cb)
+	col.add_child(stops)
+	return card
 
 
-## 직접 할 경기가 없는 주
-func _sim_week() -> void:
+## 마지막 시뮬레이션 결과: 왜 멈췄나 · 며칠 · 변화
+func _sim_card() -> Control:
+	var card := UiKit.card()
+	var col := UiKit.vbox(Tokens.SPACE_XS)
+	card.add_child(col)
+	col.add_child(UiKit.kicker("시뮬레이션 — %d일 진행" % int(_sim_result.get("days", 0))))
+	col.add_child(UiKit.label(str(_sim_result.get("text", "")), Tokens.FONT_BODY, Tokens.ACCENT, Tokens.FONT_BOLD))
+	var notes: Array = _sim_result.get("notes", [])
+	for n: String in notes.slice(maxi(0, notes.size() - 8)):
+		var l := UiKit.label(n, Tokens.FONT_CAPTION, Tokens.INK)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(l)
+	return card
+
+
+func _calendar_card() -> Control:
+	var career := _career()
+	var pro := _pro()
+	var card := UiKit.card()
+	var col := UiKit.vbox(Tokens.SPACE_XS)
+	card.add_child(col)
+	# 다시 그려도 보던 달을 지킨다 (탭을 바꿨다 오면 오늘 달로)
+	var keep := _calendar.month() if _calendar != null and is_instance_valid(_calendar) else Vector2i.ZERO
+	_calendar = CalendarView.new(func(y: int, m: int) -> Dictionary: return pro.calendar_cells(career, y, m), pro.today(career))
+	_calendar.selected = _picked
+	if keep != Vector2i.ZERO:
+		var now := _calendar.month()
+		var diff := (keep.x * 12 + keep.y) - (now.x * 12 + now.y)
+		if diff != 0:
+			_calendar.shift(diff)
+	_calendar.picked.connect(func(z: int) -> void:
+		_picked = z
+		_rebuild())
+	col.add_child(_calendar)
+	col.add_child(UiKit.label("날짜를 누르면 그날 경기 전까지 시뮬레이션할 수 있다 · ★ 직접 한 경기", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	return card
+
+
+## 이번 주 경기 (날짜 · 우리 팀 결과 · 내 기록)
+func _week_games_card() -> Control:
+	var pro := _pro()
+	var card := UiKit.card()
+	var col := UiKit.vbox(2)
+	card.add_child(col)
+	col.add_child(UiKit.kicker("이번 주 경기"))
+	if pro.week_games.is_empty():
+		col.add_child(UiKit.label("아직 없다", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	for g: Dictionary in pro.week_games:
+		var t: Dictionary = g.get("team", {})
+		var mine: Dictionary = g.get("mine", {})
+		var text := GameCalendar.short(int(g["day"])) + " "
+		var color := Tokens.INK_SOFT
+		if not t.is_empty():
+			text += "%s %s %d:%d %s" % ["홈" if t["home"] else "원정", t["opp"], t["my"], t["their"], ["패", "무", "승"][int(t["result"]) + 1]]
+			color = Tokens.GOOD if int(t["result"]) > 0 else (Tokens.BAD if int(t["result"]) < 0 else Tokens.INK_SOFT)
+		else:
+			text += str(g.get("other", ""))
+		if not mine.is_empty():
+			var where := "" if mine["level"] == ProCareer.LEVEL_FIRST else ("2군 " if mine["level"] == ProCareer.LEVEL_FUTURES else "상무 ")
+			text += "  — %s%s%s" % ["★ " if mine.get("direct", false) else "", where, mine["line"]]
+		col.add_child(UiKit.label(text, Tokens.FONT_CAPTION, color))
+	return card
+
+
+## 오늘 경기를 직접 (고교와 같은 경기 화면 → 결과 화면 → 일정으로)
+func _play() -> void:
+	_pro().auto_training(_career())
+	_app.save_career()
+	_app.show_game()
+
+
+## 오늘 경기만 시뮬레이션
+func _sim_one() -> void:
 	var career := _career()
 	if career.game_done:
 		return
-	career.game_done = true
-	_notes = career.pro.finish_week(career, null)
+	career.player.game_boost.clear()
+	_notes = career.pro.finish_day(career, null)
+	_sim_result = {"days": 1, "text": "오늘 경기를 시뮬레이션했다", "notes": _notes}
+	_app.save_career()
+	_rebuild()
+	_next_story()
+
+
+## target 날짜 경기 전까지 (until_playable: 내가 직접 할 수 있는 경기가 오면 멈춘다)
+func _sim_to(target: int, until_playable: bool) -> void:
+	var career := _career()
+	_sim_result = career.pro.sim_until(career, target, _app.settings.sim_stops, until_playable)
+	_notes = []
+	_picked = -1
 	_app.save_career()
 	_rebuild()
 	_next_story()

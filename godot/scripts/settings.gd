@@ -1,6 +1,6 @@
 class_name Settings
 extends RefCounted
-## 유저 설정 (커리어 저장과 따로, 기기에 남는다). 주루 설정 · 이미 본 튜토리얼 팁.
+## 유저 설정 (커리어 저장과 따로, 기기에 남는다). 주루 설정 · 이미 본 튜토리얼 팁 · 시뮬레이션 중단 설정.
 
 const PATH := "user://settings.json"
 
@@ -12,6 +12,9 @@ var path := PATH
 var running := RunControl.ASSIST
 ## 이미 본 튜토리얼 팁 id (Tutorial.IDS)
 var seen_tips: Array[String] = []
+## 날짜까지 시뮬레이션을 멈출 일 (더쇼의 시뮬레이션 중단 설정) — ProCareer.STOPS: milestone 기념 순간 · level 1군↔퓨처스 · injury 새 부상.
+## 이야기 카드 · 정한 날짜 · 시즌 끝에서는 늘 멈춘다
+var sim_stops := {"milestone": true, "level": true, "injury": true}
 
 
 static func load_from(from: String = PATH) -> Settings:
@@ -22,6 +25,10 @@ static func load_from(from: String = PATH) -> Settings:
 	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(from))
 	if data is Dictionary and str(data.get("running", "")) in RunControl.MODES:
 		s.running = data["running"]
+	if data is Dictionary and data.get("simStops") is Dictionary:
+		for k: String in s.sim_stops:
+			if (data["simStops"] as Dictionary).has(k):
+				s.sim_stops[k] = bool(data["simStops"][k])
 	if data is Dictionary and data.get("seenTips") is Array:
 		for id: Variant in data["seenTips"]:
 			if id is String:
@@ -33,7 +40,7 @@ static func load_from(from: String = PATH) -> Settings:
 func save(to: String = "") -> void:
 	var f := FileAccess.open(to if to != "" else path, FileAccess.WRITE)
 	if f != null:
-		f.store_string(JSON.stringify({"running": running, "seenTips": seen_tips}))
+		f.store_string(JSON.stringify({"running": running, "seenTips": seen_tips, "simStops": sim_stops}))
 
 
 ## 주루 설정을 다음 것으로 (자동 → 보조 → 수동 → 자동)

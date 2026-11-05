@@ -76,6 +76,8 @@ var pro_teams: Array
 var chapters: Dictionary
 ## 프로 편 수치 (balance.json career.pro) · 콘텐츠 (content.json pro: 뉴스·SNS 문장 틀, 기념 순간, 매체, 구단 사람)
 var pro: Dictionary = {}
+## 달력 (balance.json career.calendar — GameCalendar)
+var calendar: Dictionary = {}
 var pro_content: Dictionary = {}
 ## 대화 화면 배경 자리 (id -> 이름)
 var places: Dictionary = {}
@@ -126,6 +128,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.fitness = car["fitness"]
 	c.cutscene = car.get("cutscene", {})
 	c.pro = car.get("pro", {})
+	c.calendar = car.get("calendar", {})
 
 	var g: Dictionary = balance["game"]
 	c.innings = int(BattingConfig.num(g, "innings"))
