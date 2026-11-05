@@ -120,10 +120,11 @@ func contact(pitch: Pitch, skills: BatterSkills, timing_diff_ms: float, rng: Ran
 	return c
 
 
-## 인플레이 타구의 결과: 타구 물리 + 수비수 도달로 정한다. 결과 계산(c.ball)은 화면이 그대로 그린다
-func outcome_of(c: Contact, skills: BatterSkills) -> Outcome:
+## 인플레이 타구의 결과: 타구 물리 + 수비수 도달로 정한다. 결과 계산(c.ball)은 화면이 그대로 그린다.
+## dp_depth: 병살 수비 위치로 서 있는가 (무사·1사 1루)
+func outcome_of(c: Contact, skills: BatterSkills, dp_depth: bool = false) -> Outcome:
 	assert(c.quality == Quality.SOLID or c.quality == Quality.WEAK, "파울·헛스윙은 인플레이가 아니다")
-	var r := BattedBallSim.simulate(_config.ball_physics, c.ev_kmh, c.launch_deg, c.angle_deg, skills.speed, c.bunt)
+	var r := BattedBallSim.simulate(_config.ball_physics, c.ev_kmh, c.launch_deg, c.angle_deg, skills.speed, c.bunt, dp_depth)
 	c.ball = r
 	c.batted_ball = r.batted_ball
 	c.distance_m = r.distance_m

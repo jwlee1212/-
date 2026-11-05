@@ -92,6 +92,8 @@ var _plan_added := {}
 ## 지금까지 끝난 상대 타석 수
 var _def_pa := 0
 var _pending_field := false
+## 지금 기다리는 내 수비가 병살 기회(첫 송구 2루 토스)인가
+var _pending_field_dp := false
 
 
 ## 두 학교의 고정 명단으로 경기를 만든다. playing = false 면 내 선수는 결장 (그 자리는 원래 명단 선수).
@@ -374,12 +376,19 @@ func _step_plan() -> Dictionary:
 	var b := teams[side].lineup[state.batter_index[side]]
 	if fielding:
 		_pending_field = true
-		return {"type": "my_field", "seed": _field_rng.randi(), "batter": b.name, "runner_speed": b.skills.speed,
-			"fielding": _player.fielding_for_game(cfg), "side": side}
+		return _my_field_step(b, side)
 	# 화면 없이 돌릴 때 (테스트·빨리 감기): 수비 능력치로 판정을 굴린다
 	_pending_field = true
 	var text := apply_field(auto_field_kind())
 	return {"type": "auto", "text": text, "highlight": null, "side": side}
+
+
+## 내 수비 차례 ("my_field"). 1루에 주자가 있고 무사·1사면 병살 기회 (dp, 1루 주자 주력 lead_speed) — 첫 송구가 2루 토스
+func _my_field_step(b: Team.Batter, side: int) -> Dictionary:
+	_pending_field_dp = state.occupied(0) and state.outs < 2
+	var lead_speed: int = teams[side].lineup[state.bases[0]].skills.speed if _pending_field_dp else 50
+	return {"type": "my_field", "seed": _field_rng.randi(), "batter": b.name, "runner_speed": b.skills.speed,
+		"fielding": _player.fielding_for_game(cfg), "side": side, "dp": _pending_field_dp, "lead_speed": lead_speed}
 
 
 ## 화면 없이 하는 내 수비 판정 (balance.json game.fielding.auto): 아웃 확률 = base + 수비 × perPoint (max 까지),
@@ -620,8 +629,7 @@ func step() -> Dictionary:
 		if fielding and my_slot >= 0 and _def_pa in _field_at:
 			_pending_field = true
 			var b := teams[side].lineup[idx]
-			return {"type": "my_field", "seed": _field_rng.randi(), "batter": b.name, "runner_speed": b.skills.speed,
-				"fielding": _player.fielding_for_game(cfg), "side": side}
+			return _my_field_step(b, side)
 		_def_pa += 1
 	if controls_running() and steal_base() > 0:
 		var key := "%d:%d:%d" % [state.inning, my_line.pa, idx]
@@ -630,7 +638,7 @@ func step() -> Dictionary:
 			return {"type": "my_steal", "from": steal_base(), "side": side}
 	var batter := teams[side].lineup[idx]
 	var pitcher := current_pitcher()
-	var pa := AutoPa.simulate(cfg.auto_pa, bc, batter.skills, pitcher, _rng)
+	var pa := AutoPa.simulate(cfg.auto_pa, bc, batter.skills, pitcher, _rng, BattedBallSim.dp_situation(state.bases, state.outs))
 	var half := state.half_text()
 	var play: PlaySimulator.PlayResult = null
 	if controls_running() and pa.ball != null and side == my_side and my_slot >= 0 and my_slot in state.bases:
@@ -670,10 +678,12 @@ func _finish_auto(pa: Dictionary, half: String, play: PlaySimulator.PlayResult) 
 func apply_field(kind: FieldPlay.Kind) -> String:
 	assert(_pending_field, "기다리는 수비가 없다")
 	_pending_field = false
+	var dp_screen := _pending_field_dp
+	_pending_field_dp = false
 	_def_pa += 1
 	my_fields.append(kind)
-	# 내 수비 기록: 1루에서 잡은 아웃 = 보살, 포구 실책·악송구 = 실책 (늦은 송구 내야안타는 둘 다 아니다)
-	if kind == FieldPlay.Kind.BONUS or kind == FieldPlay.Kind.NORMAL:
+	# 내 수비 기록: 송구로 잡은 아웃(1루·병살 2루 토스) = 보살, 포구 실책·악송구 = 실책 (늦은 송구 내야안타·올세이프는 둘 다 아니다)
+	if kind in [FieldPlay.Kind.BONUS, FieldPlay.Kind.NORMAL, FieldPlay.Kind.DOUBLE_PLAY, FieldPlay.Kind.FORCE_OUT]:
 		my_line.assists += 1
 	elif kind == FieldPlay.Kind.MISS or kind == FieldPlay.Kind.WILD:
 		my_line.errors += 1
@@ -684,8 +694,9 @@ func apply_field(kind: FieldPlay.Kind) -> String:
 	var sc := current_scene() if planned and _scene_ready else {}
 	var applied := kind
 	var dp := false
-	# 대본의 병살 장면: 이 판정이면 1루 주자도 2루에서 잡는다 (6-4-3) — 타자는 레이저 송구처럼 아웃, 주자는 안 나간다
-	if (sc.get("doublePlay", []) as Array).has(FieldPlay.Kind.keys()[kind]) and state.bases[0] != GameState.EMPTY and state.outs < 2:
+	# 대본의 병살 장면: 이 판정이면 1루 주자도 2루에서 잡는다 (6-4-3) — 타자는 레이저 송구처럼 아웃, 주자는 안 나간다.
+	# 화면에서 병살 기회로 직접 했으면(2루 토스) 그 결과가 그대로 병살이니 대본으로 덧붙이지 않는다 (화면 없이 돌릴 때만)
+	if not dp_screen and (sc.get("doublePlay", []) as Array).has(FieldPlay.Kind.keys()[kind]) and state.bases[0] != GameState.EMPTY and state.outs < 2:
 		state.bases[0] = GameState.EMPTY
 		state.outs += 1
 		applied = FieldPlay.Kind.BONUS
@@ -697,7 +708,9 @@ func apply_field(kind: FieldPlay.Kind) -> String:
 	_maybe_change_pitcher(1 - side)
 	var what := {FieldPlay.Kind.BONUS: "유격수 땅볼 — 레이저 송구!",
 		FieldPlay.Kind.NORMAL: "유격수 땅볼 아웃", FieldPlay.Kind.WILD: "유격수 악송구로 2루까지",
-		FieldPlay.Kind.MISS: "유격수 포구 실책으로 출루", FieldPlay.Kind.LATE: "유격수 내야안타"}
+		FieldPlay.Kind.MISS: "유격수 포구 실책으로 출루", FieldPlay.Kind.LATE: "유격수 내야안타",
+		FieldPlay.Kind.DOUBLE_PLAY: "유격수 땅볼 — 6-4-3 병살!", FieldPlay.Kind.FORCE_OUT: "유격수 땅볼, 2루 포스아웃 (타자는 1루)",
+		FieldPlay.Kind.ALL_SAFE: "유격수 땅볼, 2루 토스가 늦어 올세이프 (야수선택)"}
 	var runs := " (%d점)" % r.runs if r.runs > 0 else ""
 	var text := "[%s] %s %d번 %s — ★ %s%s%s" % [half, team_short(side), idx + 1, batter.name, what[kind], " · 병살!" if dp else "", runs]
 	log.append(text)
@@ -806,7 +819,9 @@ func _after_pa(r: Dictionary) -> void:
 
 func _runs_text(r: Dictionary) -> String:
 	var parts := []
-	if r.note != "" and r.note != "희생번트":
+	if r.note == "병살" and r.get("fielding", "") != "":
+		parts.append("%s 병살" % r.fielding)  # 예: 6-4-3 병살
+	elif r.note != "" and r.note != "희생번트":
 		parts.append(r.note)
 	if r.runs > 0:
 		parts.append("%d점!" % r.runs)

@@ -22,6 +22,8 @@ signal throw_arrived(base: int, t: float)
 
 const DT := BattedBallSim.DT
 const MAX_TIME := 20.0
+## 기록지의 수비 번호 (야구 공통 표기: 6-4-3 = 유격수 → 2루수 → 1루수)
+const POSITION_NUMBER := {"P": 1, "C": 2, "1B": 3, "2B": 4, "3B": 5, "SS": 6, "LF": 7, "CF": 8, "RF": 9}
 
 
 ## 한 플레이의 결과
@@ -43,6 +45,8 @@ class PlayResult:
 	var note := ""
 	var sac_fly := false
 	var double_play := false
+	## 아웃을 만든 공의 경로를 수비 번호로 ("6-4-3", "6-3", 직접 밟으면 "3") — 송구로 잡은 아웃이 없으면 ""
+	var fielding := ""
 	var rbi := 0
 	var duration := 0.0
 	## 실책 출루가 기록됐나, 실책한 수비 위치 ("SS" 등, 없으면 "")
@@ -250,6 +254,7 @@ func _on_throw_arrived(th: Dictionary) -> void:
 		return
 	if victim != null and _total_outs() < 3:
 		victim.set_out(_t)
+		th.out = true
 		var force: bool = th.get("force", false) or (victim.is_batter() and b == 1)
 		_add_out(force)
 		result.calls.append({"base": b, "t": _t, "out": true, "text": "%s 아웃!" % name})
@@ -960,10 +965,36 @@ func _finish() -> void:
 		result.double_play = true
 		result.note = "병살"
 	result.rbi = 0 if result.double_play or result.error else result.scorers.size()
+	result.fielding = _fielding_notation()
 	var last := 0.0
 	for r in result.runners:
 		last = maxf(last, (r.track.size() - 1) * DT)
 	result.duration = maxf(_t, last)
+
+
+## 공을 만진 수비수를 순서대로 이어 쓴다 (마지막 아웃을 만든 송구까지). 같은 사람이 이어 잡으면 한 번만
+func _fielding_notation() -> String:
+	var last_out := -1
+	for i in result.throws.size():
+		if result.throws[i].get("out", false):
+			last_out = i
+	if last_out < 0:
+		return ""
+	var chain: Array[String] = [_ball.fielder]
+	for i in last_out + 1:
+		var th: Dictionary = result.throws[i]
+		if th.carry:
+			continue  # 공을 쥔 채 직접 밟았다 — 받은 사람이 없다
+		var who := ""
+		if th.has("cover"):
+			who = th.cover.name
+		elif th.base == 1 and _ball.receiver != "":
+			who = _ball.receiver
+		else:
+			who = _cover_info(int(th.base)).get("name", "")
+		if who != "" and who != chain[chain.size() - 1]:
+			chain.append(who)
+	return "-".join(chain.map(func(n: String) -> String: return str(POSITION_NUMBER.get(n, "?"))))
 
 
 # ---------- 도우미 ----------

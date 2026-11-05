@@ -99,7 +99,7 @@ func apply_play(play: PlaySimulator.PlayResult, bunt: bool = false) -> Dictionar
 		outcome = SwingJudge.Outcome.SAC_BUNT
 		note = "희생번트"
 	var res := {"outcome": outcome, "runs": play.scorers.size(), "rbi": play.rbi, "scorers": play.scorers.duplicate(),
-		"outs": play.outs, "note": note, "half_over": false, "sac_fly": play.sac_fly}
+		"outs": play.outs, "note": note, "half_over": false, "sac_fly": play.sac_fly, "fielding": play.fielding}
 	outs += play.outs
 	bases = play.bases.duplicate()
 	return _end_pa(res, side)
@@ -166,6 +166,9 @@ func apply(outcome: SwingJudge.Outcome, rng: RandomNumberGenerator, bunt: bool =
 ##   WILD   악송구: 타자 2루까지, 1루 주자 3루, 2·3루 주자 홈인 (타점 없음)
 ##   MISS   포구 실책: 타자 1루, 주자 모두 한 베이스씩 (타점 없음)
 ##   LATE   내야안타(송구보다 주자가 먼저): 타자 1루, 밀려나는 주자만 한 베이스
+##   DOUBLE_PLAY 병살(6-4-3): 1루 주자·타자 아웃, 2루 주자는 3루로, 3루 주자는 3아웃이 아니면 홈인 (병살은 타점 없음)
+##   FORCE_OUT   2루 포스 아웃: 1루 주자 아웃, 타자 1루 (야수선택), 밀려나는 주자만 한 베이스
+##   ALL_SAFE    토스가 늦어 2루도 세이프: 타자 1루 (야수선택 — 안타 아님), 밀려나는 주자만 한 베이스
 func apply_shortstop(kind: FieldPlay.Kind, batter: int) -> Dictionary:
 	var side := batting_side()
 	var outs_before := outs
@@ -187,17 +190,47 @@ func apply_shortstop(kind: FieldPlay.Kind, batter: int) -> Dictionary:
 			_score(res, bases[2], false)
 			bases = [batter, bases[0], bases[1]]
 			res.note = "유격수 실책"
-		FieldPlay.Kind.LATE:
-			res.outcome = SwingJudge.Outcome.SINGLE
-			res.note = "내야안타"
-			if occupied(0):
-				if occupied(1):
+		FieldPlay.Kind.DOUBLE_PLAY:
+			bases[0] = EMPTY
+			_out(res)
+			_out(res)
+			res.note = "병살"
+			res.fielding = "6-4-3"
+			if outs < 3:
+				_score(res, bases[2], false)
+				bases[2] = bases[1]
+				bases[1] = EMPTY
+		FieldPlay.Kind.FORCE_OUT, FieldPlay.Kind.ALL_SAFE:
+			res.note = "야수선택"
+			if kind == FieldPlay.Kind.FORCE_OUT:
+				res.fielding = "6-4"
+				_out(res)
+				bases[0] = EMPTY  # 2루에서 잡힌 1루 주자
+				if outs < 3 and occupied(1):
 					if occupied(2):
 						_score(res, bases[2], true)
 					bases[2] = bases[1]
-				bases[1] = bases[0]
+					bases[1] = EMPTY
+			else:
+				_force_advance(res)
+			bases[0] = batter
+		FieldPlay.Kind.LATE:
+			res.outcome = SwingJudge.Outcome.SINGLE
+			res.note = "내야안타"
+			_force_advance(res)
 			bases[0] = batter
 	return _end_pa(res, side)
+
+
+## 타자가 1루로 나가 밀려나는 주자만 한 베이스씩 (만루면 3루 주자 홈인 — 타점). bases[0] 은 비워 둔다 (호출한 쪽이 타자를 놓는다)
+func _force_advance(res: Dictionary) -> void:
+	if occupied(0):
+		if occupied(1):
+			if occupied(2):
+				_score(res, bases[2], true)
+			bases[2] = bases[1]
+		bases[1] = bases[0]
+	bases[0] = EMPTY
 
 
 ## 타석 하나가 끝났다: 점수를 올리고 다음 타자로, 3아웃이면 공수 교대, 마지막 회 말에 앞서면 끝내기

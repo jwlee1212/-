@@ -213,11 +213,13 @@ func show_fitness_practice() -> void:
 
 
 ## 수비 연습 (개발 빌드): 유격수 포구·송구만 되풀이 (끝날 때마다 새 타구, 타자 주력 50, 경기·저장과 상관없다).
-## 내 수비 능력치는 커리어가 있으면 그 선수 것, 없으면 50
+## 짝수 번째 타구는 무사 1루 병살 기회(2루 토스 → 6-4-3). 내 수비 능력치는 커리어가 있으면 그 선수 것, 없으면 50
 func show_field_practice(round_no: int = 0) -> void:
 	var screen := Control.new()
 	var fielding: int = career.player.fielding_for_game(career_config) if career != null else 50
-	var view := FieldView.new(career_config.fielding, batting_config.ball_physics, hash("field_practice%d" % round_no), "연습 타구 %d" % (round_no + 1), 50, fielding, batting_config.input_latency_ms)
+	var dp := round_no % 2 == 1
+	var view := FieldView.new(career_config.fielding, batting_config.ball_physics, hash("field_practice%d" % round_no),
+		"연습 타구 %d%s" % [round_no + 1, " · 무사 1루" if dp else ""], 50, fielding, batting_config.input_latency_ms, dp, 50)
 	view.sound_requested.connect(func(sfx: SoundSynth.Sfx, volume: float, pitch_scale: float) -> void:
 		sound.play(sfx, volume * presentation.sfx_volume, pitch_scale))
 	screen.add_child(UiKit.fill_parent(view))

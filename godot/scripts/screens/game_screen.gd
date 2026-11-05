@@ -132,10 +132,10 @@ func _process(_delta: float) -> void:
 			# 경기 대본의 수비 장면: 장면 대화가 있으면 먼저 (끝나면 수비 화면)
 			var scene: Dictionary = _app.career.scene_event(_game) if _game.planned else {}
 			if scene.is_empty():
-				_with_tip(Tutorial.FIELDING, _show_field.bind(int(step.seed), step.batter, int(step.runner_speed), int(step.fielding)))
+				_with_tip(Tutorial.FIELDING, _show_field.bind(int(step.seed), step.batter, int(step.runner_speed), int(step.fielding), bool(step.dp), int(step.lead_speed)))
 			else:
 				_show_dialogue(scene, func() -> void:
-					_with_tip(Tutorial.FIELDING, _show_field.bind(int(step.seed), step.batter, int(step.runner_speed), _app.career.player.fielding_for_game(_app.career_config))))
+					_with_tip(Tutorial.FIELDING, _show_field.bind(int(step.seed), step.batter, int(step.runner_speed), _app.career.player.fielding_for_game(_app.career_config), bool(step.dp), int(step.lead_speed))))
 		"auto":
 			_next_step_at = _now() + (_app.career_config.fast_step_ms if _fast else _app.career_config.auto_step_ms)
 			# 점수가 난 안타·홈런은 중계 화면 하이라이트로 (빠르게 모드면 건너뜀)
@@ -201,8 +201,10 @@ func _show_steal(from: int) -> void:
 
 
 ## 내 수비: 유격수 시점 화면에서 포구 → 송구 → 1루 클로즈업(아웃·세이프). 결과를 경기에 반영하고 이어 간다
-func _show_field(seed_value: int, batter_name: String, runner_speed: int, fielding: int) -> void:
-	_field = FieldView.new(_app.career_config.fielding, _app.batting_config.ball_physics, seed_value, batter_name, runner_speed, fielding, _app.batting_config.input_latency_ms)
+## dp: 병살 기회 (무사·1사 1루 — 첫 송구가 2루 토스), lead_speed: 1루 주자 주력
+func _show_field(seed_value: int, batter_name: String, runner_speed: int, fielding: int, dp: bool = false, lead_speed: int = 50) -> void:
+	_field = FieldView.new(_app.career_config.fielding, _app.batting_config.ball_physics, seed_value, batter_name, runner_speed, fielding,
+		_app.batting_config.input_latency_ms, dp, lead_speed)
 	_field.sound_requested.connect(func(sfx: SoundSynth.Sfx, volume: float, pitch_scale: float) -> void:
 		_app.sound.play(sfx, volume * _app.presentation.sfx_volume, pitch_scale))
 	add_child(UiKit.fill_parent(_field))

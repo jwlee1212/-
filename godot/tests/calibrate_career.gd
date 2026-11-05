@@ -49,7 +49,7 @@ func _init() -> void:
 				while not game.state.over:
 					if game.step().type == "my_turn":
 						career.auto_game_story(game)
-						var pa := AutoPa.simulate(cfg.auto_pa, bc, game.current_batter().skills, game.current_pitcher(), rng)
+						var pa := AutoPa.simulate(cfg.auto_pa, bc, game.current_batter().skills, game.current_pitcher(), rng, BattedBallSim.dp_situation(game.state.bases, game.state.outs))
 						game.apply_my_result(AtBat.Result.new(pa.outcome, SwingJudge.BattedBall.NONE, pa.pitches, null))
 				career.finish_game(game)
 				for pair: Array in career.last_income:

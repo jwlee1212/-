@@ -1,6 +1,7 @@
 extends Node
 ## 내 수비 확인용: 유격수 시점(타구 직전 → 굴러옴 → 원이 점 안 → 1루로 돌기 → 송구 게이지)과
 ## 1루 클로즈업(공이 날아옴 → 접전 → 아웃 · 세이프 · 악송구), 포구 실책·못 던짐을 찍는다 → godot/build/shots/field-*.png
+## 병살 기회(무사 1루): 2루로 돌기 → 토스 게이지 → 토스 → 2루 아웃 → 피벗 → 1루 클로즈업, 올세이프 → field-dp-*.png
 ##   ~/Applications/Godot.app/Contents/MacOS/Godot --always-on-top --path godot res://tests/shots_field.tscn
 
 
@@ -50,7 +51,70 @@ func _ready() -> void:
 		await _shot("field-%s" % shot[0])
 		v.queue_free()
 		await get_tree().process_frame
+	# 병살: [이름, 원하는 결과, 게이지, 장면]
+	var dp_shots := [
+		["dp-04-turn", FieldPlay.Kind.DOUBLE_PLAY, 0.875, "turn"],
+		["dp-05-gauge", FieldPlay.Kind.DOUBLE_PLAY, 0.875, "gauge"],
+		["dp-06-toss", FieldPlay.Kind.DOUBLE_PLAY, 0.875, "toss"],
+		["dp-07-out2", FieldPlay.Kind.DOUBLE_PLAY, 0.875, "call2"],
+		["dp-08-pivot", FieldPlay.Kind.DOUBLE_PLAY, 0.875, "pivot"],
+		["dp-09-cu-out", FieldPlay.Kind.DOUBLE_PLAY, 0.875, "cu"],
+		["dp-10-force", FieldPlay.Kind.FORCE_OUT, 0.75, "cu"],
+		["dp-11-allsafe", FieldPlay.Kind.ALL_SAFE, 0.4, "call2"],
+	]
+	for shot: Array in dp_shots:
+		var v := await _dp_view(fc, phys, shot[1], shot[2])
+		var p := v.play()
+		match shot[3]:
+			"turn":
+				_catch(v, p)
+				_shift(p, int(float(p.aim_us - p.caught_us) * 0.5))
+			"gauge":
+				_catch(v, p)
+				_charge(v, p, shot[2])
+			_:
+				_catch(v, p)
+				_charge(v, p, shot[2])
+				v._release()
+				var t0 := p.since_hit(p.thrown_us)
+				match shot[3]:
+					"toss": v._sec_s = t0 + (p.arrive2_s - t0) * 0.6
+					"call2": v._sec_s = maxf(p.arrive2_s, p.lead_s) + 0.25
+					"pivot": v._sec_s = p.release1_s + 0.07
+					"cu":
+						v._sec = false
+						v._cu = true
+						v._cu_s = maxf(p.arrive_s, p.runner_s) + 0.5
+				v._close_us = 0
+				print("%s g=%.2f 토스 %.2f/주자 %.2f · 1루 %.2f/타자 %.2f" % [FieldPlay.kind_label(p.kind), shot[2], p.arrive2_s, p.lead_s, p.arrive_s, p.runner_s])
+		await _shot("field-%s" % shot[0])
+		v.queue_free()
+		await get_tree().process_frame
 	get_tree().quit()
+
+
+## 병살 기회 수비 화면: 게이지 g 로 토스하면 결과가 want 가 되는 시드를 찾는다 (로직만 미리 굴려 본다)
+func _dp_view(fc: Dictionary, phys: BattedBallSim.Config, want: FieldPlay.Kind, g: float) -> FieldView:
+	for seed_value in range(1, 200):
+		var v := FieldView.new(fc, phys, seed_value, "최강타", 50, 50, 0.0, true, 50)
+		add_child(UiKit.fill_parent(v))
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var p := v.play()
+		# 같은 시드로 로직만 따로 굴려 결과를 본다
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed_value
+		var q := FieldPlay.new(fc, rng, p.aspect, 0, p.runner_s, 50)
+		q.throw_m = p.throw_m
+		q.setup_double_play(p.lead_s, 50, p.feed_m, p.pivot_m)
+		q.update(q.hit_us)
+		q.press(q.arrive_us)
+		q.press(q.aim_us)
+		q.release(q.aim_us + int(g * q.rise_sec() * 1e6))
+		if q.kind == want:
+			return v
+		v.queue_free()
+	return null
 
 
 ## 로직의 시계를 dt_us 만큼 앞으로 감는다 (모든 시각을 그만큼 과거로)
@@ -77,7 +141,7 @@ func _catch(v: FieldView, p: FieldPlay) -> void:
 func _charge(v: FieldView, p: FieldPlay, g: float) -> void:
 	_shift(p, p.aim_us - Time.get_ticks_usec())
 	v._tap()
-	_shift(p, int(g * float(p.cfg["gaugeRiseSec"]) * 1e6))
+	_shift(p, int(g * p.rise_sec() * 1e6))
 
 
 ## 게이지 g 로 던지고, 클로즈업을 공 도착 + at 초 (99 = 판정 뒤) 장면으로

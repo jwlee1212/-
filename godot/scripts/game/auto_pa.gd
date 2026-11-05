@@ -4,9 +4,10 @@ extends RefCounted
 ## 1. 삼진·볼넷: 타자 성향과 투수 성향을 리그 평균 기준으로 합친다 (Log5)
 ## 2. 나머지는 공이 맞는다: 타구 속도(타자 파워 − 투수 구위)·발사각·방향을 뽑아 내 타석과 같은 타구 물리·수비로 결과를 낸다
 ## 돌려주는 값: {"outcome", "ball" (BattedBallSim.Result 또는 null), "pitches"}
+## dp_depth: 병살 수비 위치로 서 있는가 (BattedBallSim.dp_situation)
 
 
-static func simulate(a: Dictionary, bc: BattingConfig, batter: BatterSkills, pitcher: Team.Pitcher, rng: RandomNumberGenerator) -> Dictionary:
+static func simulate(a: Dictionary, bc: BattingConfig, batter: BatterSkills, pitcher: Team.Pitcher, rng: RandomNumberGenerator, dp_depth: bool = false) -> Dictionary:
 	var k := log5(_lerp(a, "batterK", batter.contact), _lerp(a, "pitcherK", pitcher.stuff), float(a["leagueK"]))
 	var bb := log5(_lerp(a, "batterBB", batter.eye), _lerp(a, "pitcherBB", pitcher.control), float(a["leagueBB"]))
 	var jitter: float = a["pitchesJitter"]
@@ -18,7 +19,7 @@ static func simulate(a: Dictionary, bc: BattingConfig, batter: BatterSkills, pit
 	var ev := rng.randfn(_lerp(a, "evMean", batter.power) + (pitcher.stuff - 50) * float(a["evPerPitcherStuff"]), float(a["evSd"]))
 	var la := rng.randfn(float(a["launchMeanDeg"]), float(a["launchSdDeg"]))
 	var spray := clampf(rng.randfn(float(a["sprayMeanDeg"]), float(a["spraySdDeg"])), -44.0, 44.0)
-	var ball := BattedBallSim.simulate(bc.ball_physics, maxf(ev, 30.0), la, spray, batter.speed)
+	var ball := BattedBallSim.simulate(bc.ball_physics, maxf(ev, 30.0), la, spray, batter.speed, false, dp_depth)
 	return {"outcome": ball.outcome, "ball": ball, "pitches": _pitches(float(a["pitchesPerBallInPlay"]), jitter, rng)}
 
 

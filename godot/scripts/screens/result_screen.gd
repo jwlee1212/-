@@ -144,7 +144,8 @@ func _next() -> void:
 ## 이번 경기 내 수비 (유격수 땅볼 처리 결과를 차례로): "땅볼 2 — 아웃 · 실책"
 static func _field_text(fields: Array[int]) -> String:
 	var names := {FieldPlay.Kind.BONUS: "레이저 송구 아웃", FieldPlay.Kind.NORMAL: "아웃", FieldPlay.Kind.WILD: "악송구 실책",
-		FieldPlay.Kind.MISS: "포구 실책", FieldPlay.Kind.LATE: "내야안타 허용"}
+		FieldPlay.Kind.MISS: "포구 실책", FieldPlay.Kind.LATE: "내야안타 허용", FieldPlay.Kind.DOUBLE_PLAY: "6-4-3 병살",
+		FieldPlay.Kind.FORCE_OUT: "2루 포스아웃", FieldPlay.Kind.ALL_SAFE: "야수선택 올세이프"}
 	return "유격수 땅볼 %d — %s" % [fields.size(), " · ".join(fields.map(func(k: int) -> String: return names.get(k, "?")))]
 
 

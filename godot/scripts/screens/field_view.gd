@@ -6,6 +6,8 @@ extends Control
 ##   ③ 1루 클로즈업: 내야(유격수 쪽)에서 1루를 바라본 장면으로 바뀐다. 공이 카메라 뒤에서 화면 안쪽으로 날아가고, 1루수가
 ##      카메라를 보고 뻗어 잡는다. 타자 주자는 오른쪽(홈 쪽)에서 왼쪽으로 달려와 앞다리를 쭉 뻗어 발끝으로 베이스를 찍고,
 ##      루심이 아웃(주먹)·세이프(두 팔)를 외친다. 접전이면 도착 직전부터 슬로모션
+##   병살 기회(무사·1사 1루)면 ②의 첫 송구는 2루 토스: 화면이 2루 쪽으로 돌아가고(1루 주자가 2루로 달려온다, 2루수가 커버),
+##   토스가 2루에 꽂히면 루심 판정 → 2루수가 피벗해 1루로 던지고 ③ 1루 클로즈업으로 이어진다 (6-4-3)
 ##   끝나면 결과를 잠깐 보여 주고 finished(FieldPlay.Kind)
 ## 판정은 FieldPlay(로직). 여기는 그리기·입력·소리만 한다 (원칙 1). 시간은 Time.get_ticks_usec() 하나 (원칙 4).
 ## 그라운드는 화면 한 칸(그림 1픽셀)마다 땅의 어디인지 카메라를 거꾸로 계산해 도트로 찍는다 (중계 화면과 같은 땅 색).
@@ -49,6 +51,8 @@ const CU_CALL_DELAY_S := 0.12
 const GAUGE_W := 26.0
 const GAUGE_TOP := 0.2
 const GAUGE_BOTTOM := 0.82
+## 병살: 2루수가 피벗해 던진 공이 2루 장면에서 보이는 시간 (그 뒤 1루 클로즈업으로)
+const SEC_PIVOT_SHOW_S := 0.15
 
 var _fc: Dictionary
 var _phys: BattedBallSim.Config
@@ -58,11 +62,24 @@ var _runner_speed: int
 var _fielding: int
 var _latency_us: int
 var _play: FieldPlay
-## 카메라 둘: 홈을 보는 것(포구), 1루를 보는 것(송구)
+## 카메라 셋: 홈을 보는 것(포구), 1루를 보는 것(송구), 2루를 보는 것(병살 토스 — 병살 기회일 때만)
 var _cam_home: _Cam
 var _cam_first: _Cam
+var _cam_second: _Cam
 var _tex_home: Texture2D
 var _tex_first: Texture2D
+var _tex_second: Texture2D
+## 병살 기회인가, 1루 주자 주력
+var _dp := false
+var _lead_speed := 50
+## 2루 장면 (병살 토스): 보여 주는 플레이 시각(맞은 뒤 초)·마지막으로 잰 실제 시각·사건을 알렸나
+var _sec := false
+var _sec_s := 0.0
+var _sec_last_us := 0
+var _sec_ball_done := false
+var _sec_runner_done := false
+var _sec_called := false
+var _sec_pivot_done := false
 var _u := 3.0
 ## 공이 굴러오는 길 (땅 위 점, 야구장 좌표): 홈 → 점 아래
 var _ball_to := Vector2.ZERO
@@ -121,9 +138,12 @@ class _Cam:
 
 
 ## fc: balance.json game.fielding, phys: 타구 물리 설정(수비 위치·베이스·타자 주자 속도), runner_speed: 타자 주력(0~100),
-## fielding: 내 수비 능력치(경기용), latency_ms: 입력 지연 보정
-func _init(fc: Dictionary, phys: BattedBallSim.Config, seed_value: int, batter_name: String, runner_speed: int, fielding: int, latency_ms: float) -> void:
+## fielding: 내 수비 능력치(경기용), latency_ms: 입력 지연 보정, dp: 병살 기회(무사·1사 1루), lead_speed: 1루 주자 주력
+func _init(fc: Dictionary, phys: BattedBallSim.Config, seed_value: int, batter_name: String, runner_speed: int, fielding: int, latency_ms: float,
+		dp: bool = false, lead_speed: int = 50) -> void:
 	_fielding = fielding
+	_dp = dp
+	_lead_speed = lead_speed
 	_fc = fc
 	_phys = phys
 	_seed = seed_value
@@ -177,6 +197,11 @@ func _setup() -> void:
 	# 송구 거리: 잡은 자리 → 1루
 	_play.throw_m = _ball_to.distance_to(_phys.base_pos(1))
 	_play.runner_speed = _runner_speed
+	if _dp:
+		_cam_second = _Cam.new(eye, _phys.base_pos(2), view, CAM_PITCH_DEG, CAM_FOCAL)
+		_tex_second = ImageTexture.create_from_image(_ground_image(_cam_second, view))
+		_play.setup_double_play(FieldPlay.lead_second_s(_phys, _lead_speed), _lead_speed,
+			_ball_to.distance_to(_phys.base_pos(2)), _phys.base_pos(2).distance_to(_phys.base_pos(1)))
 
 
 func _now_us() -> int:
@@ -226,7 +251,10 @@ func _release() -> void:
 
 func _on_throw() -> void:
 	sound_requested.emit(SoundSynth.Sfx.SWING, 0.9, 1.2)
-	_start_closeup()
+	if _play.target == 2:
+		_start_second()
+	else:
+		_start_closeup()
 
 
 func _finish_later(sec: float) -> void:
@@ -250,6 +278,11 @@ func _process(_delta: float) -> void:
 			# 못 던진 사이 주자가 1루를 밟았다 — 유격수 화면 그대로 세이프
 			sound_requested.emit(SoundSynth.Sfx.STEP, 0.8, 1.0)
 			_finish_later(float(_fc["resultHoldSec"]))
+		"switch":
+			# 2루는 늦었다 — 몸을 1루로 돌린다
+			sound_requested.emit(SoundSynth.Sfx.STEP, 0.6, 1.3)
+	if _sec:
+		_step_second(t)
 	if _cu:
 		_step_closeup(t)
 	_update_labels(t)
@@ -267,13 +300,112 @@ func _update_labels(t: int) -> void:
 		FieldPlay.Phase.CATCH:
 			_hint.text = "원이 점 안에 들어올 때 탭!"
 		FieldPlay.Phase.THROW:
-			_hint.text = ("금색에서 떼!" if _play.charging() else "1루로! 꾹 눌러 힘을 모으고 금색에서 떼기") if _play.aiming(t) else "공을 빼서…"
+			var where := "병살 찬스! 2루로 토스" if _play.target == 2 else ("2루는 늦었다, 1루로!" if _play.dp else "1루로!")
+			_hint.text = ("금색에서 떼!" if _play.charging() else where + " 꾹 눌러 힘을 모으고 금색에서 떼기") if _play.aiming(t) else "공을 빼서…"
 		FieldPlay.Phase.DONE:
 			_hint.text = ""
 			show_result = _cu_called if _cu else true
-	_result.text = FieldPlay.kind_label(_play.kind) if show_result else ""
-	var colors := {FieldPlay.Kind.BONUS: Tokens.WARN, FieldPlay.Kind.NORMAL: Tokens.GOOD}
-	_result.add_theme_color_override("font_color", colors.get(_play.kind, Tokens.BAD))
+	var text := FieldPlay.kind_label(_play.kind) if show_result else ""
+	var colors := {FieldPlay.Kind.BONUS: Tokens.WARN, FieldPlay.Kind.NORMAL: Tokens.GOOD, FieldPlay.Kind.DOUBLE_PLAY: Tokens.WARN,
+		FieldPlay.Kind.FORCE_OUT: Tokens.GOOD}
+	var color: Color = colors.get(_play.kind, Tokens.BAD)
+	if _sec:
+		# 2루 장면: 2루 판정만 먼저 (1루 판정은 클로즈업에서). 악송구·올세이프는 여기서 끝난다
+		text = ""
+		if _sec_called:
+			text = FieldPlay.kind_label(_play.kind) if not _play.lead_out else "2루 아웃!"
+			color = Tokens.GOOD if _play.lead_out else Tokens.BAD
+	_result.text = text
+	_result.add_theme_color_override("font_color", color)
+
+
+# ---------- 2루 장면 (병살 토스) ----------
+
+func _start_second() -> void:
+	_sec = true
+	_sec_s = _play.since_hit(_play.thrown_us)
+	_sec_last_us = _now_us()
+
+
+## 2루 판정 시각 (맞은 뒤 초): 공·주자 가운데 늦은 쪽 + 루심이 보고 외치는 시간. 악송구는 공이 빠진 뒤
+func _sec_call_s() -> float:
+	if _play.kind == FieldPlay.Kind.WILD:
+		return _play.arrive2_s + 0.3
+	return maxf(_play.arrive2_s, _play.lead_s) + CU_CALL_DELAY_S
+
+
+## 2루 장면 시계를 실제 시간만큼 흘리고, 공·주자·판정·피벗 순간에 소리를 낸다. 피벗 송구가 떠나면 1루 클로즈업으로
+func _step_second(t: int) -> void:
+	_sec_s += float(t - _sec_last_us) / 1e6
+	_sec_last_us = t
+	var wild := _play.kind == FieldPlay.Kind.WILD
+	if not _sec_ball_done and _sec_s >= _play.arrive2_s:
+		_sec_ball_done = true
+		if not wild:
+			sound_requested.emit(SoundSynth.Sfx.MITT, 1.0, 1.0)
+	if not _sec_runner_done and _sec_s >= _play.lead_s:
+		_sec_runner_done = true
+		sound_requested.emit(SoundSynth.Sfx.STEP, 0.9, 0.95)
+	if not _sec_called and _sec_s >= _sec_call_s():
+		_sec_called = true
+		if _play.lead_out:
+			sound_requested.emit(SoundSynth.Sfx.CHEER_SMALL, 0.5, 1.1)
+			_shake_until_us = t + 120000
+		else:
+			_finish_later(float(_fc["resultHoldSec"]))
+	if _play.lead_out and not _sec_pivot_done and _sec_s >= _play.release1_s:
+		_sec_pivot_done = true
+		sound_requested.emit(SoundSynth.Sfx.SWING, 0.9, 1.3)
+	if _play.lead_out and _sec_s >= _play.release1_s + SEC_PIVOT_SHOW_S:
+		# 공이 1루로 떠났다 — 1루 클로즈업으로 (같은 플레이 시각에서 이어서)
+		_sec = false
+		_cu = true
+		_cu_s = _sec_s
+		_cu_last_us = t
+
+
+## 2루 장면 그리기: 2루를 보는 그라운드 + 2루 커버 들어가는 2루수 + 2루로 달려오는 1루 주자 + 멀리 1루로 가는 타자 + 공
+func _draw_second(view: Vector2) -> void:
+	var s := _sec_s
+	draw_texture_rect(_tex_second, Rect2(Vector2.ZERO, _tex_second.get_size() * _u), false)
+	_draw_second_figures(_cam_second, Vector2.ZERO, s)
+	var bag := _phys.base_pos(2)
+	var bag_at := _cam_second.to_screen(Vector3(bag.x, bag.y, 0.5))
+	var from := Vector2(view.x * 0.32, view.y * 1.05)
+	var t0 := _play.since_hit(_play.thrown_us)
+	var p := Vector2.INF
+	var r := 0.0
+	if s < _play.arrive2_s or _play.kind == FieldPlay.Kind.WILD:
+		# 토스: 내 손(화면 아래)에서 2루 베이스 위로 (악송구면 글러브 위로 빠져 계속 날아간다)
+		var k := (s - t0) / maxf(_play.arrive2_s - t0, 0.01)
+		p = from.lerp(bag_at, k) + Vector2(0, -sin(PI * minf(k, 1.0)) * view.y * 0.06)
+		r = lerpf(view.y * 0.03, view.y * 0.012, clampf(k, 0.0, 1.0))
+	elif _play.lead_out and s >= _play.release1_s:
+		# 피벗 송구: 2루에서 1루 쪽으로 빠르게 멀어진다
+		var first := _phys.base_pos(1)
+		var to := _cam_second.to_screen(Vector3(first.x, first.y, 1.0))
+		var k2 := (s - _play.release1_s) / maxf(_play.arrive_s - _play.release1_s, 0.01)
+		p = bag_at.lerp(to, k2)
+		r = view.y * 0.012
+	if p != Vector2.INF and r > 0.0:
+		draw_circle(p + Vector2(0, 3), r, Tokens.SHADOW)
+		draw_circle(p, r, Tokens.CHALK)
+		draw_arc(p, r, 0.0, TAU, 16, Tokens.NAVY, maxf(1.0, r * 0.18), true)
+
+
+## 2루 쪽 사람들 (플레이 시각 s): 2루수가 베이스로 들어오고, 1루 주자가 2루로 달려온다 (아웃이면 베이스 앞에 멈춘다)
+func _draw_second_figures(cam: _Cam, o: Vector2, s: float) -> void:
+	var bag := _phys.base_pos(2)
+	var keystone: Vector2 = _phys.positions.get("2B", BattedBallSim.polar(13, 42))
+	var cover := keystone.lerp(bag + Vector2(0.5, 0.2), clampf(s / maxf(_play.lead_s * 0.75, 0.1), 0.0, 1.0))
+	PixelArt.draw_fielder_screen(self, o + cam.to_screen(Vector3(cover.x, cover.y, 0.0)), true, _u)
+	var start := _phys.base_pos(1).move_toward(bag, float(_phys.running["leadOffM"]))
+	var k := clampf(s / maxf(_play.lead_s, 0.1), 0.0, 1.0)
+	if _play.lead_out and s >= _play.arrive2_s:
+		k = minf(k, 0.92)  # 공이 먼저 왔다 — 베이스 앞에서 아웃
+	var runner := start.lerp(bag, k)
+	PixelArt.draw_fielder_screen(self, o + cam.to_screen(Vector3(runner.x, runner.y, 0.0)), false, maxf(1.0, _u - 1.0))
+	_draw_batter_runner_s(cam, o, s)
 
 
 # ---------- 1루 클로즈업 ----------
@@ -309,8 +441,8 @@ func _step_closeup(t: int) -> void:
 		sound_requested.emit(SoundSynth.Sfx.STEP, 0.9, 0.9)
 	if not _cu_called and _cu_s >= _call_s():
 		_cu_called = true
-		if _play.is_out():
-			sound_requested.emit(SoundSynth.Sfx.CHEER_SMALL, 0.9 if _play.kind == FieldPlay.Kind.BONUS else 0.6, 1.0)
+		if _play.batter_out():
+			sound_requested.emit(SoundSynth.Sfx.CHEER_SMALL, 0.9 if _play.kind in [FieldPlay.Kind.BONUS, FieldPlay.Kind.DOUBLE_PLAY] else 0.6, 1.0)
 			_shake_until_us = t + 160000
 		_finish_later(float(_fc["resultHoldSec"]))
 
@@ -354,7 +486,7 @@ func _draw_closeup() -> void:
 	# 루심 (가장 뒤)
 	var ump := "ump_set"
 	if _cu_called and not wild:
-		ump = "ump_out" if _play.is_out() else "ump_safe"
+		ump = "ump_out" if _play.batter_out() else "ump_safe"
 	_cu_cell(tex, ump, PixelMeta.CLOSEUP_UMP_FOOT, false)
 	# 타자 주자 (1루수보다 뒤 — 1루 선 위를 오른쪽에서 왼쪽으로). 달리기 4칸 → 베이스 1m 앞에서 앞다리를 뻗어 터치 → 딛고 넘어감 → 멈춤.
 	# 그림의 발 자리를 앞발 끝만큼 오른쪽으로 옮겨 그려서, 1루에 닿는 시각(판정)에 뻗은 발끝이 베이스 위에 온다
@@ -385,7 +517,7 @@ func _draw_closeup() -> void:
 	# 공: 카메라 뒤(유격수 손)에서 화면 아래로 들어와 작아지며 글러브로. 악송구는 뛰어오른 글러브 위로 빠져 관중석 쪽으로 멀어진다
 	var from := PixelMeta.CLOSEUP_BAG + Vector2(26, 46)
 	var glove := PixelMeta.CLOSEUP_FB_FOOT + (PixelMeta.CLOSEUP_GLOVE_JUMP + Vector2(0, -6) if wild else PixelMeta.CLOSEUP_GLOVE)
-	var t0 := _play.since_hit(_play.thrown_us)
+	var t0 := _play.release1_s
 	var k := (s - t0) / maxf(arrive - t0, 0.01)
 	if k < 1.0 or wild:
 		var p: Vector2
@@ -432,16 +564,26 @@ func _draw() -> void:
 		_draw_closeup()
 		draw_set_transform(Vector2.ZERO)
 		return
+	if _sec:
+		_draw_second(view)
+		draw_set_transform(Vector2.ZERO)
+		return
 	# 송구 단계: 홈 쪽 그림이 오른쪽으로 빠지고 1루 쪽 그림이 왼쪽에서 들어온다 (몸을 왼쪽으로 돌리는 느낌)
 	var turn := 0.0
 	if _play.caught_us > 0 and _play.kind != FieldPlay.Kind.MISS:
 		turn = clampf(float(t - _play.caught_us) / float(_play.aim_us - _play.caught_us), 0.0, 1.0)
 		turn = 1.0 - pow(1.0 - turn, 3.0)
 	var off: float = round(view.x * turn / _u) * _u
+	var home_o := Vector2(-off if _play.target == 2 else off, 0)
 	if turn < 1.0:
-		draw_texture_rect(_tex_home, Rect2(Vector2(off, 0), _tex_home.get_size() * _u), false)
-		_draw_batter_runner(_cam_home, Vector2(off, 0), t)
-	if turn > 0.0:
+		draw_texture_rect(_tex_home, Rect2(home_o, _tex_home.get_size() * _u), false)
+		_draw_batter_runner(_cam_home, home_o, t)
+	if turn > 0.0 and _play.target == 2:
+		# 병살 토스: 2루 쪽으로 돈다 (반대 방향 — 2루 그림이 오른쪽에서 들어온다)
+		var o2 := Vector2(view.x - off, 0)
+		draw_texture_rect(_tex_second, Rect2(o2, _tex_second.get_size() * _u), false)
+		_draw_second_figures(_cam_second, o2, _play.since_hit(t))
+	elif turn > 0.0:
 		var o := Vector2(off - view.x, 0)
 		draw_texture_rect(_tex_first, Rect2(o, _tex_first.get_size() * _u), false)
 		var bag := _phys.base_pos(1)
@@ -453,7 +595,7 @@ func _draw() -> void:
 			_draw_catch_marks(t, view)
 		FieldPlay.Phase.THROW:
 			if turn < 1.0:
-				_draw_catch_flash(t, view, Vector2(off, 0))
+				_draw_catch_flash(t, view, home_o)
 			if _play.aiming(t):
 				_draw_gauge(_play.gauge_at(t), view)
 		FieldPlay.Phase.DONE:
@@ -464,7 +606,11 @@ func _draw() -> void:
 
 ## 타자 주자: 치고 나면 1루로 달린다 (자동 경기와 같은 출발·속도 — 1루를 밟는 시각이 판정과 똑같다)
 func _draw_batter_runner(cam: _Cam, o: Vector2, t: int) -> void:
-	var s := _play.since_hit(t)
+	_draw_batter_runner_s(cam, o, _play.since_hit(t))
+
+
+## 타자 주자 (플레이 시각 s, 맞은 뒤 초)
+func _draw_batter_runner_s(cam: _Cam, o: Vector2, s: float) -> void:
 	var k := clampf((s - _phys.batter_start_s) / (_play.runner_s - _phys.batter_start_s), 0.0, 1.0) if s > 0.0 else 0.0
 	var p := _phys.base_pos(1) * k if s > 0.0 else Vector2(-0.8, 0.0)
 	PixelArt.draw_fielder_screen(self, o + cam.to_screen(Vector3(p.x, p.y, 0.0)), false, maxf(1.0, _u - 1.0))

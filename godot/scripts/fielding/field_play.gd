@@ -18,11 +18,18 @@ extends RefCounted
 ## 넓다), 공 빼는 시간(transfer_sec), 금색 칸 폭, 가장 빠른 공(늦게 던져도 따라잡는 한계), 아웃일 때 공이 주자보다 얼마나 먼저 꽂히나,
 ## 아웃 확률 보정. 그래서 같은 게이지로 던져도 수비가 좋으면 공이 더 빠르고 더 자주 잡는다.
 ##
+## ③ 병살 (2026-11-05): 1루에 주자가 있고 무사·1사면(setup_double_play) 첫 송구는 2루로 가는 토스다 (게이지는 feedGaugeRiseSec 로
+##    조금 빨리 찬다). 칸 → 2루 포스 아웃 확률(doublePlay.feedOutChance, 1루 주자 주력 보정) → 2루 판정 여유로 공이 2루에 닿는 시각.
+##    2루에서 잡으면 2루수(자동)가 pivotSec 뒤 1루로 다시 던진다. 1루 아웃 확률은 내 토스가 좋을수록 높다(pivotOutChance[칸],
+##    타자 주력 보정) — 금색 토스면 피벗이 편해 병살이 잘 된다. 결과: DOUBLE_PLAY(6-4-3) · FORCE_OUT(2루만 아웃, 타자 1루) ·
+##    ALL_SAFE(토스가 늦어 2루도 세이프 — 야수선택) · WILD(악송구). 토스를 너무 오래 끌어 아무리 빨리 던져도 2루가 늦으면
+##    1루로 목표를 바꾼다(보통 송구, "switch").
+##
 ## 좌표는 화면 높이를 1 로 잰다: x 는 0 ~ aspect(화면 너비/높이), y 는 0(위) ~ 1(아래). 반지름도 같은 단위.
 ## 시간은 화면이 넘겨주는 Time.get_ticks_usec() 하나로 잰다 (원칙 4). 점 자리는 시드로 정한다 (원칙 2).
 
 enum Phase { INTRO, CATCH, THROW, DONE }
-enum Kind { NONE, BONUS, NORMAL, WILD, MISS, LATE }
+enum Kind { NONE, BONUS, NORMAL, WILD, MISS, LATE, DOUBLE_PLAY, FORCE_OUT, ALL_SAFE }
 
 var cfg: Dictionary
 var aspect: float
@@ -57,6 +64,18 @@ var charge_us := 0
 var miss_reason := ""
 ## 이번 송구의 아웃 확률 (던진 뒤)
 var out_chance := 0.0
+## 공이 1루로 떠나는 시각 (맞은 뒤 초): 1루로 바로 던지면 던진 시각, 병살이면 2루수가 피벗해 던지는 시각 (−1 = 1루로 안 던짐)
+var release1_s := -1.0
+## 병살: 기회인가, 지금 송구 목표 베이스(2 = 2루 토스, 1 = 1루), 1루 주자 주력·2루 도착 시각(맞은 뒤 초), 잡은 자리 → 2루 거리(m)
+var dp := false
+var target := 1
+var lead_speed := 50
+var lead_s := 0.0
+var feed_m := 10.0
+## 병살: 2루 포스 아웃인가, 공이 2루에 닿는 시각(맞은 뒤 초), 2루 → 1루 거리(m)
+var lead_out := false
+var arrive2_s := 0.0
+var pivot_m := 27.43
 var _rng: RandomNumberGenerator
 
 
@@ -75,6 +94,26 @@ func _init(p_cfg: Dictionary, rng: RandomNumberGenerator, p_aspect: float, t_us:
 	arrive_us = hit_us + _us(travel_sec)
 	var area: Dictionary = cfg["circleArea"]
 	dot = Vector2(rng.randf_range(float(area["xMin"]), float(area["xMax"])) * aspect, rng.randf_range(float(area["yMin"]), float(area["yMax"])))
+
+
+## 병살 기회로 만든다 (첫 송구가 2루 토스). p_lead_s: 1루 주자가 2루를 밟는 시각 (맞은 뒤 초, lead_second_s())
+func setup_double_play(p_lead_s: float, p_lead_speed: int, p_feed_m: float, p_pivot_m: float) -> void:
+	dp = true
+	target = 2
+	lead_s = p_lead_s
+	lead_speed = p_lead_speed
+	feed_m = p_feed_m
+	pivot_m = p_pivot_m
+
+
+## 1루 주자가 2루를 밟는 시각 (맞은 뒤 초): 자동 경기의 주자(RunnerAI)와 같은 리드·2차 리드 속도·가속으로 달린다
+static func lead_second_s(phys: BattedBallSim.Config, speed_rating: int) -> float:
+	var r := RunnerAI.new(1, 1, speed_rating, phys)
+	return r._eta(r.pos.distance_to(phys.base_pos(2)), float(phys.running["secondaryLeadSpeedMps"]))
+
+
+func _dp(key: String) -> Variant:
+	return cfg["doublePlay"][key]
 
 
 static func _us(sec: Variant) -> int:
@@ -125,11 +164,16 @@ func since_hit(t_us: int) -> float:
 	return float(t_us - hit_us) / 1e6
 
 
-## 송구 게이지 바늘 (0~1): 누르고 있는 동안 gaugeRiseSec 에 걸쳐 0 → 1 로 찬다 (안 눌렀으면 0)
+## 송구 게이지 바늘 (0~1): 누르고 있는 동안 rise_sec() 에 걸쳐 0 → 1 로 찬다 (안 눌렀으면 0)
 func gauge_at(t_us: int) -> float:
 	if charge_us == 0:
 		return 0.0
-	return clampf(float(t_us - charge_us) / 1e6 / float(cfg["gaugeRiseSec"]), 0.0, 1.0)
+	return clampf(float(t_us - charge_us) / 1e6 / rise_sec(), 0.0, 1.0)
+
+
+## 게이지가 끝까지 차는 시간 (초): 2루 토스는 짧은 송구라 조금 빨리 찬다
+func rise_sec() -> float:
+	return float(_dp("feedGaugeRiseSec")) if target == 2 else float(cfg["gaugeRiseSec"])
 
 
 ## 게이지를 누르고 있나
@@ -162,13 +206,18 @@ func margin() -> float:
 	return runner_s - arrive_s
 
 
-## 아웃인가 (던져서 잡았다)
+## 아웃인가 (던져서 잡았다 — 병살의 2루 포스 아웃만 잡은 것도 아웃)
 func is_out() -> bool:
-	return kind == Kind.BONUS or kind == Kind.NORMAL
+	return kind in [Kind.BONUS, Kind.NORMAL, Kind.DOUBLE_PLAY, Kind.FORCE_OUT]
+
+
+## 1루에서 타자를 잡았나 (병살 클로즈업의 루심 판정)
+func batter_out() -> bool:
+	return kind in [Kind.BONUS, Kind.NORMAL, Kind.DOUBLE_PLAY]
 
 
 ## 매 프레임. 돌려주는 값: "hit"(방금 맞음) | "through"(공이 빠졌다) | "throw"(끝까지 눌러 저절로 던짐)
-##   | "late"(못 던진 사이 주자가 1루에) | ""
+##   | "late"(못 던진 사이 주자가 1루에) | "switch"(2루는 이미 늦어 1루로 목표를 바꿈) | ""
 func update(t_us: int) -> String:
 	match phase:
 		Phase.INTRO:
@@ -182,8 +231,14 @@ func update(t_us: int) -> String:
 		Phase.THROW:
 			if charge_us > 0 and gauge_at(t_us) >= 1.0:
 				# 끝까지 눌렀다 — 저절로 던져진다 (너무 셈)
-				_throw(charge_us + _us(cfg["gaugeRiseSec"]))
+				_throw(charge_us + _us(rise_sec()))
 				return "throw"
+			if target == 2 and since_hit(t_us) + feed_m / by_stat("throwMpsMax") >= lead_s:
+				# 지금 던져도 1루 주자가 2루에 먼저 닿는다 — 1루로 바꾼다 (모으던 게이지는 처음부터)
+				target = 1
+				if charge_us > 0:
+					charge_us = maxi(t_us, aim_us)
+				return "switch"
 			if since_hit(t_us) >= runner_s:
 				# 못 던진 사이에 주자가 1루를 밟았다
 				kind = Kind.LATE
@@ -228,11 +283,15 @@ func release(t_us: int) -> String:
 
 ## 그 시각에 던진다: 칸 → 아웃 확률 → (시드 난수) 아웃·세이프 → 판정 여유 → 공 도착 시각·속도
 func _throw(t_us: int) -> void:
+	if target == 2:
+		_throw_feed(t_us)
+		return
 	thrown_us = t_us
 	gauge_value = gauge_at(t_us)
 	zone = zone_of(gauge_value)
 	phase = Phase.DONE
 	var thrown_s := since_hit(t_us)
+	release1_s = thrown_s
 	var fastest := thrown_s + throw_m / by_stat("throwMpsMax")
 	if zone == "wild":
 		kind = Kind.WILD
@@ -257,6 +316,49 @@ func _throw(t_us: int) -> void:
 		kind = Kind.LATE
 
 
+## 병살 첫 송구 (2루 토스) → 2루 판정 → (잡았으면) 2루수 피벗 → 1루 판정. 판정 순서와 난수 쓰는 순서는 늘 같다
+func _throw_feed(t_us: int) -> void:
+	thrown_us = t_us
+	gauge_value = gauge_at(t_us)
+	zone = zone_of(gauge_value)
+	phase = Phase.DONE
+	var thrown_s := since_hit(t_us)
+	if zone == "wild":
+		kind = Kind.WILD
+		throw_mps = float(cfg["throwMpsWild"])
+		arrive2_s = thrown_s + feed_m / throw_mps
+		arrive_s = arrive2_s
+		return
+	# ① 2루: 1루 주자를 포스 아웃
+	out_chance = _dp_chance("feed", zone, lead_speed)
+	lead_out = _rng.randf() < out_chance
+	arrive2_s = _settle(lead_s, lead_out, thrown_s + feed_m / by_stat("throwMpsMax"))
+	lead_out = arrive2_s < lead_s
+	if not lead_out:
+		kind = Kind.ALL_SAFE
+		return
+	# ② 2루수 피벗 → 1루: 내 토스가 좋을수록 피벗이 편하다
+	release1_s = arrive2_s + float(_dp("pivotSec"))
+	var out1 := _rng.randf() < _dp_chance("pivot", zone, runner_speed)
+	arrive_s = _settle(runner_s, out1, release1_s + pivot_m / float(_dp("pivotThrowMps")))
+	throw_mps = pivot_m / maxf(arrive_s - release1_s, 0.05)
+	kind = Kind.DOUBLE_PLAY if arrive_s < runner_s else Kind.FORCE_OUT
+
+
+## 병살 판정 확률: <stage>OutChance[칸] + (50 − 주자 주력)/50 × <stage>SpeedSwing[칸] + (내 수비 − 50)/50 × stat.outChanceSwing[칸]
+func _dp_chance(stage: String, z: String, speed: int) -> float:
+	var swing := float(_dp(stage + "SpeedSwing")[z]) * (50.0 - float(speed)) / 50.0
+	var arm := float(cfg["stat"]["outChanceSwing"][z]) * (float(fielding) - 50.0) / 50.0
+	return clampf(float(_dp(stage + "OutChance")[z]) + swing + arm, 0.0, 1.0)
+
+
+## 판정 여유를 뽑아 공이 베이스에 닿는 시각을 정한다 (runner_at: 주자가 그 베이스를 밟는 시각, fastest: 공이 가장 빨리 닿는 시각)
+func _settle(runner_at: float, out: bool, fastest: float) -> float:
+	var m: Array = _dp("marginOut") if out else _dp("marginSafe")
+	var margin_s := _rng.randf_range(float(m[0]), float(m[1]))
+	return maxf(runner_at - margin_s if out else runner_at + margin_s, fastest)
+
+
 func _miss(reason: String, t_us: int) -> void:
 	miss_reason = reason
 	kind = Kind.MISS
@@ -271,4 +373,7 @@ static func kind_label(k: Kind) -> String:
 		Kind.WILD: return "악송구…"
 		Kind.MISS: return "포구 실책…"
 		Kind.LATE: return "세이프! 내야안타"
+		Kind.DOUBLE_PLAY: return "병살! 6-4-3"
+		Kind.FORCE_OUT: return "2루 포스아웃!"
+		Kind.ALL_SAFE: return "올세이프… 야수선택"
 	return ""

@@ -27,6 +27,7 @@ class Config:
 	var bounce_retention: float
 	var ground_decel: float
 	var positions := {}  # 수비 위치 이름 -> Vector2
+	var dp_positions := {}  # 병살 수비 위치 (무사·1사 1루): 바뀌는 사람만 이름 -> Vector2
 	var infield := PackedStringArray()
 	var reaction_infield: float
 	var reaction_outfield: float
@@ -85,6 +86,11 @@ class Config:
 		for name: String in f["positions"]:
 			var ad: Array = f["positions"][name]
 			c.positions[name] = BattedBallSim.polar(float(ad[0]), float(ad[1]))
+		var dp: Dictionary = f.get("doublePlayDepth", {})
+		for name: String in dp:
+			if not name.begins_with("_"):
+				var dd: Array = dp[name]
+				c.dp_positions[name] = BattedBallSim.polar(float(dd[0]), float(dd[1]))
 		c.infield = PackedStringArray(f["infield"])
 		c.reaction_infield = BattingConfig.num(f, "reactionS.infield")
 		c.reaction_outfield = BattingConfig.num(f, "reactionS.outfield")
@@ -184,6 +190,8 @@ class Result:
 	var self_putout := false
 	## 번트 수비 위치였나 (커버 계산이 같은 위치에서 출발하도록)
 	var bunt := false
+	## 병살 수비 위치였나 (무사·1사 1루: 유격수·2루수가 2루 쪽으로 당겨 선다)
+	var dp_depth := false
 	## 타자 주자: 달리기 속도(m/s), 1루를 밟는 시각
 	var runner_mps := 7.5
 	var runner_start := 0.8
@@ -231,9 +239,12 @@ static func polar(angle_deg: float, dist: float) -> Vector2:
 	return Vector2(sin(a), cos(a)) * dist
 
 
-## 수비 위치 (번트면 1·3루수와 투수가 앞으로 나온다)
-static func fielder_positions(cfg: Config, bunt: bool) -> Dictionary:
+## 수비 위치 (번트면 1·3루수와 투수가 앞으로 나온다, 병살 수비면 유격수·2루수가 2루 쪽으로 당겨 선다)
+static func fielder_positions(cfg: Config, bunt: bool, dp_depth: bool = false) -> Dictionary:
 	var pos := cfg.positions.duplicate()
+	if dp_depth:
+		for name: String in cfg.dp_positions:
+			pos[name] = cfg.dp_positions[name]
 	if bunt:
 		pos["1B"] = polar(38, 18)
 		pos["3B"] = polar(-38, 18)
@@ -241,16 +252,22 @@ static func fielder_positions(cfg: Config, bunt: bool) -> Dictionary:
 	return pos
 
 
-static func simulate(cfg: Config, ev_kmh: float, launch_deg: float, spray_deg: float, runner_speed: int, bunt: bool = false) -> Result:
+## 병살 수비를 펴는 상황인가: 1루에 주자가 있고 무사·1사 (bases: 1·2·3루 주자, -1 은 빈 베이스)
+static func dp_situation(bases: Array, outs: int) -> bool:
+	return bases.size() > 0 and int(bases[0]) != -1 and outs < 2
+
+
+static func simulate(cfg: Config, ev_kmh: float, launch_deg: float, spray_deg: float, runner_speed: int, bunt: bool = false, dp_depth: bool = false) -> Result:
 	var r := Result.new()
 	# 수직 위를 넘는 발사각은 공이 뒤로 날아간다 (정규분포 끝자락) — 높은 뜬공으로 자른다
 	launch_deg = minf(launch_deg, cfg.max_launch)
 	r.ev_kmh = ev_kmh
 	r.bunt = bunt
+	r.dp_depth = dp_depth and not bunt
 	r.launch_deg = launch_deg
 	r.spray_deg = spray_deg
 	r.batted_ball = _batted_type(launch_deg)
-	var positions := fielder_positions(cfg, bunt)
+	var positions := fielder_positions(cfg, bunt, r.dp_depth)
 	var dir := Vector2(sin(deg_to_rad(spray_deg)), cos(deg_to_rad(spray_deg)))
 	var v := ev_kmh / 3.6
 	var h := v * cos(deg_to_rad(launch_deg))
@@ -496,7 +513,7 @@ static func base_cover(cfg: Config, r: Result, b: int, busy: Array = []) -> Dict
 ## goal 에 가장 먼저 설 수 있는 수비수 (공을 잡은 사람과 busy 는 빼고, infield_only 면 내야수만).
 ## 돌려주는 값 {"name", "from", "to", "react", "ready"}
 static func first_to(cfg: Config, r: Result, goal: Vector2, busy: Array, infield_only: bool) -> Dictionary:
-	var positions := fielder_positions(cfg, r.bunt)
+	var positions := fielder_positions(cfg, r.bunt, r.dp_depth)
 	var best := {}
 	for name: String in positions:
 		if name == r.fielder or name in busy or (infield_only and not (name in cfg.infield)):
