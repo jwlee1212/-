@@ -1,31 +1,45 @@
 #!/usr/bin/env python3
 """컷신 도트 (2026-11-05): 이야기 카드 사이에 끼는 짧은 "애니메이션 영화" 장면의 그림을 코드로 찍어 만든다.
-AI 생성 그림을 쓰지 않는다. 테두리·그늘 규칙과 색·인물 뼈대는 make_pixel_art.py · make_training_art.py 와 같다.
+AI 생성 그림을 쓰지 않는다. 기본 도구(Cell·도형)는 make_pixel_art.py, 뼈대 포즈는 make_training_art.py · make_minigame_art.py 의 것.
 
-게임 화면(중계 카메라)을 그대로 쓰지 않는다 — 컷마다 따로 그린 판(배경)에 카메라를 대고, 인물 칸을 갈아 끼운다.
+컷신 그림 규칙 (CLAUDE.md 원칙 6, 2026-11-05 유저 결정):
+    - 인물은 실루엣으로만 그린다. 누구의 얼굴도 그리지 않는다 (눈·코·입·머리카락 결 없음).
+    - 얼굴 밖의 것도 자세히 그리지 않는다 — 큰 덩어리와 윤곽, 노을 테두리빛(rim)으로 보인다.
+      실루엣 = 한 색 덩어리(sil) + 빛을 받는 가장자리 1칸(sil_rim, 위쪽은 더 밝은 sil_rim_hi).
+    - 인물은 도형 조립이 아니라 **손으로 찍은 글자 격자**(scripts/cutscene_grids.py)로 그린다 (2026-11-05 유저 지시).
+    - 장 수는 적게 (컷마다 인물 1~2장). 움직임은 카메라 이동·자리 이동(path)·히트스톱(hold)·번쩍임(flash)·흔들림으로 낸다.
+    - 판(배경)은 역광 구도의 큰 덩어리: 큰 해·노을 띠 3~4개·어두운 땅과 관중석.
+
+게임 화면(중계 카메라)을 그대로 쓰지 않는다 — 컷마다 따로 그린 판(배경)에 카메라를 대고, 인물 칸을 놓는다.
 화면 4배 (그림 211×98 = 화면 844×392). 판은 카메라가 좌우로 움직일 만큼 넓게 그린다.
 
-첫 컷신: EP05 김성호의 마지막 타석 (ep05_seongho)
+컷신 (content.json cutscenes — 1학년 에피소드마다 하나 + 사이드 스토리 둘):
+    ep01_join 입부 첫날 · ep02_bench 차례는 오지 않았다 · ep03_sink 청운고 수돗가 · ep04_first 고교 첫 타석 ·
+    ep05_seongho 김성호의 마지막 타석 · ep06_dp 6-4-3 · ep07_sound 소리가 다르다 · ep08_name 이름 ·
+    side_harin_museum 하린 미술관 · side_soyul_folder 소율 1학년 폴더
+
     판 (cutscene_bg.png, 줄 = 판, 높이 98):
-        dugout    덕아웃 안에서 운동장을 본다 (어두운 지붕·난간 + 해 질 녘 밝은 운동장) — 앉은 등들, 끝에 감독
-        dark      얼굴 클로즈업 뒤 (덕아웃 안, 흐린 빛망울)
-        plate     홈플레이트 옆모습 (노을 하늘·관중석 실루엣·흙·포수)
+        dugout    덕아웃 안에서 운동장을 본다 (어두운 지붕·기둥 + 노을 운동장)
+        rail      덕아웃 안 낮은 자리에서 본 노을 하늘과 큰 해 (난간은 인물 앞에 놓는 칸 rail)
+        plate     홈플레이트 옆모습: 타자 바로 뒤에 지는 큰 해, 관중석 덩어리, 포수 실루엣
         baseline  1루 가는 길 옆모습 (480 넓이 — 카메라가 달리는 사람을 따라 흐른다)
-        bag       1루 베이스 바로 옆, 땅 높이
-        sky       루심 뒤 하늘
+        bag       1루 베이스 바로 옆, 땅 높이 (지평선에 해)
+        sky       낮은 자리에서 올려다본 노을 하늘 (루심·투수)
         wide      운동장 전체 (노을)
-    인물 칸 (cutscene.png, 칸 96×96, 발 자리 FOOT, 줄 = 인물 동작, 왼쪽부터 장):
-        coach     감독 서 있기 · 고개 돌림 (왼쪽을 본다)
-        bench     덕아웃 앞줄 등 (실루엣): 앉음 · 일어나 난간에 붙음
-        face      김성호 얼굴: 고개 숙임 · 눈 듦 · 이를 문다
-        batter    김성호 타석 (오른쪽을 본다, 헬멧): 준비 · 내딛기 · 맞는 순간 · 팔로스루
-        run       달리기 4장 (헬멧) · 달리기 4장 (헬멧 벗겨짐)
-        helmet    날아가는 헬멧 3장 (돌리지 않고 장마다 따로 찍는다)
-        foot      베이스를 밟는 발 (크게)
-        mitt      1루수 미트 (크게) · 공이 꽂힌 미트
-        ump       루심: 지켜봄 · 아웃 (주먹)
-        tiny      먼 김성호: 서기 · 덕아웃 쪽으로 돌아섬 · 인사
-        tiny_helmet  흙 위에 떨어진 헬멧 (작게)
+        school    새벽의 서림고: 먼 아파트, 컨테이너 부실, 흙 운동장 (EP01)
+        cheongun  청운고: 숙소·전광판·인조잔디 (EP03)
+        sink      수돗가 (EP03)
+        cage_night     겨울밤 배팅 케이지, 전구 하나 (EP07)
+        clubroom_night 밤의 컨테이너 부실, 환한 창 하나 (EP07)
+        stands    1루 관중석 계단 (EP08)
+        museum    미술관: 큰 창빛, 색 덩어리 그림 두 점, 긴 의자 (하린)
+        clubroom_in    부실 안, 노트북 화면 하나 (소율)
+    인물 칸 (cutscene.png, 칸 96×96, 발 자리 FOOT, 줄 = 인물, 왼쪽부터 장) — 모두 손으로 찍은 실루엣 격자(cutscene_grids.py):
+        coach 감독 가리킴 · bench 앉음/일어섬 · rise 뒷모습 어깨 위 · rail 난간(소품) · batter 준비/맞는 순간 ·
+        run 달리기 2장 · helmet 헬멧(소품) · foot 발 · mitt 미트 · ump 지켜봄/아웃 · tiny 먼 사람 서기/인사 ·
+        tiny_helmet 헬멧(소품) · tiny_walk 먼 사람 서기/걷기 · coach_front 감독 팔짱 · sink 숙임/허리 폄 ·
+        pitcher 세트/다리 들기 · toss 유격수 토스 · pivot 2루수 송구 · ball 공 · soyul_window 창가에서 손 듦 ·
+        scouts 관중석 두 사람(스피드건 듦/내림) · pair_stand 나란히 선 뒷모습 · pair_sit 나란히 앉은 뒷모습
 
     python3 scripts/make_cutscene_art.py   (pillow·numpy 필요)
 
@@ -38,10 +52,8 @@ import numpy as np
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(__file__))
-from make_pixel_art import PAL, Cell, capsule, circle, ellipse, poly, lerp, hx, OUT  # noqa: E402
-import make_training_art as tr  # noqa: E402
-from make_training_art import guy, standing  # noqa: E402
-import make_minigame_art as mg  # noqa: E402  (뛰기 포즈 RUN 과 PAL 의 감독·연습복 색)
+from make_pixel_art import PAL, Cell, capsule, circle, ellipse, poly, hx, shifted, OUT  # noqa: E402
+from cutscene_grids import GRIDS, GRID_COLORS  # noqa: E402  (손으로 찍은 인물 격자 · 물건 격자의 색 글자)
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 META = os.path.join(ROOT, "godot", "scripts", "characters", "cutscene_meta.gd")
@@ -54,35 +66,43 @@ FOOT = (48, 90)
 PAL.update({k: hx(v) for k, v in {
     # 노을 하늘 (위 → 아래: 보라 → 주황 → 살구)
     "dusk0": "#3b3f7a", "dusk1": "#6a4f8c", "dusk2": "#b8608a", "dusk3": "#ef8a6a", "dusk4": "#ffb37a", "dusk5": "#ffd29a",
-    "sun": "#fff1c2", "sun_hi": "#ffffff",
-    "stand": "#3a2f55", "stand_s": "#2a2342", "crowd_a": "#57457a", "crowd_b": "#6d5690", "crowd_c": "#8a6aa2",
-    "light_pole": "#2a2342", "light_on": "#fff6d8",
+    "sun": "#fff1c2", "sun_hi": "#ffffff", "glow": "#ffe2a8",
+    "stand": "#3a2f55", "stand_s": "#2a2342", "light_pole": "#2a2342",
     "grass_hi": "#a3c26a", "grass": "#6f9e4e", "grass_s": "#4f7d3c", "grass_dk": "#355a2c",
     "dirt_hi": "#f2bd84", "dirt": "#d9955e", "dirt_s": "#b0703f", "dirt_dk": "#7e4a2a",
-    "chalk": "#fff6e8", "chalk_s": "#e8d6bd", "bag_hi": "#ffffff", "bag": "#f1ede6", "bag_s": "#c9c0b2", "bag_dk": "#8f8676",
+    "chalk": "#fff6e8", "bag_hi": "#ffffff", "bag": "#f1ede6", "bag_s": "#c9c0b2", "bag_dk": "#8f8676",
     "wall": "#2c5a4a", "wall_s": "#1f4436", "pad": "#24493b",
-    # 덕아웃 안 (차갑고 어둡게) · 실루엣
-    "dug_roof": "#141629", "dug_wall": "#22263f", "dug_wall_s": "#1a1d33", "dug_floor": "#2c2f48", "dug_bench": "#4a3a34",
-    "dug_bench_s": "#33282a", "rail": "#1b1d30", "rail_hi": "#4a4f73",
-    "sil": "#161a2e", "sil_s": "#0f1222", "sil_rim": "#e6935f",
-    "bokeh_a": "#3a3560", "bokeh_b": "#5a4670", "bokeh_c": "#8a5a70",
-    # 얼굴 (따뜻한 노을빛이 왼쪽에서)
-    "face_hi": "#ffd9b8", "face": "#eeb48e", "face_s": "#c47e62", "face_dk": "#8a4f4a",
-    "hair2": "#2b1f1c", "hair2_hi": "#4a3530", "brow": "#2b1f1c", "lip": "#b86a5e", "eye_w": "#fff6ee", "iris": "#2b2140",
-    "us_cap_hi": "#5d8cf2", "us_cap": "#2f62e0", "us_cap_s": "#21399c", "us_cap_dk": "#161f66",
-    "jersey2_hi": "#ffffff", "jersey2": "#e8ecf5", "jersey2_s": "#a9b0cd", "jersey2_dk": "#5d6590",
-    "sweat2": "#d8ecff",
-    "glove2_hi": "#d69458", "glove2": "#b0703a", "glove2_s": "#6e3f18", "glove2_dk": "#4a2a14",
-    "sock_hi": "#5d8cf2", "sock": "#2f62e0", "sock_s": "#21399c", "sock_dk": "#161f66",
-    "shoe2_hi": "#4d5068", "shoe2": "#2a2c3c", "shoe2_s": "#171823", "shoe2_dk": "#0f1018",
-    "spike": "#c9ced8",
+    # 덕아웃 안 (차갑고 어둡게)
+    "dug_roof": "#141629", "dug_floor": "#2c2f48", "dug_bench": "#4a3a34", "dug_bench_s": "#33282a",
+    "rail": "#1b1d30", "rail_hi": "#4a4f73",
+    # 새벽 (EP01) · 밤 (EP07 겨울 케이지·부실 창) · 실내 (미술관·부실 안)
+    "dawn0": "#4a5a8c", "dawn1": "#8a7aa8", "dawn2": "#e8a0a0", "dawn3": "#ffd0a8",
+    "night0": "#0f1430", "night1": "#1a2248", "night2": "#26305e",
+    "concrete": "#5a5470", "concrete_s": "#433e58", "window": "#ffe9b8", "screen": "#cfe8ff", "screen_s": "#8fb8e8",
+    "museum_wall": "#2a2440", "frame_a": "#b8608a", "frame_b": "#ef8a6a", "floor": "#3a3050",
+    # 실루엣 · 노을 테두리빛
+    "sil": "#161a2e", "sil_rim": "#e6935f", "sil_rim_hi": "#ffc58a",
+    # 2026-11-05 다양화: 장면마다 하늘·빛·실루엣 색을 다르게 (노을은 EP05 성호의 색으로 남긴다)
+    # 3월 아침 (차고 맑다, 해는 오른쪽 낮게 — 먼 것일수록 하늘색에 묻힌다)
+    "m_sky0": "#7fb8e6", "m_sky1": "#a6cfee", "m_sky2": "#cde4f4", "m_sky3": "#eef1ea", "m_sun": "#fffbe8", "m_glow": "#f6f4dc",
+    "m_far": "#a3b6cc", "m_far_s": "#90a5be", "m_mid": "#62748f", "m_mid_s": "#52637d", "m_win": "#d8e8f4",
+    "m_dirt_hi": "#ddc6a2", "m_dirt": "#c8ae88", "m_dirt_s": "#a99272", "m_line": "#f1ece0",
+    "sil_cool": "#1c2846", "rim_cool": "#b9dcff", "rim_cool_hi": "#ffffff",
+    "watch_ring": "#c9d2de", "watch_ring_s": "#8a97aa", "watch_face": "#f7f8f2",
+    # 하얀 전시실 (왼쪽 큰 창에서 빛)
+    "g_wall": "#ece6da", "g_wall_s": "#dbd3c4", "g_floor": "#cbb79a", "g_floor_s": "#b29f83", "g_light": "#fffaf0",
+    "g_frame": "#8a8072", "g_wood": "#5a4636", "g_bench": "#6a5848", "g_spot": "#fff6d8",
+    "p_navy": "#22305a", "p_blue": "#3f6fb5", "p_teal": "#3f9aa0", "p_sky": "#9ccbe0", "p_ochre": "#d9a441", "p_sun": "#f2c55c",
+    "p_rose": "#d97a7a", "p_cream": "#f4ead2",
+    "sil_gallery": "#262633", "rim_gallery": "#fff1d6", "rim_gallery_hi": "#ffffff",
 }.items()})
 
-# 경기복 (흰 유니폼 + 파랑 헬멧): 연습복 색 자리를 잠깐 바꿔 그린다
-UNIFORM = {"shirt": "jersey", "shirt_s": "jersey_s", "pants": "jersey", "pants_s": "jersey_s", "cap": "us", "cap_s": "us_s"}
-COACH = {"shirt": "coach_suit", "shirt_s": "coach_suit_s", "pants": "coach_suit", "pants_s": "coach_suit_s",
-         "cap": "coach_cap", "cap_s": "coach_cap_s"}
-UMP = {"shirt": "ump", "shirt_s": "ump_s", "pants": "upants", "pants_s": "upants_s", "cap": "ump", "cap_s": "ump_s"}
+# 실루엣 색 묶음: 몸 · 옆 테두리빛 · 위 테두리빛 (장면의 빛에 맞춘다)
+SCHEMES = {
+    "dusk": ("sil", "sil_rim", "sil_rim_hi"),
+    "morning": ("sil_cool", "rim_cool", "rim_cool_hi"),
+    "gallery": ("sil_gallery", "rim_gallery", "rim_gallery_hi"),
+}
 
 
 def rect(c, x0, y0, x1, y1, color, alpha=255):
@@ -113,46 +133,96 @@ def bands(c, y0, y1, names):
                 dot(c, x + ((b + 1) % 2), b - 1, names[i + 1])
 
 
+def sun(c, x, y, r):
+    """지는 해: 빛무리 → 해 → 가운데 흰 빛 (큰 동그라미 셋)"""
+    c.put(c._mask(circle((x, y), r + 5)), PAL["glow"])
+    c.put(c._mask(circle((x, y), r)), PAL["sun"])
+    c.put(c._mask(circle((x, y), r - 4)), PAL["sun_hi"])
+
+
 def crowd(c, y0, y1, seed):
-    """관중석 실루엣: 줄마다 머리 점 (번호로 정해지는 가짜 난수 — 원칙 2)"""
+    """관중석: 한 색 덩어리. 위 가장자리만 들쭉날쭉 (머리 줄 윤곽 — 번호로 정해지는 가짜 난수, 원칙 2)"""
     rect(c, 0, y0, c.w, y1, "stand")
-    for row, y in enumerate(range(y0 + 2, y1 - 1, 3)):
-        for x in range(row % 2, c.w, 3):
-            h = (x * 7349 + row * 911 + seed * 131) % 11
-            if h < 8:
-                dot(c, x, y, ["crowd_a", "crowd_b", "crowd_c"][h % 3])
+    for x in range(0, c.w, 3):
+        h = (x * 7349 + seed * 131) % 7 % 3
+        rect(c, x, y0 - h, x + 2, y0, "stand")
     rect(c, 0, y1 - 1, c.w, y1, "stand_s")
 
 
 def light_pole(c, x, top, bottom):
     rect(c, x, top + 6, x + 1, bottom, "light_pole")
     rect(c, x - 4, top, x + 5, top + 5, "light_pole")
-    for i in range(3):
-        for j in range(2):
-            dot(c, x - 3 + i * 3, top + 1 + j * 2, "light_on")
+
+
+# ---------- 실루엣 ----------
+
+def rim(c, mask=None, keep=None, colors=("sil_rim", "sil_rim_hi")):
+    """빛을 받는 가장자리 1칸: 옆(왼·오른) = sil_rim, 위 = sil_rim_hi. 칸 가장자리에서 잘린 곳은 빼고,
+    keep(격자의 '=' 칸 — 일부러 빛을 끊은 곳)도 뺀다"""
+    solid = (c.rgba[..., 3] == 255) if mask is None else mask
+    side = solid & (~shifted(solid, -1, 0) | ~shifted(solid, 1, 0))
+    top = solid & ~shifted(solid, 0, -1)
+    for m in (side, top):
+        m[0, :] = m[-1, :] = m[:, 0] = m[:, -1] = False
+        if keep is not None:
+            m &= ~keep
+    c.put(side, PAL[colors[0]])
+    c.put(top, PAL[colors[1]])
+
+
+def silhouette(c, fns):
+    """(판 소품용) 도형 여러 개를 한 덩어리 실루엣으로"""
+    m = c._mask(fns)
+    c.put(m, PAL["sil"])
+    return m
+
+
+def stamp_grid(name, flip_x=False, scheme="dusk"):
+    """손으로 찍은 격자 (cutscene_grids.GRIDS) 하나를 칸에 찍는다: 격자의 기준점이 칸의 FOOT 에 온다.
+    '#' 은 실루엣 + 테두리빛, '=' 는 실루엣(빛 없음), 그 밖의 글자는 GRID_COLORS[이름] 의 색 (물건 — 빛 없음).
+    scheme: 실루엣 색 묶음 (SCHEMES — 장면의 빛)"""
+    rows, anchor = GRIDS[name]
+    colors = GRID_COLORS.get(name, {})
+    body, side, top = SCHEMES[scheme]
+    c = cell()
+    keep = np.zeros((CELL_H, CELL_W), bool)
+    w = max(len(r) for r in rows)
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch == ".":
+                continue
+            gx = (w - 1 - x) if flip_x else x
+            ax = (w - 1 - anchor[0]) if flip_x else anchor[0]
+            cx, cy = FOOT[0] - ax + gx, FOOT[1] - anchor[1] + y
+            if 0 <= cx < CELL_W and 0 <= cy < CELL_H:
+                c.rgba[cy, cx] = (*PAL[colors.get(ch, body)], 255)
+                keep[cy, cx] = ch != "#"
+    rim(c, keep=keep, colors=(side, top))
+    return c
+
+
+def cell():
+    return Cell(CELL_W, CELL_H, 0, 0)
 
 
 # ---------- 판 (배경) ----------
 
 def panel_dugout():
-    """덕아웃 안에서 밖을 본다: 위는 어두운 지붕, 가운데 밝은 노을 운동장, 아래는 난간과 앞줄 의자"""
+    """덕아웃 안에서 밖을 본다: 위는 어두운 지붕, 가운데 밝은 노을 운동장(실루엣이 이 밝은 띠 앞에서 읽힌다), 아래는 난간과 앞줄 의자"""
     c = Cell(320, PANEL_H, 0, 0)
     bands(c, 14, 40, ["dusk2", "dusk3", "dusk4", "dusk5"])
-    crowd(c, 30, 42, 1)
-    for x in (60, 190, 290):
+    sun(c, 230, 34, 9)
+    crowd(c, 32, 42, 1)
+    for x in (60, 200):
         light_pole(c, x, 18, 33)
     rect(c, 0, 42, 320, 46, "wall")
-    rect(c, 0, 46, 320, 56, "grass")
-    for x in range(0, 320, 16):  # 잔디 결
-        rect(c, x, 46, x + 8, 56, "grass_hi")
-    rect(c, 0, 56, 320, 64, "dirt")
-    rect(c, 0, 56, 320, 57, "dirt_hi")
-    # 지붕 (위) · 기둥
+    rect(c, 0, 46, 320, 64, "grass_s")
+    rect(c, 0, 56, 320, 57, "dirt")
+    # 지붕 · 기둥
     rect(c, 0, 0, 320, 14, "dug_roof")
     rect(c, 0, 13, 320, 14, "rail_hi")
     for x in (0, 150, 312):
         rect(c, x, 0, x + 8, 64, "dug_roof")
-        rect(c, x + 7, 14, x + 8, 64, "rail_hi")
     # 덕아웃 바닥·의자 (아래 어둡게)
     rect(c, 0, 64, 320, 98, "dug_floor")
     rect(c, 0, 64, 320, 66, "rail")
@@ -162,78 +232,68 @@ def panel_dugout():
     return c
 
 
-def panel_dark():
-    """얼굴 클로즈업 뒤: 덕아웃 안 어둠 + 흐릿한 빛망울 (먼 조명)"""
+def panel_rail():
+    """덕아웃 안 낮은 자리에서 본 밖: 위 지붕 끝, 노을 하늘에 큰 해, 먼 관중석 덩어리. 난간·앞벽은 칸 rail 로 인물 앞에 놓는다"""
     c = Cell(240, PANEL_H, 0, 0)
-    bands(c, 0, 98, ["dug_roof", "dug_wall_s", "dug_wall", "dug_wall_s"])
-    for i, (x, y, r, col) in enumerate([(30, 20, 6, "bokeh_a"), (70, 34, 4, "bokeh_b"), (160, 18, 7, "bokeh_a"),
-                                        (200, 40, 5, "bokeh_c"), (120, 60, 3, "bokeh_b"), (220, 70, 6, "bokeh_a"), (14, 66, 4, "bokeh_c")]):
-        c.put(c._mask(circle((x, y), r)), PAL[col])
+    bands(c, 10, 62, ["dusk2", "dusk3", "dusk4"])
+    sun(c, 118, 44, 17)
+    crowd(c, 52, 62, 7)
+    light_pole(c, 30, 30, 52)
+    light_pole(c, 206, 28, 52)
+    rect(c, 0, 62, 240, 98, "grass_dk")
+    rect(c, 0, 0, 240, 10, "dug_roof")
+    rect(c, 0, 9, 240, 10, "rail_hi")
     return c
 
 
 def panel_plate():
-    """홈플레이트 옆모습: 노을 하늘, 먼 관중석, 흙, 포수(오른쪽, 쪼그려 앉음)"""
+    """홈플레이트 옆모습: 노을 하늘, 타자 바로 뒤에 지는 큰 해(타자가 역광 실루엣이 된다), 관중석 덩어리, 흙, 포수 실루엣"""
     c = Cell(260, PANEL_H, 0, 0)
-    bands(c, 0, 46, ["dusk0", "dusk1", "dusk2", "dusk3", "dusk4"])
-    c.put(c._mask(circle((40, 34), 9)), PAL["sun"])
-    c.put(c._mask(circle((40, 34), 6)), PAL["sun_hi"])
-    crowd(c, 40, 58, 2)
-    light_pole(c, 120, 22, 40)
-    rect(c, 0, 58, 260, 62, "wall")
-    rect(c, 0, 62, 260, 98, "dirt")
-    rect(c, 0, 62, 260, 63, "dirt_hi")
-    for x in range(0, 260, 7):
-        dot(c, x, 70 + (x * 3) % 9, "dirt_s")
-        dot(c, x + 3, 80 + (x * 5) % 11, "dirt_s")
-    # 타석 분필 선 · 홈플레이트 (옆에서 보면 얇다)
-    rect(c, 40, 89, 170, 90, "chalk")
-    c.part(poly([(92, 88), (106, 88), (104, 90), (94, 90)]), "bag")
-    # 포수: 타자 뒤(왼쪽)에 쪼그려 앉아 투수 쪽(오른쪽)으로 미트를 내민다
-    px, py = 62, 89
-    c.part(ellipse((px - 2, py - 4), 7, 4), "them_s")
-    c.part(capsule((px + 2, py - 14), (px - 4, py - 6), 10), "gear")
-    c.part(circle((px + 3, py - 19), 5), "gear", "gear_s")
-    c.part(ellipse((px + 10, py - 13), 5, 4), "glove", "glove_s")
+    bands(c, 0, 50, ["dusk1", "dusk2", "dusk3", "dusk4"])
+    sun(c, 128, 48, 21)
+    crowd(c, 46, 60, 2)
+    light_pole(c, 40, 22, 46)
+    light_pole(c, 222, 24, 46)
+    rect(c, 0, 60, 260, 63, "wall_s")
+    rect(c, 0, 63, 260, 98, "dirt_dk")
+    rect(c, 0, 63, 260, 64, "dirt_s")
+    rect(c, 40, 86, 200, 87, "dirt")  # 타석 선 (빛을 받은 흙 한 줄)
+    # 포수: 타자 뒤(왼쪽)에 쪼그려 앉아 미트를 내민다 — 한 덩어리 (발은 아래 검은 띠 위에)
+    px, py = 62, 86
+    m = silhouette(c, [ellipse((px - 2, py - 4), 8, 4), capsule((px + 2, py - 16), (px - 4, py - 6), 13),
+                       circle((px + 3, py - 22), 6.5), ellipse((px + 12, py - 15), 6, 5)])
+    rim(c, m)
     return c
 
 
 def panel_baseline():
-    """1루 가는 길 옆모습 (넓다): 뒤는 외야 펜스와 노을, 가운데 잔디, 앞은 흙과 분필 선. 카메라가 흐른다"""
+    """1루 가는 길 옆모습 (넓다): 노을과 해, 관중석 덩어리, 펜스(이음새가 흐름을 보인다), 잔디 줄, 흙, 1루선"""
     w = 480
     c = Cell(w, PANEL_H, 0, 0)
-    bands(c, 0, 34, ["dusk1", "dusk2", "dusk3", "dusk4", "dusk5"])
-    crowd(c, 24, 38, 3)
+    bands(c, 0, 36, ["dusk2", "dusk3", "dusk4"])
+    sun(c, 70, 30, 13)
+    crowd(c, 26, 40, 3)
     for x in range(20, w, 110):
-        light_pole(c, x, 8, 24)
-    rect(c, 0, 38, w, 50, "wall")
-    rect(c, 0, 38, w, 39, "pad")
-    for x in range(0, w, 40):  # 펜스 이음새 (흐름이 보이게)
-        rect(c, x, 39, x + 1, 50, "wall_s")
-    rect(c, 0, 50, w, 70, "grass")
-    for x in range(0, w, 24):
-        rect(c, x, 50, x + 12, 70, "grass_hi")
-    rect(c, 0, 70, w, 98, "dirt")
-    rect(c, 0, 70, w, 71, "dirt_hi")
-    for x in range(0, w, 9):
-        dot(c, x, 76 + (x * 7) % 13, "dirt_s")
-        dot(c, x + 4, 88 + (x * 3) % 7, "dirt_dk")
-    rect(c, 0, 92, w, 94, "chalk")  # 1루선
+        light_pole(c, x, 8, 26)
+    rect(c, 0, 40, w, 50, "wall")
+    rect(c, 0, 40, w, 41, "pad")
+    for x in range(0, w, 40):
+        rect(c, x, 41, x + 2, 50, "wall_s")
+    rect(c, 0, 50, w, 70, "grass_dk")
+    rect(c, 0, 70, w, 98, "dirt_dk")
+    rect(c, 0, 70, w, 71, "dirt_s")
+    rect(c, 0, 86, w, 88, "chalk")  # 1루선 (달리는 발 바로 밑 — 아래 검은 띠에 가리지 않게)
     return c
 
 
 def panel_bag():
-    """1루 베이스 바로 옆, 땅 높이: 크게 보이는 베이스, 흙 알갱이, 위로 노을 하늘"""
+    """1루 베이스 바로 옆, 땅 높이: 지평선에 해, 크게 보이는 베이스(빛을 받아 밝다), 그늘진 흙"""
     c = Cell(240, PANEL_H, 0, 0)
     bands(c, 0, 52, ["dusk2", "dusk3", "dusk4", "dusk5"])
-    crowd(c, 40, 52, 4)
-    rect(c, 0, 52, 240, 98, "dirt")
-    rect(c, 0, 52, 240, 53, "dirt_hi")
-    for x in range(0, 240, 5):
-        dot(c, x, 58 + (x * 7) % 30, "dirt_s")
-        dot(c, x + 2, 62 + (x * 11) % 31, "dirt_dk")
-        dot(c, x + 1, 56 + (x * 13) % 37, "dirt_hi")
-    # 베이스 (가운데, 크게, 옆에서 본 사다리꼴 + 두께)
+    sun(c, 176, 48, 15)
+    crowd(c, 44, 52, 4)
+    rect(c, 0, 52, 240, 98, "dirt_dk")
+    rect(c, 0, 52, 240, 53, "dirt_s")
     c.ramp(poly([(84, 74), (156, 74), (172, 86), (68, 86)]), "bag", 1)
     rect(c, 68, 86, 173, 90, "bag_s")
     rect(c, 68, 89, 173, 90, "bag_dk")
@@ -242,282 +302,328 @@ def panel_bag():
 
 
 def panel_sky():
+    """루심을 올려다보는 하늘: 노을 띠, 아래에 해와 관중석 덩어리"""
     c = Cell(240, PANEL_H, 0, 0)
-    bands(c, 0, 98, ["dusk0", "dusk1", "dusk2", "dusk3", "dusk4", "dusk5"])
-    crowd(c, 70, 90, 5)
-    rect(c, 0, 90, 240, 98, "dirt")
+    bands(c, 0, 80, ["dusk1", "dusk2", "dusk3", "dusk4"])
+    sun(c, 152, 74, 16)
+    crowd(c, 76, 92, 5)
+    rect(c, 0, 92, 240, 98, "dirt_dk")
     return c
 
 
 def panel_wide():
-    """운동장 전체, 노을: 위 하늘, 관중석, 넓은 외야 잔디, 내야 흙 다이아몬드(납작), 왼쪽 아래 덕아웃"""
+    """운동장 전체, 노을: 위 하늘, 지평선 해, 관중석, 그늘진 외야, 내야 흙 다이아몬드(납작), 왼쪽 아래 덕아웃"""
     c = Cell(260, PANEL_H, 0, 0)
-    bands(c, 0, 36, ["dusk0", "dusk1", "dusk2", "dusk3", "dusk4", "dusk5"])
-    c.put(c._mask(ellipse((190, 34), 14, 6)), PAL["sun"])
-    crowd(c, 30, 44, 6)
+    bands(c, 0, 38, ["dusk1", "dusk2", "dusk3", "dusk4"])
+    sun(c, 196, 36, 11)
+    crowd(c, 32, 44, 6)
     for x in (30, 130, 230):
-        light_pole(c, x, 14, 30)
-    rect(c, 0, 44, 260, 48, "wall")
-    rect(c, 0, 48, 260, 98, "grass")
-    for y in range(50, 98, 8):  # 잔디 줄무늬 (멀수록 촘촘하게 보이도록 가로 띠)
-        rect(c, 0, y, 260, y + 3, "grass_hi")
-    c.part(poly([(130, 60), (230, 78), (130, 98), (30, 78)]), "dirt", "dirt_s", outline=False)
-    c.part(poly([(130, 66), (200, 78), (130, 92), (60, 78)]), "grass", outline=False)
+        light_pole(c, x, 14, 32)
+    rect(c, 0, 44, 260, 48, "wall_s")
+    rect(c, 0, 48, 260, 98, "grass_dk")
+    c.part(poly([(130, 60), (230, 78), (130, 98), (30, 78)]), "dirt_s", outline=False)
+    c.part(poly([(130, 66), (200, 78), (130, 92), (60, 78)]), "grass_dk", outline=False)
     for (x, y) in [(130, 61), (226, 78), (34, 78)]:
         c.part(poly([(x - 3, y), (x, y - 1), (x + 3, y), (x, y + 1)]), "bag", outline=False)
-    # 덕아웃 (왼쪽 아래 어두운 띠)
     rect(c, 0, 84, 46, 98, "dug_roof")
     rect(c, 0, 84, 46, 85, "rail_hi")
     return c
 
 
-# ---------- 인물 칸 ----------
-
-def cell():
-    return Cell(CELL_W, CELL_H, 0, 0)
-
-
-def dress(colors, fn):
-    mg.swap(colors, fn)
-
-
-def draw_coach(i):
-    """감독: 0 앞을 본다 · 1 고개를 벤치 쪽(왼쪽)으로 — 칸을 뒤집어 왼쪽을 보게 한다"""
-    c = cell()
-    x, base = 48, FOOT[1] - tr.FLOOR
-
-    def body():
-        k = standing(x, fe=(x + 2, 41), fh=(x + 1, 48), be=(x - 1, 41), bh=(x - 2, 48))
-        if i == 1:
-            k.update(head=(x + 3, 25), fe=(x + 6, 36), fh=(x + 13, 33))  # 고개를 돌리고 손짓
-        for kk, v in list(k.items()):
-            k[kk] = (v[0], v[1] + base)
-        guy(c, k)
-    dress(COACH, body)
-    return flip(c)
+def apartments(c, y_base, seed):
+    """먼 아파트 단지: 높이가 다른 큰 사각 덩어리 몇 개 (수원 — 번호로 정해지는 높이)"""
+    x = 0
+    k = 0
+    while x < c.w:
+        w = 18 + (k * 7 + seed) % 14
+        h = 14 + (k * 11 + seed * 3) % 16
+        rect(c, x, y_base - h, x + w - 2, y_base, "stand")
+        x += w
+        k += 1
 
 
-def draw_bench(i):
-    """덕아웃 앞줄 선수 등 실루엣 (노을빛 테두리가 오른쪽 위에): 0 앉음 · 1 일어나 난간에 붙음"""
-    c = cell()
-    x, y = 48, FOOT[1]
-    if i == 0:
-        head, sh, hip = (x, y - 34), (x, y - 26), (x, y - 8)
-    else:
-        head, sh, hip = (x + 3, y - 52), (x + 2, y - 44), (x, y - 22)
-    c.part(capsule(sh, hip, 18), "sil", "sil_s")
-    c.part(capsule((sh[0] - 9, sh[1] + 2), (sh[0] + 9, sh[1] + 2), 8), "sil", "sil_s")
-    c.part(circle(head, 7), "sil", "sil_s")
-    c.part(ellipse((head[0], head[1] - 3), 7.5, 4.5), "sil")  # 모자
-    if i == 1:  # 난간을 잡은 팔
-        c.part(capsule((sh[0] - 9, sh[1] + 2), (sh[0] - 12, y - 30), 5), "sil")
-        c.part(capsule((sh[0] + 9, sh[1] + 2), (sh[0] + 12, y - 30), 5), "sil")
-    # 오른쪽 위 가장자리에 노을빛 (실루엣이 판에 묻히지 않게)
-    solid = c.rgba[..., 3] == 255
-    rim = solid & ~np.roll(solid, -1, axis=1) | solid & ~np.roll(solid, 1, axis=0)
-    rim &= c.rgba[..., 0] < 60
-    c.put(rim & (np.arange(CELL_W)[None, :] > x - 2), PAL["sil_rim"])
+def panel_school():
+    """EP01 새벽의 서림고: 해 뜨는 하늘, 먼 아파트 덩어리, 컨테이너 부실(창 하나에 불), 넓은 흙 운동장"""
+    c = Cell(300, PANEL_H, 0, 0)
+    bands(c, 0, 58, ["dawn0", "dawn1", "dawn2", "dawn3"])
+    sun(c, 214, 54, 14)
+    apartments(c, 58, 3)
+    rect(c, 0, 58, 300, 98, "dirt_dk")
+    rect(c, 0, 58, 300, 59, "dirt_s")
+    rect(c, 22, 40, 92, 62, "sil")  # 컨테이너 부실
+    rect(c, 22, 40, 92, 41, "sil_rim_hi")
+    rect(c, 70, 46, 80, 52, "window")
+    for x in range(110, 300, 36):  # 펜스 기둥
+        rect(c, x, 44, x + 1, 58, "sil")
+    rect(c, 110, 44, 300, 45, "sil")
     return c
 
 
-def draw_face(i):
-    """김성호 얼굴 클로즈업 (왼쪽 3/4, 노을빛이 왼쪽에서): 0 고개 숙임 · 1 눈 듦 · 2 이를 문다(땀)"""
-    c = cell()
-    cx, cy = 50, 46 + (6 if i == 0 else 0)
-    # 어깨·목 (유니폼)
-    c.ramp(poly([(8, 96), (16, 78), (34, 70), (66, 70), (86, 80), (92, 96)]), "jersey2", 2)
-    c.ramp(poly([(40, 60), (60, 60), (62, 74), (38, 74)]), "face", 1)
-    rect(c, 30, 72, 70, 74, "us_cap_s")  # 깃
-    # 얼굴 (턱이 조금 뾰족한 둥근 판)
-    c.ramp([ellipse((cx, cy), 21, 23), poly([(cx - 15, cy + 10), (cx + 15, cy + 10), (cx + 3, cy + 24), (cx - 5, cy + 24)])], "face", 2)
-    # 귀 (오른쪽)
-    c.ramp(ellipse((cx + 21, cy + 2), 4, 6), "face", 1)
-    # 머리카락 (모자 아래 옆머리)
-    c.part(poly([(cx + 12, cy - 14), (cx + 22, cy - 10), (cx + 22, cy - 2), (cx + 16, cy - 6)]), "hair2", "hair2_hi")
-    # 모자 (파랑) + 챙
-    c.ramp(ellipse((cx + 1, cy - 14), 23, 13), "us_cap", 2)
-    brim_y = cy - 6
-    c.ramp(poly([(cx - 26, brim_y - 1), (cx + 14, brim_y - 2), (cx + 16, brim_y + 2), (cx - 22, brim_y + 4)]), "us_cap", 1)
-    # 챙 그늘이 이마·눈썹을 덮는다
-    shade = c._mask(poly([(cx - 20, brim_y + 4), (cx + 15, brim_y + 2), (cx + 15, brim_y + 7), (cx - 18, brim_y + 9)]))
-    face_px = (c.rgba[..., :3] == PAL["face"]).all(-1) | (c.rgba[..., :3] == PAL["face_hi"]).all(-1)
-    c.put(shade & face_px, PAL["face_s"])
-    ey = cy + 4
-    if i == 0:
-        # 고개 숙임: 눈은 감은 듯 가는 선, 챙 그늘이 깊다
-        for ex in (cx - 11, cx + 6):
-            rect(c, ex, ey + 1, ex + 7, ey + 2, "face_dk")
-        rect(c, cx - 4, cy + 15, cx + 4, cy + 16, "face_dk")
-    else:
-        # 눈 듦: 흰자 · 검은자(위를 본다) · 반짝임 한 칸 (애니메이션풍 눈)
-        for ex, w in ((cx - 12, 8), (cx + 5, 7)):
-            rect(c, ex, ey - 1, ex + w, ey + 4, "eye_w")
-            rect(c, ex + 2, ey - 1, ex + w - 1, ey + 4, "iris")
-            dot(c, ex + 3, ey, "eye_w")
-            rect(c, ex - 1, ey - 2, ex + w + 1, ey - 1, "brow")  # 위 눈꺼풀
-        # 눈썹 (안쪽이 올라간다 — 놀람 / 2 는 내려간다 — 결심)
-        if i == 1:
-            rect(c, cx - 13, ey - 6, cx - 5, ey - 5, "brow")
-            rect(c, cx + 5, ey - 6, cx + 12, ey - 5, "brow")
-            dot(c, cx - 6, ey - 7, "brow")
-            dot(c, cx + 5, ey - 7, "brow")
-            rect(c, cx - 3, cy + 15, cx + 3, cy + 17, "face_dk")  # 살짝 벌어진 입
-        else:
-            rect(c, cx - 13, ey - 5, cx - 5, ey - 4, "brow")
-            rect(c, cx + 5, ey - 5, cx + 12, ey - 4, "brow")
-            dot(c, cx - 6, ey - 4, "brow")
-            dot(c, cx + 5, ey - 4, "brow")
-            rect(c, cx - 5, cy + 15, cx + 5, cy + 16, "lip")  # 꽉 다문 입
-            c.part(ellipse((cx - 18, cy + 2), 1.2, 2.2), "sweat2", outline=False)
-    # 코 그늘
-    rect(c, cx - 2, cy + 9, cx, cy + 11, "face_s")
+def panel_cheongun():
+    """EP03 청운고: 3층 숙소 덩어리(불 켜진 창), 큰 전광판, 초록 인조잔디 — 서림고 흙 운동장과 다르게 밝고 넓다"""
+    c = Cell(320, PANEL_H, 0, 0)
+    bands(c, 0, 52, ["dusk2", "dusk3", "dusk4"])
+    sun(c, 160, 50, 12)
+    rect(c, 10, 18, 120, 56, "stand_s")  # 숙소
+    for fy in (24, 34, 44):
+        for fx in range(16, 116, 10):
+            rect(c, fx, fy, fx + 5, fy + 4, "window")
+    rect(c, 210, 14, 300, 40, "sil")  # 전광판
+    rect(c, 214, 18, 296, 36, "stand_s")
+    for x in (224, 286):
+        rect(c, x, 40, x + 3, 56, "sil")
+    rect(c, 0, 56, 320, 98, "grass")
+    rect(c, 0, 56, 320, 57, "grass_hi")
+    rect(c, 0, 80, 320, 98, "grass_s")
     return c
 
 
-def run_pose(i, x=48):
-    bob = [0, 1, 0, 1][i]
-    k = standing(x, head=(x + 4, 26 + bob), sh=(x + 2, 34 + bob), hip=(x, 48 + bob), **mg.RUN[i](x))
-    base = FOOT[1] - tr.FLOOR
-    return {kk: (v[0], v[1] + base) for kk, v in k.items()}
-
-
-def draw_batter(i):
-    """김성호 타석 (오른쪽을 본다): 0 준비 · 1 내딛기 · 2 맞는 순간 · 3 팔로스루 — make_minigame_art 의 타격 포즈를 경기복으로"""
-    c = cell()
-    x = 46
-    poses = [
-        standing(x, be=(x - 6, 36), bh=(x - 4, 30), fe=(x - 2, 38), fh=(x - 4, 30), bat=((x - 4, 30), -115)),
-        standing(x, fk=(x + 6, 57), fft=(x + 10, tr.FLOOR - 1), be=(x - 7, 37), bh=(x - 5, 31), fe=(x - 3, 39), fh=(x - 5, 31), bat=((x - 5, 31), -140)),
-        standing(x + 1, head=(x + 3, 26), sh=(x + 1, 35), fk=(x + 6, 57), fft=(x + 9, tr.FLOOR - 1), be=(x + 1, 42), bh=(x + 7, 45), fe=(x + 5, 40), fh=(x + 7, 45), bat=((x + 7, 45), 2)),
-        standing(x + 1, head=(x + 3, 26), sh=(x + 1, 35), fk=(x + 6, 57), fft=(x + 9, tr.FLOOR - 1), bk=(x - 1, 58), bft=(x - 3, tr.FLOOR - 2),
-                 be=(x + 5, 37), bh=(x + 3, 30), fe=(x + 6, 35), fh=(x + 3, 30), bat=((x + 3, 30), -165)),
-    ]
-    base = FOOT[1] - tr.FLOOR
-    k = {kk: ((v[0][0], v[0][1] + base), v[1]) if kk == "bat" else (v[0], v[1] + base) for kk, v in poses[i].items()}
-    dress(UNIFORM, lambda: guy(c, k))
-    if i == 2:
-        for d in [(-3, -4), (4, -5), (5, 2), (-2, 4), (6, -1)]:
-            c.put(c._mask(circle((x + 30 + d[0] * 1.4, 45 + base + d[1] * 1.4), 0.7)), PAL["line"])
+def panel_sink():
+    """EP03 수돗가: 노을 하늘 아래 낮은 담, 긴 콘크리트 수돗가와 수도꼭지 덩어리"""
+    c = Cell(240, PANEL_H, 0, 0)
+    bands(c, 0, 50, ["dusk2", "dusk3", "dusk4"])
+    sun(c, 150, 44, 16)
+    rect(c, 0, 40, 240, 52, "concrete_s")
+    rect(c, 0, 52, 240, 98, "dirt_dk")
+    rect(c, 40, 62, 210, 72, "concrete")  # 수돗가
+    rect(c, 40, 72, 210, 98, "concrete_s")
+    rect(c, 40, 62, 210, 63, "sil_rim_hi")
+    for x in range(56, 200, 28):
+        rect(c, x, 56, x + 3, 62, "sil")
+        rect(c, x, 56, x + 7, 58, "sil")
     return c
 
 
-def draw_run(i):
-    """0~3 달리기 (헬멧) · 4~7 달리기 (헬멧이 벗겨져 머리카락이 날린다)"""
-    c = cell()
-    k = run_pose(i % 4)
-    if i < 4:
-        dress(UNIFORM, lambda: guy(c, k))
-    else:
-        dress(UNIFORM, lambda: guy(c, k, cap=False))
-        hx_, hy = k["head"]
-        c.part(ellipse((hx_ - 1, hy - 3), 6.5, 4), "hair2", "hair2_hi")
-        c.part(poly([(hx_ - 6, hy - 4), (hx_ - 11, hy - 6 + (i % 2)), (hx_ - 6, hy - 1)]), "hair2")  # 뒤로 날리는 머리
-        c.put(c._mask(poly([(hx_ + 2, hy), (hx_ + 6, hy), (hx_ + 6, hy + 1), (hx_ + 2, hy + 1)])), PAL["ink"])  # 눈 (옆)
-    # 바람 줄 (뒤쪽)
-    for j, y in enumerate((30, 42, 54)):
-        rect(c, 10 + (i * 3 + j * 5) % 8, y + FOOT[1] - tr.FLOOR, 22 + (i * 3 + j * 5) % 8, y + 1 + FOOT[1] - tr.FLOOR, "line")
+def panel_cage_night():
+    """EP07 겨울밤 배팅 케이지: 남색 밤, 왼쪽 위 전구 하나(따뜻한 빛무리), 굵은 그물 줄, 어두운 바닥"""
+    c = Cell(240, PANEL_H, 0, 0)
+    bands(c, 0, 98, ["night0", "night1", "night2"])
+    sun(c, 70, 16, 10)
+    for x in range(0, 240, 16):
+        rect(c, x, 0, x + 1, 80, "rail")
+    for y in range(8, 80, 16):
+        rect(c, 0, y, 240, y + 1, "rail")
+    rect(c, 0, 80, 240, 98, "sil")
+    rect(c, 0, 80, 240, 81, "rail_hi")
     return c
 
 
-def draw_helmet(i):
-    """날아가는 헬멧: 장마다 기울기를 따로 찍는다 (회전 없이)"""
-    c = cell()
-    cx, cy = 48, 70
-    if i == 0:
-        c.ramp(ellipse((cx, cy), 8, 6.5), "us_cap", 1)
-        c.ramp(poly([(cx + 4, cy + 2), (cx + 12, cy + 3), (cx + 11, cy + 5), (cx + 3, cy + 5)]), "us_cap", 1)
-        c.ramp(ellipse((cx - 3, cy + 4), 3, 3), "us_cap", 1)  # 귀 덮개
-    elif i == 1:
-        c.ramp(ellipse((cx, cy), 6.5, 8), "us_cap", 1)
-        c.ramp(poly([(cx + 2, cy - 6), (cx + 4, cy - 13), (cx + 6, cy - 12), (cx + 5, cy - 5)]), "us_cap", 1)
-        c.ramp(ellipse((cx + 3, cy + 4), 3, 3), "us_cap", 1)
-    else:
-        c.ramp(ellipse((cx, cy), 8, 6.5), "us_cap", 1)
-        c.ramp(poly([(cx - 4, cy - 2), (cx - 12, cy - 3), (cx - 11, cy - 5), (cx - 3, cy - 5)]), "us_cap", 1)
-        c.ramp(ellipse((cx + 3, cy - 4), 3, 3), "us_cap", 1)
-    dot(c, cx - 3, cy - 3, "us_gl")
-    dot(c, cx - 2, cy - 3, "us_gl")
+def panel_clubroom_night():
+    """EP07 밤의 컨테이너 부실: 밤하늘, 컨테이너 덩어리에 환한 창 하나 (창 안 사람은 인물 칸 soyul_window)"""
+    c = Cell(240, PANEL_H, 0, 0)
+    bands(c, 0, 98, ["night0", "night1", "night2"])
+    for i in range(14):  # 별 몇 개 (번호로 정해지는 자리)
+        dot(c, (i * 53) % 240, 4 + (i * 29) % 30, "chalk")
+    rect(c, 30, 30, 210, 86, "sil")
+    rect(c, 30, 30, 210, 31, "rail_hi")
+    rect(c, 96, 42, 146, 72, "window")  # 창 (사람 칸의 발 자리 = 창틀 72)
+    rect(c, 0, 86, 240, 98, "dirt_dk")
     return c
 
 
-def draw_foot(i):
-    """베이스를 밟는 발 (크게, 왼쪽에서 내려온다): 정강이(흰 바지+파랑 양말) + 스파이크"""
-    c = cell()
-    c.ramp(poly([(30, 0), (52, 0), (56, 60), (36, 62)]), "sock", 2)
-    c.ramp(poly([(28, 0), (54, 0), (54, 16), (30, 18)]), "jersey2", 2)
-    c.ramp([ellipse((54, 72), 22, 9), poly([(34, 58), (58, 58), (60, 70), (34, 72)])], "shoe2", 2)
-    rect(c, 32, 80, 78, 82, "spike")
-    for x in range(36, 76, 8):
-        rect(c, x, 82, x + 2, 84, "spike")
-    rect(c, 40, 66, 70, 67, "shoe2_hi")  # 끈
+def panel_stands():
+    """EP08 서호대 1루 관중석: 노을, 큰 계단 덩어리(앉은 자리 76), 오른쪽 아래로 운동장이 조금"""
+    c = Cell(260, PANEL_H, 0, 0)
+    bands(c, 0, 60, ["dusk1", "dusk2", "dusk3", "dusk4"])
+    sun(c, 200, 52, 14)
+    for i, y in enumerate(range(56, 98, 10)):
+        rect(c, 0, y, 260, y + 10, "stand" if i % 2 == 0 else "stand_s")
+        rect(c, 0, y, 260, y + 1, "sil_rim")
     return c
 
 
-def draw_mitt(i):
-    """1루수 미트 (크게, 오른쪽에서 내민다): 0 빈 미트 · 1 공이 꽂힘"""
-    c = cell()
-    c.ramp(poly([(96, 50), (70, 44), (66, 58), (96, 66)]), "jersey2", 2)  # 팔
-    c.ramp([ellipse((46, 56), 24, 22)], "glove2", 2)
-    c.ramp(ellipse((40, 58), 13, 12), "glove2", 1)
-    c.put(c._mask(ellipse((40, 58), 10, 9)), PAL["glove2_dk"])
-    for y in range(40, 76, 6):  # 손가락 이음새
-        rect(c, 58, y, 66, y + 1, "glove2_dk")
-    if i == 1:
-        c.ramp(circle((40, 57), 7), "jersey2", 1)
-        rect(c, 36, 54, 44, 55, "them")  # 실밥
-        rect(c, 36, 60, 44, 61, "them")
+def panel_museum():
+    """하린 미술관: 왼쪽 큰 창의 빛, 어두운 벽에 큰 그림 두 점(색 덩어리만), 가운데 긴 의자, 어두운 바닥"""
+    c = Cell(300, PANEL_H, 0, 0)
+    rect(c, 0, 0, 300, 98, "museum_wall")
+    rect(c, 6, 6, 70, 80, "window")
+    rect(c, 36, 6, 38, 80, "museum_wall")
+    rect(c, 6, 42, 70, 44, "museum_wall")
+    for x0, col in ((110, "frame_a"), (200, "frame_b")):
+        rect(c, x0, 18, x0 + 70, 58, "sil")
+        rect(c, x0 + 4, 22, x0 + 66, 54, col)
+        rect(c, x0 + 4, 40, x0 + 66, 54, "dusk2" if col == "frame_a" else "dusk4")
+    rect(c, 0, 80, 300, 98, "floor")
+    c.put(c._mask(poly([(6, 80), (70, 80), (110, 98), (20, 98)])), PAL["dusk1"])  # 창빛이 바닥에
+    rect(c, 140, 74, 230, 78, "sil")  # 긴 의자
+    rect(c, 146, 78, 150, 88, "sil")
+    rect(c, 220, 78, 224, 88, "sil")
     return c
 
 
-def draw_ump(i):
-    """루심 (오른쪽을 본다, 왼쪽 판 하늘 앞): 0 몸을 숙여 지켜봄 · 1 아웃 — 주먹을 들어 올린다"""
-    c = cell()
-    x = 48
-    base = FOOT[1] - tr.FLOOR
-    if i == 0:
-        k = standing(x, head=(x + 5, 30), sh=(x + 3, 38), hip=(x - 2, 51), fk=(x + 5, 58), bk=(x - 6, 58),
-                     fe=(x + 6, 46), fh=(x + 7, 52), be=(x - 1, 46), bh=(x + 1, 52))
-    else:
-        k = standing(x, fe=(x + 4, 24), fh=(x + 2, 15), be=(x - 2, 41), bh=(x - 1, 48))
-    k = {kk: (v[0], v[1] + base) for kk, v in k.items()}
-    dress(UMP, lambda: guy(c, k))
-    if i == 1:
-        c.part(circle(k["fh"], 2.5), "skin", "skin_s")  # 주먹
+def panel_clubroom_in():
+    """소율 부실 안: 어두운 컨테이너 벽, 책상 위 노트북 화면 하나가 빛 (폴더 칸들은 큰 사각형만)"""
+    c = Cell(240, PANEL_H, 0, 0)
+    bands(c, 0, 98, ["night1", "night2", "museum_wall"])
+    rect(c, 80, 22, 160, 66, "screen_s")
+    rect(c, 82, 24, 158, 64, "screen")
+    for i in range(4):
+        rect(c, 88 + i * 17, 30, 100 + i * 17, 40, "screen_s")
+    rect(c, 88, 52, 152, 56, "screen_s")
+    rect(c, 88, 52, 130, 56, "sil")  # 영상 진행 막대
+    rect(c, 0, 66, 240, 98, "dug_floor")
+    rect(c, 0, 66, 240, 67, "rail_hi")
     return c
 
 
-def draw_tiny(i):
-    """먼 김성호 (작게, 16칸 키): 0 서기 (오른쪽을 본다) · 1 덕아웃 쪽(왼쪽)으로 돌아섬 · 2 허리 숙여 인사"""
-    c = cell()
-    x, y = 48, FOOT[1]
-    face_left = i >= 1
-    s = -1 if face_left else 1
-    if i < 2:
-        c.part(capsule((x, y - 12), (x, y - 6), 5), "jersey2", "jersey2_s")
-        c.part(capsule((x - 1, y - 6), (x - 2, y), 2), "jersey2_s")
-        c.part(capsule((x + 1, y - 6), (x + 2, y), 2), "jersey2_s")
-        c.part(circle((x + s, y - 15), 2.5), "hair2")
-        dot(c, x + s * 2, y - 15, "face")
-    else:
-        c.part(capsule((x - 1, y - 6), (x - 2, y), 2), "jersey2_s")
-        c.part(capsule((x + 1, y - 6), (x + 2, y), 2), "jersey2_s")
-        c.part(capsule((x, y - 7), (x - 6, y - 10), 5), "jersey2", "jersey2_s")
-        c.part(circle((x - 9, y - 9), 2.5), "hair2")
-    c.put(c._mask(ellipse((x, y + 1), 4, 1)), PAL["ink"], 70)  # 발밑 그림자 (Cell.shadow 는 칸 원점에 그린다)
+def panel_school_morning():
+    """EP01 3월 아침 (다양화 시험): 차고 맑은 하늘, 오른쪽 낮은 해, 하늘색에 묻힌 먼 아파트(멀수록 옅다),
+    가운데 컨테이너 부실과 그물 펜스, 넓은 흙 운동장에 펜스 기둥 그림자가 왼쪽으로 길게"""
+    c = Cell(300, PANEL_H, 0, 0)
+    bands(c, 0, 62, ["m_sky0", "m_sky1", "m_sky2", "m_sky3"])
+    c.put(c._mask(circle((252, 50), 13)), PAL["m_glow"])
+    c.put(c._mask(circle((252, 50), 8)), PAL["m_sun"])
+    x, k = 0, 0
+    while x < 300:  # 먼 아파트 (옅게, 높이는 번호로)
+        w = 20 + (k * 7 + 5) % 14
+        h = 12 + (k * 11 + 9) % 14
+        rect(c, x, 62 - h, x + w - 3, 62, "m_far" if k % 2 else "m_far_s")
+        x += w
+        k += 1
+    rect(c, 0, 58, 300, 62, "m_far_s")
+    rect(c, 34, 42, 108, 64, "m_mid")  # 컨테이너 부실
+    rect(c, 34, 42, 108, 43, "m_win")
+    rect(c, 34, 60, 108, 64, "m_mid_s")
+    for wx in (46, 66, 86):
+        rect(c, wx, 48, wx + 10, 54, "m_win")
+    for px in range(128, 300, 30):  # 그물 펜스 기둥 + 위 가로대 + 그물 (성긴 바둑판)
+        rect(c, px, 40, px + 1, 64, "m_mid")
+    rect(c, 128, 40, 300, 41, "m_mid")
+    for yy in range(43, 64, 3):
+        for xx in range(128 + (yy % 2), 300, 3):
+            dot(c, xx, yy, "m_mid_s", 110)
+    rect(c, 0, 64, 300, 98, "m_dirt")
+    rect(c, 0, 64, 300, 65, "m_dirt_hi")
+    for px in range(128, 300, 30):  # 기둥 그림자 (해가 오른쪽 → 왼쪽 아래로 길게)
+        c.put(c._mask(poly([(px, 64), (px + 2, 64), (px - 40, 98), (px - 44, 98)])), PAL["m_dirt_s"])
+    for xx in range(0, 300, 7):  # 흙 알갱이
+        dot(c, xx, 70 + (xx * 7) % 24, "m_dirt_s")
+        dot(c, xx + 3, 74 + (xx * 5) % 20, "m_dirt_hi")
+    rect(c, 0, 82, 300, 83, "m_line")  # 파울 선 (멀리)
     return c
 
 
-def draw_tiny_helmet(i):
-    c = cell()
-    c.part(ellipse((48, FOOT[1] - 1), 2.5, 1.5), "us_cap", "us_cap_s")
+def panel_watch_bg():
+    """스톱워치 클로즈업 뒤: 초점이 나간 아침 하늘과 흙 (큰 띠 둘 + 흐린 빛망울)"""
+    c = Cell(240, PANEL_H, 0, 0)
+    bands(c, 0, 56, ["m_sky1", "m_sky2", "m_sky3"])
+    rect(c, 0, 56, 240, 98, "m_dirt")
+    bands(c, 52, 62, ["m_sky3", "m_dirt_hi", "m_dirt"])
+    for x, y, r, col in [(30, 20, 9, "m_sky3"), (90, 34, 6, "m_glow"), (170, 16, 11, "m_sky3"), (210, 70, 8, "m_dirt_hi"), (60, 78, 6, "m_dirt_hi")]:
+        c.put(c._mask(circle((x, y), r)), PAL[col])
     return c
 
 
-PANELS = [("dugout", panel_dugout), ("dark", panel_dark), ("plate", panel_plate), ("baseline", panel_baseline),
-          ("bag", panel_bag), ("sky", panel_sky), ("wide", panel_wide)]
-SPRITES = [("coach", draw_coach, 2), ("bench", draw_bench, 2), ("face", draw_face, 3), ("batter", draw_batter, 4),
-           ("run", draw_run, 8), ("helmet", draw_helmet, 3), ("foot", draw_foot, 1), ("mitt", draw_mitt, 2),
-           ("ump", draw_ump, 2), ("tiny", draw_tiny, 3), ("tiny_helmet", draw_tiny_helmet, 1)]
+def panel_museum_white():
+    """하린 미술관 (다양화 시험): 하얀 전시실. 왼쪽 큰 창의 빛이 바닥에 비스듬히, 천장 조명 셋,
+    큰 그림 둘(차가운 추상 · 남색 바탕의 해), 그 앞에 긴 의자. 실루엣이 밝은 벽 앞에서 또렷하다"""
+    c = Cell(300, PANEL_H, 0, 0)
+    rect(c, 0, 0, 300, 98, "g_wall")
+    rect(c, 0, 66, 300, 76, "g_wall_s")  # 벽 아래 그늘
+    rect(c, 0, 76, 300, 98, "g_floor")
+    for x in range(0, 300, 22):  # 마루 이음새
+        rect(c, x, 76, x + 1, 98, "g_floor_s")
+    rect(c, 0, 76, 300, 77, "g_floor_s")
+    rect(c, 4, 8, 64, 76, "g_frame")  # 큰 창
+    rect(c, 7, 11, 61, 73, "g_light")
+    rect(c, 33, 11, 35, 73, "g_frame")
+    rect(c, 7, 40, 61, 42, "g_frame")
+    c.put(c._mask(poly([(7, 76), (61, 76), (118, 98), (40, 98)])), PAL["g_light"])  # 바닥의 창빛
+    for x in (120, 200, 270):  # 천장 조명
+        rect(c, x - 3, 0, x + 4, 3, "g_frame")
+        c.put(c._mask(poly([(x - 2, 3), (x + 3, 3), (x + 14, 24), (x - 13, 24)])), PAL["g_spot"], 90)
+    # 그림 A: 차가운 추상 띠
+    rect(c, 96, 18, 166, 60, "g_wood")
+    rect(c, 99, 21, 163, 57, "p_sky")
+    for i, col in enumerate(["p_blue", "p_teal", "p_navy", "p_blue"]):
+        rect(c, 99, 30 + i * 7, 163 - (i * 9) % 20, 35 + i * 7, col)
+    # 그림 B: 남색 바탕에 큰 해 (하린이 보는 그림)
+    rect(c, 186, 14, 268, 62, "g_wood")
+    rect(c, 189, 17, 265, 59, "p_navy")
+    c.put(c._mask(circle((226, 40), 13)), PAL["p_ochre"])
+    c.put(c._mask(circle((226, 40), 9)), PAL["p_sun"])
+    rect(c, 189, 50, 265, 59, "p_blue")
+    # 긴 의자 (앉은 칸의 발 자리 = 앉는 판 80)
+    rect(c, 176, 80, 262, 84, "g_bench")
+    rect(c, 180, 84, 184, 94, "g_bench")
+    rect(c, 254, 84, 258, 94, "g_bench")
+    return c
+
+
+def panel_painting_close():
+    """그림 클로즈업 (카메라가 천천히 훑는다): 왼쪽 끝 액자 나무, 붓질 같은 색 덩어리 (가장자리는 번호로 들쭉날쭉)"""
+    c = Cell(320, PANEL_H, 0, 0)
+    rect(c, 0, 0, 320, 98, "p_navy")
+    rows = [(0, 16, "p_navy"), (16, 30, "p_blue"), (30, 40, "p_teal"), (40, 52, "p_sky"), (52, 60, "p_cream"), (60, 74, "p_blue"), (74, 98, "p_navy")]
+    for y0, y1, col in rows:
+        for x in range(0, 320, 4):
+            j = (x * 37 + y0 * 11) % 5 - 2  # 붓질 가장자리
+            rect(c, x, y0 + j, x + 4, y1 + ((x * 13 + y1) % 3) - 1, col)
+    c.put(c._mask(circle((210, 44), 22)), PAL["p_ochre"])  # 해
+    c.put(c._mask(circle((210, 44), 15)), PAL["p_sun"])
+    for x in range(150, 280, 6):  # 해 둘레 붓자국
+        dot(c, x, 20 + (x * 7) % 8, "p_rose")
+        dot(c, x + 2, 66 + (x * 5) % 6, "p_ochre")
+    rect(c, 0, 0, 12, 98, "g_wood")
+    rect(c, 12, 0, 13, 98, "g_frame")
+    return c
+
+
+# ---------- 인물 칸 (손으로 찍은 격자 — scripts/cutscene_grids.py) ----------
+
+def draw_rail(i):
+    """덕아웃 난간 + 앞벽 (rise 앞에 놓는 소품): 위에 빛 받은 손잡이 한 줄, 아래 어두운 벽. 칸 셋을 이어 붙여 판 넓이를 덮는다"""
+    c = cell()
+    rect(c, 0, 58, CELL_W, 96, "dug_roof")
+    rect(c, 0, 58, CELL_W, 62, "rail")
+    rect(c, 0, 58, CELL_W, 59, "sil_rim_hi")
+    for x in (10, 58):
+        rect(c, x, 62, x + 3, 96, "rail")
+    return c
+
+
+def pair_cell(left, right, gap, flip_x=False, scheme="dusk"):
+    """격자 둘을 한 칸에 나란히 (먼 두 사람을 한 장으로 — 컷마다 그림 장 수를 줄인다). 오른쪽 사람은 gap 칸 옆"""
+    a = stamp_grid(left, flip_x, scheme)
+    b = stamp_grid(right, flip_x, scheme)
+    shifted_b = np.zeros_like(b.rgba)
+    shifted_b[:, gap:] = b.rgba[:, :CELL_W - gap]
+    solid = shifted_b[..., 3] == 255
+    a.rgba[solid] = shifted_b[solid]
+    return a
+
+
+def grid_row(*names, flip_x=False, scheme="dusk"):
+    return lambda i: stamp_grid(names[i], flip_x=flip_x, scheme=scheme)
+
+
+PANELS = [("dugout", panel_dugout), ("rail", panel_rail), ("plate", panel_plate), ("baseline", panel_baseline),
+          ("bag", panel_bag), ("sky", panel_sky), ("wide", panel_wide),
+          ("school", panel_school), ("cheongun", panel_cheongun), ("sink", panel_sink), ("cage_night", panel_cage_night),
+          ("clubroom_night", panel_clubroom_night), ("stands", panel_stands), ("museum", panel_museum), ("clubroom_in", panel_clubroom_in),
+          # 2026-11-05 다양화 시험
+          ("school_morning", panel_school_morning), ("watch_bg", panel_watch_bg), ("museum_white", panel_museum_white),
+          ("painting_close", panel_painting_close)]
+# 인물 줄: (이름, 그리는 함수, 장 수). 장은 왼쪽부터
+SPRITES = [("coach", grid_row("COACH"), 1), ("bench", grid_row("BENCH_SIT", "BENCH_STAND"), 2), ("rise", grid_row("RISE"), 1),
+           ("rail", draw_rail, 1), ("batter", grid_row("BAT_READY", "BAT_HIT"), 2), ("run", grid_row("RUN_A", "RUN_B"), 2),
+           ("helmet", grid_row("HELMET"), 1), ("foot", grid_row("FOOT"), 1), ("mitt", grid_row("MITT"), 1),
+           ("ump", grid_row("UMP_WATCH", "UMP_OUT"), 2), ("tiny", grid_row("TINY_STAND", "TINY_BOW"), 2),
+           ("tiny_helmet", grid_row("TINY_HELMET"), 1),
+           # 에피소드별 컷신 (2026-11-05)
+           ("tiny_walk", grid_row("TINY_STAND", "TINY_WALK"), 2), ("coach_front", grid_row("COACH_CROSS"), 1),
+           ("sink", grid_row("TAEO_SINK_A", "TAEO_SINK_B"), 2), ("pitcher", grid_row("PITCHER_SET", "PITCHER_KICK"), 2),
+           ("toss", grid_row("TOSS"), 1), ("pivot", grid_row("PIVOT"), 1), ("ball", grid_row("BALL"), 1),
+           ("soyul_window", grid_row("SOYUL_WINDOW"), 1), ("scouts", grid_row("SCOUTS_SIT", "SCOUTS_UP"), 2),
+           ("pair_stand", grid_row("PAIR_STAND"), 1), ("pair_sit", grid_row("PAIR_SIT"), 1),
+           # 2026-11-05 다양화 시험: 인물마다 모양, 장면마다 실루엣 색
+           ("me_field", grid_row("ME_FIELD", scheme="morning"), 1), ("junsu", grid_row("JUNSU", scheme="morning"), 1),
+           ("coach_arms", grid_row("COACH_ARMS", flip_x=True, scheme="morning"), 1),
+           # 먼 나 + 준수가 같이 걷는다 (한 칸에 둘, 발이 엇갈리게 2장)
+           ("tiny_pair_walk", lambda i: pair_cell(["TINY_ME_A", "TINY_ME_B"][i], ["TINY_JUNSU_B", "TINY_JUNSU_A"][i], 16, True, "morning"), 2),
+           ("hand_watch", grid_row("HAND_WATCH", scheme="morning"), 1),
+           ("harin_back", grid_row("HARIN_BACK", scheme="gallery"), 1), ("me_back", grid_row("ME_BACK", scheme="gallery"), 1),
+           ("harin_sit", grid_row("HARIN_SIT", scheme="gallery"), 1), ("me_sit", grid_row("ME_SIT", scheme="gallery"), 1)]
 
 
 def main():
@@ -543,7 +649,7 @@ def main():
         f.write("## 판 이름 -> [줄, 넓이]\nconst PANELS := {%s}\n" % ", ".join('"%s": [%d, %d]' % (n, i, p.w) for i, (n, p) in enumerate(panels)))
         f.write("const CELL := Vector2(%d, %d)\n## 칸 안 발 자리 (인물을 판에 놓을 때 이 점을 맞춘다)\nconst FOOT := Vector2(%d, %d)\n" % (CELL_W, CELL_H, *FOOT))
         f.write("## 인물 이름 -> [줄, 장 수]\nconst ROWS := {%s}\n" % ", ".join('"%s": [%d, %d]' % (n, r, k) for r, (n, _, k) in enumerate(SPRITES)))
-    print("판 %d장 · 인물 %d줄" % (len(panels), len(SPRITES)))
+    print("판 %d장 · 인물 %d줄 · 인물 칸 %d장" % (len(panels), len(SPRITES), sum(n for _, _, n in SPRITES)))
 
 
 if __name__ == "__main__":

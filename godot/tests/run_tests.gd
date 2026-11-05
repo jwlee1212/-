@@ -1173,7 +1173,7 @@ func test_event_integrity() -> void:
 			while step.type != "end":
 				if step.type == "line":
 					check(step.text != "" and not step.text.contains("{"), "%s 대사 치환: %s" % [e.id, step.text])
-				else:
+				elif step.type == "choice":  # 컷신 걸음(cutscene)은 글자가 없어 넘어간다
 					for o: Dictionary in step.options:
 						check(not o.label.contains("{"), "%s 선택지 치환: %s" % [e.id, o.label])
 					reader.choose(reader.pick(i))
@@ -1925,38 +1925,92 @@ func test_cutscene() -> void:
 		var errs := CutscenePlan.validate(id, cfg.cutscenes[id], CutsceneMeta.PANELS, CutsceneMeta.ROWS)
 		check(errs.is_empty(), "컷신 %s 정의 검증: %s" % [id, errs])
 	check(ResourceLoader.exists("res://art/pixel/cutscene.png") and ResourceLoader.exists("res://art/pixel/cutscene_bg.png"), "컷신 도트 그림 파일")
-	for k in ["bar", "captionFadeSec", "speed", "skipAfterSec"]:
+	# 정지 그림 컷 (외부 그림, 원본 해상도 TV 틀 — 2026-11-05): 쓰는 그림 파일이 다 있다, 화면 계획은 pan 0~1 · zoom 1 이상
+	for id: String in cfg.cutscenes:
+		for shot: Dictionary in cfg.cutscenes[id].shots:
+			if shot.has("still"):
+				check(ResourceLoader.exists(CutsceneView.STILL_DIR % shot.still), "%s 정지 그림 %s 파일" % [id, shot.still])
+	var still_cs := {"shots": [{"still": "x", "dur": 2.0, "pan": [[0, 0.0, 0.5], [2.0, 1.0, 0.5]], "zoom": [[0, 1.0, 0], [2.0, 1.2, 0]]}]}
+	var s0 := CutscenePlan.frame(still_cs, 0.0)
+	var s1 := CutscenePlan.frame(still_cs, 2.0)
+	check(s0.still == "x" and s0.pan.x == 0.0 and s1.pan.x == 1.0 and is_equal_approx(s1.zoom, 1.2) and s0.zoom == 1.0, "정지 그림 컷: 흐르는 pan · 밀어 들어가는 zoom")
+	check(CutscenePlan.validate("s", still_cs, CutsceneMeta.PANELS, CutsceneMeta.ROWS, []).size() == 1, "없는 정지 그림은 검증에 걸린다 (컷신을 건너뛴다)")
+	check(CutscenePlan.validate("s", still_cs, CutsceneMeta.PANELS, CutsceneMeta.ROWS, ["x"]).is_empty(), "있는 정지 그림은 통과")
+	for k in ["bar", "captionFadeSec", "speed", "skipAfterSec", "tvWidth", "tvMaxHeight", "tvAspect", "tvEdgePx"]:
 		check(cfg.cutscene.has(k), "balance.json career.cutscene.%s" % k)
 	var cs: Dictionary = cfg.cutscenes["ep05_seongho"]
 	var total := CutscenePlan.duration(cs)
-	check(total > 8.0 and total < 25.0, "길이 %.1f초 (8~25)" % total)
+	check(total >= 12.0 and total <= 16.0, "길이 %.1f초 (12~16)" % total)
+	# 컷신 그림 규칙 (CLAUDE.md 원칙 6): 얼굴 칸이 없다, 모든 컷신의 컷마다 그림 3장 이하 (같은 칸을 여러 자리에 놓는 건 한 장 — 소품 포함, 인물은 1~2장)
+	check(not CutsceneMeta.ROWS.has("face"), "얼굴 클로즈업 칸이 없다")
+	for id: String in cfg.cutscenes:
+		var shots: Array = cfg.cutscenes[id].shots
+		for i in shots.size():
+			var cells := {}
+			for ac: Dictionary in shots[i].get("actors", []):
+				var used: Array = ac.get("loop", []).duplicate()
+				for f: Array in ac.get("frames", [[0, 0]]):
+					used.append(f[1])
+				for f in used:
+					cells["%s/%d" % [ac.row, int(f)]] = true
+			# 인물 없는 컷(그림·물건 클로즈업처럼 배경만 훑는 끼움 컷)도 된다 — 2026-11-05 다양화 시험
+			check(cells.size() <= 3, "%s 컷 %d 그림 %d장 (0~3)" % [id, i + 1, cells.size()])
+		if id != "ep05_seongho":
+			var d := CutscenePlan.duration(cfg.cutscenes[id])
+			check(d >= 3.0 and d <= 10.0, "%s 길이 %.1f초 (3~10)" % [id, d])
+	# 에피소드마다 컷신 하나 (1학년 EP01~08) — 이야기 대본 어딘가(갈래 안 포함)에 CUTSCENE 이 있다
+	var used_cs := {}
+	for e: Dictionary in cfg.events:
+		for n: Dictionary in _all_script_nodes(e.get("script", [])):
+			if n.has("cutscene"):
+				used_cs[n.cutscene] = e.id
+	for ep in range(1, 9):
+		var found := ""
+		for cid: String in used_cs:
+			if str(used_cs[cid]).begins_with("ep%02d" % ep):
+				found = cid
+		check(found != "", "EP%02d 에 컷신이 있다" % ep)
+	for id: String in cfg.cutscenes:
+		check(used_cs.has(id), "컷신 %s 를 트는 이야기가 있다" % id)
+	# 사이드 스토리 컷신: 데이트 문자에 답하면 다음 주에 컷신 카드가 예약된다
+	for pair in [["m_y1_harin_date", "y1_side_harin_museum"], ["m_y1_soyul_date", "y1_side_soyul_folder"]]:
+		var msg: Dictionary = {}
+		for m: Dictionary in cfg.messages:
+			if m.get("id", "") == pair[0]:
+				msg = m
+		check(not msg.is_empty() and msg.replies[0].effects.get("schedule", {}).get("event", "") == pair[1], "%s 답장 → %s 예약" % pair)
+		var sev := _event(cfg, pair[1])
+		check(sev.get("scheduledOnly", false) and sev.script[0].has("cutscene"), "%s 는 예약으로만, 컷신으로 연다" % pair[1])
+	var panels: Array = cs.shots.map(func(x: Dictionary) -> String: return x.panel)
+	check(panels == ["dugout", "rail", "dugout", "plate", "baseline", "bag", "sky", "wide"], "콘티 순서: 대타 → 일어섬 → 3학년들 → 타격 → 질주 → 1루 → 아웃 → 인사")
 	# 같은 시각이면 같은 그림 (부른 순서와 상관없이)
 	var a := CutscenePlan.frame(cs, 7.3)
 	CutscenePlan.frame(cs, 1.0)
 	check(str(CutscenePlan.frame(cs, 7.3)) == str(a), "같은 시각 → 같은 장면")
 	check(CutscenePlan.frame(cs, 0.0).fade > 0.9 and CutscenePlan.frame(cs, total - 0.01).fade > 0.9, "첫 컷은 암전에서 열리고 끝 컷은 암전으로 닫힌다")
 	# 타석 컷: 맞는 순간 멈춤 — 멈춘 동안 타자 장·카메라가 그대로, 번쩍임이 있다, 소리는 그 순간에 한 번
-	var plate := 3
+	var plate := panels.find("plate")
 	var shot: Dictionary = cs.shots[plate]
 	var start := CutscenePlan.shot_start(cs, plate)
 	var hold: Array = shot.hold
 	var f1 := CutscenePlan.frame(cs, start + float(hold[0]) + 0.02)
 	var f2 := CutscenePlan.frame(cs, start + float(hold[0]) + float(hold[1]) - 0.02)
-	check(f1.panel == "plate" and f1.actors[0].frame == f2.actors[0].frame and f1.actors[0].frame == 2, "히트스톱 동안 맞는 순간(2장)에 멈춘다")
+	check(f1.panel == "plate" and f1.actors[0].frame == f2.actors[0].frame and f1.actors[0].frame == 1, "히트스톱 동안 맞는 순간(1장)에 멈춘다")
 	check(CutscenePlan.motion_time(shot, float(hold[0]) + float(hold[1]) + 0.1) < float(hold[0]) + float(hold[1]) + 0.1, "멈춘 시간만큼 인물 시간이 늦다")
 	check(f1.flash > 0.5, "맞는 순간 번쩍임")
 	var cracks := CutscenePlan.cues(cs, start + float(hold[0]) - 0.1, start + float(hold[0]) + 0.1)
 	check(cracks.size() == 1 and cracks[0].sfx == "CRACK_SOLID" and cracks[0].pitch < 1.0, "딱! 소리는 그 순간 한 번 (느리게)")
 	check(CutscenePlan.cues(cs, 0.0, total).size() == CutscenePlan.cues(cs, 0.0, total / 2.0).size() + CutscenePlan.cues(cs, total / 2.0, total).size(), "소리 구간을 나눠도 빠지거나 겹치지 않는다")
-	# 달리기 컷: 헬멧이 벗겨진 뒤에는 헬멧 없는 장, 카메라가 따라간다
-	var run_i := 4
+	# 달리기 컷: 헬멧 칸이 처음엔 머리 위에 같이 가다가(같은 자리) 날아가 뒤처진다, 카메라가 따라간다
+	var run_i := panels.find("baseline")
 	var rs := CutscenePlan.shot_start(cs, run_i)
 	var early := CutscenePlan.frame(cs, rs + 0.3)
 	var late := CutscenePlan.frame(cs, rs + 2.3)
-	check(early.actors[0].frame < 4 and late.actors.any(func(x: Dictionary) -> bool: return x.row == "run" and x.frame >= 4), "헬멧이 날아간 뒤엔 헬멧 없는 달리기")
+	check(early.actors[1].row == "helmet" and early.actors[1].pos == early.actors[0].pos, "처음엔 헬멧이 달리는 사람 머리에 얹혀 같이 간다")
+	check(late.actors[1].pos.x < late.actors[0].pos.x - 100 and late.actors[1].pos.y > late.actors[0].pos.y, "헬멧이 날아가 뒤에 떨어진다")
 	check(late.cam.x > early.cam.x + 100 and absi((late.actors[0].pos.x - late.cam.x) - (early.actors[0].pos.x - early.cam.x)) <= 4, "카메라가 달리는 사람을 따라간다 (화면 속 자리는 그대로)")
 	# 잘못된 정의는 걸린다
-	var bad := {"shots": [{"panel": "nowhere", "dur": 1.0, "actors": [{"row": "face", "at": [0, 0], "frames": [[0, 9]]}], "sfx": [[2.0, "NOPE"]]}]}
+	var bad := {"shots": [{"panel": "nowhere", "dur": 1.0, "actors": [{"row": "batter", "at": [0, 0], "frames": [[0, 9]]}], "sfx": [[2.0, "NOPE"]]}]}
 	check(CutscenePlan.validate("bad", bad, CutsceneMeta.PANELS, CutsceneMeta.ROWS).size() >= 3, "없는 판·장·소리는 검증에 걸린다")
 	# 이야기 대본: EP05 #6 카드가 컷신 걸음을 낸다, 화면 없이 진행하면 그냥 지나간다
 	var career := CareerState.new(cfg, "테스트", _config)
@@ -1967,6 +2021,18 @@ func test_cutscene() -> void:
 	auto.auto(0)
 	auto.commit()
 	check(career.player.vars["team_goal"] == "national_first_win", "화면 없이 진행해도 컷신 뒤 대본이 이어진다")
+
+
+## 대본 노드 전부 (갈래·선택지 안까지)
+func _all_script_nodes(nodes: Array) -> Array:
+	var out := []
+	for n: Dictionary in nodes:
+		out.append(n)
+		for arm: Dictionary in n.get("branch", []):
+			out.append_array(_all_script_nodes(arm.get("then", [])))
+		for c: Dictionary in n.get("choices", []):
+			out.append_array(_all_script_nodes(c.get("then", [])))
+	return out
 
 
 func test_game_events() -> void:

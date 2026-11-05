@@ -9,7 +9,8 @@ extends RefCounted
 ##               또는 "fps": n + "loop": [장…] (되풀이), "from"/"to": 이 시각 사이에만 보인다}],
 ##   "captions": [{"from", "to", "who"?, "text"}], "hold": [t, 초] (멈춤 — 맞는 순간 히트스톱: 그동안 인물·카메라 시간이 멈춘다),
 ##   "flash": [t, 초] (번쩍임이 1 → 0), "shake": [t, 초, 세기(그림 픽셀)], "fadeIn"/"fadeOut": 초 (컷 앞뒤 암전),
-##   "sfx": [[t, 소리 이름(SoundSynth.Sfx), 크기?, 빠르기?]…]}
+##   "sfx": [[t, 소리 이름(SoundSynth.Sfx), 크기?, 빠르기?]…],
+##   "camLinear": true (카메라 키 사이를 같은 빠르기로 — 달리는 사람을 따라 흐를 때), 인물의 "linear": true (그 인물 path 도 같은 빠르기로)}
 ## t 는 모두 컷 시작부터의 초. hold 가 있으면 인물·카메라는 "멈춘 시간을 뺀 시각"을 본다 (자막·소리·번쩍임은 실제 시각).
 
 ## 정의 전체 길이 (초)
@@ -41,13 +42,28 @@ static func shot_start(cs: Dictionary, index: int) -> float:
 
 
 ## 지금 그릴 것. 돌려주는 값:
-##   {"shot", "panel", "cam": Vector2i, "actors": [{"row", "frame", "pos": Vector2i}], "flash": 0~1, "fade": 0~1 (암전), "captions": [{"who", "text"}]}
+##   도트 판 컷: {"shot", "panel", "cam": Vector2i, "actors": [{"row", "frame", "pos": Vector2i}], "flash": 0~1, "fade": 0~1 (암전), "captions": [{"who", "text"}]}
+##   정지 그림 컷 ("still" — 외부 그림을 원본 해상도로, 화면 가운데 TV 틀): {"shot", "still": 이름, "pan": Vector2 (0~1 — 남는 곳 중 어디를 보나),
+##     "zoom": 1 이상 (밀어 들어가기), "shake": Vector2 (화면 픽셀), "flash", "fade", "captions"}
+##   정지 그림 컷의 키: "pan": [[t, 가로 0~1, 세로 0~1]…] (기본 가운데), "zoom": [[t, 배율, 0]…] (기본 1), shake 세기는 화면 픽셀
 static func frame(cs: Dictionary, t: float) -> Dictionary:
 	var at := locate(cs, t)
 	var shot: Dictionary = cs["shots"][at[0]]
 	var lt: float = at[1]
 	var mt := motion_time(shot, lt)
-	var cam := _path(shot.get("cam", [[0, 0, 0]]), mt)
+	if shot.has("still"):
+		var pan := _path(shot.get("pan", [[0, 0.5, 0.5]]), mt)
+		var zoom := maxf(1.0, _path(shot.get("zoom", [[0, 1.0, 0]]), mt).x)
+		var shake_px := Vector2.ZERO
+		if shot.has("shake"):
+			var ssk: Array = shot["shake"]
+			var sk_k := (lt - float(ssk[0])) / float(ssk[1])
+			if sk_k >= 0.0 and sk_k < 1.0:
+				var n2 := int(lt * 40.0)
+				shake_px = float(ssk[2]) * (1.0 - sk_k) * Vector2(_wiggle(n2, 1), _wiggle(n2, 2))
+		return {"shot": at[0], "still": shot["still"], "pan": Vector2(clampf(pan.x, 0.0, 1.0), clampf(pan.y, 0.0, 1.0)), "zoom": zoom,
+			"shake": shake_px, "flash": _flash(shot, lt), "fade": _fade(shot, lt), "captions": _captions(shot, lt)}
+	var cam := _path(shot.get("cam", [[0, 0, 0]]), mt, bool(shot.get("camLinear", false)))
 	if shot.has("shake"):
 		var sk: Array = shot["shake"]
 		var k := (lt - float(sk[0])) / float(sk[1])
@@ -59,14 +75,21 @@ static func frame(cs: Dictionary, t: float) -> Dictionary:
 	for a: Dictionary in shot.get("actors", []):
 		if lt < float(a.get("from", 0.0)) or lt >= float(a.get("to", 1e9)):
 			continue
-		var pos: Vector2 = _path(a["path"], mt) if a.has("path") else Vector2(float(a["at"][0]), float(a["at"][1]))
+		var pos: Vector2 = _path(a["path"], mt, bool(a.get("linear", false))) if a.has("path") else Vector2(float(a["at"][0]), float(a["at"][1]))
 		actors.append({"row": a["row"], "frame": _cell(a, mt), "pos": Vector2i(roundi(pos.x), roundi(pos.y))})
-	var flash := 0.0
-	if shot.has("flash"):
-		var fl: Array = shot["flash"]
-		var k := (lt - float(fl[0])) / float(fl[1])
-		if k >= 0.0 and k < 1.0:
-			flash = 1.0 - k
+	return {"shot": at[0], "panel": shot["panel"], "cam": Vector2i(roundi(cam.x), roundi(cam.y)), "actors": actors,
+		"flash": _flash(shot, lt), "fade": _fade(shot, lt), "captions": _captions(shot, lt)}
+
+
+static func _flash(shot: Dictionary, lt: float) -> float:
+	if not shot.has("flash"):
+		return 0.0
+	var fl: Array = shot["flash"]
+	var k := (lt - float(fl[0])) / float(fl[1])
+	return 1.0 - k if k >= 0.0 and k < 1.0 else 0.0
+
+
+static func _fade(shot: Dictionary, lt: float) -> float:
 	var fade := 0.0
 	var fin := float(shot.get("fadeIn", 0.0))
 	var fout := float(shot.get("fadeOut", 0.0))
@@ -74,12 +97,15 @@ static func frame(cs: Dictionary, t: float) -> Dictionary:
 		fade = 1.0 - lt / fin
 	if fout > 0.0 and lt > float(shot["dur"]) - fout:
 		fade = maxf(fade, (lt - (float(shot["dur"]) - fout)) / fout)
+	return clampf(fade, 0.0, 1.0)
+
+
+static func _captions(shot: Dictionary, lt: float) -> Array:
 	var caps := []
 	for c: Dictionary in shot.get("captions", []):
 		if lt >= float(c["from"]) and lt < float(c["to"]):
 			caps.append({"who": c.get("who", ""), "text": c["text"]})
-	return {"shot": at[0], "panel": shot["panel"], "cam": Vector2i(roundi(cam.x), roundi(cam.y)), "actors": actors,
-		"flash": flash, "fade": clampf(fade, 0.0, 1.0), "captions": caps}
+	return caps
 
 
 ## 인물·카메라가 보는 시각: 멈춤(hold) 동안은 시간이 흐르지 않는다
@@ -104,8 +130,9 @@ static func cues(cs: Dictionary, t0: float, t1: float) -> Array:
 	return out
 
 
-## 정의 검사: 판·인물 줄·장 번호가 그림에 있고, 시각이 컷 길이 안, 소리 이름이 있다. panels/rows 는 CutsceneMeta 의 것
-static func validate(id: String, cs: Dictionary, panels: Dictionary, rows: Dictionary) -> Array[String]:
+## 정의 검사: 판·인물 줄·장 번호가 그림에 있고, 시각이 컷 길이 안, 소리 이름이 있다. panels/rows 는 CutsceneMeta 의 것.
+## stills: 있는 정지 그림 이름들 (null 이면 이름 검사를 하지 않는다 — 파일은 화면이 확인한다)
+static func validate(id: String, cs: Dictionary, panels: Dictionary, rows: Dictionary, stills: Variant = null) -> Array[String]:
 	var errors: Array[String] = []
 	var shots: Array = cs.get("shots", [])
 	if shots.is_empty():
@@ -116,7 +143,15 @@ static func validate(id: String, cs: Dictionary, panels: Dictionary, rows: Dicti
 		var dur := float(shot.get("dur", 0.0))
 		if dur <= 0.0:
 			errors.append("%s: dur" % where)
-		if not panels.has(shot.get("panel", "")):
+		if shot.has("still"):
+			if shot.has("panel") or not shot.get("actors", []).is_empty():
+				errors.append("%s: 정지 그림 컷에는 판·인물을 같이 쓰지 않는다" % where)
+			if stills is Array and not (stills as Array).has(shot["still"]):
+				errors.append("%s: 정지 그림 %s 없음" % [where, shot["still"]])
+			for z: Array in shot.get("zoom", []):
+				if float(z[1]) < 1.0:
+					errors.append("%s: zoom 은 1 이상" % where)
+		elif not panels.has(shot.get("panel", "")):
 			errors.append("%s: 판 %s 없음" % [where, shot.get("panel", "")])
 		for a: Dictionary in shot.get("actors", []):
 			var row: String = a.get("row", "")
@@ -145,8 +180,8 @@ static func validate(id: String, cs: Dictionary, panels: Dictionary, rows: Dicti
 
 # ---------- 안쪽 ----------
 
-## 키 [[t, x, y]…] 사이를 부드럽게 (가속·감속) 잇는다. 키가 하나면 그 자리
-static func _path(keys: Array, t: float) -> Vector2:
+## 키 [[t, x, y]…] 사이를 부드럽게 (가속·감속) 잇는다 — linear 면 같은 빠르기로. 키가 하나면 그 자리
+static func _path(keys: Array, t: float, linear := false) -> Vector2:
 	var first: Array = keys[0]
 	if keys.size() == 1 or t <= float(first[0]):
 		return Vector2(float(first[1]), float(first[2]))
@@ -155,7 +190,8 @@ static func _path(keys: Array, t: float) -> Vector2:
 		if t <= float(b[0]):
 			var a: Array = keys[i - 1]
 			var k := (t - float(a[0])) / maxf(float(b[0]) - float(a[0]), 0.0001)
-			k = k * k * (3.0 - 2.0 * k)
+			if not linear:
+				k = k * k * (3.0 - 2.0 * k)
 			return Vector2(lerpf(float(a[1]), float(b[1]), k), lerpf(float(a[2]), float(b[2]), k))
 	var last: Array = keys[-1]
 	return Vector2(float(last[1]), float(last[2]))
