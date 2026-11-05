@@ -70,6 +70,14 @@ func _init() -> void:
 		"test_scenario_keys",
 		"test_y1_story",
 		"test_y2_story",
+		"test_y3_story_and_draft",
+		"test_pro_schedule",
+		"test_pro_league_consistent",
+		"test_pro_draft",
+		"test_pro_season",
+		"test_pro_save_and_continue",
+		"test_pro_content",
+		"test_pro_side_stories",
 		"test_real_content",
 		"test_training_and_growth",
 		"test_condition_affects_skills",
@@ -2429,7 +2437,7 @@ func test_y2_story() -> void:
 	# 2학년 EP09~13 (docs/scenario/scenario_y2_ep09-13.md): 1학년부터 자동으로 진행해 3학년이 될 때까지 2학년 장면이 다 나온다.
 	# 내 타석은 모두 안타 / 모두 삼진 두 갈래 (경기 결과가 달라도 장면이 다 나와야 한다)
 	var y2_ids: Array = _real_cfg().events.map(func(e: Dictionary) -> String: return e.id).filter(
-		func(id: String) -> bool: return id.substr(0, 2) == "ep" and int(id.substr(2, 2)) >= 9)
+		func(id: String) -> bool: return id.substr(0, 2) == "ep" and int(id.substr(2, 2)) >= 9 and int(id.substr(2, 2)) <= 14)
 	check(y2_ids.size() >= 7, "2학년 장면 %d개" % y2_ids.size())
 	for hit: bool in [true, false]:
 		var career := CareerState.new(_real_cfg(), "테스트", _config)
@@ -4971,3 +4979,335 @@ func test_pitch_hint() -> void:
 	var old := CareerState.new(_career_cfg(), "옛날", _config)
 	var old_loaded: CareerState = SaveGame.from_bytes(SaveGame.to_bytes(old), old.cfg, _config)["career"]
 	check(old_loaded != null and not PitchHint.active(old_loaded.player) and not PitchHint.show_now(old_loaded.player, 0), "힌트 없는 저장은 메모 없음")
+
+
+
+# ---------- 프로 편 (2026-11-05) ----------
+
+## 짧은 프로 시즌용 설정 (정규시즌 weeks 주)
+func _pro_cfg(weeks: int = 3) -> CareerConfig:
+	var cfg := _real_cfg()
+	cfg.pro = cfg.pro.duplicate(true)
+	cfg.pro["weeks"] = weeks
+	cfg.pro["futuresAutoGames"] = 1
+	return cfg
+
+
+## 프로 입단까지 바로 (드래프트 등급을 tier 로 고정)
+func _pro_career(cfg: CareerConfig, tier: String, name: String = "프로") -> CareerState:
+	cfg.pro["draft"]["tierByRank"] = [[999, tier]]
+	var career := CareerState.new(cfg, name, _config)
+	career.player.grade = 3
+	career.run_draft()
+	career.path = "draft"
+	career.start_pro()
+	return career
+
+
+## 프로 한 주를 자동으로 (이야기는 첫 선택지, 직접 할 경기는 내 타석을 자동 타석으로)
+func _pro_week(career: CareerState) -> void:
+	var g := 0
+	while not career.events("start").is_empty() and g < 20:
+		g += 1
+		career.resolve_event(career.events("start")[0], 0)
+	if career.pro.has_direct_game(career):
+		career.finish_game(_auto_week(career, "rest"))
+	else:
+		career.train("rest")
+		career.game_done = true
+		career.pro.finish_week(career, null)
+	g = 0
+	while not career.events("after").is_empty() and g < 20:
+		g += 1
+		career.resolve_event(career.events("after")[0], 0)
+	career.pro.pending_scenes.clear()
+	career.advance_week()
+
+
+func _pro_to_season_end(career: CareerState) -> int:
+	var weeks := 0
+	while not career.is_season_over() and weeks < 40:
+		_pro_week(career)
+		weeks += 1
+	return weeks
+
+
+func test_y3_story_and_draft() -> void:
+	# 2학년 끝·3학년 EP14~22 (scenario_y3_ep14-22.md): 고교 3년 자동 진행에서 다 나오고, 첫 선택지(드래프트 신청)면 드래프트까지
+	var career := _auto_career(2026, func(e: Dictionary) -> int: return 0)
+	for id: String in ["ep14_01", "ep15_01", "ep16_01", "ep17_01", "ep18_01", "ep19_01", "ep20_01", "ep21_01", "ep21_02", "ep22_01"]:
+		check(career.book.fired.has(id), "3학년 장면 %s 이 나온다" % id)
+	check(career.path == "draft" and not career.draft.is_empty(), "드래프트 결과가 있다 (%s)" % [career.draft])
+	check(career.player.vars.get("draft_tier", "") in ["S", "A", "B", "C"] and career.draft["tier"] == career.player.vars["draft_tier"], "등급 변수 = 드래프트 등급")
+	var tiers: Dictionary = career.cfg.pro["draft"]["tiers"]
+	check(career.draft["team"] == tiers[career.draft["tier"]]["team"], "등급 → 구단 (worldview 5-3)")
+	# 프로 입단 → 1년 차 첫 주에 입단·스프링캠프 카드
+	career.start_pro()
+	check(career.pro != null and career.pro.team_id == career.draft["team"], "지명 구단으로 입단")
+	var first: Array = career.events("start").map(func(e: Dictionary) -> String: return e.id)
+	check(first.size() >= 1 and first[0] == "ep23_01", "프로 첫 주는 입단 카드부터 (%s)" % [first])
+	# 고교 무작위·고교 이야기는 프로에 안 나온다
+	for e: Dictionary in career.cfg.events:
+		if not e.has("proYear") and career.book.eligible(career, e):
+			check(false, "고교 이벤트 %s 가 프로에서 열렸다" % e.id)
+
+
+func test_pro_schedule() -> void:
+	var cfg := _real_cfg()
+	var lg := ProLeague.create(cfg, 7, null)
+	var n := lg.teams.size()
+	check(n == 10, "KBA 10구단")
+	# 9라운드에 모든 팀과 한 번씩
+	var met := {}
+	for r in n - 1:
+		var seen := {}
+		for pair: Array in lg.pairings(r):
+			check(not seen.has(pair[0]) and not seen.has(pair[1]), "라운드 %d: 한 팀은 한 번만" % r)
+			seen[pair[0]] = true
+			seen[pair[1]] = true
+			var key: String = "%s|%s" % ([pair[0], pair[1]] if pair[0] < pair[1] else [pair[1], pair[0]])
+			met[key] = int(met.get(key, 0)) + 1
+		check(seen.size() == n, "라운드 %d: 모든 팀이 경기" % r)
+	var pairs := 0
+	for k: String in met:
+		pairs += 1
+		check(int(met[k]) == 1, "9라운드에 같은 짝은 한 번 (%s)" % k)
+	check(pairs == n * (n - 1) / 2, "모든 짝이 나온다 (%d)" % pairs)
+	# 한 시즌: 팀당 144경기, 홈·원정 반반쯤
+	var games := 0
+	var home := 0
+	for w in range(1, int(cfg.pro["weeks"]) + 1):
+		for s: Dictionary in lg.series_for(cfg, "taesung", w):
+			games += int(s["games"])
+			home += int(s["games"]) if s["home"] else 0
+	check(games == 144, "팀당 144경기 (%d)" % games)
+	check(absi(home - 72) <= 12, "홈 경기 %d (72 근처)" % home)
+
+
+func test_pro_league_consistent() -> void:
+	# 리그 경기는 모두 실제 타석으로 — 승 = 패, 득점 = 실점, 타자 안타 합 = 투수 피안타 합, 팀 경기 수가 같다, 같은 시드면 같은 결과
+	var cfg := _pro_cfg(3)
+	var lg := ProLeague.create(cfg, 11, null)
+	for w in range(1, 4):
+		lg.sim_week_others(cfg, _config, w, "")
+		lg.weeks_done += 1
+	var wins := 0
+	var losses := 0
+	var runs := 0
+	var allowed := 0
+	for t: ProTeam in lg.teams:
+		wins += t.w
+		losses += t.l
+		runs += t.runs
+		allowed += t.runs_allowed
+		check(t.games() == 18, "%s 18경기 (%d)" % [t.name, t.games()])
+	check(wins == losses and runs == allowed, "승 %d = 패 %d, 득점 %d = 실점 %d" % [wins, losses, runs, allowed])
+	var bat_hits := 0
+	var pit_hits := 0
+	var pit_r := 0
+	for p: ProPlayer in lg.all_batters():
+		bat_hits += p.season.hits
+	for p: ProPlayer in lg.all_pitchers():
+		pit_hits += p.pitching.h
+		pit_r += p.pitching.r
+	check(bat_hits == pit_hits and bat_hits > 0, "타자 안타 %d = 투수 피안타 %d" % [bat_hits, pit_hits])
+	check(pit_r == runs, "투수 실점 합 %d = 팀 득점 합 %d" % [pit_r, runs])
+	var w_sum := 0
+	for p: ProPlayer in lg.all_pitchers():
+		w_sum += p.pitching.wins
+	check(w_sum == wins, "승리 투수 수 %d = 승 수 %d" % [w_sum, wins])
+	# 순위표·부문 순위가 기록에서 나온다
+	var rows := lg.standings()
+	check((rows[0] as ProTeam).pct() >= (rows[-1] as ProTeam).pct(), "순위는 승률 순")
+	var hr := lg.leaders(cfg, "hr", 3)
+	check(hr.is_empty() or int(hr[0]["value"]) == (hr[0]["player"] as ProPlayer).season.home_runs, "홈런 1위 = 실제 친 홈런")
+	var lops := lg.league_ops()
+	check(lops > 0.5 and lops < 1.0, "리그 OPS %.3f" % lops)
+	var again := ProLeague.create(cfg, 11, null)
+	for w in range(1, 4):
+		again.sim_week_others(cfg, _config, w, "")
+	check(again.teams.map(func(t: ProTeam) -> String: return "%d-%d-%d" % [t.w, t.l, t.runs]) == lg.teams.map(func(t: ProTeam) -> String: return "%d-%d-%d" % [t.w, t.l, t.runs]), "재현성: 같은 시드 같은 리그")
+	# 포스트시즌: 5팀, 와일드카드 4위 1승 안고 → 한국시리즈 우승 팀이 하나
+	lg.weeks_done = int(cfg.pro["weeks"])
+	lg.lock_standings()
+	while not lg.post_over():
+		lg.play_post_round(cfg, _config)
+	check(lg.post_results.size() == 4 and lg.champions.size() == 1, "포스트시즌 네 라운드, 우승 하나")
+	check(lg.post_results[0]["hi"] == lg.final_order[3] and lg.post_results[0]["lo"] == lg.final_order[4], "와일드카드 = 4위 vs 5위")
+	check(int(lg.post_results[0]["wins"][0]) >= 1, "4위는 1승을 안고 시작한다")
+	check(lg.post_results[3]["hi"] == lg.final_order[0], "한국시리즈에 정규시즌 1위")
+	var awards := lg.give_awards(cfg)
+	check(awards.any(func(a: Dictionary) -> bool: return a["award"] == "MVP") and awards.any(func(a: Dictionary) -> bool: return a["award"] == "한국시리즈 MVP"), "MVP · 한국시리즈 MVP")
+	# 다음 시즌: 나이·기록 정리, 신인 입단
+	var before := lg.all_batters().size()
+	lg.next_season(cfg)
+	check(lg.year == 2 and lg.all_batters().size() == before, "다음 시즌 (명단 수 그대로)")
+	check(lg.teams.all(func(t: ProTeam) -> bool: return t.games() == 0 and t.history.size() == 1), "팀 성적은 역사로")
+	check(lg.all_batters().any(func(p: ProPlayer) -> bool: return p.rookie_year == 2), "새 시즌 신인이 있다 (신인왕 후보)")
+
+
+func test_pro_draft() -> void:
+	var cfg := _real_cfg()
+	var tiers: Dictionary = cfg.pro["draft"]["tiers"]
+	for tier: String in ["S", "A", "B", "C"]:
+		var c := _pro_career(_real_cfg(), tier, "드래프트" + tier)
+		var d := c.draft
+		check(d["tier"] == tier and d["team"] == tiers[tier]["team"], "%s 등급 → %s" % [tier, d["team"]])
+		check(c.pro.team_id == tiers[tier]["team"], "그 구단으로 입단")
+		check((tier == "C") == bool(d["development"]), "%s: 육성선수 여부" % tier)
+		check(int(d["bonus"]) >= int(tiers[tier]["bonusMin"]) and int(d["bonus"]) <= int(tiers[tier]["bonusMax"]), "%s 계약금 %d" % [tier, int(d["bonus"])])
+		check(c.player.money >= int(d["bonus"]), "계약금이 지갑에 들어온다")
+		check(c.pro.is_first() == (tier == "S"), "%s: %s 에서 시작" % [tier, "1군" if c.pro.is_first() else "퓨처스"])
+		check(c.pro.team().bench.has(c.pro.me) and c.pro.me.is_me, "리그 명단에 내 선수")
+	check(_pro_career(_real_cfg(), "S").draft["pick"].contains("2순위"), "S 등급은 전체 2순위 (전체 1순위는 강태오)")
+	var again := _pro_career(_real_cfg(), "A")
+	check(again.run_draft() == again.draft, "드래프트는 다시 불러도 같은 결과")
+	var rv := again.pro.league.rival_player()
+	check(rv != null and rv.team_id == cfg.pro["rivalTeam"] and rv.position == "유격수", "강태오는 대륙 웨일즈 유격수")
+	# 대학: 4년 요약 뒤 대졸 드래프트
+	var col := CareerState.new(_real_cfg(), "대학", _config)
+	col.player.grade = 3
+	col.path = "college"
+	var ov := col.player.overall()
+	col.start_pro()
+	check(col.player.overall() > ov and col.draft.get("college", false), "대학 4년 성장 %d → %d, 대졸 드래프트" % [ov, col.player.overall()])
+	check(col.pro.me.age == int(cfg.pro["rookieAge"]) + int(cfg.pro["college"]["years"]), "대졸 신인 나이")
+
+
+func test_pro_season() -> void:
+	var cfg := _pro_cfg(3)
+	var career := _pro_career(cfg, "S")
+	var pro := career.pro
+	var weeks := _pro_to_season_end(career)
+	check(career.is_season_over() and pro.phase == ProCareer.PHASE_DONE, "정규시즌 → 포스트시즌 → 결산 (%d주)" % weeks)
+	check(weeks >= 3 and weeks <= 3 + 4, "정규 3주 + 포스트시즌 최대 4주 (%d)" % weeks)
+	check(pro.team().games() == 18, "내 팀 18경기 (%d)" % pro.team().games())
+	check(pro.me.season.games >= 15 and pro.me.season.games <= 18, "1군 S 등급은 거의 다 나온다 (%d경기)" % pro.me.season.games)
+	check(career.player.season == pro.me.season, "내 시즌 기록 = 리그 속 내 기록 (같은 객체)")
+	check(pro.debuted and career.player.flags.has("pro_debut") and pro.milestones_done.has("debut"), "데뷔 · 데뷔 기념 순간")
+	if pro.me.career.hits + pro.me.season.hits > 0:
+		check(pro.milestones_done.has("first_hit"), "첫 안타 기념 순간")
+	for id: String in ["ep23_01", "ep24_01", "ep26_01"]:
+		check(career.book.fired.has(id), "프로 장면 %s" % id)
+	check(not career.book.fired.has("ep25_01"), "1군에서 시작하면 퓨처스 장면은 없다")
+	# 팀 순위·승패 = 리그 기록
+	var w := 0
+	var l := 0
+	for t: ProTeam in pro.league.teams:
+		w += t.w
+		l += t.l
+	check(w == l, "리그 승 = 패")
+	check(not pro.feed.items.is_empty() and pro.feed.items.any(func(it: Dictionary) -> bool: return it["kind"] == "sns"), "뉴스·SNS 가 쌓인다 (%d)" % pro.feed.items.size())
+	# 결산: 시상 · 연봉 (두 번 불러도 같다)
+	var salary_before := pro.salary
+	var a1 := pro.close_season(career)
+	var a2 := pro.close_season(career)
+	check(a1 == a2 and pro.season_note.contains("연봉"), "결산은 한 번 (%s)" % pro.season_note)
+	check(pro.salary >= int(cfg.pro["salary"]["min"]) and pro.salary >= salary_before, "연봉은 최저 이상, 깎이지 않는다 (신인)")
+	check(pro.league.awards.any(func(a: Dictionary) -> bool: return a["award"] == "신인왕"), "신인왕이 뽑힌다")
+	career.start_next_pro_season()
+	check(pro.year() == 2 and pro.phase == ProCareer.PHASE_REGULAR and pro.me.history.size() == 1 and pro.me.season.games == 0, "프로 2년 차")
+	check(career.player.season == pro.me.season, "새 시즌 기록도 같은 객체")
+	# 퓨처스 → 콜업 (C 등급: 육성선수, 종합 능력치 기준을 낮춰 콜업)
+	var c2cfg := _pro_cfg(4)
+	c2cfg.pro["callup"]["overall"] = 0
+	var c2 := _pro_career(c2cfg, "C", "육성")
+	check(not c2.pro.is_first(), "육성선수는 퓨처스에서 시작")
+	for i in 3:
+		_pro_week(c2)
+	check(c2.pro.is_first() and c2.player.flags.has("pro_called_up"), "퓨처스 %d주 뒤 콜업" % int(c2cfg.pro["callup"]["minWeeks"]))
+	check(c2.book.fired.has("ep25_01"), "퓨처스 장면")
+	check(c2.pro.futures_season.pa > 0, "퓨처스 기록 %d타석" % c2.pro.futures_season.pa)
+
+
+func test_pro_save_and_continue() -> void:
+	# 프로 편도 저장 → 불러오기 → 이어서 진행이 원래 진행과 같다 (원칙 2)
+	var a := _pro_career(_pro_cfg(3), "A", "저장")
+	_pro_week(a)
+	var b := _reload(a)
+	check(b.pro != null and b.pro.team_id == a.pro.team_id and b.pro.league.teams.size() == 10, "프로가 저장된다")
+	check(b.player.season == b.pro.me.season, "불러와도 내 기록은 리그 속 내 기록과 같은 객체")
+	_pro_week(a)
+	_pro_week(b)
+	var sa := a.pro.league.teams.map(func(t: ProTeam) -> String: return "%d-%d-%d" % [t.w, t.l, t.runs])
+	var sb := b.pro.league.teams.map(func(t: ProTeam) -> String: return "%d-%d-%d" % [t.w, t.l, t.runs])
+	check(sa == sb, "불러온 뒤 진행 = 원래 진행 (%s / %s)" % [sa, sb])
+	check(a.player.overall() == b.player.overall() and a.pro.me.season.pa == b.pro.me.season.pa, "내 성장·기록도 같다")
+
+
+func test_pro_content() -> void:
+	var cfg := _real_cfg()
+	check(Milestones.validate(cfg).is_empty(), "기념 순간 검증: %s" % [Milestones.validate(cfg)])
+	check(ProFeed.validate(cfg).is_empty(), "뉴스·SNS 틀 검증: %s" % [ProFeed.validate(cfg)])
+	check(EventBook.validate(cfg).is_empty(), "이벤트 검증: %s" % [EventBook.validate(cfg)])
+	check(Phone.validate(cfg).is_empty(), "문자 검증: %s" % [Phone.validate(cfg)])
+	check(cfg.pro_teams.all(func(d: Dictionary) -> bool: return d.has("id") and d.has("coach") and d.has("captain") and d["tier"] in ["강", "중", "약"]), "구단 정보 (id·감독·주장·전력)")
+	var ms: Array = cfg.pro_content["milestones"]
+	for want in ["first_hit", "first_hr", "debut", "roy", "ks_champion"]:
+		check(ms.any(func(m: Dictionary) -> bool: return m["id"] == want), "기념 순간 %s" % want)
+	# 프로 이야기 카드 (EP23~26): 모두 카드, 선택지마다 힌트, 카드 길이
+	for e: Dictionary in cfg.events:
+		var id: String = e.id
+		if not (id.begins_with("ep") and int(id.substr(2, 2)) >= 14) and not id.begins_with("pro_side") and id != "y2_side_jian_answer":
+			continue
+		check(e.get("card", false), "%s 는 카드" % id)
+		var found := {"choices": [], "lines": []}
+		EventBook._collect(EventBook.script_of(e), found)
+		check((found["lines"] as Array).size() <= 14, "%s 카드 길이 %d" % [id, (found["lines"] as Array).size()])
+		for c: Dictionary in found["choices"]:
+			check(str(c.get("hint", "")) != "", "%s 선택지 '%s' 에 힌트" % [id, c.label])
+			check(c.has("effects") or c.has("cost"), "%s 선택지 '%s' 는 무언가 바꾼다" % [id, c.label])
+
+
+func test_pro_side_stories() -> void:
+	# 윤채아: 돈을 보고 다가온 사람. 프로 데뷔 + 지갑이 차야 나온다, 고교에서는 안 나온다, 진심 카드의 갈림길
+	var cfg := _pro_cfg(3)
+	var meet := _event(cfg, "pro_side_chae_meet")
+	var hs := CareerState.new(cfg, "고교", _config)
+	hs.player.money = 999999999
+	hs.player.flags["pro_debut"] = true
+	check(not hs.book.eligible(hs, meet), "고교에서는 윤채아가 안 나온다")
+	var c := _pro_career(cfg, "C", "채아")
+	c.player.flags["pro_debut"] = true
+	c.player.money = 1000
+	c.last = {"result": "win", "hits": 0, "home_runs": 0, "phase_end": "", "national": false, "opponent_id": "", "season_over": false}
+	check(not c.book.eligible(c, meet), "돈이 없으면 안 다가온다")
+	c.player.money = 100000000
+	check(c.book.eligible(c, meet), "계약금·연봉이 쌓이면 다가온다")
+	c.resolve_event(meet, 0)
+	check(c.people.is_met("chae") and c.player.flags.has("chae_contact") and c.phone.contacts.has("chae"), "번호를 주면 연락처에 들어온다")
+	var dinner: Dictionary = cfg.messages.filter(func(m: Dictionary) -> bool: return m.id == "m_pro_chae_dinner")[0]
+	check(c.phone.eligible(c, dinner), "저녁 문자가 올 수 있다")
+	# 진심 카드: 빚을 갚아 주는 선택은 5천만 원이 있어야 고를 수 있다
+	var truth := _event(cfg, "pro_side_chae_truth")
+	c.player.flags["chae_dinner"] = true
+	c.people.add_relation("chae", 40)
+	check(c.book.eligible(c, truth), "호감이 오르면 진심 카드")
+	var run := DialogueRun.new(c, truth)
+	run.auto(1)
+	run.commit()
+	check(c.player.flags.has("chae_paid") and c.player.money == 50000000, "빚을 갚아 주면 돈 5천만 원이 나간다 (%d)" % c.player.money)
+	var gone: Dictionary = cfg.messages.filter(func(m: Dictionary) -> bool: return m.id == "m_pro_chae_gone")[0]
+	check(c.phone.eligible(c, gone), "돈을 준 뒤에는 떠나겠다는 문자")
+	# 사귀는 쪽: 첫 선택지
+	var d := _pro_career(_pro_cfg(3), "C", "진심")
+	d.player.flags["chae_dinner"] = true
+	d.people.meet("chae")
+	d.people.add_relation("chae", 40)
+	d.resolve_event(truth, 0)
+	check(d.people.partner == "chae", "진심으로 시작하면 사귄다")
+	var cheer: Dictionary = cfg.messages.filter(func(m: Dictionary) -> bool: return m.id == "m_pro_chae_cheer")[0]
+	check(d.phone.eligible(d, cheer), "연인이 되면 직관 문자")
+	# 이미 연인이 있으면 다른 카드 (유혹 → 거절하면 연인 호감 ▲)
+	var e := _pro_career(_pro_cfg(3), "C", "연인")
+	e.people.meet("neighbor")
+	e.people.partner = "neighbor"
+	e.player.flags["chae_contact"] = true
+	var tempt := _event(cfg, "pro_side_chae_partner")
+	check(e.book.eligible(e, tempt) and not e.book.eligible(e, truth), "연인이 있으면 유혹 카드, 진심 카드는 안 나온다")
+	var before := e.people.relation("neighbor")
+	e.resolve_event(tempt, 0)
+	check(e.people.relation("neighbor") > before and e.player.flags.has("chae_end"), "거절하면 연인 호감 ▲, 윤채아 이야기 끝")
+	# 사이드 스토리 문자: 고교 3학년 · 프로 (연인별)
+	for id: String in ["m_y2_jian_confess", "m_y3_harin_exam", "m_y3_soyul_college", "m_pro_harin_debut", "m_pro_soyul_folder", "m_pro_jian_intern", "m_pro_mom_wall", "m_pro_taeo"]:
+		check(cfg.messages.any(func(m: Dictionary) -> bool: return m.id == id), "사이드 스토리 문자 %s" % id)
