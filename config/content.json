@@ -2106,6 +2106,7 @@
                   "map": {
                     "bonus": "success",
                     "normal": "success",
+                    "double_play": "success",
                     "_": "fail"
                   }
                 }
@@ -3054,6 +3055,8 @@
                   "map": {
                     "bonus": "double_play",
                     "normal": "out",
+                    "double_play": "double_play",
+                    "force_out": "out",
                     "_": "error"
                   }
                 },

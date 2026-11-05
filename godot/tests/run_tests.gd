@@ -145,6 +145,7 @@ func _init() -> void:
 		"test_steal_in_game_state",
 		"test_field_play_catch",
 		"test_field_play_throw",
+		"test_field_play_double_play",
 		"test_shortstop_in_game_state",
 		"test_fielding_in_game",
 		"test_fielding_stat_effects",
@@ -3844,7 +3845,7 @@ func _play_interactive_game(seed_value: int, steal: Callable, run: Callable, mod
 		var step := game.step()
 		match step.type:
 			"my_turn":
-				var pa := AutoPa.simulate(cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng)
+				var pa := AutoPa.simulate(cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng, BattedBallSim.dp_situation(game.state.bases, game.state.outs))
 				var c: SwingJudge.Contact = null
 				if pa.ball != null:
 					c = SwingJudge.Contact.new(SwingJudge.Quality.SOLID, pa.ball.spray_deg, pa.ball.distance_m, pa.ball.batted_ball)
@@ -3910,7 +3911,8 @@ func test_interactive_game_matches_and_stays_consistent() -> void:
 		for side in 2:
 			check(manual.box.team_runs(side) == manual.state.score[side], "수동 경기도 득점 합 = 총점 (seed %d)" % s)
 	print("    40경기: 도루 기회 %d번 (성공 %d, 실패 %d), 주루 장면 %d번" % [total_steals, sb, cs, total_runs])
-	check(total_steals >= 20 and total_runs >= 10, "도루 기회 %d번, 주루 장면 %d번이 나온다" % [total_steals, total_runs])
+	# 주루 장면 하한 8: 무사·1사 1루 병살 수비(2026-11-05)로 병살이 늘어 주자가 덜 남는다 (전 11 → 9)
+	check(total_steals >= 20 and total_runs >= 8, "도루 기회 %d번, 주루 장면 %d번이 나온다" % [total_steals, total_runs])
 	check(sb > 0 and cs > 0 and sb + cs == total_steals, "도루 성공 %d + 실패 %d = 기회 %d" % [sb, cs, total_steals])
 	# 도루하면 주력이 자란다
 	var cfg := _career_cfg()
@@ -4662,6 +4664,101 @@ func test_field_play_throw() -> void:
 	check(late.press(reach + 10) == "" and late.release(reach + 20) == "", "끝난 뒤 누르고 떼도 아무 일도 없다")
 
 
+## 병살 기회 FieldPlay 하나 (1루 주자 주력 lead, 타자 주력 speed, 2루까지 9m): 포구까지
+func _dp_play(seed_value: int, lead: int = 50, speed: int = 50, fielding: int = 50) -> FieldPlay:
+	var phys := _config.ball_physics
+	var f := FieldPlay.new(_field_cfg(), _rng(seed_value), 2.0, 0, FieldPlay.runner_first_s(phys, speed), fielding)
+	f.throw_m = 35.0
+	f.runner_speed = speed
+	f.setup_double_play(FieldPlay.lead_second_s(phys, lead), lead, 9.0, phys.base_distance)
+	f.update(f.hit_us)
+	f.press(f.arrive_us)
+	return f
+
+
+## 게이지가 뜨자마자 눌러 g 까지 모았다가 뗀다 (지금 목표의 게이지 속도로)
+func _hold_dp(f: FieldPlay, g: float) -> String:
+	f.press(f.aim_us)
+	return f.release(f.aim_us + int(g * f.rise_sec() * 1e6))
+
+
+## 시드 n 개로 칸 g 에 토스했을 때 결과 비율 {kind: 비율} (판정이 공·주자 시각과 맞는지도 본다)
+func _dp_rates(g: float, lead: int = 50, speed: int = 50, n: int = 400) -> Dictionary:
+	var rates := {}
+	for i in n:
+		var f := _dp_play(2000 + i, lead, speed)
+		_hold_dp(f, g)
+		rates[f.kind] = float(rates.get(f.kind, 0.0)) + 1.0 / n
+		if f.kind == FieldPlay.Kind.WILD:
+			continue
+		check(f.lead_out == (f.arrive2_s < f.lead_s), "2루: 아웃이면 공이 먼저 (공 %.2f 주자 %.2f)" % [f.arrive2_s, f.lead_s])
+		check(f.arrive2_s >= f.since_hit(f.thrown_us) + 9.0 / f.by_stat("throwMpsMax") - 1e-6, "토스는 가장 빠른 공보다 빠르지 않다")
+		check((f.kind == FieldPlay.Kind.ALL_SAFE) == (not f.lead_out), "2루 세이프면 올세이프")
+		if f.lead_out:
+			check(absf(f.release1_s - f.arrive2_s - float(f.cfg["doublePlay"]["pivotSec"])) < 1e-6, "2루수가 피벗하고 1루로")
+			check((f.kind == FieldPlay.Kind.DOUBLE_PLAY) == (f.arrive_s < f.runner_s), "1루: 병살이면 공이 먼저 (공 %.2f 주자 %.2f)" % [f.arrive_s, f.runner_s])
+			check(f.is_out() and f.batter_out() == (f.kind == FieldPlay.Kind.DOUBLE_PLAY), "병살·포스아웃은 아웃, 타자는 병살일 때만")
+	return rates
+
+
+func test_field_play_double_play() -> void:
+	var phys := _config.ball_physics
+	var lead := FieldPlay.lead_second_s(phys, 50)
+	check(FieldPlay.lead_second_s(phys, 0) > lead and lead > FieldPlay.lead_second_s(phys, 100) and lead > 2.9 and lead < 3.5,
+		"1루 주자 2루 도착: 주력이 높을수록 빠르고 보통 3초대 (%.2f)" % lead)
+	var f := _dp_play(1)
+	check(f.dp and f.target == 2 and f.rise_sec() < float(f.cfg["gaugeRiseSec"]), "병살 기회: 첫 송구는 2루 토스, 게이지가 조금 빨리 찬다")
+	var perfect := _dp_rates(0.875)
+	var good := _dp_rates(0.75)
+	var weak := _dp_rates(0.4)
+	var DP := FieldPlay.Kind.DOUBLE_PLAY
+	print("    병살 비율 (주력 50): 회색 %.2f · 초록 %.2f · 금색 %.2f / 올세이프 회색 %.2f" % [weak.get(DP, 0.0), good.get(DP, 0.0), perfect.get(DP, 0.0),
+		weak.get(FieldPlay.Kind.ALL_SAFE, 0.0)])
+	check(float(perfect.get(DP, 0.0)) > 0.65, "금색 토스면 대부분 병살 (%.2f)" % perfect.get(DP, 0.0))
+	check(float(good.get(DP, 0.0)) > 0.35 and float(good.get(DP, 0.0)) < float(perfect.get(DP, 0.0)), "초록은 반쯤 병살 (%.2f)" % good.get(DP, 0.0))
+	check(float(weak.get(DP, 0.0)) < 0.2 and float(weak.get(FieldPlay.Kind.ALL_SAFE, 0.0)) > 0.35, "회색 토스는 2루도 자주 늦는다")
+	var fast := _dp_rates(0.75, 50, 100)
+	check(float(fast.get(DP, 0.0)) < float(good.get(DP, 0.0)), "타자가 빠르면 병살이 덜 된다 (%.2f)" % fast.get(DP, 0.0))
+	var wild := _dp_play(3)
+	_hold_dp(wild, 0.97)
+	check(wild.kind == FieldPlay.Kind.WILD and not wild.is_out(), "빨강 토스 → 악송구")
+	var a := _dp_play(7)
+	var b := _dp_play(7)
+	_hold_dp(a, 0.875)
+	_hold_dp(b, 0.875)
+	check(a.kind == b.kind and a.arrive2_s == b.arrive2_s and a.arrive_s == b.arrive_s, "같은 시드 → 같은 판정")
+	# 토스를 오래 끌면: 지금 던져도 2루가 늦는 순간 1루로 바뀐다 → 보통 1루 송구
+	var slow := _dp_play(9)
+	var turn_us := slow.hit_us + int((slow.lead_s - 9.0 / slow.by_stat("throwMpsMax")) * 1e6) + 1
+	check(slow.update(turn_us - 20000) == "" and slow.update(turn_us) == "switch" and slow.target == 1, "2루가 늦으면 1루로 목표를 바꾼다")
+	slow.press(turn_us)
+	slow.release(turn_us + int(0.875 * slow.rise_sec() * 1e6))
+	check(slow.kind in [FieldPlay.Kind.BONUS, FieldPlay.Kind.NORMAL, FieldPlay.Kind.LATE] and absf(slow.release1_s - slow.since_hit(slow.thrown_us)) < 1e-6,
+		"바꾼 뒤엔 1루 송구 (%s)" % FieldPlay.Kind.keys()[slow.kind])
+	# 경기 상태: 병살 · 2루 포스아웃 · 올세이프
+	var cfg := _career_cfg()
+	var mk := func(bases: Array, outs: int) -> GameState:
+		var g := GameState.new(9, cfg.running, _config.ball_physics)
+		g.bases = bases
+		g.outs = outs
+		return g
+	var g: GameState = mk.call([1, -1, 3], 0)
+	var r := g.apply_shortstop(FieldPlay.Kind.DOUBLE_PLAY, 4)
+	check(g.outs == 2 and g.bases == [-1, -1, -1] and r.runs == 1 and r.rbi == 0 and r.note == "병살" and r.fielding == "6-4-3",
+		"무사 1·3루 병살: 2아웃, 3루 주자 홈인(타점 없음) %s" % [g.bases])
+	g = mk.call([1, 2, -1], 1)
+	r = g.apply_shortstop(FieldPlay.Kind.DOUBLE_PLAY, 4)
+	check(r.half_over and r.runs == 0, "1사 병살은 공수 교대")
+	g = mk.call([1, 2, -1], 0)
+	r = g.apply_shortstop(FieldPlay.Kind.FORCE_OUT, 4)
+	check(g.outs == 1 and g.bases == [4, -1, 2] and r.outcome == SwingJudge.Outcome.GROUND_OUT and r.note == "야수선택",
+		"2루 포스아웃: 1루 주자 아웃, 타자 1루, 2루 주자 3루 %s" % [g.bases])
+	g = mk.call([1, -1, 3], 0)
+	r = g.apply_shortstop(FieldPlay.Kind.ALL_SAFE, 4)
+	check(g.outs == 0 and g.bases == [4, 1, 3] and r.runs == 0 and r.outcome == SwingJudge.Outcome.GROUND_OUT,
+		"올세이프: 밀려나는 주자만, 안타 아님 %s" % [g.bases])
+
+
 func test_shortstop_in_game_state() -> void:
 	var cfg := _career_cfg()
 	var mk := func(bases: Array, outs: int) -> GameState:
@@ -4692,8 +4789,10 @@ func test_shortstop_in_game_state() -> void:
 
 func test_fielding_in_game() -> void:
 	var kinds := [FieldPlay.Kind.BONUS, FieldPlay.Kind.NORMAL, FieldPlay.Kind.WILD, FieldPlay.Kind.MISS, FieldPlay.Kind.LATE]
+	var dp_kinds := [FieldPlay.Kind.DOUBLE_PLAY, FieldPlay.Kind.FORCE_OUT, FieldPlay.Kind.ALL_SAFE, FieldPlay.Kind.WILD, FieldPlay.Kind.MISS]
 	var fc := _field_cfg()
 	var total := 0
+	var dps := 0
 	for s in 40:
 		var cfg := _career_cfg()
 		var player := PlayerData.create("테스트", cfg)
@@ -4710,7 +4809,7 @@ func test_fielding_in_game() -> void:
 			var step := game.step()
 			match step.type:
 				"my_turn":
-					var pa := AutoPa.simulate(cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng)
+					var pa := AutoPa.simulate(cfg.auto_pa, _config, game.current_batter().skills, game.current_pitcher(), rng, BattedBallSim.dp_situation(game.state.bases, game.state.outs))
 					var c: SwingJudge.Contact = null
 					if pa.ball != null:
 						c = SwingJudge.Contact.new(SwingJudge.Quality.SOLID, pa.ball.spray_deg, pa.ball.distance_m, pa.ball.batted_ball)
@@ -4718,12 +4817,17 @@ func test_fielding_in_game() -> void:
 					game.apply_my_result(AtBat.Result.new(pa.outcome, SwingJudge.BattedBall.NONE, pa.pitches, c))
 				"my_field":
 					check(step.side != game.my_side, "수비 기회는 상대 공격 때만")
-					game.apply_field(kinds[(s + fields) % kinds.size()])
+					check(bool(step.dp) == (game.state.occupied(0) and game.state.outs < 2), "무사·1사 1루면 병살 기회 (seed %d)" % s)
+					if step.dp:
+						dps += 1
+						game.apply_field(dp_kinds[(s + fields) % dp_kinds.size()])
+					else:
+						game.apply_field(kinds[(s + fields) % kinds.size()])
 					fields += 1
 		total += fields
 		check(fields >= int(fc["chancesMin"]) and fields <= int(fc["chancesMax"]), "한 경기 수비 기회 %d~%d번 (seed %d: %d)" % [fc["chancesMin"], fc["chancesMax"], s, fields])
 		check(game.my_fields.size() == fields, "내 수비 기록")
-		var outs_made := game.my_fields.filter(func(k: int) -> bool: return k == FieldPlay.Kind.BONUS or k == FieldPlay.Kind.NORMAL).size()
+		var outs_made := game.my_fields.filter(func(k: int) -> bool: return k in [FieldPlay.Kind.BONUS, FieldPlay.Kind.NORMAL, FieldPlay.Kind.DOUBLE_PLAY, FieldPlay.Kind.FORCE_OUT]).size()
 		var errs := game.my_fields.filter(func(k: int) -> bool: return k == FieldPlay.Kind.MISS or k == FieldPlay.Kind.WILD).size()
 		check(game.my_line.assists == outs_made and game.my_line.errors == errs, "보살·실책이 내 경기 기록에 (seed %d)" % s)
 		var st := game.state
@@ -4744,6 +4848,7 @@ func test_fielding_in_game() -> void:
 	var off_b := _play_full_game(7)
 	check(off_a.state.score == off_b.state.score and off_a.my_fields.is_empty(), "수비를 끄면 수비 기회가 없다")
 	check(total > 40, "수비 기회가 실제로 온다 (%d)" % total)
+	check(dps > 0, "병살 기회도 온다 (%d)" % dps)
 
 
 func test_fielding_stat_effects() -> void:

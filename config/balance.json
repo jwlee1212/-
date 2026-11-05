@@ -1285,6 +1285,40 @@
         "perPoint": 0.006,
         "max": 0.92,
         "bonusShare": 0.3
+      },
+      "doublePlay": {
+        "_note": "내 수비 병살 (1루에 주자가 있고 무사·1사). 잡은 뒤 첫 송구는 2루 토스: 게이지가 feedGaugeRiseSec 동안 찬다(1루 송구보다 빠르게). ① 2루 포스 아웃 확률 = feedOutChance[칸] + (50 − 1루 주자 주력)/50 × feedSpeedSwing[칸] + 수비 능력치 보정(stat.outChanceSwing). ② 2루에서 잡으면 2루수가 pivotSec 뒤 1루로 pivotThrowMps 속도(가장 빠를 때)로 다시 던진다. 1루 아웃 확률 = pivotOutChance[내 토스의 칸] + (50 − 타자 주력)/50 × pivotSpeedSwing[칸] + 수비 보정 — 토스가 좋을수록 피벗이 쉬워 병살이 잘 된다. 판정 여유는 아웃이면 marginOut, 세이프면 marginSafe 사이(초). 토스를 너무 끌어 가장 빠른 공(stat.throwMpsMax)으로도 2루가 늦으면 1루 송구로 바뀐다",
+        "feedGaugeRiseSec": 0.9,
+        "feedOutChance": {
+          "weak": 0.45,
+          "good": 0.92,
+          "perfect": 0.99
+        },
+        "feedSpeedSwing": {
+          "weak": 0.15,
+          "good": 0.05,
+          "perfect": 0.01
+        },
+        "pivotSec": 0.4,
+        "pivotThrowMps": 36.0,
+        "pivotOutChance": {
+          "weak": 0.2,
+          "good": 0.55,
+          "perfect": 0.8
+        },
+        "pivotSpeedSwing": {
+          "weak": 0.1,
+          "good": 0.15,
+          "perfect": 0.1
+        },
+        "marginOut": [
+          0.05,
+          0.35
+        ],
+        "marginSafe": [
+          0.03,
+          0.3
+        ]
       }
     },
     "autoPa": {

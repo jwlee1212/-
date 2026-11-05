@@ -141,7 +141,7 @@ PLANS = {
                                         {"inning": 6, "half": "top", "outs": 0, "bases": [], "kind": "pa"},
                                         {"inning": 7, "half": "bottom", "outs": 0, "bases": [1], "score": [2, 2], "kind": "field",
                                          "event": "ep06_04b", "var": "ep06_dp_result", "doublePlay": ["BONUS", "NORMAL"],
-                                         "map": {"bonus": "success", "normal": "success", "_": "fail"}}], "after": "play"}},
+                                         "map": {"bonus": "success", "normal": "success", "double_play": "success", "_": "fail"}}], "after": "play"}},
     # EP08 서호대 연습경기 (8이닝): 타석 셋 + 수비 하나, 류건우 (직구 위주 → 슬라이더 → 전력 직구)
     "ep08_02": {"gamePlan": {"opponent": "seoho", "practice": True, "innings": 8, "role": "start", "home": False,
                              "line": [[0, 0, 0, 0, 0, 0, 0, 0], [2, 0, 0, 0, 1, 0, 1, 0]],
@@ -150,7 +150,8 @@ PLANS = {
                                          "map": dict(HITS, walk="walk", strikeout="strikeout", **{"_": "out"})},
                                         {"inning": 4, "half": "bottom", "outs": 1, "bases": [1], "kind": "field", "event": "ep08_03b",
                                          "var": "ep08_def_result", "doublePlay": ["BONUS"],
-                                         "map": {"bonus": "double_play", "normal": "out", "_": "error"}},
+                                         "map": {"bonus": "double_play", "normal": "out", "double_play": "double_play", "force_out": "out",
+                                                 "_": "error"}},
                                         {"inning": 6, "half": "top", "outs": 2, "bases": [2], "kind": "pa", "event": "ep08_03c",
                                          "var": "ep08_ab2_result", "pitcher": "finesse",
                                          "map": {"single": "rbi_hit", "double": POWER_XB, "triple": POWER_XB, "home_run": POWER_XB,

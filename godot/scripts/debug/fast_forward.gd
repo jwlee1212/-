@@ -98,7 +98,7 @@ static func _play(career: CareerState) -> void:
 			career.auto_game_story(game)
 		if game.step()["type"] == "my_turn":
 			career.auto_game_story(game)
-			var pa := AutoPa.simulate(career.cfg.auto_pa, career.batting, game.current_batter().skills, game.current_pitcher(), rng)
+			var pa := AutoPa.simulate(career.cfg.auto_pa, career.batting, game.current_batter().skills, game.current_pitcher(), rng, BattedBallSim.dp_situation(game.state.bases, game.state.outs))
 			var c: SwingJudge.Contact = null
 			if pa["ball"] != null:
 				var ball: BattedBallSim.Result = pa["ball"]
