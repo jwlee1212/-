@@ -182,8 +182,8 @@ func _today_card() -> Control:
 	var col := UiKit.vbox(Tokens.SPACE_XS)
 	card.add_child(col)
 	col.add_child(UiKit.kicker("오늘 · %s" % GameCalendar.text(pro.today(career))))
-	# 한 주 경기를 다 했다 → (이야기) → 다음 주
-	if career.game_done:
+	# 한 주 경기를 다 했다 → (이야기) → 다음 주. 시즌이 끝났으면 언제든 결산으로 (진행할 경기가 없다)
+	if career.game_done or pro.phase == ProCareer.PHASE_DONE:
 		col.add_child(UiKit.title("시즌이 끝났다" if pro.phase == ProCareer.PHASE_DONE else "이번 주 경기를 다 했다", Tokens.FONT_LABEL))
 		for n: String in _notes:
 			col.add_child(UiKit.label(n, Tokens.FONT_CAPTION, Tokens.ACCENT, Tokens.FONT_BOLD))

@@ -392,6 +392,7 @@ APPEND = {
 CHOICE_FX = {
     # 카드판 (2026-11-04): 고르면 반드시 무언가 바뀐다 — 문서의 힌트와 맞출 것
     ("ep03_taeo_sink", 0): {"train": {"fielding": 1.5}},
+    ("ep06_minjae", 1): {"condition": 3},  # 2026-11-05 전수 점검: "변화 없음"이던 선택지 (카드 규칙)
     ("ep03_taeo_sink", 1): {"condition": 5},
     ("ep05_seongho", 0): {"rel": {"seongho": 10}, "reputation": 2},
     ("ep05_seongho", 1): {"train": {"contact": 1.5}},
@@ -432,7 +433,7 @@ CHOICE_FX = {
     ("ep21_undrafted", 0): {"path": "draft"},
     ("ep21_undrafted", 1): {"path": "college"},
     # 프로 (2026-11-05)
-    ("ep23_bonus", 0): {"money": -50000000, "rel": {"mom": 15}, "flag": "restaurant_saved"},
+    ("ep23_bonus", 0): {"rel": {"mom": 15}, "flag": "restaurant_saved"},  # 돈은 CHOICE_COST (모자라면 못 고른다)
     ("ep23_bonus", 1): {"condition": 5},
     ("ep23_number", 0): {"condition": 6},
     ("ep23_number", 1): {"rel": {"mom": 6}},
@@ -443,6 +444,8 @@ CHOICE_FX = {
     ("ep26_debut", 0): {"train": {"power": 1.0}, "fame": 2},
     ("ep26_debut", 1): {"train": {"eye": 1.0}, "proTrust": 2},
 }
+# 돈이 드는 선택지 (선택지 cost — 모자라면 고를 수 없다. effects 의 money 는 막지 않고 0 으로 깎기만 한다)
+CHOICE_COST = {("ep23_bonus", 0): 50000000}
 # 조건 임계값을 상수로 (문서 "상수로 분리할 것")
 CONSTS = {("ep08_performance", "gte", 6): "ep08ScoutChecked", ("ep08_performance", "gte", 3): "ep08ScoutWatching"}
 
@@ -697,6 +700,8 @@ class Parser:
                 c["if"] = o["if"]
             fx = dict(o["fx"])
             fx.update(CHOICE_FX.get((cid, k), {}))
+            if (cid, k) in CHOICE_COST:
+                c["cost"] = CHOICE_COST[(cid, k)]
             if fx:
                 c["effects"] = fx
             then = labels.get(o["goto"], []) if o["goto"] and len(o["goto"]) == 1 else []
