@@ -22,7 +22,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 # 학년 순서대로 읽는다 (1학년 EP01~08 → 2학년 EP09~13). 장면 순서(after)는 문서를 넘어 이어진다
-DOCS = [ROOT / "docs/scenario/scenario_y1_ep01-08.md", ROOT / "docs/scenario/scenario_y2_ep09-13.md"]
+DOCS = [ROOT / "docs/scenario/scenario_y1_ep01-08.md", ROOT / "docs/scenario/scenario_y2_ep09-13.md",
+        ROOT / "docs/scenario/scenario_y3_ep14-22.md", ROOT / "docs/scenario/scenario_pro_ep23-26.md"]
 CONTENT = ROOT / "config/content.json"
 
 # ---------- 문서 화자 id → 게임 인물 id (또는 인물이 아닌 화자의 한글 이름) ----------
@@ -32,6 +33,8 @@ SPEAKERS = {
     "umpire": "심판", "first_base_coach": "1루 코치", "minjae": "minjae", "doyun": "senior", "seongho": "seongho",
     "jaehyuk": "jaehyuk", "mom": "mom", "na_scout": "scout",
     "junior": "junior",  # 2학년: 새 1학년 후배 (이름은 게임이 뽑는다)
+    "new_manager": "새 매니저", "announcer": "사회자",  # 3학년
+    "pro_coach": "감독", "captain": "주장", "futures_coach": "퓨처스 코치",  # 프로 (이름은 대사 속 {proCoach}·{proCaptain})
 }
 # 처음 말할 때 만나는(인물 탭에 열리는) 인물
 HIDDEN = {"manager", "neighbor", "rival", "scout", "minjae", "jaehyuk", "seongho", "junior"}
@@ -74,6 +77,12 @@ VARS = {
     "scout_revisit": {"type": "bool"}, "ep11_result": {"type": "enum", "values": ["win", "lose"]},
     "national_first_win_done": {"type": "bool"}, "sangbi_called": {"type": "bool"}, "taeo_knows_name": {"type": "bool"},
     "career_lean": {"type": "enum", "values": ["draft", "college"]},
+    # 2학년 끝·3학년 (scenario_y3_ep14-22.md 2장) — draft_tier·draft_team 은 엔진(CareerState.run_draft)이 쓴다
+    "mom_knows": {"type": "bool"}, "rumor_answer": {"type": "enum", "values": ["post", "ignore", "coach"]},
+    "hs_path": {"type": "enum", "values": ["draft", "college"]},
+    "draft_tier": {"type": "enum", "values": ["S", "A", "B", "C"]}, "draft_team": {"type": "string"},
+    # 프로 (scenario_pro_ep23-26.md 2장)
+    "bonus_use": {"type": "enum", "values": ["restaurant", "keep"]},
 }
 NOTE_VARS = ("시나리오 변수 (docs/scenario 2장의 ID 그대로 — scripts/build_scenario.py 가 쓴다). type: int|bool|enum|string|list, "
              "values(enum), default. 이벤트 효과 set{변수: 값}·add{변수: n}, 대본 branch·선택지 if·이벤트 when 의 조건 {var, eq|ne|gte|lte|gt|lt|in}. "
@@ -99,11 +108,17 @@ PLACES = {
     # 2학년
     "ep09_01": "field", "ep10_01": "dugout", "ep11_01": "clubroom", "ep11_02": "dugout", "ep12_01": "clubroom",
     "ep12_02": "national_camp", "ep13_01": "clubroom",
+    # 2학년 끝·3학년
+    "ep14_01": "clubroom", "ep15_01": "clubroom", "ep16_01": "restaurant", "ep17_01": "clubroom", "ep18_01": "team_inn",
+    "ep19_01": "field", "ep20_01": "coach_office", "ep21_01": "restaurant", "ep21_02": "restaurant", "ep22_01": "field",
+    # 프로
+    "ep23_01": "pro_office", "ep24_01": "spring_camp", "ep25_01": "futures_field", "ep26_01": "pro_dugout",
 }
 NEW_PLACES = {"road": "학교 가는 길", "clubroom": "야구부실", "bedroom": "내 방", "playground": "아파트 놀이터",
               "cheongun_field": "청운고 야구장", "sink": "수돗가", "store": "매점", "cage": "배팅 케이지",
               "hallway": "야구장 복도", "convenience": "아파트 앞 편의점", "restaurant": "은하식당", "seoho_field": "서호대 야구장",
-              "national_camp": "상비군 훈련장"}
+              "national_camp": "상비군 훈련장", "team_inn": "원정 숙소", "coach_office": "감독실",
+              "pro_office": "구단 사무실", "spring_camp": "스프링캠프 훈련장", "futures_field": "퓨처스 구장", "pro_dugout": "1군 덕아웃"}
 
 # ---------- 경기 대본 (gamePlan) — 문서의 경기 상황을 엔진 장면으로 ----------
 HITS = {"single": "hit", "double": "hit", "triple": "hit", "home_run": "hit"}
@@ -234,6 +249,8 @@ KEEP_JUMP = [{"do": {"contact": 1, "power": 1, "eye": 1, "fielding": 1}},
              by_var("training_direction", {"contact": [{"do": {"contact": 2}}], "power": [{"do": {"power": 2}}],
                                            "defense_run": [{"do": {"fielding": 1, "speed": 1}}]})]
 SYSTEM_FX = {
+    # 3학년 드래프트 (EP21): 엔진이 유망주 랭킹으로 등급·구단·순번·계약금을 정한다 (결과는 다음 장면에서 보인다)
+    "SYSTEM: 드래프트 결과 발표": [{"do": {"draft": True}}],
     "SYSTEM: 능력치 상승 (폼 유지)": [{"ui": "system", "text": "능력치 상승"}] + KEEP_JUMP,
     "SYSTEM: 초기 능력치가 결정되었습니다.": [{"ui": "system", "text": "초기 능력치가 결정되었습니다."}],
     "SYSTEM: test_overall_grade = 3종목 등급의 평균 (high=3, mid=2, low=1 → 평균 2.5 이상 high, 1.5 이상 mid, 미만 low)": [],
@@ -267,6 +284,7 @@ W1 = {"grade": [1, 1], "week": [1, 1]}
 G1 = {"grade": [1, 1]}
 LEAGUE_END = {"grade": [1, 1], "lastPhaseEnd": "leagueEnd"}
 G2 = {"grade": [2, 2]}
+G3 = {"grade": [3, 3]}
 def camp(w):
     return {"grade": [1, 1], "winter": True, "campWeek": [w, w]}
 META = {
@@ -312,10 +330,29 @@ META = {
     "ep12_01": dict(G2, lastPhaseEnd="leagueEnd", timing="after"),  # 후반기 최종전 뒤 (ep11 을 본 뒤라 후반기)
     "ep12_02": dict(G2, timing="start"),                        # 그다음 주 (상비군 훈련)
     "ep13_01": {"grade": [2, 2], "winter": True, "campWeek": [1, 1], "timing": "start"},  # 2학년 겨울 캠프 첫 주
+    # ---- 2학년 끝·3학년 (2026-11-05) ----
+    "ep14_01": {"grade": [2, 2], "winter": True, "campWeek": [3, 3], "timing": "start"},  # 2학년 겨울 캠프 3주 (소율 100호)
+    "ep15_01": dict(G3, week=[1, 1], timing="start"),           # 3학년 첫 주
+    "ep16_01": dict(G3, week=[3, 6], timing="start"),           # 3학년 4월 (셋째 주부터)
+    "ep17_01": dict(G3, lastPhaseEnd="leagueEnd", timing="after"),  # 전반기 최종전 뒤
+    "ep18_01": dict(G3, lastNational=True, timing="after"),     # 백호기 첫 경기 뒤
+    "ep19_01": dict(G3, lastPhaseEnd="leagueEnd", timing="after"),  # 후반기 최종전 뒤 (ep18 뒤라 후반기)
+    "ep20_01": dict(G3, timing="seasonEnd"),                    # 시즌 결산: 진로
+    "ep21_01": dict(G3, timing="seasonEnd"),                    # 드래프트 (신청했을 때만 — WHEN)
+    "ep21_02": dict(G3, timing="seasonEnd"),
+    "ep22_01": dict(G3, timing="seasonEnd"),                    # 졸업
+    # ---- 프로 (proYear = 프로 몇 년 차) ----
+    "ep23_01": {"proYear": [1, 1], "week": [1, 1], "timing": "start"},
+    "ep24_01": {"proYear": [1, 1], "week": [1, 1], "timing": "start"},
+    "ep25_01": {"proYear": [1, 2], "proLevel": "futures", "week": [2, 24], "timing": "start"},  # 퓨처스에서 시작했을 때만
+    "ep26_01": {"proYear": [1, 9], "proLevel": "first", "proPhase": "regular", "timing": "start"},  # 1군 첫 주
 }
 # 조건이 맞을 때만 뜨는 장면 (when). 앞뒤 이야기 순서(after)는 이 장면들을 건너뛰고 잇는다
 FORM_CHANGE = {"var": "form_answer", "eq": "change"}
-WHEN = {"ep07_02": FORM_CHANGE, "ep07_02b": FORM_CHANGE}
+DRAFT_FILED = {"var": "hs_path", "eq": "draft"}
+WHEN = {"ep07_02": FORM_CHANGE, "ep07_02b": FORM_CHANGE, "ep21_01": DRAFT_FILED, "ep21_02": DRAFT_FILED}
+# 조건(proLevel 등)이 있어 안 나올 수도 있는 장면 — 뒤 장면의 순서(after)가 이 장면을 건너뛰어 잇는다
+OPTIONAL = {"ep25_01"}
 # 장면을 이어 붙인다 (False: 앞 이벤트에 이어서 한 화면으로) — 경기 장면 대화가 SCENE 경계를 넘을 때
 JOIN = {"ep01_03", "ep01_04", "ep01_06", "ep04_04", "ep04_05", "ep05_05"}
 # 이벤트 앞·뒤에 덧붙이는 노드 (엔진 효과 — 문서의 SYSTEM·modifiers 를 옮긴 것)
@@ -370,6 +407,35 @@ CHOICE_FX = {
     ("ep12_name", 1): {"rel": {"rival": 15}, "condition": -4},
     ("ep13_path", 0): {"scoutInterest": 3},
     ("ep13_path", 1): {"rel": {"coach": 6}},
+    # 2학년 끝·3학년 (2026-11-05)
+    ("ep14_hundred", 0): {"rel": {"manager": 8}},
+    ("ep14_hundred", 1): {"train": {"eye": 1.5}},
+    ("ep15_notebook", 0): {"rel": {"junior": 6}, "condition": -3},
+    ("ep15_notebook", 1): {"rel": {"coach": 5}},
+    ("ep16_mom", 0): {"rel": {"mom": 8}, "condition": -4},
+    ("ep16_mom", 1): {"condition": 5},
+    ("ep17_rumor", 0): {"reputation": 5, "condition": -5},
+    ("ep17_rumor", 1): {"condition": 5, "reputation": -4},
+    ("ep17_rumor", 2): {"rel": {"coach": 5}, "scoutInterest": 2, "reputation": 2},
+    ("ep18_eve", 0): {"train": {"eye": 1.5}, "condition": -4},
+    ("ep18_eve", 1): {"condition": 8},
+    ("ep19_glove", 0): {"rel": {"junior": 12}},
+    ("ep19_glove", 1): {"train": {"fielding": 1.5}},
+    ("ep20_path", 0): {"path": "draft"},
+    ("ep20_path", 1): {"path": "college"},
+    ("ep21_undrafted", 0): {"path": "draft"},
+    ("ep21_undrafted", 1): {"path": "college"},
+    # 프로 (2026-11-05)
+    ("ep23_bonus", 0): {"money": -50000000, "rel": {"mom": 15}, "flag": "restaurant_saved"},
+    ("ep23_bonus", 1): {"condition": 5},
+    ("ep23_number", 0): {"condition": 6},
+    ("ep23_number", 1): {"rel": {"mom": 6}},
+    ("ep24_camp", 0): {"train": {"fielding": 1.5}},
+    ("ep24_camp", 1): {"train": {"power": 1.5}},
+    ("ep25_extra", 0): {"train": {"contact": 1.5}, "condition": -5},
+    ("ep25_extra", 1): {"condition": 8},
+    ("ep26_debut", 0): {"train": {"power": 1.0}, "fame": 2},
+    ("ep26_debut", 1): {"train": {"eye": 1.0}},
 }
 # 조건 임계값을 상수로 (문서 "상수로 분리할 것")
 CONSTS = {("ep08_performance", "gte", 6): "ep08ScoutChecked", ("ep08_performance", "gte", 3): "ep08ScoutWatching"}
@@ -752,7 +818,7 @@ def finish(events):
         if eid in WHEN:
             out["when"] = WHEN[eid]
         if meta.get("timing") != "game":
-            before = prev if eid in WHEN else prev_always
+            before = prev if (eid in WHEN or eid in OPTIONAL) else prev_always
             if before is not None:
                 out["after"] = [before]
         out["episode"] = int(eid[2:4])
@@ -762,7 +828,7 @@ def finish(events):
         out["script"] = script
         order.append(out)
         prev = eid
-        if eid not in WHEN:
+        if eid not in WHEN and eid not in OPTIONAL:
             prev_always = eid
     return order
 
