@@ -53,7 +53,7 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(__file__))
 from make_pixel_art import PAL, Cell, capsule, circle, ellipse, poly, hx, shifted, OUT  # noqa: E402
-from cutscene_grids import GRIDS  # noqa: E402  (손으로 찍은 인물 격자)
+from cutscene_grids import GRIDS, GRID_COLORS  # noqa: E402  (손으로 찍은 인물 격자 · 물건 격자의 색 글자)
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 META = os.path.join(ROOT, "godot", "scripts", "characters", "cutscene_meta.gd")
@@ -82,7 +82,27 @@ PAL.update({k: hx(v) for k, v in {
     "museum_wall": "#2a2440", "frame_a": "#b8608a", "frame_b": "#ef8a6a", "floor": "#3a3050",
     # 실루엣 · 노을 테두리빛
     "sil": "#161a2e", "sil_rim": "#e6935f", "sil_rim_hi": "#ffc58a",
+    # 2026-11-05 다양화: 장면마다 하늘·빛·실루엣 색을 다르게 (노을은 EP05 성호의 색으로 남긴다)
+    # 3월 아침 (차고 맑다, 해는 오른쪽 낮게 — 먼 것일수록 하늘색에 묻힌다)
+    "m_sky0": "#7fb8e6", "m_sky1": "#a6cfee", "m_sky2": "#cde4f4", "m_sky3": "#eef1ea", "m_sun": "#fffbe8", "m_glow": "#f6f4dc",
+    "m_far": "#a3b6cc", "m_far_s": "#90a5be", "m_mid": "#62748f", "m_mid_s": "#52637d", "m_win": "#d8e8f4",
+    "m_dirt_hi": "#ddc6a2", "m_dirt": "#c8ae88", "m_dirt_s": "#a99272", "m_line": "#f1ece0",
+    "sil_cool": "#1c2846", "rim_cool": "#b9dcff", "rim_cool_hi": "#ffffff",
+    "watch_ring": "#c9d2de", "watch_ring_s": "#8a97aa", "watch_face": "#f7f8f2",
+    # 하얀 전시실 (왼쪽 큰 창에서 빛)
+    "g_wall": "#ece6da", "g_wall_s": "#dbd3c4", "g_floor": "#cbb79a", "g_floor_s": "#b29f83", "g_light": "#fffaf0",
+    "g_frame": "#8a8072", "g_wood": "#5a4636", "g_bench": "#6a5848", "g_spot": "#fff6d8",
+    "p_navy": "#22305a", "p_blue": "#3f6fb5", "p_teal": "#3f9aa0", "p_sky": "#9ccbe0", "p_ochre": "#d9a441", "p_sun": "#f2c55c",
+    "p_rose": "#d97a7a", "p_cream": "#f4ead2",
+    "sil_gallery": "#262633", "rim_gallery": "#fff1d6", "rim_gallery_hi": "#ffffff",
 }.items()})
+
+# 실루엣 색 묶음: 몸 · 옆 테두리빛 · 위 테두리빛 (장면의 빛에 맞춘다)
+SCHEMES = {
+    "dusk": ("sil", "sil_rim", "sil_rim_hi"),
+    "morning": ("sil_cool", "rim_cool", "rim_cool_hi"),
+    "gallery": ("sil_gallery", "rim_gallery", "rim_gallery_hi"),
+}
 
 
 def rect(c, x0, y0, x1, y1, color, alpha=255):
@@ -136,7 +156,7 @@ def light_pole(c, x, top, bottom):
 
 # ---------- 실루엣 ----------
 
-def rim(c, mask=None, keep=None):
+def rim(c, mask=None, keep=None, colors=("sil_rim", "sil_rim_hi")):
     """빛을 받는 가장자리 1칸: 옆(왼·오른) = sil_rim, 위 = sil_rim_hi. 칸 가장자리에서 잘린 곳은 빼고,
     keep(격자의 '=' 칸 — 일부러 빛을 끊은 곳)도 뺀다"""
     solid = (c.rgba[..., 3] == 255) if mask is None else mask
@@ -146,8 +166,8 @@ def rim(c, mask=None, keep=None):
         m[0, :] = m[-1, :] = m[:, 0] = m[:, -1] = False
         if keep is not None:
             m &= ~keep
-    c.put(side, PAL["sil_rim"])
-    c.put(top, PAL["sil_rim_hi"])
+    c.put(side, PAL[colors[0]])
+    c.put(top, PAL[colors[1]])
 
 
 def silhouette(c, fns):
@@ -157,9 +177,13 @@ def silhouette(c, fns):
     return m
 
 
-def stamp_grid(name, flip_x=False):
-    """손으로 찍은 격자 (cutscene_grids.GRIDS) 하나를 칸에 찍는다: 격자의 기준점이 칸의 FOOT 에 온다. '#' 은 테두리빛을 받고 '=' 는 받지 않는다"""
+def stamp_grid(name, flip_x=False, scheme="dusk"):
+    """손으로 찍은 격자 (cutscene_grids.GRIDS) 하나를 칸에 찍는다: 격자의 기준점이 칸의 FOOT 에 온다.
+    '#' 은 실루엣 + 테두리빛, '=' 는 실루엣(빛 없음), 그 밖의 글자는 GRID_COLORS[이름] 의 색 (물건 — 빛 없음).
+    scheme: 실루엣 색 묶음 (SCHEMES — 장면의 빛)"""
     rows, anchor = GRIDS[name]
+    colors = GRID_COLORS.get(name, {})
+    body, side, top = SCHEMES[scheme]
     c = cell()
     keep = np.zeros((CELL_H, CELL_W), bool)
     w = max(len(r) for r in rows)
@@ -171,9 +195,9 @@ def stamp_grid(name, flip_x=False):
             ax = (w - 1 - anchor[0]) if flip_x else anchor[0]
             cx, cy = FOOT[0] - ax + gx, FOOT[1] - anchor[1] + y
             if 0 <= cx < CELL_W and 0 <= cy < CELL_H:
-                c.rgba[cy, cx] = (*PAL["sil"], 255)
-                keep[cy, cx] = ch == "="
-    rim(c, keep=keep)
+                c.rgba[cy, cx] = (*PAL[colors.get(ch, body)], 255)
+                keep[cy, cx] = ch != "#"
+    rim(c, keep=keep, colors=(side, top))
     return c
 
 
@@ -442,6 +466,109 @@ def panel_clubroom_in():
     return c
 
 
+def panel_school_morning():
+    """EP01 3월 아침 (다양화 시험): 차고 맑은 하늘, 오른쪽 낮은 해, 하늘색에 묻힌 먼 아파트(멀수록 옅다),
+    가운데 컨테이너 부실과 그물 펜스, 넓은 흙 운동장에 펜스 기둥 그림자가 왼쪽으로 길게"""
+    c = Cell(300, PANEL_H, 0, 0)
+    bands(c, 0, 62, ["m_sky0", "m_sky1", "m_sky2", "m_sky3"])
+    c.put(c._mask(circle((252, 50), 13)), PAL["m_glow"])
+    c.put(c._mask(circle((252, 50), 8)), PAL["m_sun"])
+    x, k = 0, 0
+    while x < 300:  # 먼 아파트 (옅게, 높이는 번호로)
+        w = 20 + (k * 7 + 5) % 14
+        h = 12 + (k * 11 + 9) % 14
+        rect(c, x, 62 - h, x + w - 3, 62, "m_far" if k % 2 else "m_far_s")
+        x += w
+        k += 1
+    rect(c, 0, 58, 300, 62, "m_far_s")
+    rect(c, 34, 42, 108, 64, "m_mid")  # 컨테이너 부실
+    rect(c, 34, 42, 108, 43, "m_win")
+    rect(c, 34, 60, 108, 64, "m_mid_s")
+    for wx in (46, 66, 86):
+        rect(c, wx, 48, wx + 10, 54, "m_win")
+    for px in range(128, 300, 30):  # 그물 펜스 기둥 + 위 가로대 + 그물 (성긴 바둑판)
+        rect(c, px, 40, px + 1, 64, "m_mid")
+    rect(c, 128, 40, 300, 41, "m_mid")
+    for yy in range(43, 64, 3):
+        for xx in range(128 + (yy % 2), 300, 3):
+            dot(c, xx, yy, "m_mid_s", 110)
+    rect(c, 0, 64, 300, 98, "m_dirt")
+    rect(c, 0, 64, 300, 65, "m_dirt_hi")
+    for px in range(128, 300, 30):  # 기둥 그림자 (해가 오른쪽 → 왼쪽 아래로 길게)
+        c.put(c._mask(poly([(px, 64), (px + 2, 64), (px - 40, 98), (px - 44, 98)])), PAL["m_dirt_s"])
+    for xx in range(0, 300, 7):  # 흙 알갱이
+        dot(c, xx, 70 + (xx * 7) % 24, "m_dirt_s")
+        dot(c, xx + 3, 74 + (xx * 5) % 20, "m_dirt_hi")
+    rect(c, 0, 82, 300, 83, "m_line")  # 파울 선 (멀리)
+    return c
+
+
+def panel_watch_bg():
+    """스톱워치 클로즈업 뒤: 초점이 나간 아침 하늘과 흙 (큰 띠 둘 + 흐린 빛망울)"""
+    c = Cell(240, PANEL_H, 0, 0)
+    bands(c, 0, 56, ["m_sky1", "m_sky2", "m_sky3"])
+    rect(c, 0, 56, 240, 98, "m_dirt")
+    bands(c, 52, 62, ["m_sky3", "m_dirt_hi", "m_dirt"])
+    for x, y, r, col in [(30, 20, 9, "m_sky3"), (90, 34, 6, "m_glow"), (170, 16, 11, "m_sky3"), (210, 70, 8, "m_dirt_hi"), (60, 78, 6, "m_dirt_hi")]:
+        c.put(c._mask(circle((x, y), r)), PAL[col])
+    return c
+
+
+def panel_museum_white():
+    """하린 미술관 (다양화 시험): 하얀 전시실. 왼쪽 큰 창의 빛이 바닥에 비스듬히, 천장 조명 셋,
+    큰 그림 둘(차가운 추상 · 남색 바탕의 해), 그 앞에 긴 의자. 실루엣이 밝은 벽 앞에서 또렷하다"""
+    c = Cell(300, PANEL_H, 0, 0)
+    rect(c, 0, 0, 300, 98, "g_wall")
+    rect(c, 0, 66, 300, 76, "g_wall_s")  # 벽 아래 그늘
+    rect(c, 0, 76, 300, 98, "g_floor")
+    for x in range(0, 300, 22):  # 마루 이음새
+        rect(c, x, 76, x + 1, 98, "g_floor_s")
+    rect(c, 0, 76, 300, 77, "g_floor_s")
+    rect(c, 4, 8, 64, 76, "g_frame")  # 큰 창
+    rect(c, 7, 11, 61, 73, "g_light")
+    rect(c, 33, 11, 35, 73, "g_frame")
+    rect(c, 7, 40, 61, 42, "g_frame")
+    c.put(c._mask(poly([(7, 76), (61, 76), (118, 98), (40, 98)])), PAL["g_light"])  # 바닥의 창빛
+    for x in (120, 200, 270):  # 천장 조명
+        rect(c, x - 3, 0, x + 4, 3, "g_frame")
+        c.put(c._mask(poly([(x - 2, 3), (x + 3, 3), (x + 14, 24), (x - 13, 24)])), PAL["g_spot"], 90)
+    # 그림 A: 차가운 추상 띠
+    rect(c, 96, 18, 166, 60, "g_wood")
+    rect(c, 99, 21, 163, 57, "p_sky")
+    for i, col in enumerate(["p_blue", "p_teal", "p_navy", "p_blue"]):
+        rect(c, 99, 30 + i * 7, 163 - (i * 9) % 20, 35 + i * 7, col)
+    # 그림 B: 남색 바탕에 큰 해 (하린이 보는 그림)
+    rect(c, 186, 14, 268, 62, "g_wood")
+    rect(c, 189, 17, 265, 59, "p_navy")
+    c.put(c._mask(circle((226, 40), 13)), PAL["p_ochre"])
+    c.put(c._mask(circle((226, 40), 9)), PAL["p_sun"])
+    rect(c, 189, 50, 265, 59, "p_blue")
+    # 긴 의자 (앉은 칸의 발 자리 = 앉는 판 80)
+    rect(c, 176, 80, 262, 84, "g_bench")
+    rect(c, 180, 84, 184, 94, "g_bench")
+    rect(c, 254, 84, 258, 94, "g_bench")
+    return c
+
+
+def panel_painting_close():
+    """그림 클로즈업 (카메라가 천천히 훑는다): 왼쪽 끝 액자 나무, 붓질 같은 색 덩어리 (가장자리는 번호로 들쭉날쭉)"""
+    c = Cell(320, PANEL_H, 0, 0)
+    rect(c, 0, 0, 320, 98, "p_navy")
+    rows = [(0, 16, "p_navy"), (16, 30, "p_blue"), (30, 40, "p_teal"), (40, 52, "p_sky"), (52, 60, "p_cream"), (60, 74, "p_blue"), (74, 98, "p_navy")]
+    for y0, y1, col in rows:
+        for x in range(0, 320, 4):
+            j = (x * 37 + y0 * 11) % 5 - 2  # 붓질 가장자리
+            rect(c, x, y0 + j, x + 4, y1 + ((x * 13 + y1) % 3) - 1, col)
+    c.put(c._mask(circle((210, 44), 22)), PAL["p_ochre"])  # 해
+    c.put(c._mask(circle((210, 44), 15)), PAL["p_sun"])
+    for x in range(150, 280, 6):  # 해 둘레 붓자국
+        dot(c, x, 20 + (x * 7) % 8, "p_rose")
+        dot(c, x + 2, 66 + (x * 5) % 6, "p_ochre")
+    rect(c, 0, 0, 12, 98, "g_wood")
+    rect(c, 12, 0, 13, 98, "g_frame")
+    return c
+
+
 # ---------- 인물 칸 (손으로 찍은 격자 — scripts/cutscene_grids.py) ----------
 
 def draw_rail(i):
@@ -455,14 +582,28 @@ def draw_rail(i):
     return c
 
 
-def grid_row(*names):
-    return lambda i: stamp_grid(names[i])
+def pair_cell(left, right, gap, flip_x=False, scheme="dusk"):
+    """격자 둘을 한 칸에 나란히 (먼 두 사람을 한 장으로 — 컷마다 그림 장 수를 줄인다). 오른쪽 사람은 gap 칸 옆"""
+    a = stamp_grid(left, flip_x, scheme)
+    b = stamp_grid(right, flip_x, scheme)
+    shifted_b = np.zeros_like(b.rgba)
+    shifted_b[:, gap:] = b.rgba[:, :CELL_W - gap]
+    solid = shifted_b[..., 3] == 255
+    a.rgba[solid] = shifted_b[solid]
+    return a
+
+
+def grid_row(*names, flip_x=False, scheme="dusk"):
+    return lambda i: stamp_grid(names[i], flip_x=flip_x, scheme=scheme)
 
 
 PANELS = [("dugout", panel_dugout), ("rail", panel_rail), ("plate", panel_plate), ("baseline", panel_baseline),
           ("bag", panel_bag), ("sky", panel_sky), ("wide", panel_wide),
           ("school", panel_school), ("cheongun", panel_cheongun), ("sink", panel_sink), ("cage_night", panel_cage_night),
-          ("clubroom_night", panel_clubroom_night), ("stands", panel_stands), ("museum", panel_museum), ("clubroom_in", panel_clubroom_in)]
+          ("clubroom_night", panel_clubroom_night), ("stands", panel_stands), ("museum", panel_museum), ("clubroom_in", panel_clubroom_in),
+          # 2026-11-05 다양화 시험
+          ("school_morning", panel_school_morning), ("watch_bg", panel_watch_bg), ("museum_white", panel_museum_white),
+          ("painting_close", panel_painting_close)]
 # 인물 줄: (이름, 그리는 함수, 장 수). 장은 왼쪽부터
 SPRITES = [("coach", grid_row("COACH"), 1), ("bench", grid_row("BENCH_SIT", "BENCH_STAND"), 2), ("rise", grid_row("RISE"), 1),
            ("rail", draw_rail, 1), ("batter", grid_row("BAT_READY", "BAT_HIT"), 2), ("run", grid_row("RUN_A", "RUN_B"), 2),
@@ -474,7 +615,15 @@ SPRITES = [("coach", grid_row("COACH"), 1), ("bench", grid_row("BENCH_SIT", "BEN
            ("sink", grid_row("TAEO_SINK_A", "TAEO_SINK_B"), 2), ("pitcher", grid_row("PITCHER_SET", "PITCHER_KICK"), 2),
            ("toss", grid_row("TOSS"), 1), ("pivot", grid_row("PIVOT"), 1), ("ball", grid_row("BALL"), 1),
            ("soyul_window", grid_row("SOYUL_WINDOW"), 1), ("scouts", grid_row("SCOUTS_SIT", "SCOUTS_UP"), 2),
-           ("pair_stand", grid_row("PAIR_STAND"), 1), ("pair_sit", grid_row("PAIR_SIT"), 1)]
+           ("pair_stand", grid_row("PAIR_STAND"), 1), ("pair_sit", grid_row("PAIR_SIT"), 1),
+           # 2026-11-05 다양화 시험: 인물마다 모양, 장면마다 실루엣 색
+           ("me_field", grid_row("ME_FIELD", scheme="morning"), 1), ("junsu", grid_row("JUNSU", scheme="morning"), 1),
+           ("coach_arms", grid_row("COACH_ARMS", flip_x=True, scheme="morning"), 1),
+           # 먼 나 + 준수가 같이 걷는다 (한 칸에 둘, 발이 엇갈리게 2장)
+           ("tiny_pair_walk", lambda i: pair_cell(["TINY_ME_A", "TINY_ME_B"][i], ["TINY_JUNSU_B", "TINY_JUNSU_A"][i], 16, True, "morning"), 2),
+           ("hand_watch", grid_row("HAND_WATCH", scheme="morning"), 1),
+           ("harin_back", grid_row("HARIN_BACK", scheme="gallery"), 1), ("me_back", grid_row("ME_BACK", scheme="gallery"), 1),
+           ("harin_sit", grid_row("HARIN_SIT", scheme="gallery"), 1), ("me_sit", grid_row("ME_SIT", scheme="gallery"), 1)]
 
 
 def main():

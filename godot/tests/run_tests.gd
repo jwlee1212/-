@@ -1925,12 +1925,23 @@ func test_cutscene() -> void:
 		var errs := CutscenePlan.validate(id, cfg.cutscenes[id], CutsceneMeta.PANELS, CutsceneMeta.ROWS)
 		check(errs.is_empty(), "컷신 %s 정의 검증: %s" % [id, errs])
 	check(ResourceLoader.exists("res://art/pixel/cutscene.png") and ResourceLoader.exists("res://art/pixel/cutscene_bg.png"), "컷신 도트 그림 파일")
-	for k in ["bar", "captionFadeSec", "speed", "skipAfterSec"]:
+	# 정지 그림 컷 (외부 그림, 원본 해상도 TV 틀 — 2026-11-05): 쓰는 그림 파일이 다 있다, 화면 계획은 pan 0~1 · zoom 1 이상
+	for id: String in cfg.cutscenes:
+		for shot: Dictionary in cfg.cutscenes[id].shots:
+			if shot.has("still"):
+				check(ResourceLoader.exists(CutsceneView.STILL_DIR % shot.still), "%s 정지 그림 %s 파일" % [id, shot.still])
+	var still_cs := {"shots": [{"still": "x", "dur": 2.0, "pan": [[0, 0.0, 0.5], [2.0, 1.0, 0.5]], "zoom": [[0, 1.0, 0], [2.0, 1.2, 0]]}]}
+	var s0 := CutscenePlan.frame(still_cs, 0.0)
+	var s1 := CutscenePlan.frame(still_cs, 2.0)
+	check(s0.still == "x" and s0.pan.x == 0.0 and s1.pan.x == 1.0 and is_equal_approx(s1.zoom, 1.2) and s0.zoom == 1.0, "정지 그림 컷: 흐르는 pan · 밀어 들어가는 zoom")
+	check(CutscenePlan.validate("s", still_cs, CutsceneMeta.PANELS, CutsceneMeta.ROWS, []).size() == 1, "없는 정지 그림은 검증에 걸린다 (컷신을 건너뛴다)")
+	check(CutscenePlan.validate("s", still_cs, CutsceneMeta.PANELS, CutsceneMeta.ROWS, ["x"]).is_empty(), "있는 정지 그림은 통과")
+	for k in ["bar", "captionFadeSec", "speed", "skipAfterSec", "tvWidth", "tvMaxHeight", "tvAspect", "tvEdgePx"]:
 		check(cfg.cutscene.has(k), "balance.json career.cutscene.%s" % k)
 	var cs: Dictionary = cfg.cutscenes["ep05_seongho"]
 	var total := CutscenePlan.duration(cs)
 	check(total >= 12.0 and total <= 16.0, "길이 %.1f초 (12~16)" % total)
-	# 컷신 그림 규칙 (CLAUDE.md 원칙 6): 얼굴 칸이 없다, 모든 컷신의 컷마다 그림 1~3장 (같은 칸을 여러 자리에 놓는 건 한 장 — 소품 포함, 인물은 1~2장)
+	# 컷신 그림 규칙 (CLAUDE.md 원칙 6): 얼굴 칸이 없다, 모든 컷신의 컷마다 그림 3장 이하 (같은 칸을 여러 자리에 놓는 건 한 장 — 소품 포함, 인물은 1~2장)
 	check(not CutsceneMeta.ROWS.has("face"), "얼굴 클로즈업 칸이 없다")
 	for id: String in cfg.cutscenes:
 		var shots: Array = cfg.cutscenes[id].shots
@@ -1942,7 +1953,8 @@ func test_cutscene() -> void:
 					used.append(f[1])
 				for f in used:
 					cells["%s/%d" % [ac.row, int(f)]] = true
-			check(cells.size() >= 1 and cells.size() <= 3, "%s 컷 %d 그림 %d장 (1~3)" % [id, i + 1, cells.size()])
+			# 인물 없는 컷(그림·물건 클로즈업처럼 배경만 훑는 끼움 컷)도 된다 — 2026-11-05 다양화 시험
+			check(cells.size() <= 3, "%s 컷 %d 그림 %d장 (0~3)" % [id, i + 1, cells.size()])
 		if id != "ep05_seongho":
 			var d := CutscenePlan.duration(cfg.cutscenes[id])
 			check(d >= 3.0 and d <= 10.0, "%s 길이 %.1f초 (3~10)" % [id, d])

@@ -647,6 +647,12 @@ func _play_cutscene(id: String) -> void:
 	if not is_inside_tree() or not _career.cfg.cutscenes.has(id):
 		_step()
 		return
+	# 정의가 그림과 안 맞으면 (개발 서버가 새 content.json 을 보내는데 빌드에 새 그림이 아직 없을 때 등) 검은 화면 대신 건너뛴다
+	var errors := CutscenePlan.validate(id, _career.cfg.cutscenes[id], CutsceneMeta.PANELS, CutsceneMeta.ROWS, CutsceneView.still_names(_career.cfg.cutscenes[id]))
+	if not errors.is_empty():
+		push_warning("컷신 %s 를 건너뛴다 (그림과 정의가 안 맞는다 — 웹 빌드를 다시 만들 것): %s" % [id, errors])
+		_step()
+		return
 	var cv := CutsceneView.new(_career, id)
 	add_child(UiKit.fill_parent(cv))
 	_cutscene = cv
