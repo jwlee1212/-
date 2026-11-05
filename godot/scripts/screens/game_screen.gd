@@ -260,6 +260,9 @@ func _open_batting() -> void:
 			"today": "오늘 첫 타석" if l.pa == 0 else "오늘 " + l.line_text(),
 			"season": "시즌 %s · %d홈런 · %d타점" % [s.average(), s.home_runs, s.rbi] if s.pa > 0 else "",
 		}
+	# 소율의 구종 힌트: 이 경기의 내 첫 타석이면 상대 투수 결정구 메모 (힌트는 경기가 끝날 때 CareerState.finish_game 이 쓴다)
+	if PitchHint.show_now(player, _game.my_line.pa):
+		hud.pitch_memo = PitchHint.memo(_app.batting_config, opp_pitcher, _session.presentation.pitch_memo_text)
 	_batting.add_child(hud)
 	# 내가 친 공에 내 주루 판단이 있으면 베이스 버튼이 뜬다 (타석이 끝나면 _session 이 비워지므로 세션을 담아 둔다)
 	var session := _session
