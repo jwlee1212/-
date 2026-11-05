@@ -99,7 +99,7 @@ func apply_play(play: PlaySimulator.PlayResult, bunt: bool = false) -> Dictionar
 		outcome = SwingJudge.Outcome.SAC_BUNT
 		note = "희생번트"
 	var res := {"outcome": outcome, "runs": play.scorers.size(), "rbi": play.rbi, "scorers": play.scorers.duplicate(),
-		"outs": play.outs, "note": note, "half_over": false, "sac_fly": play.sac_fly}
+		"outs": play.outs, "note": note, "half_over": false, "sac_fly": play.sac_fly, "fielding": play.fielding}
 	outs += play.outs
 	bases = play.bases.duplicate()
 	return _end_pa(res, side)

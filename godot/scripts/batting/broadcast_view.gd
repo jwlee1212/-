@@ -75,7 +75,7 @@ static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: 
 
 	# 수비수: 잡으러 가는 한 명은 반응 시간 뒤 목표로 달려가고, 1루에서 받는 사람은 베이스로 간다.
 	# 나머지는 공 쪽으로 조금씩 움직인다
-	var positions := BattedBallSim.fielder_positions(cfg, bunt)
+	var positions := BattedBallSim.fielder_positions(cfg, bunt, r.dp_depth)
 	var uniform := Tokens.UNIFORM_US if us_fielding else Tokens.UNIFORM_THEM
 	var cover := _cover_assignments(play)
 	var bag := cfg.base_pos(1)

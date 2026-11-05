@@ -614,7 +614,7 @@ func step() -> Dictionary:
 			return {"type": "my_steal", "from": steal_base(), "side": side}
 	var batter := teams[side].lineup[idx]
 	var pitcher := current_pitcher()
-	var pa := AutoPa.simulate(cfg.auto_pa, bc, batter.skills, pitcher, _rng)
+	var pa := AutoPa.simulate(cfg.auto_pa, bc, batter.skills, pitcher, _rng, BattedBallSim.dp_situation(state.bases, state.outs))
 	var half := state.half_text()
 	var play: PlaySimulator.PlayResult = null
 	if controls_running() and pa.ball != null and side == my_side and my_slot >= 0 and my_slot in state.bases:
@@ -790,7 +790,9 @@ func _after_pa(r: Dictionary) -> void:
 
 func _runs_text(r: Dictionary) -> String:
 	var parts := []
-	if r.note != "" and r.note != "희생번트":
+	if r.note == "병살" and r.get("fielding", "") != "":
+		parts.append("%s 병살" % r.fielding)  # 예: 6-4-3 병살
+	elif r.note != "" and r.note != "희생번트":
 		parts.append(r.note)
 	if r.runs > 0:
 		parts.append("%d점!" % r.runs)
