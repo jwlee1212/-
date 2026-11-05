@@ -1,4 +1,4 @@
-# 컷신 목록 — 2학년 끝 · 3학년 · 프로 (자리만 있고 그림은 아직, 2026-11-05)
+# 컷신 목록 — 2학년 · 3학년 · 프로 (자리만 있고 그림은 아직, 2026-11-05)
 
 > 1학년 컷신(EP01~08, 사이드 스토리)은 `cutscene-plan.md` · `cutscene-gemini-prompts.md` 에 있다. 여기는 그 뒤.
 > **1장 = 이야기 카드 속 컷신 후보** (대본에 `CUTSCENE` 줄을 아직 쓰지 않았다 — 그림이 들어오면 대본 해당 장면 첫 줄에 `CUTSCENE <id>` 를 넣고 `build_scenario.py`).
@@ -10,6 +10,11 @@
 
 | id | 장면 (문서) | 한 줄 |
 |---|---|---|
+| `y2_juniors` | EP09 선배 (`scenario_y2_ep09-13.md`) | 작년 내가 서 있던 자리에 신입생 넷이 줄지어 서고, 카메라가 내 뒷모습으로 돌아온다 |
+| `y2_scout_gun` | EP10 다시 온 사람 | 1루 관중석에서 스피드건이 올라가는 순간, 낮은 각도 |
+| `y2_first_win` | EP11 전국대회 1승 (이겼을 때만) | 마지막 아웃 뒤 덕아웃 난간을 넘어 뛰어나오는 실루엣들 |
+| `y2_sangbi` | EP12 상비군 | 유격수 자리에 나란히 선 둘, 태오가 고개만 돌린다 |
+| `y2_winter_talk` | EP13 겨울 | 겨울 새벽, 부실 창빛 아래 감독과 마주 선 두 실루엣 |
 | `y2_hundred` | EP14 백 번째 (`scenario_y3_ep14-22.md`) | 노트북 불빛만 켜진 부실, 소율 실루엣이 엔터를 누르고 화면에 "100" |
 | `y3_restaurant` | EP16 은하식당 | 반쯤 내린 셔터 아래 새어 나오는 불빛, 서류를 정리하는 엄마 실루엣 |
 | `y3_taeo_final` | EP18 결승 전날 → 결승 | 3루 쪽 유격수 자리의 태오와 타석의 나, 두 실루엣이 한 화면에 (1학년 수돗가 구도와 짝) |
@@ -19,7 +24,10 @@
 | `pro_signing` | EP23 입단 (`scenario_pro_ep23-26.md`) | 입단식 플래시 속 유니폼 실루엣 / 육성선수면 새벽 퓨처스 구장에 혼자 선 뒷모습 |
 | `pro_futures_bus` | EP25 퓨처스 | 새벽 고속도로 위 원정 버스 한 대, 창에 비친 실루엣 |
 | `pro_debut` | EP26 데뷔 | 2장 `debut` 와 같은 컷신 (이야기 카드와 상황 컷신이 한 장면을 나눠 쓴다) |
+| `side_harin_swing` | 사이드: 하린 고백 (`y2_side_harin_answer`) | 아파트 놀이터 가로등 아래 그네 |
+| `side_soyul_answer` | 사이드: 소율 고백 (`y2_side_soyul_answer`) | 노을 든 부실, 노트북을 덮는 소율 |
 | `side_jian_booth` | 사이드: 서지안 고백 (`y2_side_jian_answer`) | 텅 빈 중계석, 카메라 렌즈 뚜껑을 닫는 손 |
+| `side_chae_meet` | 사이드: 윤채아 첫 만남 (`pro_side_chae_meet`) | 사인회 줄 맨 끝, 사인지 없이 선 사람 |
 | `side_chae_store` | 사이드: 윤채아 진심 (`pro_side_chae_truth`) | 새벽 편의점 유리창 너머, 컵라면 김 사이로 앉은 두 실루엣 |
 | `side_chae_river` | 사이드: 윤채아 1년 뒤 (`pro_side_chae_return`) | 밤 한강 둔치, 편의점 봉투 두 개를 든 실루엣이 다가온다 |
 
@@ -49,16 +57,6 @@
 | `ks_mvp` | 한국시리즈 MVP | 샴페인 속 내 이름 |
 | `hr_king` · `batting_title` | 홈런왕 · 타격왕 | 순위표 맨 위의 내 이름 / 고개를 끄덕이는 기록원 |
 
-## 3. Gemini 장면 프롬프트 (1학년 `cutscene-gemini-prompts.md` 의 공통 문구·인물 기준 그림 첨부 규칙을 그대로 붙여 쓴다)
+## 3. Gemini 장면 프롬프트
 
-각 줄 앞에 공통 문구(16:9 도트 장면, 실루엣 위주, 주인공 얼굴 안 보이게, 실제 구단·로고 금지)를 붙인다. 유니폼에는 글자·로고를 넣지 않는다.
-
-- `pro_debut`: night baseball stadium under bright floodlights, a young shortstop in a plain navy uniform seen from behind walking from the dugout to home plate, crowd as soft color dots, warm light rim on the helmet, no logos.
-- `pro_first_hit`: low angle at first base, the runner silhouette standing on the bag looking back toward the dugout where a teammate silhouette raises a baseball, evening sky.
-- `pro_first_hr`: wide shot from behind home plate, the ball a tiny bright dot between two light towers, the batter silhouette mid-follow-through, the crowd blurred.
-- `pro_callup`: dim minor-league locker room at night, a duffel bag on a bench, a phone screen glowing with one line of text (unreadable), the player seen from behind.
-- `pro_ks_champion`: infield at night, silhouettes running toward the pitcher's mound, confetti falling in the floodlights, no faces.
-- `pro_roy`: award ceremony stage with a single spotlight, a figure from behind holding a trophy, audience as dark rows.
-- `side_chae_store`: late-night convenience store window from outside, two silhouettes at the window counter, steam rising from cup noodles, neon reflections on the glass.
-- `y3_draft`: small Korean family restaurant at night, four silhouettes in front of a TV, the TV light on their backs, a dish towel falling.
-- `y3_graduation`: empty high-school dirt field in winter afternoon, one figure in a school uniform in the middle seen from behind, long shadow.
+모든 컷신(1학년~프로 기념 순간)의 그림 목록·프롬프트·우선순위는 `cutscene-gemini-prompts.md` 한 곳에 모았다 (2026-11-05).
