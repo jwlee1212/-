@@ -13,6 +13,7 @@ func _ready() -> void:
 	_app = load("res://scenes/batting.tscn").instantiate()
 	# 유저 저장을 건드리지 않게 따로 저장하고, 매번 빈 저장에서 시작한다
 	_app.save_path = "user://shots.save"
+	_app.show_tips = false  # 튜토리얼 팁 카드가 흐름을 막지 않게
 	SaveGame.delete(_app.save_path)
 	add_child(_app)
 	await _frames(10)
@@ -22,24 +23,67 @@ func _ready() -> void:
 	var view: DialogueView = _app._current.story_view()
 	await _wait(1.5)
 	await _shot("menu-hub-story")
+	view.ask_skip()  # [건너뛰기] → 확인 창
+	await _frames(5)
+	await _shot("menu-hub-story-skip-ask")
+	view._close_confirm()
 	view.advance()
 	await _wait(0.2)
 	await _shot("menu-hub-story-choices")
 	view.choose(0)
 	await _wait(1.5)
 	await _shot("menu-hub-story-result")
-	view.finished.emit()
+	view.skip()
 	await _frames(10)
 	await _shot("menu-hub")
-	_app._current._show_tab("훈련")
+	# 남은 주 시작 이야기(입학식 날 등)를 첫 선택지로 넘긴다
+	var scenes := 0
+	while _app._current.story_view() != null:
+		var sv: DialogueView = _app._current.story_view()
+		sv.ask_skip()
+		sv.skip_scene()  # 확인 창에서 [건너뛰기]
+		await _wait(0.2)
+		if scenes == 0:
+			await _shot("menu-hub-story-skipped")
+		scenes += 1
+		if is_instance_valid(sv) and sv.is_chosen() and sv == _app._current.story_view():
+			sv.advance()  # 변화를 보여 주는 중이면 닫는다
+		await _wait(0.2)
+	print("건너뛴 장면 %d개" % scenes)
 	await _frames(10)
-	await _shot("menu-hub-training")
-	_app._current._train("contact")
+	await _shot("menu-hub-room")
+	# 스케줄: 칸 고르기 판 → 칸 채우기 → 시작 (도장이 하나씩 찍히는 중) → 다 찍힘
+	_app._current._open_picker(0)
+	await _frames(10)
+	await _shot("menu-hub-picker")
+	_app.career.set_plan(0, "fielding")
+	_app.career.set_plan(1, "power")
+	_app.career.set_plan(2, "rest")
+	_app._current._close_picker()
+	_app._current._rebuild()
+	await _frames(10)
+	await _shot("menu-hub-plan")
+	_app._current._start_schedule()
+	# 칸마다 훈련 장면 창: 장면 → 결과 → 닫히고 도장
+	var sch: Dictionary = _app.career.cfg.schedule
+	await _wait(0.5)
+	await _shot("menu-hub-training-scene")
+	await _wait(float(sch["trainingAnimSec"]))
+	await _shot("menu-hub-training-result")
+	await _wait(float(sch["trainingResultSec"]) + 0.15)
+	await _shot("menu-hub-revealing")
+	# 둘째 칸 장면 하나 더 보고 남은 건 [모두 건너뛰기]
+	await _wait(float(sch["revealSec"]) * 0.5 + 0.6)
+	await _shot("menu-hub-training-scene2")
+	_app._current.training_popup().skip_all.emit()
 	await _frames(10)
 	await _shot("menu-hub-trained")
 	_app._current._show_tab("선수")
 	await _frames(10)
 	await _shot("menu-hub-player")
+	_app._current._show_tab("더보기")
+	await _frames(10)
+	await _shot("menu-hub-more")
 	_app.show_title()
 	await _frames(10)
 	await _shot("menu-lobby-career")
@@ -59,13 +103,18 @@ func _ready() -> void:
 		_app.show_home()
 		await _frames(10)
 	await _shot("menu-hub-week8")
+	_app._current._open_popup(_app._current._team_popup())
+	await _frames(10)
+	await _shot("menu-hub-team")
+	_app._current._close_picker()
 	career.player.money = 320000
 	career.people.meet("manager")
 	career.people.by_id["manager"].relation = 62
-	for tab in ["인물", "상점", "스카우트"]:
+	for tab in ["상점", "스카우트"]:
 		_app._current._show_tab(tab)
 		await _frames(10)
-		await _shot("menu-hub-" + {"인물": "people", "상점": "shop", "스카우트": "scout"}[tab])
+		await _shot("menu-hub-" + {"상점": "shop", "스카우트": "scout"}[tab])
+	await _phone_shots(career)
 	# 기록 탭: 작은 탭마다
 	_app._current._show_tab("기록")
 	await _frames(10)
@@ -92,9 +141,12 @@ func _ready() -> void:
 	_app.continue_career()
 	await _frames(10)
 	career.socialize("manager", "hangout")
-	_app._current._show_tab("인물")
+	_app._current.open_phone()
+	_app._current.phone_view().open_person("manager")
 	await _frames(10)
-	await _shot("menu-hub-people-after")
+	await _shot("menu-phone-person-after")
+	_app._current.phone_view().closed.emit()
+	await _frames(5)
 	# 연애 이벤트 대화 (돈 드는 선택지 포함)
 	career.people.partner = "manager"
 	career.player.money = 20000
@@ -102,13 +154,15 @@ func _ready() -> void:
 	for e: Dictionary in career.cfg.events:
 		if e.id == "date_anniversary":
 			anniv = e
-	var dv := DialogueView.new(career, anniv)
-	_app._current.add_child(UiKit.fill_parent(dv))
-	await _wait(1.5)
-	dv.advance()
-	await _wait(0.2)
-	await _shot("menu-dialogue-date")
-	dv.queue_free()
+	# (date_anniversary 는 테스트 전용 이벤트로 옮겨져 지금 게임 콘텐츠에는 없다)
+	if not anniv.is_empty():
+		var dv := DialogueView.new(career, anniv)
+		_app._current.add_child(UiKit.fill_parent(dv))
+		await _wait(1.5)
+		dv.advance()
+		await _wait(0.2)
+		await _shot("menu-dialogue-date")
+		dv.queue_free()
 
 	# 경기를 마친 주에 껐다 켜면: 허브가 남은 경기 뒤 이야기와 [다음 주]를 보여 준다
 	_app.show_home()
@@ -147,14 +201,67 @@ func _ready() -> void:
 	if not sv.is_empty():
 		(sv[0] as DialogueView).choose(0)
 		await _frames(10)
-		(sv[0] as DialogueView).finished.emit()
+		(sv[0] as DialogueView).skip()
 		await _frames(10)
 	await _shot("menu-season-graduate")
 	get_tree().quit()
 
 
+## 폰: 대화방 목록 → 대화방(답장 전·후) → 단체방 → 연락처 → 인물 카드
+func _phone_shots(career: CareerState) -> void:
+	_app._current._show_tab("홈")
+	await _frames(10)
+	await _shot("menu-hub-phone-badge")
+	# 새 문자 알림 띠 (오른쪽에서 미끄러져 들어온 뒤)
+	career.phone.fresh.append(career.phone.status.keys()[0])
+	_app._current._notify_messages()
+	await _wait(0.8)
+	await _shot("menu-hub-phone-toast")
+	# 손맛 버튼을 끌어 옮긴 모습
+	var gear: Button = _app._panel._gear if _app._panel != null else null
+	if gear != null:
+		for e: InputEvent in [_mouse(Vector2(5, 5), true), _motion(Vector2(120, -150)), _mouse(Vector2(120, -150), false)]:
+			gear.gui_input.emit(e)
+		await _frames(5)
+		await _shot("menu-hub-gear-moved")
+		gear.position = Vector2(4, 390 - gear.size.y - 4)
+	_app._current.open_phone()
+	await _frames(10)
+	await _shot("menu-phone-rooms")
+	var pv: PhoneView = _app._current.phone_view()
+	# 자동 진행은 답장을 안 해서 다 놓쳤다 — 아직 안 온 문자 하나를 받아 답장 장면을 찍는다
+	for m: Dictionary in career.cfg.messages:
+		if not career.phone.status.has(m.id) and m.has("replies") and not m.has("room") and career.phone.open_message(m.speaker) == "":
+			career.people.meet(m.speaker)
+			career.phone._receive(career, m)
+			break
+	for room: String in career.phone.order:
+		if not career.phone.reply_options(career, room).is_empty() and not Phone.is_group(career, room):
+			pv.open_room(room)
+			await _frames(10)
+			await _shot("menu-phone-room")
+			pv.reply(0)
+			await _wait(2.0)
+			await _shot("menu-phone-room-replied")
+			break
+	if career.phone.rooms.has("team"):
+		pv.open_room("team")
+		await _frames(10)
+		await _shot("menu-phone-team")
+	pv.show_tab(PhoneView.TAB_CONTACTS)
+	await _frames(10)
+	await _shot("menu-phone-contacts")
+	pv.open_person("manager")
+	await _frames(10)
+	await _shot("menu-phone-person")
+	pv.closed.emit()
+	await _frames(5)
+
+
 func _resolve_start(career: CareerState) -> void:
-	for e: Dictionary in career.events("start").duplicate():
+	# 주 시작 이야기는 하나가 끝나면 다음 것이 이어질 수 있다 — 남은 게 없을 때까지
+	while not career.events("start").is_empty():
+		var e: Dictionary = career.events("start")[0]
 		career.resolve_event(e, _ok(career, e))
 
 
@@ -185,8 +292,8 @@ func _auto_week(career: CareerState) -> void:
 
 ## 로비에 갔다 와도 이번 주 훈련은 한 번뿐
 func check_trained() -> void:
-	var trained: bool = _app._current._trained()
-	print("다시 연 허브: 훈련함=%s, 훈련 버튼 %s" % [trained, "없음(홈 탭)" if _app._current._training_buttons.is_empty() else "있음"])
+	var trained: bool = _app._current._ran()
+	print("다시 연 허브: 스케줄 함=%s, 칸 결과 %d개" % [trained, _app.career.week_schedule.size()])
 
 
 ## 고를 수 있는 첫 선택지
@@ -195,6 +302,20 @@ func _ok(career: CareerState, e: Dictionary) -> int:
 		if EventBook.choice_block(career, e.choices[i]) == "":
 			return i
 	return 0
+
+
+func _mouse(at: Vector2, pressed: bool) -> InputEventMouseButton:
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = pressed
+	e.position = at
+	return e
+
+
+func _motion(at: Vector2) -> InputEventMouseMotion:
+	var e := InputEventMouseMotion.new()
+	e.position = at
+	return e
 
 
 func _wait(sec: float) -> void:

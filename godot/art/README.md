@@ -2,40 +2,61 @@
 
 대화 화면(`scripts/screens/dialogue_view.gd`)은 아래 경로에 PNG 가 있으면 자동으로 쓰고, 없으면 자리(테두리 상자 + 이름 + 경로)만 보여 준다.
 
-- 원칙 6: 사람은 모두 SD(2~2.5등신) 플랫 벡터. 실사·사실적 AI 얼굴 금지. AI 로 만든 그림은 `licenses/assets.md` 에 도구와 상업 이용 여부를 적는다
+- 원칙 6: 대화 화면 일러스트는 애니메이션풍 반신, 인게임 캐릭터(`characters/`)는 SD 카툰풍. 실사·사실적 AI 얼굴 금지. AI 로 만든 그림은 `licenses/assets.md` 에 도구와 상업 이용 여부를 적는다
 - 일러스트: 세로로 긴 그림(대략 3:4, 높이 1000px 안팎, 배경 투명). 화면 왼쪽에 서고 아래쪽은 대사창에 가려진다
 - 배경: 가로 그림(844×390 비율 이상, 1688×780 권장). 화면을 덮도록 잘린다
 
 ## 인물 일러스트 `portraits/<id>.png`
 
-| 파일 | 인물 |
-|---|---|
-| `coach.png` | 감독 · (이름은 커리어마다 뽑음) |
-| `mom.png` | 엄마 · 엄마 |
-| `buddy.png` | 동기 · (이름은 커리어마다 뽑음) |
-| `rival.png` | 라이벌 · (이름은 커리어마다 뽑음) |
-| `scout.png` | 스카우트 · (이름은 커리어마다 뽑음) |
-| `manager.png` | 매니저 · 한소율 |
-| `neighbor.png` | 소꿉친구 · 정다온 |
-| `reporter.png` | 방송부 · 서지안 |
-| `agent.png` | 에이전트라는 남자 (조연) |
-| `butcher.png` | 동네 정육점 사장님 (조연) |
-| `captain_senior.png` | 주장 선배 (조연) |
-| `college_coach.png` | 대학 감독 (조연) |
-| `local_reporter.png` | 지역 신문 기자 (조연) |
+표정: 대본 줄에 `"face": "happy" | "pout" | "surprised"` 를 붙이면 `<id>_<표정>.png` 를 쓴다. 그 그림이 없으면 기본 `<id>.png` (`EventBook.FACES`).
+
+| 파일 | 인물 (docs/worldview.md) | 그림 |
+|---|---|---|
+| `neighbor.png` | 하린 (소꿉친구, 미대 입시생) | 있음 (2026-11-02) |
+| `mom.png` | 엄마 (은하식당) | 있음 (2026-11-02) |
+| `coach.png` | 오 감독 | 있음 (2026-11-02) |
+| `buddy.png` | 박준수 (포수, 입부 동기) | 있음 (2026-11-02) |
+| `senior.png` | 한도윤 (3학년 주장) | 있음 (2026-11-02) |
+| `minjae.png` | 정민재 (2학년 유격수 → 2루수) | 있음 (2026-11-02) |
+| `scout.png` | 나성만 (태성 썬더스 스카우트 팀장) | 있음 (2026-11-02) |
+| `seongho.png` | 김성호 (3학년 외야수) | 있음 (2026-11-02) |
+| `jaehyuk.png` | 윤재혁 (2학년 투수, 주장) | 있음 (2026-11-02) |
+| `manager.png` (+ `_happy` · `_pout` · `_surprised`) | 소율 (2학년 매니저) | 옛 캐릭터 그림 — 교체 대상 |
+| `rival.png` | 강태오 (청운고) | 옛 캐릭터 그림 — 교체 대상 |
+| `batting_coach.png` · `junior.png` · `reporter.png` | 2·3학년 옛 이야기 인물 | 옛 그림 |
+| `agent.png` · `butcher.png` · `college_coach.png` · `local_reporter.png` | 2·3학년 조연 | 없음 |
 
 ## 배경 `backgrounds/<id>.png`
 
 | 파일 | 장소 |
 |---|---|
-| `field.png` | 학교 운동장 |
-| `dugout.png` | 더그아웃 |
-| `home.png` | 우리 집 |
+| `lobby.png` | **로비 화면 전체** (오른쪽 43% 는 메뉴 판에 가려진다 — 주인공·볼거리는 왼쪽에). 없으면 `field.png` 를 대신 쓴다 |
+| `room.png` | **홈 화면의 내 방** (러브딜리버리식 메인 화면). 주인공 얼굴은 넣지 않는다(유저 몰입, 2026-11-01). 왼쪽 220px·오른쪽 360px 쯤은 능력치·달력 판에 가려진다. 없으면 `home.png` 를 대신 쓴다 |
+| `clubroom.png` | 야구부실 (컨테이너 부실) — 있음 (2026-11-02) |
+| `field.png` | 학교 운동장 — **임시 그림이 들어 있다** |
+| `dugout.png` | 더그아웃 — **임시 그림이 들어 있다** |
+| `home.png` | 우리 집 — **임시 그림이 들어 있다** |
 | `stadium.png` | 야구장 |
-| `stands.png` | 관중석 |
+| `stands.png` | 관중석 — **임시 그림이 들어 있다** |
 | `bus.png` | 원정 버스 |
-| `street.png` | 집 앞 골목 |
+| `street.png` | 집 앞 골목 — **임시 그림이 들어 있다** |
 | `cafe.png` | 카페 |
 | `studio.png` | 방송부실 |
-| `classroom.png` | 교실 |
+| `classroom.png` | 교실 — **임시 그림이 들어 있다** |
 | `phone.png` | 휴대폰 |
+| `dorm.png` | 합숙소 |
+| `gym.png` | 웨이트장 |
+
+## 인게임 도트 `pixel/` (2026-10-31 확정)
+
+경기·타석·중계 화면의 그림은 전부 `scripts/make_pixel_art.py` 가 코드로 찍는다 — **손으로 고치지 말고 스크립트를 고쳐 다시 돌린다**. 칸 크기·발 자리·순서는 스크립트가 `scripts/characters/pixel_meta.gd` 로 함께 만든다.
+
+| 파일 | 무엇 |
+|---|---|
+| `field.png` | 타석 화면 경기장 (하늘·관중·조명탑·전광판·담장·잔디·내야) |
+| `batter.png` | 타자 뒷모습 시트: 스탠스·숨쉬기 / 로드 / 스트라이드 / 랜딩 / 회전 / 컨택(높이별) / 팔 뻗기 / 팔로스루 / 마무리 / 번트 |
+| `pitcher.png` | 투수 앞모습 시트: 준비 → 다리 들기 → 내딛기 → 팔 젖히기 → 공 놓기 → 마무리 |
+| `catcher.png` · `mitt.png` | 포수 뒷모습(지금은 그리지 않음) · 미트(`aim.catcherHint` 가 켜져 있을 때) |
+| `fielders.png` | 중계 화면 선수 5×8 (서기·달리기 2칸, 우리·상대) |
+
+그림을 고치는 곳: 관절 좌표 `*_KEYS`, 손으로 찍은 판 `TORSO`·`HELMET`·`FIELDER_FRAMES`, 색 `PAL`. 실행하면 `build/shots/pixel-batter.png` 처럼 4배 확대본도 남는다.

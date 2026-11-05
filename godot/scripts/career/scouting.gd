@@ -37,6 +37,12 @@ static func create(cfg: CareerConfig, rng: RandomNumberGenerator) -> Scouting:
 		var t := order[i]
 		order[i] = order[j]
 		order[j] = t
+	# 스카우트 인물의 구단이 정해져 있으면 (content.json people.scout.team) 그 구단이 맨 앞
+	var fixed_team: String = cfg.people.get("scout", {}).get("team", "")
+	for k in order.size():
+		if cfg.pro_teams[order[k]]["name"] == fixed_team:
+			order.push_front(order.pop_at(k))
+			break
 	sc.team_order = order
 	sc.potential_error = rng.randfn(0.0, float(c["potentialErrorSd"]))
 	return sc
@@ -100,8 +106,11 @@ static func pick_range(cfg: CareerConfig, rank: int) -> Vector2i:
 
 
 ## 예상 지명을 화면용으로: {"big": "3-8", "suffix": "순위 예상", "text": "1라운드 3-8순위"}
-static func projection(cfg: CareerConfig, rank: int) -> Dictionary:
+## grade 가 projectionFromGrade 보다 낮으면 아직 무명이라 순번을 매기지 않는다 (0 이면 학년을 안 본다)
+static func projection(cfg: CareerConfig, rank: int, grade: int = 0) -> Dictionary:
 	var c := cfg.scouting
+	if grade > 0 and grade < int(c["projectionFromGrade"]):
+		return {"big": "관심 없음", "suffix": "아직 무명", "text": "스카우터 관심 없음"}
 	var r := pick_range(cfg, rank)
 	var per_round := int(c["picksPerRound"])
 	var total := per_round * int(c["rounds"])
@@ -115,8 +124,10 @@ static func projection(cfg: CareerConfig, rank: int) -> Dictionary:
 	return {"big": big, "suffix": "라운드 예상", "text": "%s라운드 예상" % big}
 
 
-## 주목하는 구단들 (관심도가 오를수록 늘어난다)
-func interested_teams(cfg: CareerConfig, scout_interest: int) -> Array:
+## 주목하는 구단들 (관심도가 오를수록 늘어난다). projectionFromGrade 학년 전에는 아직 무명이라 없다 (grade 0 이면 학년을 안 본다)
+func interested_teams(cfg: CareerConfig, scout_interest: int, grade: int = 0) -> Array:
+	if grade > 0 and grade < int(cfg.scouting["projectionFromGrade"]):
+		return []
 	var n := clampi(scout_interest / int(cfg.scouting["scoutPerTeam"]), 0, team_order.size())
 	var out := []
 	for i in n:

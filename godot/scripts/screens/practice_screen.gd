@@ -26,6 +26,10 @@ func _ready() -> void:
 		var t := _session.tally
 		var last := "" if is_nan(_session.last_timing_ms) else " · 직전 " + BattingSession.timing_text(_session.last_timing_ms)
 		return "%d타석 %d안타 (%s) · 홈런 %d · 삼진 %d%s" % [t.plate_appearances, t.hits, t.average(), t.home_runs, t.strikeouts, last]
+	_hud.batter_card = func() -> Dictionary:
+		var t := _session.tally
+		return {"number": "연습", "name": "타격 연습", "sub": "상대 " + _session.pitcher.name,
+			"today": "%d타석 %d안타" % [t.plate_appearances, t.hits], "season": "타율 " + t.average()}
 	_hud.menu_pressed.connect(_app.show_title)
 	add_child(_hud)
 	_build_drawer()
@@ -47,14 +51,14 @@ func _build_drawer() -> void:
 	add_child(toggle)
 	toggle.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, Tokens.SPACE_SM)
 	toggle.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	toggle.position.y = BattingHud.BELOW_BAR_Y
+	toggle.position.y = BattingHud.RIGHT_BELOW_Y
 	_drawer = UiKit.glass_panel()
 	_drawer.mouse_filter = Control.MOUSE_FILTER_STOP
 	_drawer.visible = false
 	add_child(_drawer)
 	_drawer.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, Tokens.SPACE_SM)
 	_drawer.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_drawer.position.y = BattingHud.BELOW_BAR_Y + 40
+	_drawer.position.y = BattingHud.RIGHT_BELOW_Y + 40
 	_drawer.custom_minimum_size.x = 260
 	var col := UiKit.vbox(Tokens.SPACE_XS)
 	_drawer.add_child(col)

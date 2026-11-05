@@ -2,13 +2,19 @@ class_name Tokens
 extends RefCounted
 ## 디자인 토큰. 화면 코드는 색·간격·글자 크기·모서리를 여기서만 가져온다 (색상값을 화면 코드에 직접 쓰지 않는다).
 ## 캐주얼 톤이라 채도 높은 원색과 큰 모서리를 쓴다.
+## 색 배합 60-30-10 (2026-11-01): 배경 크림 60 · 카드 흰색 + 위·아래 바 남색 30 · 강조 주황 10.
+## 강조색(ACCENT)은 "눌러야 할 것"(진행 버튼·알림 배지)에만 쓴다. 강조하고 싶은 글자는 NAVY·굵기로.
 
-const BACKGROUND := Color("fff8ec")
+const BACKGROUND := Color("f4efe6")
 const SURFACE := Color("ffffff")
-const INK := Color("26324a")
-const INK_SOFT := Color("6b7690")
+const INK := Color("1e2a44")
+const INK_SOFT := Color("7a8299")
 const PRIMARY := Color("2f6bff")
-const ACCENT := Color("ff8a1f")
+const ACCENT := Color("ff6b2c")
+## 위·아래 바(남색), 바 위에서 고른 탭 바탕, 바 위 흐린 글자
+const NAVY := Color("1e2a44")
+const NAVY_SOFT := Color("33415f")
+const BAR_TEXT_SOFT := Color(1, 1, 1, 0.6)
 const GOOD := Color("22b573")
 const BAD := Color("ff4d5e")
 const WARN := Color("ffc21a")
@@ -16,25 +22,26 @@ const WARN := Color("ffc21a")
 const GRASS := Color("4cc46a")
 const DIRT := Color("e2a66b")
 const CHALK := Color("ffffff")
-const BAT := Color("8b5a2b")
-const MITT := Color("6b3f1d")
 ## 중계 화면: 파울 지역 잔디, 담장, 관중석, 유니폼 (우리 팀 / 상대 팀)
 const FOUL_GRASS := Color("3fae5c")
 const WALL := Color("1f6b3a")
 const STANDS := Color("8fa3c7")
 const UNIFORM_US := Color("2f6bff")
 const UNIFORM_THEM := Color("ff4d5e")
-## 타석 경기장: 하늘(위→지평선), 관중석, 관중 점 색, 조명, 전광판, 밝은 잔디 줄무늬, 헬멧
-const SKY_TOP := Color("3a7bd5")
-const SKY_BOTTOM := Color("ffb26b")
+## 경기장: 관중석, 관중 점 색, 전광판, 밝은 잔디 줄무늬
 const STANDS_DARK := Color("4b5d82")
+## 수비 화면(유격수 시점) 관중석 위 하늘
+const SKY := Color("a9d8ff")
 const CROWD: Array[Color] = [Color("f4f1ea"), Color("ffcf6b"), Color("ff7a7a"), Color("7fb2ff"), Color("9be3b0")]
-const LIGHT := Color("fff7d6")
+## 관중 머리 색 (머리카락·얼굴) — 관중석은 머리 한 줄·옷 한 줄·의자 한 줄로 사람처럼 찍는다
+const CROWD_HEADS: Array[Color] = [Color("3b2a22"), Color("3b2a22"), Color("f6c7a0"), Color("20232f")]
 const SCOREBOARD := Color("1b2333")
 const GRASS_LIGHT := Color("5ed27b")
-const HELMET := Color("1d3f9e")
-const SKIN := Color("ffd2a6")
-## HUD: 반투명 유리 패널, 테두리, 글자, 볼카운트 점(볼·스트라이크·아웃), 구속 표시
+## 경기장 전광판 LED (도트): 켜진 점수 숫자, 이닝 번호·R 같은 흰 글자, 공격 중이 아닌 팀 띠
+const LED_ON := Color("ffc21a")
+const LED_TEXT := Color("f4f1e8")
+const LED_DIM := Color("5a6078")
+## HUD: 반투명 유리 패널, 테두리, 글자, 볼카운트 점(볼·스트라이크·아웃)
 const HUD_GLASS := Color(0.06, 0.09, 0.19, 0.62)
 const HUD_BORDER := Color(1, 1, 1, 0.18)
 const HUD_TEXT := Color("ffffff")
@@ -42,10 +49,39 @@ const HUD_TEXT_SOFT := Color(1, 1, 1, 0.72)
 const COUNT_BALL := Color("34d399")
 const COUNT_STRIKE := Color("fbbf24")
 const COUNT_OUT := Color("f87171")
-const LCD_BG := Color("0b1220")
-const LCD_TEXT := Color("7cffb2")
-## 구종 색 (구종이 드러났을 때 공 테두리·이름). 목록에 없는 구종은 PRIMARY
-const PITCH_COLORS := {"fastball": PRIMARY, "slider": ACCENT, "changeup": GOOD}
+## 중계 그래픽 (타석 스코어 버그·투수 줄·구속·타자 자막): 짙은 남색 판, 공격 팀 줄 강조, 빈 점·베이스, 모서리
+const BROADCAST_BG := Color(SCOREBOARD, 0.93)
+const BROADCAST_ROW_HI := Color(1, 1, 1, 0.08)
+const BROADCAST_EMPTY := Color(1, 1, 1, 0.22)
+const RADIUS_BROADCAST := 6
+## 구종 색 (구종이 드러났을 때 공 테두리·이름, 궤적 스크린샷). 목록에 없는 구종은 PRIMARY.
+## 빠른 공은 파랑 계열, 옆으로 휘는 공은 주황 계열, 떨어지는 공은 초록·보라 계열
+const PITCH_COLORS := {
+	"four_seam": PRIMARY, "two_seam": Color("38b6ff"),
+	"slider": ACCENT, "sweeper": BAD, "curve": Color("a55eea"),
+	"changeup": GOOD, "forkball": Color("0f8a5f"), "splitter": WARN,
+}
+## 능력치 색 (선수 탭 막대, 스케줄 칸), 휴식 칸
+## 채도를 낮춰 강조색(주황)과 다투지 않게 한다 (2026-11-01)
+const STAT_COLORS := {"contact": Color("5b7db1"), "power": Color("c98a5e"), "eye": Color("5fa383"), "speed": Color("8e7cc3"), "fielding": Color("4a9fa8")}
+const REST_COLOR := Color("6fa8c7")
+## 미니게임 등급 S·A·B·C (체력 테스트 결과 도장)
+const GRADE_COLORS := {"S": Color("d99a1e"), "A": Color("4f9a74"), "B": Color("5b7db1"), "C": Color("8a8f9e")}
+## 미니게임 HUD: 호흡 게이지 바탕·목표 구간·완벽 줄, 발 버튼 자리
+const GAUGE_BG := Color(0.06, 0.09, 0.19, 0.7)
+const GAUGE_ZONE := Color("34d399")
+const GAUGE_PERFECT := Color("fbbf24")
+const FOOT_PAD := Color(1, 1, 1, 0.16)
+const FOOT_PAD_ON := Color(1, 1, 1, 0.42)
+## 미니게임 도트 무대 바깥 (무대가 화면보다 작을 때 둘레)
+const STAGE_FRAME := Color("1b2040")
+## 스케줄 결과 도장 (대성공 · 성공 · 실패)
+const OUTCOME_COLORS := {"great": Color("d99a1e"), "success": Color("4f9a74"), "fail": Color("d0566a")}
+## 내 방 화면: 방 그림 위에 겹치는 반투명 흰 판, 아직 안 채운 칸
+const ROOM_PANEL := Color(1, 1, 1, 0.9)
+const ROOM_EMPTY := Color(1, 1, 1, 0.55)
+## 방 그림 위에 덮는 크림색 막 (그림은 은은하게, 바탕은 배경색 — 60-30-10 의 60)
+const ROOM_VEIL := Color(BACKGROUND, 0.82)
 ## 공·타구 그림자, 겹쳐 그리는 반투명 바탕
 ## 대화 화면: 배경 자리(그림이 없을 때), 일러스트 자리, 대사창, 지문 글자
 const DIALOGUE_BG := Color("c9d6ef")
@@ -54,17 +90,55 @@ const PORTRAIT_SLOT := Color(1, 1, 1, 0.45)
 const PORTRAIT_BORDER := Color("6b7690")
 const DIALOGUE_BOX := Color(1, 1, 1, 1)
 const NARRATION := Color("6b7690")
+## 배경 그림 위에 얹는 옅은 막(인물이 돋보이게), 말하지 않는 인물에 곱하는 색(어둡게), 머리말 뒤 판
+const DIALOGUE_BG_SCRIM := Color(0.05, 0.08, 0.16, 0.22)
+const PORTRAIT_IDLE := Color(0.5, 0.52, 0.6, 1)
+const DIALOGUE_HEADER_BG := Color(1, 1, 1, 0.86)
+## 폰: 몸체(테두리), 화면 바탕, 받은·보낸 말풍선과 그 글자, 안 읽음 배지
+const PHONE_BODY := Color("26324a")
+const PHONE_SCREEN := Color("fff8ec")
+const BUBBLE_THEM := Color("ffffff")
+const BUBBLE_ME := Color("2f6bff")
+const BUBBLE_ME_TEXT := Color("ffffff")
+const BADGE := ACCENT
 const SHADOW := Color(0, 0, 0, 0.25)
 const SCRIM := Color(0, 0, 0, 0.6)
+## 컷신 (애니메이션 영화풍 도트 장면): 위아래 검은 띠(자막 자리), 맞는 순간 번쩍임, 암전, 자막 글자·화자 이름
+const CUTSCENE_BAR := Color("07080f")
+const CUTSCENE_FLASH := Color(1, 0.97, 0.9, 1)
+const CUTSCENE_FADE := Color("07080f")
+const CUTSCENE_TEXT := Color("fff6e8")
+const CUTSCENE_WHO := Color("ffb37a")
+## 로비: 데모 타석 위에 메뉴를 얹는 오른쪽 판
+const LOBBY_PANEL := Color(BACKGROUND, 0.93)
 const CONFETTI: Array[Color] = [PRIMARY, ACCENT, GOOD, WARN, BAD]
 
 const SPACE_XS := 4
 const SPACE_SM := 8
 const SPACE_MD := 16
 const SPACE_LG := 24
+const SPACE_XL := 32
+## 최소 터치 영역 (보이는 버튼이 작아도 눌리는 자리는 이만큼), 홈 위 바·아래 탭 바 높이
+const TOUCH_MIN := 48
+const TOP_BAR_HEIGHT := 48
+const BOTTOM_NAV_HEIGHT := 56
+## 카드 모서리 (홈 카드·바)
+const RADIUS_PANEL := 16
+## 홈 양옆 칸 너비 (내 선수 카드 · 팀 기록)
+const SIDE_COLUMN := 216
 
 const RADIUS_CARD := 20
 const RADIUS_HUD := 16
+## 폰: 몸체 모서리·테두리 두께·너비, 옆에 서는 인물 자리 너비, 말풍선 모서리·최대 너비
+const RADIUS_PHONE := 26
+const PHONE_BEZEL := 6
+const PHONE_WIDTH := 312
+const PHONE_SIDE_WIDTH := 230
+const RADIUS_BUBBLE := 12
+## 알림 배지 지름, 허브 알림 띠 너비
+const BADGE_SIZE := 16
+const TOAST_WIDTH := 280
+const BUBBLE_MAX_WIDTH := 196
 
 const FONT_CAPTION := 12
 const FONT_BODY := 15

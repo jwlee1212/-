@@ -77,7 +77,7 @@ func _run(config: BattingConfig, pitcher: BattingConfig.PitcherProfile, skills: 
 
 ## 사람이 예상하는 도착 시각
 func _expected_ms(config: BattingConfig, pitcher: BattingConfig.PitcherProfile, p: Pitch) -> float:
-	var fastball: float = (config.pitches["fastball"] as BattingConfig.PitchSpec).flight_ms + pitcher.speed_ms
-	var actual_mean: float = (config.pitches[p.type] as BattingConfig.PitchSpec).flight_ms + pitcher.speed_ms
+	var fastball: float = config.catalog.flight_ms("four_seam") + pitcher.speed_ms
+	var actual_mean: float = config.catalog.flight_ms(p.type) + pitcher.speed_ms
 	var time_after_reveal := (1.0 - p.reveal_fraction) * p.flight_ms
 	return actual_mean if time_after_reveal >= REACTION_MS else fastball
