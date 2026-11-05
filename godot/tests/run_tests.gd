@@ -107,6 +107,9 @@ func _init() -> void:
 		"test_save_roundtrip",
 		"test_save_then_continue_is_same",
 		"test_save_file_and_errors",
+		"test_error_reach_is_not_a_hit",
+		"test_fielding_errors",
+		"test_error_rate_and_only_outs",
 	]:
 		var only := OS.get_environment("ONLY")
 		if only != "" and not test.contains(only):
@@ -1932,3 +1935,122 @@ func test_save_file_and_errors() -> void:
 	check(SaveGame.from_bytes(var_to_bytes(data), cfg, _config)["error"].begins_with("저장 버전"), "다른 버전")
 	SaveGame.delete(path)
 	check(not SaveGame.exists(path), "지우기")
+
+
+# ---------- 실책 ----------
+
+func test_error_reach_is_not_a_hit() -> void:
+	# 실책 출루: 타수 1, 안타 0 → 타율·출루율 0. 실책 출루 수는 따로 센다
+	var s := PlayerData.SeasonStats.new()
+	s.add(SwingJudge.Outcome.REACH_ON_ERROR, 0)
+	check(s.pa == 1 and s.ab == 1 and s.hits == 0 and s.errors_reached == 1, "시즌 기록: 타수 O 안타 X")
+	check(s.average() == ".000" and s.obp() == 0.0, "타율·출루율에 들어가지 않는다 (%s, %.3f)" % [s.average(), s.obp()])
+	s.add(SwingJudge.Outcome.SINGLE, 0)
+	check(s.average() == ".500", "안타 하나 + 실책 출루 하나 = 타율 .500 (%s)" % s.average())
+	var b := BoxScore.BatterLine.new()
+	b.add(SwingJudge.Outcome.REACH_ON_ERROR, 0, false)
+	check(b.ab == 1 and b.h == 0 and b.roe == 1, "박스스코어도 같다")
+	var from := PlayerData.SeasonStats.from_box(b)
+	check(from.errors_reached == 1 and from.hits == 0 and from.ab == 1, "박스스코어 → 기록")
+	var t := BattingSession.Tally.new()
+	t.add(SwingJudge.Outcome.REACH_ON_ERROR)
+	check(t.at_bats == 1 and t.hits == 0, "연습 기록도 타수만")
+	check(not SwingJudge.is_hit(SwingJudge.Outcome.REACH_ON_ERROR))
+
+
+## 실책 확률을 잠깐 바꿔서 타구 하나에 실책을 일으키고 플레이까지 진행한다
+func _error_play(ev: float, la: float, spray: float, fumble: float, throw: float, drop: float, bases: Array = [-1, -1, -1], seed_value: int = 3) -> PlaySimulator.PlayResult:
+	var phys := _config.ball_physics
+	var keep := [phys.errors_enabled, phys.error_fumble_chance, phys.error_throw_chance, phys.error_drop_chance]
+	phys.errors_enabled = true
+	phys.error_fumble_chance = fumble
+	phys.error_throw_chance = throw
+	phys.error_drop_chance = drop
+	var ball := _sim(ev, la, spray)
+	var rng := _rng(seed_value)
+	BattedBallSim.roll_error(phys, ball, 50, rng)
+	var play := PlaySimulator.new(phys, ball, 4, bases, func(_i: int) -> int: return 50, 0, rng).run()
+	phys.errors_enabled = keep[0]
+	phys.error_fumble_chance = keep[1]
+	phys.error_throw_chance = keep[2]
+	phys.error_drop_chance = keep[3]
+	return play
+
+
+func _has_call(play: PlaySimulator.PlayResult, text: String) -> bool:
+	return play.calls.any(func(c: Dictionary) -> bool: return c.text == text)
+
+
+func test_fielding_errors() -> void:
+	# 기준: 유격수 앞 평범한 땅볼은 아웃
+	check(_sim(140, -6, -13).outcome == SwingJudge.Outcome.GROUND_OUT, "평범한 땅볼은 아웃")
+	# 1) 포구 실책: 공을 더듬어 늦게 줍고 타자가 산다
+	var f := _error_play(140, -6, -13, 1.0, 0.0, 0.0)
+	check(f.ball.error == "fumble", "포구 실책이 난다")
+	check(f.batter_outcome == SwingJudge.Outcome.REACH_ON_ERROR and f.error, "포구 실책 → 실책 출루 (%s)" % SwingJudge.Outcome.keys()[f.batter_outcome])
+	check(f.note.contains("실책") and _has_call(f, "실책!"), "문구·말풍선 (%s)" % f.note)
+	check(f.bases[0] == 4 and f.outs == 0, "타자는 1루에")
+	check(f.ball.duration() > _sim(140, -6, -13).duration(), "공을 늦게 쥔다")
+	# 2) 송구 실책: 아웃이 될 1루 송구가 빠진다
+	var w := _error_play(140, -6, -13, 0.0, 1.0, 0.0)
+	var wild: Array = w.throws.filter(func(th: Dictionary) -> bool: return th.get("error", false))
+	check(wild.size() == 1, "빠진 송구 하나 (%d)" % wild.size())
+	check(w.batter_outcome == SwingJudge.Outcome.REACH_ON_ERROR and w.note.contains("송구 실책"), "송구 실책 → 실책 출루 (%s, %s)" % [SwingJudge.Outcome.keys()[w.batter_outcome], w.note])
+	check(_has_call(w, "악송구!") and w.outs == 0 and w.bases[0] == 4, "악송구 말풍선, 아웃 없음")
+	if wild.size() == 1:
+		check(float(wild[0].arrive) > float(wild[0].reach) and wild[0].chaser != "", "받는 사람이 빠진 공을 쫓는다")
+	# 3) 낙구: 잡힐 뜬공을 떨어뜨린다
+	check(_sim(130, 30, 0).caught, "기준: 잡히는 중견수 뜬공")
+	var d := _error_play(130, 30, 0, 0.0, 0.0, 1.0)
+	check(d.ball.error == "drop" and not d.ball.caught, "낙구")
+	check(d.batter_outcome == SwingJudge.Outcome.REACH_ON_ERROR and d.outs == 0, "낙구 → 실책 출루 (%s)" % SwingJudge.Outcome.keys()[d.batter_outcome])
+	# 떨어진 공을 보고 1루 주자는 2루로 간다 (공이 땅에 닿는 순간이 주자에게 보인다)
+	var d1 := _error_play(130, 30, 0, 0.0, 0.0, 1.0, [7, -1, -1])
+	check(d1.bases[0] == 4 and d1.bases[1] == 7, "낙구 뒤 1루 주자 진루 (%s)" % [d1.bases])
+	# 내야 뜬공 낙구도 실책 출루
+	check(_sim(80, 60, 5).caught, "기준: 내야 뜬공")
+	var pd := _error_play(80, 60, 5, 0.0, 0.0, 1.0)
+	check(pd.batter_outcome == SwingJudge.Outcome.REACH_ON_ERROR, "내야 뜬공 낙구 → 실책 출루 (%s)" % SwingJudge.Outcome.keys()[pd.batter_outcome])
+	# 4) 실책으로 들어온 점수는 타점이 아니다 (3루 주자, 낙구)
+	var rbi := _error_play(130, 30, 0, 0.0, 0.0, 1.0, [-1, -1, 7])
+	check(rbi.rbi == 0, "실책 타점 없음 (득점 %d, 타점 %d)" % [rbi.scorers.size(), rbi.rbi])
+	# 5) 플레이 기록이 맞물린다: 아웃 + 남은 주자 + 득점 = 전체 주자
+	for play in [f, w, d, d1, pd, rbi]:
+		var n := 0
+		for r in play.runners:
+			if r.state in [RunnerAI.State.OUT, RunnerAI.State.SAFE, RunnerAI.State.SCORED]:
+				n += 1
+		check(n == play.runners.size(), "모든 주자 정리")
+		var safe: int = play.runners.filter(func(r: RunnerAI) -> bool: return r.state == RunnerAI.State.SAFE).size()
+		check(play.bases.filter(func(x: int) -> bool: return x != -1).size() == safe, "한 베이스에 한 명 (%s)" % [play.bases])
+	# 6) 같은 시드 같은 결과
+	var a := _error_play(140, -6, -13, 0.5, 0.5, 0.0, [1, -1, -1], 11)
+	var b := _error_play(140, -6, -13, 0.5, 0.5, 0.0, [1, -1, -1], 11)
+	check(a.batter_outcome == b.batter_outcome and a.bases == b.bases and a.outs == b.outs and a.note == b.note, "실책도 재현된다")
+	# 7) 확률 0 이거나 꺼져 있으면 실책이 없다
+	var none := _error_play(140, -6, -13, 0.0, 0.0, 0.0)
+	check(none.batter_outcome == SwingJudge.Outcome.GROUND_OUT and not none.error, "확률 0 → 그대로 아웃")
+
+
+func test_error_rate_and_only_outs() -> void:
+	# 실책은 아웃이 될 타구에서만: 안타·홈런 타구는 그대로, 기본 수치에서 실책 비율은 아웃 타구의 몇 % 안쪽
+	var phys := _config.ball_physics
+	var rng := _rng(5)
+	var outs := 0
+	var errors := 0
+	for ev in range(70, 175, 6):
+		for la in [-15, -5, 5, 15, 30, 45, 60]:
+			for spray in range(-40, 41, 10):
+				var ball := _sim(ev, la, spray)
+				var before := ball.outcome
+				var was_out := not SwingJudge.is_hit(before)
+				BattedBallSim.roll_error(phys, ball, 50, rng)
+				if not was_out:
+					check(ball.error == "" and ball.outcome == before, "안타 타구는 실책이 없다")
+					continue
+				outs += 1
+				if ball.error != "":
+					errors += 1
+	var rate := float(errors) / maxf(outs, 1)
+	print("    아웃 타구 %d개 중 실책 %d개 (%.1f%%)" % [outs, errors, rate * 100.0])
+	check(not phys.errors_enabled or (rate > 0.002 and rate < 0.08), "실책 비율 (%.3f)" % rate)

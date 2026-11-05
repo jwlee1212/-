@@ -16,6 +16,8 @@ class BatterLine:
 	var so := 0
 	var sh := 0
 	var sf := 0
+	## 실책 출루 (타수 O, 안타 X)
+	var roe := 0
 
 	func add(outcome: SwingJudge.Outcome, rbi_count: int, sac_fly: bool) -> void:
 		pa += 1
@@ -36,6 +38,7 @@ class BatterLine:
 			SwingJudge.Outcome.DOUBLE: doubles += 1
 			SwingJudge.Outcome.TRIPLE: triples += 1
 			SwingJudge.Outcome.HOME_RUN: hr += 1
+			SwingJudge.Outcome.REACH_ON_ERROR: roe += 1
 		if SwingJudge.is_hit(outcome):
 			h += 1
 

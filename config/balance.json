@@ -640,6 +640,17 @@
       "legShare": 0.6,
       "transferS": 0.6,
       "preferS": 0.1
+    },
+    "errors": {
+      "_note": "실책 (내 타석에서만). 기록 규칙대로 평범한 수비면 아웃이었을 타구에서만 일어난다. 내야 땅볼 아웃 타구는 groundFumbleChance 로 포구 실책(공을 더듬어 fumbleS 만큼 늦게 줍는다 → 1루 송구가 늦다), groundThrowChance 로 송구 실책(아웃이 될 송구가 베이스를 지나 wildThrowRollM 만큼 빠지고, 받는 사람이 쫓아가 다시 잡기까지 wildThrowS 만큼 늦다). 잡힌 뜬공·라이너는 flyDropChance 로 낙구(떨어뜨린 공을 dropS 뒤에 줍는다 → 그 뒤는 빠진 공과 같다). 시간은 [최소, 최대] 안에서 고르게 뽑는다. 실책으로 산 타자는 '실책 출루': 타수에는 들어가고 안타·출루율·타점에는 들어가지 않는다. enabled 가 false 면 실책이 없다",
+      "enabled": true,
+      "groundFumbleChance": 0.03,
+      "groundThrowChance": 0.02,
+      "flyDropChance": 0.015,
+      "fumbleS": [0.9, 1.6],
+      "wildThrowS": [1.2, 2.2],
+      "wildThrowRollM": 8,
+      "dropS": [0.7, 1.3]
     }
   }
 }

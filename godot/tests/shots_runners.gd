@@ -1,5 +1,5 @@
 extends Node
-## 주자 플레이 중계 확인용: 1·2루에서 외야 안타·병살 플레이를 만들어 시간대별로 찍는다 → godot/build/shots/run-*.png
+## 주자 플레이 중계 확인용: 1·2루에서 외야 안타·병살 플레이, 실책(포구·송구·낙구)을 만들어 시간대별로 찍는다 → godot/build/shots/run-*.png
 ##   ~/Applications/Godot.app/Contents/MacOS/Godot --path godot res://tests/shots_runners.tscn
 
 
@@ -25,9 +25,11 @@ func _ready() -> void:
 	add_child(frame)
 	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	# 1) 1·2루, 좌중간 안타  2) 1루, 유격수 땅볼 (병살 기회)  3) 2루, 먼 외야 안타 (중계 플레이)
-	var cases := [["single", 140, 12, -15, [1, 2, -1]], ["dp", 135, -8, -12, [1, -1, -1]], ["relay", 155, 14, 20, [-1, 2, -1]]]
+	# 4) 유격수 포구 실책  5) 유격수 송구 실책  6) 중견수 낙구 (실책 확률을 1로 바꿔 일으킨다)
+	var cases := [["single", 140, 12, -15, [1, 2, -1]], ["dp", 135, -8, -12, [1, -1, -1]], ["relay", 155, 14, 20, [-1, 2, -1]],
+		["fumble", 140, -6, -13, [-1, -1, -1]], ["wild", 140, -6, -13, [-1, -1, -1]], ["drop", 130, 30, 0, [1, -1, -1]]]
 	for c: Array in cases:
-		var play := _make(phys, c[1], c[2], c[3], c[4])
+		var play := _make(phys, c[1], c[2], c[3], c[4], c[0])
 		if c[0] == "dp":
 			# 병살이 나는 타구를 찾는다
 			for spray in range(-30, 10, 2):
@@ -52,10 +54,21 @@ func _ready() -> void:
 	get_tree().quit()
 
 
-func _make(phys: BattedBallSim.Config, ev: float, la: float, spray: float, bases: Array) -> PlaySimulator.PlayResult:
+func _make(phys: BattedBallSim.Config, ev: float, la: float, spray: float, bases: Array, kind: String = "") -> PlaySimulator.PlayResult:
 	var ball := BattedBallSim.simulate(phys, ev, la, spray, 50)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
+	if kind in ["fumble", "wild", "drop"]:
+		var keep := [phys.errors_enabled, phys.error_fumble_chance, phys.error_throw_chance, phys.error_drop_chance]
+		phys.errors_enabled = true
+		phys.error_fumble_chance = 1.0 if kind == "fumble" else 0.0
+		phys.error_throw_chance = 1.0 if kind == "wild" else 0.0
+		phys.error_drop_chance = 1.0 if kind == "drop" else 0.0
+		BattedBallSim.roll_error(phys, ball, 50, rng)
+		phys.errors_enabled = keep[0]
+		phys.error_fumble_chance = keep[1]
+		phys.error_throw_chance = keep[2]
+		phys.error_drop_chance = keep[3]
 	return PlaySimulator.new(phys, ball, 4, bases, func(_i: int) -> int: return 50, 0, rng).run()
 
 

@@ -326,7 +326,7 @@ func _show_result_callout(r: AtBat.Result) -> void:
 	var tone := Tone.BAD
 	if r.outcome == SwingJudge.Outcome.HOME_RUN:
 		tone = Tone.BIG
-	elif SwingJudge.is_hit(r.outcome) or r.outcome == SwingJudge.Outcome.WALK:
+	elif SwingJudge.is_hit(r.outcome) or r.outcome == SwingJudge.Outcome.WALK or r.outcome == SwingJudge.Outcome.REACH_ON_ERROR:
 		tone = Tone.GOOD
 	var detail := ""
 	var delay := 0.0
@@ -336,6 +336,9 @@ func _show_result_callout(r: AtBat.Result) -> void:
 		if ball != null and ball.is_first_base_play():
 			# 1루 판정은 간발의 차를 함께 보여 준다
 			detail = "%s%s · 1루 %.2f초 차" % [aim_text(swing_outcome.aim), direction_text(r.contact.angle_deg), absf(ball.play_margin)]
+		if r.outcome == SwingJudge.Outcome.REACH_ON_ERROR and r.play != null:
+			# 실책 출루는 누구의 어떤 실책인지 (안타가 아니라는 걸 분명히)
+			detail = "%s%s · %s" % [aim_text(swing_outcome.aim), direction_text(r.contact.angle_deg), r.play.note]
 		# 인플레이 타구는 중계 화면에서 플레이가 끝난 뒤에 결과를 띄운다
 		delay = hit_play_end_ms() + presentation.after_play_hold_ms * 0.3
 	_set_callout(outcome_text(r.outcome), detail, tone, delay)
@@ -384,6 +387,7 @@ static func outcome_text(o: SwingJudge.Outcome) -> String:
 		SwingJudge.Outcome.FLY_OUT: return "뜬공 아웃"
 		SwingJudge.Outcome.LINE_OUT: return "직선타 아웃"
 		SwingJudge.Outcome.SAC_BUNT: return "희생번트"
+		SwingJudge.Outcome.REACH_ON_ERROR: return "실책 출루!"
 	return "?"
 
 

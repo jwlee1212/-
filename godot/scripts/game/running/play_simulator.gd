@@ -9,6 +9,8 @@ extends RefCounted
 ## - 송구가 베이스에 먼저 닿으면 그 베이스로 오던 주자는 아웃 (포스·태그, 뜬공 귀루 실패는 더블아웃)
 ## - 주자는 베이스에 다가가면 "내 도착 + 판단 오차 < 예상 송구 도착"이면 한 베이스 더 간다
 ## 결과(PlayResult)가 아웃·득점·주자 위치를 정하고, 중계 화면은 그 기록(주자 궤적·송구·판정)을 그대로 그린다.
+## 실책: 타구에 포구 실책·낙구가 있으면 공이 늦게 손에 들어오고, 송구 실책이 예약돼 있으면 아웃이 될 첫 송구가 빠진다.
+## 실책 덕에 산 타자는 "실책 출루"(REACH_ON_ERROR) — 안타가 아니다.
 ## 노드가 아니라 RefCounted 이고 고정 간격으로 진행하므로, 같은 입력·같은 시드면 언제나 같은 결과다.
 
 signal ball_hit(ball_type: SwingJudge.BattedBall, hit_pos: Vector2, out_count: int, t: float)
@@ -26,10 +28,11 @@ const MAX_TIME := 20.0
 class PlayResult:
 	var ball: BattedBallSim.Result
 	var runners: Array[RunnerAI] = []
-	## 송구 [{from, base, release, arrive, carry, cover?, cut?, to?, target?}] — carry 면 던지지 않고 잡은 수비수가 직접 뛰어가 밟는다.
+	## 송구 [{from, base, release, arrive, carry, cover?, cut?, to?, target?, error?, reach?, loose?, chaser?}] — carry 면 던지지 않고 잡은 수비수가 직접 뛰어가 밟는다.
 ## cut 이면 중계맨에게 가는 공 (base -1, to = 중계맨 자리, target = 처음 노린 베이스). cover = 받으러 들어간 수비수 {name, from, to, react, ready}
+## error 면 송구 실책: reach 에 베이스에 닿지만 빠져서 loose 로 굴러가고, chaser(받으려던 사람)가 쫓아가 arrive 에 다시 잡는다
 	var throws: Array = []
-	## 판정 [{base, t, out, text}]
+	## 판정 [{base, t, out, text, at?}] — at 이 있으면 베이스 대신 그 자리에 띄운다 (실책)
 	var calls: Array = []
 	var outs := 0
 	## 득점한 주자 타순 번호
@@ -42,6 +45,9 @@ class PlayResult:
 	var double_play := false
 	var rbi := 0
 	var duration := 0.0
+	## 실책 출루가 기록됐나, 실책한 수비 위치 ("SS" 등, 없으면 "")
+	var error := false
+	var error_fielder := ""
 
 
 var result := PlayResult.new()
@@ -65,6 +71,8 @@ var _relay_men: Array = []  # 중계맨으로 나간 수비수 이름 (커버로
 var _decided := {}  # 주자별로 이미 판단한 베이스 (같은 베이스를 두 번 판단하지 않게)
 var _out_log: Array = []  # [[시각, 포스 아웃인가 또는 타자 1루 전 아웃인가]]
 var _score_log: Array = []  # [[시각, 주자]]
+var _error_made := false  # 이 플레이에 실책이 실제로 났나 (포구 실책·낙구는 처음부터, 송구 실책은 빠뜨린 순간)
+var _error_call := {}  # 실책이 기록되면 띄울 말풍선
 
 
 ## bases: 플레이 전 1·2·3루 주자 타순 번호(-1 빈 베이스), speed_of: 타순 번호 → 주력(0~100)
@@ -76,6 +84,9 @@ func _init(phys: BattedBallSim.Config, ball: BattedBallSim.Result, batter_id: in
 	_rng = rng
 	_outs_before = outs_before
 	result.ball = ball
+	if ball.error == "fumble" or ball.error == "drop":
+		_error_made = true
+		_error_call = {"base": -1, "t": ball.error_t, "out": false, "text": "실책!", "at": ball.error_pos}
 	_batter = RunnerAI.new(batter_id, 0, int(speed_of.call(batter_id)), phys)
 	# 내야 땅볼이면 1루를 지나쳐 달리고, 외야로 간 공이면 1루를 돌며 2루를 노린다
 	_batter.overrun_first = not ball.caught and ball.fielder in phys.infield
@@ -154,6 +165,13 @@ func _on_caught() -> void:
 func _on_throw_arrived(th: Dictionary) -> void:
 	var b: int = th.base
 	throw_arrived.emit(b, _t)
+	if th.get("error", false):
+		# 송구 실책: 아무도 잡지 못한다. 공은 빠진 자리에서 쫓아간 수비수 손에 있다
+		if _pending.is_empty():
+			_ball_at = th.loose
+			_ball_thrower_infield = true
+			_ball_free_t = _t + float(_run["pivotS"])
+		return
 	var victim: RunnerAI = null
 	for r in result.runners:
 		if not r.is_on_field() or r.state == RunnerAI.State.SAFE:
@@ -415,6 +433,18 @@ func _taken(b: int, r: RunnerAI) -> bool:
 	return false
 
 
+## 이 송구가 제대로 가면 아웃인가: 그 베이스로 가는(또는 돌아가는) 주자가 공보다 늦게 닿는다
+func _would_be_out(b: int, arrive: float) -> bool:
+	for r in result.runners:
+		if not r.is_on_field() or r.state == RunnerAI.State.SAFE or r.arrived():
+			continue
+		var heading := (r.state == RunnerAI.State.RUN or r.state == RunnerAI.State.SLIDING) and r.target == b and r.base < b
+		var returning := r.state == RunnerAI.State.RETURNING and r.base == b
+		if (heading or returning) and arrive < _t + r.eta_to_target():
+			return true
+	return false
+
+
 ## 던질 만한가: 그 베이스로 가는(또는 돌아가는) 주자가 아직 못 닿았고, 공이 늦어도 접전(closePlayS) 안쪽
 func _worth_throwing(b: int, arrive: float) -> bool:
 	for r in result.runners:
@@ -534,6 +564,16 @@ func _throw(from: Vector2, b: int, release: float, arrive: float, relay_to: int,
 		if not cover.get("receiver", false):
 			th.cover = cover
 		_assigned[b] = cover
+		# 송구 실책: 아웃이 될 첫 송구가 베이스를 지나 빠진다 (늦은 송구는 실책이 아니다)
+		if _ball.error == "throw" and not _error_made and _would_be_out(b, th.arrive):
+			var bag := _base_xy(b)
+			_error_made = true
+			th.error = true
+			th.reach = th.arrive
+			th.loose = bag + (bag - from).normalized() * _phys.error_wild_roll_m
+			th.chaser = cover.get("name", "")
+			th.arrive = th.reach + _ball.error_s
+			_error_call = {"base": -1, "t": th.reach, "out": false, "text": "악송구!", "at": bag}
 	_pending.append(th)
 	result.throws.append(th)
 	throw_released.emit(from, b, release)
@@ -626,6 +666,15 @@ func _finish() -> void:
 			runner_outs += 1
 	if _ball.home_run:
 		result.batter_outcome = SwingJudge.Outcome.HOME_RUN
+	elif _error_made and _batter.state != RunnerAI.State.OUT and (_ball.error == "drop" or runner_outs == 0):
+		# 실책 출루: 평범한 수비면 아웃이었다 → 안타가 아니다 (타수 1, 안타 0). 실책으로 들어온 점수는 타점도 없다.
+		# 땅볼 실책 뒤에도 다른 주자를 잡았으면 실책이 아니라 야수선택(아래)
+		result.batter_outcome = SwingJudge.Outcome.REACH_ON_ERROR
+		result.error = true
+		result.error_fielder = _ball.fielder
+		result.note = "%s %s" % [position_label(_ball.fielder), "송구 실책" if _ball.error == "throw" else "실책"]
+		if not _error_call.is_empty():
+			result.calls.append(_error_call)
 	elif _ball.caught:
 		result.batter_outcome = _ball.outcome
 		if not result.scorers.is_empty():
@@ -648,7 +697,7 @@ func _finish() -> void:
 	if ground and result.outs >= 2 and _batter.state == RunnerAI.State.OUT and runner_outs > 0:
 		result.double_play = true
 		result.note = "병살"
-	result.rbi = 0 if result.double_play else result.scorers.size()
+	result.rbi = 0 if result.double_play or result.error else result.scorers.size()
 	var last := 0.0
 	for r in result.runners:
 		last = maxf(last, (r.track.size() - 1) * DT)
@@ -656,6 +705,20 @@ func _finish() -> void:
 
 
 # ---------- 도우미 ----------
+
+## 수비 위치 이름 (기록·중계 문구)
+static func position_label(name: String) -> String:
+	match name:
+		"P": return "투수"
+		"C": return "포수"
+		"1B": return "1루수"
+		"2B": return "2루수"
+		"SS": return "유격수"
+		"3B": return "3루수"
+		"LF": return "좌익수"
+		"CF": return "중견수"
+		"RF": return "우익수"
+	return name
 
 ## 이 이닝 아웃 수 (플레이 전 아웃 + 이 플레이에서 잡은 아웃)
 func _total_outs() -> int:
@@ -693,7 +756,7 @@ func _landing_time() -> float:
 	# 뜬공·라이너: 못 잡을 공이면 주자는 떨어지기 조금 전에 읽고 뛴다 (수비수가 못 따라가는 게 보인다)
 	for i in range(1, _ball.path.size()):
 		if _ball.path[i].z <= 0.0:
-			if _ball.caught:
+			if _ball.caught or _ball.error == "drop":
 				return i * DT
 			return maxf(float(_run["hitReadMinS"]), i * DT - float(_run["hitReadLeadS"]))
 	return -1.0

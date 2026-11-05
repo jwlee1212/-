@@ -20,6 +20,8 @@ class SeasonStats:
 	var strikeouts := 0
 	var sac_flies := 0
 	var sac_bunts := 0
+	## 실책 출루 (타수에는 들어가고 안타·출루에는 들어가지 않는다)
+	var errors_reached := 0
 	## 인플레이 타구 수와 타구 속도 합 (기록실 분할 기록의 평균 타구 속도용. 타구 물리가 있는 내 타석만 센다)
 	var balls_in_play := 0
 	var ev_sum := 0.0
@@ -46,6 +48,8 @@ class SeasonStats:
 				triples += 1
 			SwingJudge.Outcome.HOME_RUN:
 				home_runs += 1
+			SwingJudge.Outcome.REACH_ON_ERROR:
+				errors_reached += 1
 		ab += 1
 		if SwingJudge.is_hit(outcome):
 			hits += 1
@@ -64,6 +68,7 @@ class SeasonStats:
 		strikeouts += o.strikeouts
 		sac_flies += o.sac_flies
 		sac_bunts += o.sac_bunts
+		errors_reached += o.errors_reached
 		balls_in_play += o.balls_in_play
 		ev_sum += o.ev_sum
 
@@ -91,6 +96,7 @@ class SeasonStats:
 		s.strikeouts = b.so
 		s.sac_flies = b.sf
 		s.sac_bunts = b.sh
+		s.errors_reached = b.roe
 		return s
 
 	## "4타수 2안타 1홈런" 처럼 짧게
@@ -104,7 +110,7 @@ class SeasonStats:
 			parts.append("%d볼넷" % walks)
 		return " ".join(parts)
 
-	## 출루율 = (안타 + 볼넷) / (타수 + 볼넷 + 희생플라이). 몸에 맞는 공은 아직 없다
+	## 출루율 = (안타 + 볼넷) / (타수 + 볼넷 + 희생플라이). 몸에 맞는 공은 아직 없다. 실책 출루는 출루가 아니다(타수에만 든다)
 	func obp() -> float:
 		var d := ab + walks + sac_flies
 		return float(hits + walks) / float(d) if d > 0 else 0.0
