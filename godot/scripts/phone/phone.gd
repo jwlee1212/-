@@ -15,9 +15,9 @@ const KEYS := ["id", "speaker", "room", "text", "lines", "replies", "ignore", "r
 	"maxForm", "maxCondition", "injured", "partner", "minMoney", "winter", "campWeek",
 	"recentGames", "recentMinHits", "recentMaxHits",
 	"lastResult", "lastMinHits", "lastMaxHits", "lastMinHomeRuns", "lastPhaseEnd", "lastNational", "lastOpponent", "seasonOver",
-	"after"]
+	"after", "proYear", "proLevel", "proPhase", "minFame"]
 ## 문자 답장에 쓸 수 있는 효과 (가벼운 것만 — 타순·부상·경기 결과 같은 큰 변화는 대화 이벤트에서, schedule 로 이어 준다)
-const EFFECTS := ["condition", "form", "reputation", "money", "rel", "meet", "flag", "clearFlag", "schedule"]
+const EFFECTS := ["condition", "form", "reputation", "money", "rel", "meet", "flag", "clearFlag", "schedule", "fame", "proSns"]
 ## 보낸 사람: 내가 보낸 답장, 안내 줄(답장할 때를 놓쳤다 · 변화 설명)
 const ME := "me"
 const SYSTEM := ""
@@ -316,7 +316,7 @@ static func validate(cfg: CareerConfig) -> Array[String]:
 				errors.append("%s: from 인물 %s 없음" % [where, pid])
 			elif pid != m["speaker"] and not cfg.phone_rooms.has(room):
 				errors.append("%s: 인물 방에서는 그 사람만 말한다 (from %s)" % [where, pid])
-		for k in ["grade", "week", "campWeek"]:
+		for k in ["grade", "week", "campWeek", "proYear"]:
 			if m.has(k) and ((m[k] as Array).size() != 2 or int(m[k][0]) > int(m[k][1])):
 				errors.append("%s: %s 범위" % [where, k])
 		for f: String in m.get("requires", []):

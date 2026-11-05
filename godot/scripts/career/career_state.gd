@@ -101,6 +101,10 @@ var _checking_exhibition := false
 var camp_start := {}
 ## 이번 캠프 연습경기 [{"opponent", "my", "opp", "result", "line"}]
 var camp_games: Array = []
+## 드래프트 결과 (고3 시즌 결산의 draft 효과 — run_draft): {"tier", "team", "pick", "bonus", "development", "text"} ({} 아직)
+var draft := {}
+## 프로 생활 (프로 입단 뒤, 고교 동안은 null). 있으면 경기·한 주·시즌이 ProCareer 로 돈다
+var pro: ProCareer = null
 
 
 func _init(p_cfg: CareerConfig, player_name: String, p_batting: BattingConfig) -> void:
@@ -157,6 +161,8 @@ func phase() -> Dictionary:
 
 
 func is_season_over() -> bool:
+	if pro != null:
+		return pro.phase == ProCareer.PHASE_DONE
 	return phase_index >= phases().size()
 
 
@@ -169,6 +175,8 @@ func is_national() -> bool:
 
 
 func phase_name() -> String:
+	if pro != null:
+		return pro.phase_text(cfg)
 	if is_season_over():
 		return "겨울 캠프"
 	var ph := phase()
@@ -179,6 +187,8 @@ func phase_name() -> String:
 
 ## 지금 경기의 라운드 ("3/6" 또는 "8강")
 func round_text() -> String:
+	if pro != null:
+		return "%d년 차" % pro.year()
 	if is_exhibition():
 		return "연습경기"
 	if is_season_over():
@@ -193,6 +203,9 @@ func round_text() -> String:
 
 ## 이번 주 상대
 func opponent() -> School:
+	if pro != null:
+		var o := pro.next_opponent(cfg)
+		return o.school if o != null else pro.team().school
 	# 경기 대본이 정한 상대 (연습경기·전국대회만 — 주말리그는 일정대로)
 	if not game_plan.is_empty() and schools.has(game_plan.get("opponent", "")) and (game_plan.get("practice", false) or not is_league()):
 		return schools[game_plan["opponent"]]
@@ -210,6 +223,8 @@ func opponent() -> School:
 
 ## 이번 주 경기가 대본이 만든 연습경기인가 (이벤트의 stage.practice): 순위·시즌 기록에 안 들어가고, 리그 일정은 한 주 뒤로 밀린다
 func is_exhibition() -> bool:
+	if pro != null:
+		return false
 	if not game_plan.is_empty() and not game_done:
 		return game_plan.get("practice", false)
 	if _checking_exhibition or game_done or is_season_over():
@@ -575,6 +590,8 @@ func train(id: String) -> String:
 ## 다음 경기에 내가 어떻게 나가나: "start" 선발 | "pinch" 벤치에서 시작해 대타 | "bench" 벤치 (출전 없음) | "out" 결장 (부상, 결과를 고정한 경기).
 ## 타순 0(벤치)이면 이야기가 부르는 경기(조건이 맞는 한 번뿐인 pinch_pa 이벤트)에만 대타로 나간다
 func next_role() -> String:
+	if pro != null:
+		return "start" if pro.has_direct_game(self) else "out"
 	if not game_plan.is_empty() and not player.is_injured():
 		return "start" if game_plan.get("role", "start") == "start" else "pinch"
 	if player.is_injured() or not match_override.is_empty():
@@ -599,6 +616,9 @@ func next_lineup() -> Array:
 
 
 func new_game() -> GameRunner:
+	if pro != null:
+		player.game_boost.clear()
+		return pro.new_game(self)
 	player.game_boost.clear()
 	if not game_plan.is_empty() and not player.is_injured():
 		return _new_plan_game()
@@ -719,6 +739,9 @@ func finish_game(game: GameRunner) -> Array[String]:
 	assert(not game_done, "이번 주 경기는 이미 끝났다")
 	game_done = true
 	player.game_boost.clear()
+	if pro != null:
+		player.bench_next = false
+		return pro.finish_week(self, game)
 	PitchHint.consume(player)  # 소율의 구종 힌트는 경기 하나에만 (타석에 안 섰어도)
 	player.bench_next = false
 	match_override = {}
@@ -1296,6 +1319,142 @@ func start_next_season() -> void:
 	for id: String in schools:
 		schools[id].new_season(cfg, rng)
 	_start_phase()
+	phone.deliver(self)
+
+
+# ---------- 드래프트 · 프로 입단 ----------
+
+## 드래프트 (고3 시즌 결산 이야기의 draft 효과): 유망주 랭킹 → 관심도 등급(balance.json career.pro.draft.tierByRank)
+## → 구단·지명 순번·계약금 (worldview.md 5-3 표). C 등급은 지명을 못 받고 육성선수 제안만 온다. 다시 불러도 같은 결과
+func run_draft() -> Dictionary:
+	if not draft.is_empty():
+		return draft
+	var dc: Dictionary = cfg.pro["draft"]
+	var rank := prospect_rank()
+	var tier := "C"
+	for row: Array in dc["tierByRank"]:
+		if rank <= int(row[0]):
+			tier = str(row[1])
+			break
+	var info: Dictionary = dc["tiers"][tier]
+	var rng := _rng("draft")
+	var lo := int(info["pickMin"])
+	var hi := int(info["pickMax"])
+	var overall := rng.randi_range(lo, hi) if hi >= lo and hi > 0 else 0
+	var pick := ""
+	if overall > 0:
+		var per := int(cfg.scouting["picksPerRound"])
+		pick = "%d라운드 전체 %d순위" % [(overall - 1) / per + 1, overall]
+	else:
+		pick = "미지명 (육성선수 제안)"
+	var team_id: String = info["team"]
+	var team_name := ""
+	for d: Dictionary in cfg.pro_teams:
+		if d.get("id", "") == team_id:
+			team_name = d["name"]
+	var bonus := 0
+	if int(info["bonusMax"]) > 0:
+		bonus = roundi(lerpf(float(info["bonusMax"]), float(info["bonusMin"]), rng.randf()) / 10000000.0) * 10000000
+	draft = {"tier": tier, "team": team_id, "teamName": team_name, "pick": pick, "overall": overall, "bonus": bonus,
+		"development": overall == 0, "rank": rank,
+		"text": "%s — %s %s" % [team_name, pick, ("계약금 " + ProCareer.money_text(bonus)) if bonus > 0 else "육성선수"]}
+	player.vars["draft_tier"] = tier
+	player.vars["draft_team"] = team_id
+	player.flags["drafted" if overall > 0 else "undrafted"] = true
+	return draft
+
+
+## 대학 진학 (미지명 → 대학을 고른 경우): 4년을 요약해 겨울 훈련 collegeYears 번만큼 자라고, 대졸로 다시 드래프트를 받는다.
+## 대학 리그를 따로 하지 않는다 (CLAUDE.md §3-4 — 요약 진행)
+func college_years() -> Dictionary:
+	var n := int(cfg.pro["college"]["years"])
+	for i in n:
+		for s in PlayerData.STATS:
+			Growth.apply(cfg, player, s, float(cfg.pro["college"]["yearGain"]))
+	scouting.winter(cfg)
+	var dc: Dictionary = cfg.pro["college"]
+	var tier := "C"
+	for row: Array in dc["tierByOverall"]:
+		if player.overall() >= int(row[0]):
+			tier = str(row[1])
+			break
+	draft = {}
+	var info: Dictionary = cfg.pro["draft"]["tiers"][tier]
+	var rng := _rng("college-draft")
+	var overall := rng.randi_range(int(info["pickMin"]), int(info["pickMax"])) if int(info["pickMax"]) > 0 else 0
+	var per := int(cfg.scouting["picksPerRound"])
+	var team_id: String = dc["teamByTier"][tier]
+	var team_name := ""
+	for d: Dictionary in cfg.pro_teams:
+		if d.get("id", "") == team_id:
+			team_name = d["name"]
+	var bonus := roundi(float(dc["bonusByTier"][tier]) / 10000000.0) * 10000000
+	var pick := "%d라운드 전체 %d순위 (대졸)" % [(overall - 1) / per + 1, overall]
+	# C 등급은 대학을 나와도 지명이 없다 → 육성선수
+	if tier == "C":
+		overall = 0
+		bonus = 0
+		pick = "미지명 (대졸 육성선수)"
+	draft = {"tier": tier, "team": team_id, "teamName": team_name, "pick": pick,
+		"overall": overall, "bonus": bonus, "development": overall == 0, "college": true,
+		"text": "대학 4년 뒤 %s — %s" % [team_name, pick]}
+	player.vars["draft_tier"] = tier
+	player.vars["draft_team"] = team_id
+	player.flags["drafted" if overall > 0 else "undrafted"] = true
+	return draft
+
+
+## 프로 입단 (고교 졸업 뒤 시즌 결산 화면의 [프로 입단]): 드래프트 결과로 ProCareer 를 만들고 프로 1년 차 첫 주로.
+## 고교 시즌 기록은 history 에 남긴다
+func start_pro() -> void:
+	if pro != null:
+		return
+	if path == "college" and not draft.get("college", false):
+		college_years()
+	elif draft.is_empty():
+		run_draft()
+	history.append({"season_no": season_no, "grade": player.grade, "line": player.season, "phases": phase_log.duplicate(),
+		"record": "%d승 %d패 %d무" % [wins(), losses(), results.count(0)], "rank": prospect_rank()})
+	player.season = PlayerData.SeasonStats.new()
+	pro = ProCareer.create(self, draft)
+	season_no += 1
+	week = 1
+	game_done = false
+	winter_gains = {}
+	camp_week = 0
+	camp_focus = ""
+	results.clear()
+	phase_log.clear()
+	week_training = ""
+	week_schedule = []
+	_week_training_id = ""
+	week_social = ""
+	week_services.clear()
+	player.mark_season_start()
+	player.condition = maxi(player.condition, int(cfg.start["condition"]))
+	player.injury_weeks = 0
+	player.injury_label = ""
+	player.form = 0.0
+	book.reset_week()
+	phone.deliver(self)
+
+
+## 프로 다음 시즌 (프로 시즌 결산 화면의 [다음 시즌])
+func start_next_pro_season() -> void:
+	pro.close_season(self)
+	for s in PlayerData.STATS:
+		Growth.apply(cfg, player, s, float(cfg.pro["winterGain"]))
+	pro.start_next_season(self)
+	season_no += 1
+	week = 1
+	game_done = false
+	results.clear()
+	player.mark_season_start()
+	player.condition = maxi(player.condition, int(cfg.start["condition"]))
+	player.injury_weeks = 0
+	player.injury_label = ""
+	player.form = 0.0
+	book.reset_week()
 	phone.deliver(self)
 
 

@@ -124,6 +124,10 @@ func next_week() -> void:
 
 
 func show_home() -> void:
+	# 프로 편은 프로 허브 (경기 화면·결과 화면은 고교와 같은 것을 쓴다)
+	if career != null and career.pro != null:
+		show_screen(ProHubScreen.new(self))
+		return
 	show_screen(HomeScreen.new(self))
 
 
@@ -145,6 +149,9 @@ func show_result(game: GameRunner) -> void:
 
 
 func show_season() -> void:
+	if career != null and career.pro != null:
+		show_screen(ProSeasonScreen.new(self))
+		return
 	show_screen(SeasonScreen.new(self))
 
 

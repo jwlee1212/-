@@ -24,16 +24,18 @@ const CONDITION_KEYS := ["id", "speaker", "title", "text", "choices", "script", 
 	"maxForm", "maxCondition", "injured", "opponent", "scheduledOnly",
 	"recentGames", "recentMinHits", "recentMaxHits", "stage",
 	"lastResult", "lastMinHits", "lastMaxHits", "lastMinHomeRuns", "lastPhaseEnd", "lastNational", "lastOpponent", "seasonOver",
-	"after", "when", "episode", "card"]
+	"after", "when", "episode", "card", "proYear", "proLevel", "proPhase", "minFame"]
 const EFFECT_KEYS := ["condition", "scoutInterest", "lineupSlot", "contact", "power", "eye", "speed", "fielding", "form",
 	"reputation", "injury", "rel", "meet", "flag", "clearFlag", "schedule", "path", "money", "partner", "campFocus", "gear", "gameBoost", "pinchHit",
-	"matchOverride", "injuryLabel", "minigame", "set", "add", "train", "gamePlan", "gradeVar", "addContact"]
+	"matchOverride", "injuryLabel", "minigame", "set", "add", "train", "gamePlan", "gradeVar", "addContact", "draft", "fame", "proSns"]
 ## 대본 줄의 화면 표시 (ui, 없으면 보통 대사·지문): 폰 문자 · 노트북 화면 · TV · 화이트보드 · 전광판 · 쪽지 · 시스템 알림
 const UI_KINDS := ["phone", "laptop", "tv", "whiteboard", "scoreboard", "item", "system", "news"]
 ## 조건(cond)의 비교 키: {"var": id, <키>: 값}
 const COMPARES := ["eq", "ne", "gte", "lte", "gt", "lt", "in"]
 const PATHS := ["draft", "college"]
 const PHASE_ENDS := ["champion", "eliminated", "leagueEnd"]
+## 엔진(프로 편)이 직접 세우는 플래그 — 이벤트·문자의 requires 로 써도 된다. 기념 순간은 ms_<id> 도 세운다 (content.json pro.milestones)
+const ENGINE_FLAGS := ["drafted", "undrafted", "pro_called_up", "pro_debut", "pro_post_debut"]
 
 ## id -> 정의, content 순서
 var defs := {}
@@ -221,6 +223,18 @@ func eligible(career: CareerState, e: Dictionary, via_schedule: bool = false) ->
 		return false
 	if not _in_span(e, "grade", p.grade) or (not career.in_camp() and not _in_span(e, "week", career.week)):
 		return false
+	# 프로 편: proYear 가 있는 이벤트·문자는 프로에서만, 없는 것은 고교에서만 (고교 무작위 이벤트가 프로에 섞이지 않게)
+	if (career.pro != null) != e.has("proYear"):
+		return false
+	if career.pro != null:
+		if not _in_span(e, "proYear", career.pro.year()):
+			return false
+		if e.has("proLevel") and e["proLevel"] != career.pro.level:
+			return false
+		if e.has("proPhase") and e["proPhase"] != career.pro.phase:
+			return false
+		if career.pro.fame < int(e.get("minFame", 0)):
+			return false
 	if e.has("partner"):
 		var want: String = e["partner"]
 		var now := career.people.partner
@@ -517,6 +531,18 @@ func apply_effects(career: CareerState, fx: Dictionary) -> Array[String]:
 			"money":
 				p.money = maxi(0, p.money + int(v))
 				parts.append("돈 %s%s" % ["+" if int(v) > 0 else "", PlayerData.money_text(int(v))])
+			"draft":
+				# 드래프트 (고3 시즌 결산): 유망주 랭킹 → 관심도 등급 → 구단 (balance.json career.pro.draft, worldview 5-3)
+				var d := career.run_draft()
+				parts.append(d["text"])
+			"fame":
+				if career.pro != null:
+					career.pro.fame = clampi(career.pro.fame + int(v), 0, 100)
+					parts.append("인기 %+d" % int(v))
+			"proSns":
+				# 이야기가 프로 SNS 에 글을 올린다 (content.json pro.sns.posts 의 그 종류)
+				if career.pro != null:
+					career.pro.feed.post_custom(career, career.pro, str(v))
 			"partner":
 				career.people.partner = "" if str(v) == "none" else str(v)
 				parts.append("이별" if str(v) == "none" else "연애 시작 ♥")
@@ -600,11 +626,28 @@ static func fill(career: CareerState, text: String) -> String:
 	if t.contains("{pick}"):
 		t = t.replace("{pick}", career.projection()["text"])
 	t = t.replace("{rank}", "유망주 랭킹 %d위" % career.prospect_rank())
+	if t.contains("{pro") or t.contains("{draftPick}") or t.contains("{bonus}") or t.contains("{salary}"):
+		t = _fill_pro(career, t)
 	if t.contains("{phaseLine}"):
 		# 가장 최근 대회(단계)의 내 기록 한 줄 (화이트보드 개인 기록)
 		var ln: PlayerData.SeasonStats = career.records.phases[-1].line if not career.records.phases.is_empty() else PlayerData.SeasonStats.new()
 		t = t.replace("{phaseLine}", "타율 %s · 출루율 %s · 실책 %d · 보살 %d" % [ln.average(), ln.obp_text(), ln.errors, ln.assists])
 	return josa(t)
+
+
+## 프로 편 글자: 구단(지명 구단 — 입단 전에는 드래프트 결과), 감독·주장 이름(content.json proTeams), 지명·계약금·연봉, 시즌 한 줄
+static func _fill_pro(career: CareerState, text: String) -> String:
+	var team_id: String = career.pro.team_id if career.pro != null else str(career.draft.get("team", ""))
+	var td := {}
+	for d: Dictionary in career.cfg.pro_teams:
+		if d.get("id", "") == team_id:
+			td = d
+	var t := text.replace("{proTeam}", td.get("name", "")).replace("{proTeamShort}", td.get("short", "")).replace("{proCity}", td.get("city", ""))
+	t = t.replace("{proCoach}", td.get("coach", "감독")).replace("{proCaptain}", td.get("captain", "주장"))
+	t = t.replace("{draftPick}", str(career.draft.get("pick", ""))).replace("{bonus}", ProCareer.money_text(int(career.draft.get("bonus", 0))))
+	if career.pro != null:
+		t = t.replace("{salary}", ProCareer.money_text(career.pro.salary)).replace("{proLine}", career.pro.me.line_text())
+	return t
 
 
 ## "이민재이(가)" → "이민재가": 앞 글자 받침으로 조사를 고른다 (한글이 아니면 그대로)
@@ -756,6 +799,10 @@ static func known_flags(cfg: CareerConfig) -> Dictionary:
 	var flags := {}
 	for f: String in cfg.pending_flags:
 		flags[f] = true
+	for f: String in ENGINE_FLAGS:
+		flags[f] = true
+	for m: Dictionary in cfg.pro_content.get("milestones", []):
+		flags["ms_" + str(m.get("id", ""))] = true
 	for e: Dictionary in cfg.events:
 		for fx: Dictionary in all_effects(e):
 			for f in _list(fx.get("flag", [])):
@@ -780,7 +827,8 @@ static func all_effects(e: Dictionary) -> Array:
 
 ## 대사에 쓸 수 있는 글자 치환 이름들
 static func token_names(cfg: CareerConfig) -> Array:
-	var out := ["player", "school", "rivalSchool", "scoutTeam", "rivalLast", "pick", "rank", "partner", "partnerName", "phaseLine"]
+	var out := ["player", "school", "rivalSchool", "scoutTeam", "rivalLast", "pick", "rank", "partner", "partnerName", "phaseLine",
+		"proTeam", "proTeamShort", "proCity", "proCoach", "proCaptain", "draftPick", "bonus", "salary", "proLine"]
 	for id: String in cfg.people:
 		out.append(id)
 		out.append(id + "Name")
@@ -980,9 +1028,15 @@ static func validate(cfg: CareerConfig) -> Array[String]:
 			errors.append("%s: winter 는 true 또는 any" % where)
 		if e.has("campWeek") and e.get("winter", false) is not bool:
 			errors.append("%s: campWeek 는 winter: true 이벤트에서만" % where)
-		for k in ["grade", "week", "campWeek"]:
+		for k in ["grade", "week", "campWeek", "proYear"]:
 			if e.has(k) and ((e[k] as Array).size() != 2 or int(e[k][0]) > int(e[k][1])):
 				errors.append("%s: %s 범위" % [where, k])
+		if e.has("proLevel") and not e["proLevel"] in [ProCareer.LEVEL_FIRST, ProCareer.LEVEL_FUTURES]:
+			errors.append("%s: proLevel %s" % [where, e["proLevel"]])
+		if e.has("proPhase") and not e["proPhase"] in [ProCareer.PHASE_REGULAR, ProCareer.PHASE_POST, ProCareer.PHASE_DONE]:
+			errors.append("%s: proPhase %s" % [where, e["proPhase"]])
+		if (e.has("proLevel") or e.has("proPhase") or e.has("minFame")) and not e.has("proYear"):
+			errors.append("%s: proLevel·proPhase·minFame 은 proYear 와 같이 쓴다" % where)
 		for f: String in e.get("requires", []):
 			if not flags_set.has(f):
 				errors.append("%s: requires %s 를 세우는 선택지가 없다" % [where, f])
@@ -1115,6 +1169,8 @@ static func validate(cfg: CareerConfig) -> Array[String]:
 				errors.append("%s: gear %s 없음" % [where, fx["gear"]])
 			if fx.has("path") and not fx["path"] in PATHS:
 				errors.append("%s: path %s" % [where, fx["path"]])
+			if fx.has("proSns") and not (cfg.pro_content.get("sns", {}).get("posts", {}) as Dictionary).has(fx["proSns"]):
+				errors.append("%s: proSns 종류 %s 없음 (content.json pro.sns.posts)" % [where, fx["proSns"]])
 		for t: String in texts:
 			for tok in _tokens(t):
 				if not tok in known_tokens:

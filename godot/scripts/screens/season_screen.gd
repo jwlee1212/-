@@ -62,16 +62,22 @@ func _build() -> void:
 		next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(next)
 	else:
+		# 고교 졸업 → 프로 입단 (드래프트 결과 · 대학을 고르면 4년 요약 뒤 대졸 드래프트)
 		var text := "고교 졸업!"
-		match career.path:
-			"draft":
-				text += " 드래프트 신청 — 지명 결과는 다음 업데이트(G7)에서."
-			"college":
-				text += " 대학 진학 — 대학 리그는 다음 업데이트(G7)에서."
+		if not career.draft.is_empty():
+			text += " " + str(career.draft["text"])
+		elif career.path == "college":
+			text += " 대학 진학 — 4년 뒤 대졸 드래프트"
 		var l := UiKit.label(text, Tokens.FONT_BODY, Tokens.ACCENT, Tokens.FONT_BOLD)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(l)
+		var go := UiKit.button("프로 입단 ▶" if career.path != "college" else "대학 4년 → 드래프트 ▶", func() -> void:
+			career.start_pro()
+			_app.save_career()
+			_app.show_home(), Tokens.ACCENT, Tokens.FONT_LABEL)
+		go.disabled = _overlay != null
+		row.add_child(go)
 	col.add_child(row)
 
 

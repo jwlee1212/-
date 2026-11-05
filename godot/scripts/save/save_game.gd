@@ -35,12 +35,19 @@ static var TYPES := {
 	"PhaseEntry": CareerRecords.PhaseEntry,
 	"Phone": Phone,
 	"NewsFeed": NewsFeed,
+	"ProCareer": ProCareer,
+	"ProLeague": ProLeague,
+	"ProTeam": ProTeam,
+	"ProPlayer": ProPlayer,
+	"PitchStats": ProPlayer.PitchStats,
+	"ProFeed": ProFeed,
 }
 
 ## 저장하지 않는 필드 (종류 -> 필드). 설정에서 다시 만든다
 const SKIP := {
 	"CareerState": ["cfg", "batting"],
 	"EventBook": ["defs", "order"],
+	"ProCareer": ["_pending"],
 }
 
 

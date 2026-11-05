@@ -74,6 +74,9 @@ var game_title: Dictionary
 var people: Dictionary = {}
 var pro_teams: Array
 var chapters: Dictionary
+## 프로 편 수치 (balance.json career.pro) · 콘텐츠 (content.json pro: 뉴스·SNS 문장 틀, 기념 순간, 매체, 구단 사람)
+var pro: Dictionary = {}
+var pro_content: Dictionary = {}
 ## 대화 화면 배경 자리 (id -> 이름)
 var places: Dictionary = {}
 ## 폰 문자 (content.json messages), 단체방 (phone.rooms: id -> {name})
@@ -122,6 +125,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.news_cfg = car["news"]
 	c.fitness = car["fitness"]
 	c.cutscene = car.get("cutscene", {})
+	c.pro = car.get("pro", {})
 
 	var g: Dictionary = balance["game"]
 	c.innings = int(BattingConfig.num(g, "innings"))
@@ -154,6 +158,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 		if not id.begins_with("_"):
 			c.people[id] = content["people"][id]
 	c.pro_teams = content["proTeams"]
+	c.pro_content = content.get("pro", {})
 	c.chapters = content["chapters"]
 	for id: String in content["places"]:
 		if not id.begins_with("_"):
