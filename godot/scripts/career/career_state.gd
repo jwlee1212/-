@@ -1445,7 +1445,13 @@ func start_pro() -> void:
 
 ## 프로 다음 시즌 (프로 시즌 결산 화면의 [다음 시즌])
 func start_next_pro_season() -> void:
+	if pro.retired:
+		return
 	pro.close_season(self)
+	# 은퇴밖에 없는데(나이·방출) 카드를 고르지 않고 넘어가면 은퇴 (화면은 카드를 먼저 띄운다 — 자동 진행·테스트용)
+	if bool(player.vars.get("retire_forced", false)):
+		pro.retire(self)
+		return
 	# FA 를 고르지 않고 넘어가면 원 소속 구단 제안 (화면은 고르기 전에는 [다음 시즌]을 막는다 — 자동 진행·테스트용)
 	if pro.fa_pending:
 		ProFA.sign(self, pro, ProFA.offers(cfg, pro)[0])

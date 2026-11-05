@@ -27,7 +27,7 @@ const CONDITION_KEYS := ["id", "speaker", "title", "text", "choices", "script", 
 	"after", "when", "episode", "card", "proYear", "proLevel", "proPhase", "minFame"]
 const EFFECT_KEYS := ["condition", "scoutInterest", "lineupSlot", "contact", "power", "eye", "speed", "fielding", "form",
 	"reputation", "injury", "rel", "meet", "flag", "clearFlag", "schedule", "path", "money", "partner", "campFocus", "gear", "gameBoost", "pinchHit",
-	"matchOverride", "injuryLabel", "minigame", "set", "add", "train", "gamePlan", "gradeVar", "addContact", "draft", "fame", "proSns", "proTrust", "military"]
+	"matchOverride", "injuryLabel", "minigame", "set", "add", "train", "gamePlan", "gradeVar", "addContact", "draft", "fame", "proSns", "proTrust", "military", "retire"]
 ## 대본 줄의 화면 표시 (ui, 없으면 보통 대사·지문): 폰 문자 · 노트북 화면 · TV · 화이트보드 · 전광판 · 쪽지 · 시스템 알림
 const UI_KINDS := ["phone", "laptop", "tv", "whiteboard", "scoreboard", "item", "system", "news"]
 ## 조건(cond)의 비교 키: {"var": id, <키>: 값}
@@ -36,7 +36,7 @@ const PATHS := ["draft", "college"]
 const PHASE_ENDS := ["champion", "eliminated", "leagueEnd"]
 ## 엔진(프로 편)이 직접 세우는 플래그 — 이벤트·문자의 requires 로 써도 된다. 기념 순간은 ms_<id> 도 세운다 (content.json pro.milestones)
 const ENGINE_FLAGS := ["drafted", "undrafted", "pro_called_up", "pro_debut", "pro_post_debut", "enlisted", "discharged", "military_exempt",
-	"national_classic", "national_olympic", "national_asian", "fa_signed", "main_ending"]
+	"national_classic", "national_olympic", "national_asian", "fa_signed", "main_ending", "retired", "released", "taeo_retired"]
 
 ## id -> 정의, content 순서
 var defs := {}
@@ -540,6 +540,11 @@ func apply_effects(career: CareerState, fx: Dictionary) -> Array[String]:
 				if career.pro != null:
 					career.pro.fame = clampi(career.pro.fame + int(v), 0, 100)
 					parts.append("인기 %+d" % int(v))
+			"retire":
+				# 은퇴 (은퇴 카드) — 은퇴식이 커리어의 마지막 장면
+				if career.pro != null and bool(v):
+					career.pro.retire(career)
+					parts.append("은퇴")
 			"proTrust":
 				# 감독 신뢰 (프로 1군·퓨처스 오르내림)
 				if career.pro != null:

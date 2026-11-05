@@ -88,6 +88,7 @@ func _init() -> void:
 		"test_hs_sim",
 		"test_sim_to_end",
 		"test_age_curve",
+		"test_pro_retire",
 		"test_real_content",
 		"test_training_and_growth",
 		"test_condition_affects_skills",
@@ -5712,3 +5713,71 @@ func test_age_curve() -> void:
 				n += 1
 		means[age] = sum / n
 	check(float(means[22]) > 1.0 and absf(float(means[34])) < 0.6 and float(means[37]) < -1.5, "리그 평균 변화 22세 %+.2f · 34세 %+.2f · 37세 %+.2f" % [means[22], means[34], means[37]])
+
+
+
+func test_pro_retire() -> void:
+	# 은퇴: 만 34세부터 시즌 결산마다 은퇴 카드 (은퇴 / 한 시즌 더), 42세·방출이면 은퇴뿐. 은퇴하면 리그 명단에서 빠지고 역대 기록에 남는다
+	var cfg := _pro_cfg(3)
+	var rc: Dictionary = cfg.pro["retire"]
+	var card := _event(cfg, "pro_retire_card")
+	var young := _pro_career(_pro_cfg(3), "A", "젊음")
+	young.pro.close_season(young)
+	check(not young.book.eligible(young, card), "젊으면 은퇴 카드가 없다")
+	var c := _pro_career(cfg, "A", "은퇴")
+	c.pro.me.age = int(rc["askAge"])
+	c.pro.close_season(c)
+	check(c.player.vars["retire_ask"] == true and c.player.vars["retire_forced"] == false and c.book.eligible(c, card), "만 %d세 결산에 은퇴 카드" % int(rc["askAge"]))
+	var run := DialogueRun.new(c, card)
+	var step := run.next()
+	while step.type != "choice":
+		step = run.next()
+	check(step.options.size() == 2, "은퇴 / 한 시즌 더")
+	# 한 시즌 더 → 다음 시즌으로 간다
+	var more := _pro_career(_pro_cfg(3), "A", "은퇴")
+	more.pro.me.age = int(rc["askAge"])
+	more.pro.close_season(more)
+	more.resolve_event(card, 1)
+	more.start_next_pro_season()
+	check(not more.pro.retired and more.pro.year() == 2, "한 시즌 더 → 2년 차")
+	# 은퇴
+	var team := c.pro.team()
+	c.resolve_event(card, 0)
+	check(c.pro.retired and c.player.flags.has("retired") and c.pro.milestones_done.has("retire"), "은퇴 → 은퇴 기념 순간")
+	check(not team.bench.has(c.pro.me) and not team.lineup.has(c.pro.me), "리그 명단에서 빠진다")
+	var rec: Dictionary = c.pro.league.retired[-1]
+	check(rec["me"] == true and rec["why"] == "은퇴", "역대 기록에 남는다")
+	var sum := c.pro.career_summary(c)
+	check((sum["line"] as PlayerData.SeasonStats).games == c.pro.me.career.games + c.pro.me.season.games and sum["teams"].has(team.name), "커리어 요약")
+	check(not c.book.eligible(c, card) and not c.book.eligible(c, _event(cfg, "pro_military_card")), "은퇴 뒤엔 은퇴·입대 카드가 없다")
+	c.start_next_pro_season()
+	check(c.pro.year() == 1, "은퇴하면 시즌이 더 안 열린다")
+	check(c.pro.feed.news().any(func(it: Dictionary) -> bool: return it["type"] == "retire"), "은퇴 기사")
+	# 42세는 은퇴뿐 (카드에 한 시즌 더가 없다) · 넘기면 은퇴
+	var old := _pro_career(_pro_cfg(3), "A", "노장")
+	old.pro.me.age = int(rc["forcedAge"])
+	old.pro.close_season(old)
+	var run2 := DialogueRun.new(old, card)
+	var step2 := run2.next()
+	while step2.type != "choice":
+		step2 = run2.next()
+	check(old.player.vars["retire_forced"] == true and step2.options.size() == 1, "만 %d세는 은퇴뿐" % int(rc["forcedAge"]))
+	old.start_next_pro_season()
+	check(old.pro.retired, "카드를 넘겨도 은퇴")
+	# 방출: 나이 + 계약 없음 + 기여도 낮은 시즌이 이어지면
+	var rel := _pro_career(_pro_cfg(3), "C", "방출")
+	rel.pro.me.age = int(rc["releaseAge"])
+	rel.pro.low_seasons = int(rc["releaseSeasons"]) - 1
+	rel.pro.close_season(rel)
+	check(rel.pro.released and rel.player.flags.has("released") and rel.player.vars["retire_forced"] == true, "방출 → 은퇴뿐")
+	# 리그: 강태오도 나이가 차면 은퇴하고, 은퇴한 선수는 역대 순위에 남는다
+	var lg := _pro_career(_pro_cfg(3), "B", "리그").pro.league
+	var rv := lg.rival_player()
+	rv.age = int(rc["rivalAge"]) - 1
+	rv.career.hits = 1500
+	var before := lg.all_batters().size()
+	lg.next_season(cfg)
+	check(lg.rival_player() == null and lg.retired.any(func(r: Dictionary) -> bool: return r["rival"]), "강태오 은퇴 → 기록이 남는다")
+	check(lg.all_batters().size() == before, "그 자리는 신인")
+	var top := lg.all_time("hits", 3)
+	check(not top.is_empty() and top[0]["name"] == rv.name and lg.all_time_rank("hits", rv.id) == 1, "역대 안타 1위 (은퇴 선수 포함)")

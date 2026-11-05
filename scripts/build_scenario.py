@@ -88,6 +88,7 @@ VARS = {
     "military_status": {"type": "enum", "values": ["none", "enlisting", "sangmu", "active", "done", "exempt"], "default": "none"},
     "military_ask": {"type": "bool"}, "military_last": {"type": "bool"}, "military_delayed": {"type": "bool"},
     "fa_choice": {"type": "enum", "values": ["stay", "move"]},
+    "retire_ask": {"type": "bool"}, "retire_forced": {"type": "bool"}, "retire_released": {"type": "bool"}, "retire_delayed": {"type": "bool"},
 }
 NOTE_VARS = ("시나리오 변수 (docs/scenario 2장의 ID 그대로 — scripts/build_scenario.py 가 쓴다). type: int|bool|enum|string|list, "
              "values(enum), default. 이벤트 효과 set{변수: 값}·add{변수: n}, 대본 branch·선택지 if·이벤트 when 의 조건 {var, eq|ne|gte|lte|gt|lt|in}. "

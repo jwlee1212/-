@@ -59,7 +59,7 @@ func after_week(career: CareerState, pro: ProCareer, lines: Array) -> void:
 		for k: String in ev:
 			t[k] = str(ev[k])
 		match ev["kind"]:
-			"callup", "demote", "national", "enlist", "discharge":
+			"callup", "demote", "national", "enlist", "discharge", "rival_retire":
 				made.append(_news(cfg, rng, ev["kind"], t))
 				made.append(_sns(cfg, rng, pro, ev["kind"], t))
 			"milestone":
@@ -109,6 +109,12 @@ func after_season(career: CareerState, pro: ProCareer) -> void:
 			made.append(_news(cfg, rng, "award", base.merged({"award": ev["award"], "name": ev["name"], "team": ev["team"]})))
 	_push(career, pro, made, 99)
 	pro.league.week_events = []
+
+
+## 엔진이 직접 올리는 기사 (예: 은퇴) — 주가 더 흐르지 않을 때도 남긴다
+func post_news(career: CareerState, pro: ProCareer, type: String, extra: Dictionary = {}) -> void:
+	var rng := career.rng_for("pro-news-" + type)
+	_push(career, pro, [_news(career.cfg, rng, type, _tokens(career, pro).merged(extra))], 99)
 
 
 ## 이야기·문자가 직접 올리는 글 (예: 히로인의 SNS 사진) — 효과 proSns 가 부른다

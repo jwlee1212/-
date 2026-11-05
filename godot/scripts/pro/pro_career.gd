@@ -91,6 +91,11 @@ var game_log := {}
 var first_days := 0
 ## 나이 곡선 한 해 변화의 소수 부분 (능력치 → 쌓인 값)
 var age_progress := {}
+## 은퇴 (balance.json career.pro.retire): 은퇴했나 · 은퇴한 해(프로 몇 년 차) · 방출됐나 · 기여도가 낮은 시즌이 몇 번 이어졌나
+var retired := false
+var retire_year := 0
+var released := false
+var low_seasons := 0
 ## 직접 할 경기 (new_game 과 finish_day 사이에만 있다 — 저장하지 않는다)
 var _pending := {}
 
@@ -818,6 +823,7 @@ func close_season(career: CareerState) -> Array:
 	# FA: 등록 시즌·계약 해 → FA 가 되면 연봉은 제안으로 정한다 (시즌 결산 화면에서 고른다)
 	var under_contract := contract_years_left > 0
 	ProFA.close_season(cfg, self)
+	_retire_check(career, v)
 	if fa_pending:
 		season_note = "FA 자격! (등록 %d시즌) — 구단 제안을 고른다" % fa_seasons
 		feed.after_season(career, self)
@@ -843,9 +849,75 @@ func close_season(career: CareerState) -> Array:
 	return season_awards
 
 
+# ---------- 은퇴 ----------
+
+## 시즌 결산에서: 은퇴 카드를 물을 나이인가 · 은퇴밖에 없나 (나이 · 방출). 이야기 카드 pro_retire_card 의 조건 변수를 세운다
+func _retire_check(career: CareerState, v: float) -> void:
+	var rc: Dictionary = career.cfg.pro["retire"]
+	var p := career.player
+	low_seasons = low_seasons + 1 if v < float(rc["releaseValue"]) else 0
+	released = me.age >= int(rc["releaseAge"]) and contract_years_left == 0 and not fa_pending and low_seasons >= int(rc["releaseSeasons"])
+	if released:
+		p.flags["released"] = true
+		fa_pending = false
+	p.vars["retire_ask"] = me.age >= int(rc["askAge"]) or released
+	p.vars["retire_forced"] = released or me.age >= int(rc["forcedAge"])
+	p.vars["retire_released"] = released
+
+
+## 은퇴 (이야기 효과 retire — 은퇴 카드에서 고르거나, 은퇴밖에 없을 때). 리그 명단에서 빠지고 기록이 역대 기록에 남는다.
+## 이 뒤로는 시즌이 더 열리지 않는다 — 은퇴식 화면(RetirementScreen)이 커리어의 마지막 장면
+func retire(career: CareerState) -> void:
+	if retired:
+		return
+	retired = true
+	retire_year = league.year
+	var t := team()
+	league.archive(me, "방출 뒤 은퇴" if released else "은퇴")
+	t.lineup.erase(me)
+	t.bench.erase(me)
+	career.player.flags["retired"] = true
+	Milestones.fire_event(career, self, "retire")
+	feed.post_news(career, self, "retire")
+	feed.post_custom(career, self, "retire")
+
+
+## 은퇴식 화면용 커리어 요약 {"years", "first_year", "last_year", "age", "teams", "line": 통산 SeasonStats, "awards": ["2년 신인왕"…],
+##   "ranks": {"hits", "hr", "rbi", "sb": 역대 순위 (없으면 0)}, "national", "fa_count", "best_salary", "milestones", "ending", "released"}
+func career_summary(career: CareerState) -> Dictionary:
+	var total := PlayerData.SeasonStats.new()
+	total.merge(me.career)
+	total.merge(me.season)
+	var teams := []
+	for h: Dictionary in me.history:
+		if not teams.has(h["team"]):
+			teams.append(h["team"])
+	if not teams.has(team().name):
+		teams.append(team().name)
+	var awards := []
+	for a: Dictionary in league.awards:
+		if a["id"] == me.id:
+			awards.append("%d년 차 %s" % [a["year"], a["award"]])
+	var best := 0
+	for s: Dictionary in salary_history:
+		best = maxi(best, int(s["salary"]))
+	var ranks := {}
+	for stat: String in ["hits", "hr", "rbi", "sb"]:
+		ranks[stat] = league.all_time_rank(stat, me.id)
+	return {"years": league.year, "first_year": base_year, "last_year": cal_year(), "age": me.age, "teams": teams, "line": total,
+		"awards": awards, "ranks": ranks, "national": national, "fa_count": fa_count, "best_salary": best,
+		"milestones": milestones_done.size(), "ending": ending, "released": released}
+
+
 ## 다음 시즌으로 (결산 뒤)
 func start_next_season(career: CareerState) -> void:
+	var had_rival := league.rival_player() != null
 	league.next_season(career.cfg)
+	# 강태오가 은퇴했다 (나보다 먼저) — 소식과 문자
+	if had_rival and league.rival_player() == null:
+		career.player.flags["taeo_retired"] = true
+		league.week_events.append({"kind": "rival_retire", "title": "강태오 은퇴"})
+		start_notes.append("강태오가 은퇴했다")
 	career.player.season = me.season
 	futures_season = PlayerData.SeasonStats.new()
 	futures_weeks = 0

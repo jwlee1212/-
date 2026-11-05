@@ -107,6 +107,10 @@ func continue_career() -> void:
 
 ## 지금 커리어 상태에 맞는 화면: 캠프 중이면 허브, 캠프를 마쳤으면 캠프 결산, 시즌이 끝났으면 시즌 결산
 func _show_current() -> void:
+	# 은퇴했으면 은퇴식 (커리어의 마지막 화면)
+	if career.pro != null and career.pro.retired:
+		show_screen(RetirementScreen.new(self))
+		return
 	if career.in_camp():
 		show_home()
 	elif career.camp_finished():
@@ -126,7 +130,7 @@ func next_week() -> void:
 func show_home() -> void:
 	# 프로 편은 프로 허브 (경기 화면·결과 화면은 고교와 같은 것을 쓴다)
 	if career != null and career.pro != null:
-		show_screen(ProHubScreen.new(self))
+		show_screen(RetirementScreen.new(self) if career.pro.retired else ProHubScreen.new(self))
 		return
 	show_screen(HomeScreen.new(self))
 

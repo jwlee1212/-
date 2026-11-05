@@ -854,6 +854,15 @@
           ]
         ],
         "leagueYearlyScale": 1.0
+      },
+      "retire": {
+        "_note": "은퇴 (worldview 6·7장 — 은퇴식 → 은하식당이 커리어의 마지막 장면). 내 선수: 만 askAge 세 시즌 결산부터 해마다 은퇴 카드(은퇴 / 한 시즌 더). forcedAge 세 시즌을 마치면 은퇴뿐. 방출: 만 releaseAge 세 이상 · 계약이 남지 않았고 · 기여도가 releaseValue 아래인 시즌이 releaseSeasons 번 이어지면 구단이 재계약하지 않는다 → 은퇴뿐. 강태오는 rivalAge 세가 되는 해에 은퇴한다 (다른 리그 선수는 retireAge). 은퇴·방출한 리그 선수는 기록이 남아 역대 순위에 들어간다",
+        "askAge": 34,
+        "forcedAge": 42,
+        "releaseAge": 35,
+        "releaseValue": 0.5,
+        "releaseSeasons": 2,
+        "rivalAge": 39
       }
     },
     "status": "draft",

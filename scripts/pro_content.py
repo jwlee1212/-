@@ -59,6 +59,8 @@ NEWS = {
     "discharge": ["{player} {title}, {team} 복귀 준비", "돌아온 {player} — {title}"],
     "fa_stay": ["{player}, {team} 잔류 FA 계약", "'원클럽맨' {player}, {team}에 남는다"],
     "fa_move": ["[FA] {player}, {team} 이적!", "{player} 새 유니폼 — {team}"],
+    "retire": ["{player}, 프로 {year}년 차 시즌을 끝으로 현역 은퇴", "'{team}의 유격수' {player}, 그라운드를 떠난다"],
+    "rival_retire": ["'전체 1순위' {rival} 현역 은퇴", "라이벌의 퇴장 — {rival}, 유니폼을 벗는다"],
     "salary": ["{player}, 내년 연봉 {salary}에 사인", "{team} {player} 연봉 계약 완료 — {salary}"],
 }
 SNS = {
@@ -81,6 +83,8 @@ SNS = {
         "discharge": ["{player} 돌아왔다!!!", "전역 축하 {player} 이제 1군 가자"],
         "fa_stay": ["{player} 남는다!! {team} 영원히", "원클럽맨 {player} 사랑해"],
         "fa_move": ["{player} 결국 {team}로… 그동안 고마웠다", "새 팀에서도 응원한다 {player}"],
+        "retire": ["{player} 은퇴라니… 고마웠다 ㅠㅠ", "은퇴식 직관 간다. 마지막까지 {player}", "고교 때부터 봤는데 벌써 은퇴네"],
+        "rival_retire": ["{rival} 은퇴… {player}는 아직 뛴다", "라이벌 시대가 끝났다"],
         "chae_post": ["오늘 저녁 ♥ 누군지 맞혀 보세요 #야구 #{teamShort}", "경기 끝나고 같이 ✌ 얼굴은 비밀"],
     },
     "comments": {
@@ -125,6 +129,7 @@ MILESTONES = [
     ms("discharge", "전역", "부대 정문을 나서는 실루엣, 어깨에 걸친 배트 가방.", {"kind": "event", "event": "discharge"}, 3),
     ms("fa_stay", "FA 잔류", "구단 사무실, 같은 유니폼을 다시 입는다. 메인 스토리 엔딩.", {"kind": "event", "event": "fa_stay"}, 10),
     ms("fa_move", "FA 이적", "새 구장 조명 아래 낯선 색의 유니폼. 메인 스토리 엔딩.", {"kind": "event", "event": "fa_move"}, 10),
+    ms("retire", "은퇴식", "홈 플레이트 위 마지막 인사. 관중석에 은하식당 앞치마가 보인다.", {"kind": "event", "event": "retire"}, 0),
     ms("batting_title", "타격왕", "마지막 타석이 끝나고 기록원이 고개를 끄덕인다.", {"kind": "award", "award": "타격왕"}, 8),
 ]
 
@@ -136,6 +141,25 @@ ENDING = {
     "move": {"title": "새 유니폼, {proTeam}", "lines": [
         "낯선 구장, 낯선 덕아웃. 라커 이름표만 그대로다.",
         "은하식당 벽에 유니폼이 한 장 더 걸렸다. 엄마는 둘 다 내 거라고 했다."]},
+}
+
+# ---------- 은퇴식 (worldview 7장 — 은퇴식 → 은하식당이 커리어 모드 마지막 장면) — RetirementScreen 이 보여 준다 ----------
+RETIRE_TEXT = {
+    "ceremony": ["홈 플레이트에 등번호가 새겨진 베이스가 놓인다.", "고1 때 처음 잡은 글러브를 들고 마지막으로 유격수 자리에 선다."],
+    "restaurant": ["은하식당. 벽에 걸린 유니폼들 사이로 고교 시절 사진이 한 장 더 붙었다.",
+                   "엄마가 앞치마를 건넨다. 오늘부터는 이 가게 단골이 아니라 주인이다."],
+    # 은퇴식에서 한마디씩 (만난 사람만, 지금 연인이 먼저)
+    "voices": {
+        "mom": "고생했다. 이제 밥은 엄마가 아니라 네가 차려.",
+        "rival": "…수고했다. 그 3유간, 끝까지 못 뚫었다.",
+        "buddy": "기록지 마지막 장 정리 끝. 평생 계약은 계속이다.",
+        "neighbor": "처음부터 끝까지 다 그렸어. 마지막 장은 웃는 얼굴로 그릴게.",
+        "manager": "폴더 이름 바꿨어. '끝까지'.",
+        "reporter": "질문 하나만요. …행복했어요?",
+        "chae": "처음엔 돈 보고 왔는데, 끝까지 남은 건 나야.",
+        "scout": "고등학교 1루 관중석에서 적은 첫 줄, 아직 수첩에 있다.",
+        "coach": "그 운동장에 네 사진이 걸렸다. 후배들이 매일 본다.",
+    },
 }
 
 # ---------- 새 인물: 윤채아 ----------
@@ -226,7 +250,21 @@ EVENTS = [
                    [say("mom", "그래. 대신 내년엔 진짜 정해."), ], **{"if": {"var": "military_last", "eq": False}}),
         ]},
     ], proYear=[1, 30], timing="seasonEnd", repeat=True, cooldownWeeks=10,
-        when={"all": [{"var": "military_ask", "eq": True}, {"var": "military_status", "eq": "none"}]}),
+        when={"all": [{"var": "military_ask", "eq": True}, {"var": "military_status", "eq": "none"}, {"not": {"flag": "retired"}}]}),
+    # 은퇴 (시즌 결산, 만 34세부터 해마다 — 42세·방출이면 은퇴뿐)
+    card("pro_retire_card", "mom", "은퇴", "restaurant", [
+        {"branch": [{"if": {"var": "retire_released", "eq": True}, "then": [narr("구단 사무실. 재계약 서류 대신 악수가 나왔다.")]},
+                    {"if": {"var": "retire_forced", "eq": True}, "then": [narr("몸이 먼저 안다. 이번 겨울이 마지막이다.")]},
+                    {"then": [narr("시즌이 끝난 밤, 은하식당. 엄마가 앞치마를 벗는다.")]}]},
+        say("mom", "그만해도 돼. 더 해도 되고. 엄마는 어느 쪽이든 좋아."),
+        {"choices": [
+            choice("은퇴를 선언한다", "커리어를 마친다 — 은퇴식과 마지막 장면", {"retire": True},
+                   [say("mom", "…그래. 마지막 경기는 엄마가 맨 앞에서 볼게.")]),
+            choice("한 시즌 더 뛴다", "다음 시즌도 — 내년 결산에 다시 묻는다", {"set": {"retire_delayed": True}},
+                   [say("mom", "그럼 내년에도 도시락 싼다."), ], **{"if": {"var": "retire_forced", "eq": False}}),
+        ]},
+    ], proYear=[1, 40], timing="seasonEnd", repeat=True, cooldownWeeks=10,
+        when={"all": [{"var": "retire_ask", "eq": True}, {"not": {"flag": "retired"}}]}),
     card("pro_side_chae_return", "chae", "한강 둔치", "han_river", [
         narr("1년 만의 한강. 채아가 편의점 봉투 두 개를 들고 온다."),
         say("chae", "빚 다 정리했어. 이번엔 진짜 내 돈으로 샀어. 삼각김밥이지만."),
@@ -310,6 +348,9 @@ MESSAGES = [
     msg("m_pro_taeo_national", "rival", ["대표팀 같은 방이다", "코 골지 마라"],
         [rep("너나 골지 마", {"rel": {"rival": 5}}, ["…안 곤다"]), rep("유격수는 누가 봐?", {"rel": {"rival": 8}, "condition": -2}, ["감독이 정하겠지. 나다"])],
         proYear=[1, 30], requires=["national_asian"]),
+    msg("m_pro_taeo_retire", "rival", ["나 먼저 간다", "유격수는 이제 네 거다. …골든글러브 하나는 더 받아라"],
+        [rep("수고했다, 태오", {"rel": {"rival": 5}, "condition": 3}, ["…은퇴식엔 와라"]), rep("아직 안 끝났어", {"rel": {"rival": 3}, "fame": 1}, ["그래. 그 말 할 줄 알았다"])],
+        proYear=[1, 40], requires=["taeo_retired"]),
     msg("m_pro_junsu_discharge", "buddy", ["전역 축하한다 ㅋㅋ", "네 퓨처스 기록 정리해 놨다. 1군까지 몇 경기 남았는지도"],
         [rep("몇 경기 남았는데", {"rel": {"buddy": 3}, "condition": 3}, ["감독님 마음이지 뭐. 잘 쳐"]), rep("고맙다 기록원", {"rel": {"buddy": 3}}, ["평생 계약이라며"])],
         proYear=[1, 30], requires=["discharged"]),
@@ -379,7 +420,7 @@ def main():
     for t in c["proTeams"]:
         t.update(TEAMS[t["name"]])
     c["pro"] = {"_note": "프로 편 (scripts/pro_content.py 가 쓴다). media 매체, statNames 부문 이름, news·sns 문장 틀 (ProFeed), milestones = 상황 컷신 (Milestones — 그림이 없으면 컷신 자리 카드)",
-                "ending": ENDING, "media": MEDIA, "statNames": STAT_NAMES, "news": NEWS, "sns": SNS, "milestones": MILESTONES}
+                "ending": ENDING, "retireText": RETIRE_TEXT, "media": MEDIA, "statNames": STAT_NAMES, "news": NEWS, "sns": SNS, "milestones": MILESTONES}
     c["people"]["chae"] = CHAE
     for k, v in PLACES.items():
         c["places"][k] = v

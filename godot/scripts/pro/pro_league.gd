@@ -27,6 +27,9 @@ var champions: Array = []
 var awards: Array = []
 ## 이번 주에 만든 사건 (뉴스·SNS 재료): [{"kind", ...}]
 var week_events: Array = []
+## 은퇴·방출한 선수 기록 (역대 순위): [{"id", "name", "team", "first", "last", "pitcher", "games", "hits", "hr", "rbi", "sb", "avg",
+##   "wins", "so", "why", "me", "rival"}]
+var retired: Array = []
 var _pid := 0
 
 
@@ -677,12 +680,13 @@ func next_season(cfg: CareerConfig) -> void:
 			p.age += 1
 			if not p.is_me:
 				_age_player(cfg, p, rng)
-		# 은퇴 (나이 retireAge 이상, 내 선수·강태오 제외) → 같은 자리에 신인
+		# 은퇴 (나이 retireAge 이상 — 강태오는 retire.rivalAge, 내 선수는 은퇴 카드로) → 기록을 남기고 같은 자리에 신인
 		for list: Array in [t.lineup, t.bench, t.starters, t.bullpen]:
 			for i in list.size():
 				var p: ProPlayer = list[i]
-				if p.is_me or p.is_rival or p.age < int(pc["retireAge"]):
+				if p.is_me or p.age < int(pc["retire"]["rivalAge"] if p.is_rival else pc["retireAge"]):
 					continue
+				archive(p, "은퇴")
 				if p.is_pitcher:
 					list[i] = _new_pitcher(cfg, t, p.position, t.strength - float(pc["rookieGap"]), int(pc["rookieAge"]), year + 1, rng)
 				else:
@@ -690,7 +694,8 @@ func next_season(cfg: CareerConfig) -> void:
 		# 해마다 신인 한 명은 늘 들어온다 (후보 타자 맨 끝 자리 — 신인왕 경쟁자)
 		if not t.bench.is_empty():
 			var last: ProPlayer = t.bench[-1]
-			if not last.is_me:
+			if not last.is_me and not last.is_rival:
+				archive(last, "방출")
 				t.bench[-1] = _new_batter(cfg, t, last.position, t.strength - float(pc["rookieGap"]) + rng.randfn(0.0, 4.0), int(pc["rookieAge"]), year + 1, rng)
 		_promote_bench(t)
 		t.strength = clampf(_team_strength(t) + rng.randfn(0.0, float(pc["strengthDriftSd"])), 40.0, 80.0)
@@ -702,6 +707,62 @@ func next_season(cfg: CareerConfig) -> void:
 	post_state = {}
 	final_order = []
 	week_events = []
+
+
+# ---------- 역대 기록 ----------
+
+## 은퇴·방출하는 선수의 기록을 남긴다 (통산 = 지난 시즌들 + 아직 닫지 않은 이번 시즌)
+func archive(p: ProPlayer, why: String) -> void:
+	var c := PlayerData.SeasonStats.new()
+	c.merge(p.career)
+	c.merge(p.season)
+	var pc := ProPlayer.PitchStats.new()
+	pc.merge(p.pitching_career)
+	pc.merge(p.pitching)
+	retired.append({"id": p.id, "name": p.name, "team": by_id[p.team_id].name if by_id.has(p.team_id) else "", "first": p.rookie_year,
+		"last": year, "pitcher": p.is_pitcher, "games": c.games if not p.is_pitcher else pc.games, "hits": c.hits, "hr": c.home_runs,
+		"rbi": c.rbi, "sb": c.steals, "avg": c.average(), "wins": pc.wins, "so": pc.so, "why": why, "me": p.is_me, "rival": p.is_rival})
+
+
+## 역대 순위 (은퇴한 선수 + 지금 뛰는 선수의 통산). stat: hits | hr | rbi | sb (타자) · wins | so (투수).
+## 돌려주는 값: [{"id", "name", "team", "value", "active", "me"}] 큰 순서
+func all_time(stat: String, n: int = 10) -> Array:
+	var pitching := stat in ["wins", "so"]
+	var rows := []
+	var seen := {}
+	for r: Dictionary in retired:
+		if bool(r["pitcher"]) != pitching or int(r[stat]) <= 0:
+			continue
+		rows.append({"id": r["id"], "name": r["name"], "team": r["team"], "value": int(r[stat]), "active": false, "me": r["me"]})
+		seen[r["id"]] = true
+	for t: ProTeam in teams:
+		for p: ProPlayer in t.all_players():
+			if p.is_pitcher != pitching or seen.has(p.id):
+				continue
+			var v := 0
+			match stat:
+				"hits": v = p.career.hits + p.season.hits
+				"hr": v = p.career.home_runs + p.season.home_runs
+				"rbi": v = p.career.rbi + p.season.rbi
+				"sb": v = p.career.steals + p.season.steals
+				"wins": v = p.pitching_career.wins + p.pitching.wins
+				"so": v = p.pitching_career.so + p.pitching.so
+			if v > 0:
+				rows.append({"id": p.id, "name": p.name, "team": t.name, "value": v, "active": true, "me": p.is_me})
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a["value"] != b["value"]:
+			return a["value"] > b["value"]
+		return str(a["id"]) < str(b["id"]))
+	return rows.slice(0, n) if n > 0 else rows
+
+
+## 이 선수의 역대 순위 (기록이 없으면 0)
+func all_time_rank(stat: String, player_id: String) -> int:
+	var rows := all_time(stat, 0)
+	for i in rows.size():
+		if rows[i]["id"] == player_id:
+			return i + 1
+	return 0
 
 
 ## 나이 곡선의 한 줄 [이 나이까지, 성장 배율, 한 해 변화] (balance.json career.pro.ageCurve.rows)

@@ -63,7 +63,7 @@ func _build() -> void:
 			col.add_child(UiKit.label("%s — %s (%s) · %s" % [a["award"], a["name"], a["team"], a["line"]], Tokens.FONT_CAPTION,
 				Tokens.PRIMARY if a["id"] == pro.me.id else Tokens.INK))
 	# FA: 구단 제안을 고른다 (고르기 전에는 다음 시즌으로 못 간다)
-	if pro.fa_pending:
+	if pro.fa_pending and not pro.retired:
 		col.add_child(UiKit.divider())
 		col.add_child(UiKit.kicker("FA — 구단 제안 (등록 %d시즌, 최근 기여도 %.1f)" % [pro.fa_seasons, ProFA.recent_value(pro)]))
 		for o: Dictionary in ProFA.offers(career.cfg, pro):
@@ -82,6 +82,15 @@ func _build() -> void:
 		_app.show_home(), Tokens.ACCENT, Tokens.FONT_LABEL)
 	next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	next.disabled = pro.fa_pending
+	if pro.retired:
+		# 은퇴 카드에서 은퇴를 골랐다 → 은퇴식
+		next.queue_free()
+		next = UiKit.button("은퇴식 ▶", func() -> void:
+			_app.save_career()
+			_app.show_screen(RetirementScreen.new(_app)), Tokens.ACCENT, Tokens.FONT_LABEL)
+		next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	elif bool(career.player.vars.get("retire_forced", false)):
+		next.disabled = true  # 은퇴 카드를 먼저 (은퇴밖에 없다)
 	row.add_child(next)
 	col.add_child(row)
 

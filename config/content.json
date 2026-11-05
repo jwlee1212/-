@@ -6476,6 +6476,11 @@
           {
             "var": "military_status",
             "eq": "none"
+          },
+          {
+            "not": {
+              "flag": "retired"
+            }
           }
         ]
       },
@@ -6553,6 +6558,110 @@
                 {
                   "speaker": "mom",
                   "text": "그래. 대신 내년엔 진짜 정해."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pro_retire_card",
+      "story": true,
+      "free": true,
+      "card": true,
+      "proYear": [
+        1,
+        40
+      ],
+      "timing": "seasonEnd",
+      "repeat": true,
+      "cooldownWeeks": 10,
+      "when": {
+        "all": [
+          {
+            "var": "retire_ask",
+            "eq": true
+          },
+          {
+            "not": {
+              "flag": "retired"
+            }
+          }
+        ]
+      },
+      "speaker": "mom",
+      "title": "은퇴",
+      "place": "restaurant",
+      "script": [
+        {
+          "branch": [
+            {
+              "if": {
+                "var": "retire_released",
+                "eq": true
+              },
+              "then": [
+                {
+                  "text": "구단 사무실. 재계약 서류 대신 악수가 나왔다."
+                }
+              ]
+            },
+            {
+              "if": {
+                "var": "retire_forced",
+                "eq": true
+              },
+              "then": [
+                {
+                  "text": "몸이 먼저 안다. 이번 겨울이 마지막이다."
+                }
+              ]
+            },
+            {
+              "then": [
+                {
+                  "text": "시즌이 끝난 밤, 은하식당. 엄마가 앞치마를 벗는다."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "speaker": "mom",
+          "text": "그만해도 돼. 더 해도 되고. 엄마는 어느 쪽이든 좋아."
+        },
+        {
+          "choices": [
+            {
+              "label": "은퇴를 선언한다",
+              "hint": "커리어를 마친다 — 은퇴식과 마지막 장면",
+              "effects": {
+                "retire": true
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "…그래. 마지막 경기는 엄마가 맨 앞에서 볼게."
+                }
+              ]
+            },
+            {
+              "label": "한 시즌 더 뛴다",
+              "hint": "다음 시즌도 — 내년 결산에 다시 묻는다",
+              "if": {
+                "var": "retire_forced",
+                "eq": false
+              },
+              "effects": {
+                "set": {
+                  "retire_delayed": true
+                }
+              },
+              "then": [
+                {
+                  "speaker": "mom",
+                  "text": "그럼 내년에도 도시락 싼다."
                 }
               ]
             }
@@ -10650,6 +10759,47 @@
       ]
     },
     {
+      "id": "m_pro_taeo_retire",
+      "speaker": "rival",
+      "proYear": [
+        1,
+        40
+      ],
+      "requires": [
+        "taeo_retired"
+      ],
+      "lines": [
+        "나 먼저 간다",
+        "유격수는 이제 네 거다. …골든글러브 하나는 더 받아라"
+      ],
+      "replies": [
+        {
+          "label": "수고했다, 태오",
+          "effects": {
+            "rel": {
+              "rival": 5
+            },
+            "condition": 3
+          },
+          "then": [
+            "…은퇴식엔 와라"
+          ]
+        },
+        {
+          "label": "아직 안 끝났어",
+          "effects": {
+            "rel": {
+              "rival": 3
+            },
+            "fame": 1
+          },
+          "then": [
+            "그래. 그 말 할 줄 알았다"
+          ]
+        }
+      ]
+    },
+    {
       "id": "m_pro_junsu_discharge",
       "speaker": "buddy",
       "proYear": [
@@ -11730,6 +11880,18 @@
         "stay",
         "move"
       ]
+    },
+    "retire_ask": {
+      "type": "bool"
+    },
+    "retire_forced": {
+      "type": "bool"
+    },
+    "retire_released": {
+      "type": "bool"
+    },
+    "retire_delayed": {
+      "type": "bool"
     },
     "ep02_warmup": {
       "type": "enum",
@@ -13890,6 +14052,27 @@
         ]
       }
     },
+    "retireText": {
+      "ceremony": [
+        "홈 플레이트에 등번호가 새겨진 베이스가 놓인다.",
+        "고1 때 처음 잡은 글러브를 들고 마지막으로 유격수 자리에 선다."
+      ],
+      "restaurant": [
+        "은하식당. 벽에 걸린 유니폼들 사이로 고교 시절 사진이 한 장 더 붙었다.",
+        "엄마가 앞치마를 건넨다. 오늘부터는 이 가게 단골이 아니라 주인이다."
+      ],
+      "voices": {
+        "mom": "고생했다. 이제 밥은 엄마가 아니라 네가 차려.",
+        "rival": "…수고했다. 그 3유간, 끝까지 못 뚫었다.",
+        "buddy": "기록지 마지막 장 정리 끝. 평생 계약은 계속이다.",
+        "neighbor": "처음부터 끝까지 다 그렸어. 마지막 장은 웃는 얼굴로 그릴게.",
+        "manager": "폴더 이름 바꿨어. '끝까지'.",
+        "reporter": "질문 하나만요. …행복했어요?",
+        "chae": "처음엔 돈 보고 왔는데, 끝까지 남은 건 나야.",
+        "scout": "고등학교 1루 관중석에서 적은 첫 줄, 아직 수첩에 있다.",
+        "coach": "그 운동장에 네 사진이 걸렸다. 후배들이 매일 본다."
+      }
+    },
     "media": {
       "news": [
         "누리스포츠",
@@ -13998,6 +14181,14 @@
         "[FA] {player}, {team} 이적!",
         "{player} 새 유니폼 — {team}"
       ],
+      "retire": [
+        "{player}, 프로 {year}년 차 시즌을 끝으로 현역 은퇴",
+        "'{team}의 유격수' {player}, 그라운드를 떠난다"
+      ],
+      "rival_retire": [
+        "'전체 1순위' {rival} 현역 은퇴",
+        "라이벌의 퇴장 — {rival}, 유니폼을 벗는다"
+      ],
       "salary": [
         "{player}, 내년 연봉 {salary}에 사인",
         "{team} {player} 연봉 계약 완료 — {salary}"
@@ -14085,6 +14276,15 @@
         "fa_move": [
           "{player} 결국 {team}로… 그동안 고마웠다",
           "새 팀에서도 응원한다 {player}"
+        ],
+        "retire": [
+          "{player} 은퇴라니… 고마웠다 ㅠㅠ",
+          "은퇴식 직관 간다. 마지막까지 {player}",
+          "고교 때부터 봤는데 벌써 은퇴네"
+        ],
+        "rival_retire": [
+          "{rival} 은퇴… {player}는 아직 뛴다",
+          "라이벌 시대가 끝났다"
         ],
         "chae_post": [
           "오늘 저녁 ♥ 누군지 맞혀 보세요 #야구 #{teamShort}",
@@ -14452,6 +14652,17 @@
           "event": "fa_move"
         },
         "fame": 10
+      },
+      {
+        "id": "retire",
+        "title": "은퇴식",
+        "line": "홈 플레이트 위 마지막 인사. 관중석에 은하식당 앞치마가 보인다.",
+        "cutscene": "pro_retire",
+        "when": {
+          "kind": "event",
+          "event": "retire"
+        },
+        "fame": 0
       },
       {
         "id": "batting_title",
