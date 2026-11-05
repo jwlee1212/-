@@ -1,6 +1,6 @@
 class_name ProFA
 extends RefCounted
-## FA (docs/worldview.md 5-4·6장, balance.json career.pro.fa). 1군에 faWeeks 주 이상 있던 시즌만 등록 시즌으로 센다 (복무 시즌 제외).
+## FA (docs/worldview.md 5-4·6장, balance.json career.pro.fa). 1군에 faWeeks 주(× 한 주 경기 날) 이상 있던 시즌만 등록 시즌으로 센다 (복무 시즌 제외).
 ## 고졸 seasonsHigh · 대졸 seasonsCollege 시즌이 차고 계약이 남아 있지 않으면 시즌 결산에서 FA — 구단들이 제안을 낸다.
 ## 첫 FA 가 메인 스토리 엔딩 (잔류 / 이적, worldview 6장). 그 뒤는 커리어 모드 — 계약(years 년)이 끝나면 다시 FA.
 
@@ -10,7 +10,7 @@ static func required(cfg: CareerConfig, pro: ProCareer) -> int:
 
 ## 시즌 결산에서 (ProCareer.close_season): 등록 시즌 세기 · 계약 해 줄이기 → FA 가 됐나
 static func close_season(cfg: CareerConfig, pro: ProCareer) -> bool:
-	if pro.first_weeks >= int(cfg.pro["fa"]["faWeeks"]) and not ProService.serving(pro):
+	if pro.first_days >= int(cfg.pro["fa"]["faWeeks"]) * int(cfg.pro["gamesPerWeek"]) and not ProService.serving(pro):
 		pro.fa_seasons += 1
 	if pro.contract_years_left > 0:
 		pro.contract_years_left -= 1

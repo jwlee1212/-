@@ -16,6 +16,8 @@ var _batter: Label
 var _bases: BasesView
 var _log_box: VBoxContainer
 var _fast_button: Button
+## 남은 경기 시뮬레이션 (내 타석도 자동 — 경기 대본·연출 장면이 있는 경기에는 없다)
+var _sim_button: Button
 var _run_button: Button
 var _done_button: Button
 var _banner: Label
@@ -88,6 +90,9 @@ func _ready() -> void:
 	_refresh_run_button()
 	_fast_button = UiKit.button("빠르게 ▶▶", _toggle_fast, Tokens.INK_SOFT, Tokens.FONT_CAPTION)
 	bottom.add_child(_fast_button)
+	_sim_button = UiKit.button("남은 경기 시뮬레이션 ▶▶|", _sim_rest, Tokens.INK_SOFT, Tokens.FONT_CAPTION)
+	_sim_button.visible = not _game.planned and not _game.staged
+	bottom.add_child(_sim_button)
 	_done_button = UiKit.button("경기 결과 ▶", func() -> void: _app.show_result(_game), Tokens.ACCENT, Tokens.FONT_LABEL)
 	_done_button.visible = false
 	bottom.add_child(_done_button)
@@ -148,6 +153,16 @@ func _cycle_running() -> void:
 
 func _refresh_run_button() -> void:
 	_run_button.text = "주루: %s" % RunControl.MODE_LABELS[_app.settings.running]
+
+
+## 남은 경기를 한 번에 (내 타석도 내 능력치로 자동 타석) → 결과 화면. 타석·주루·수비·대화 화면이 떠 있는 동안은 누를 수 없다
+func _sim_rest() -> void:
+	if _game.state.over or _session != null or _dialogue != null or _tip != null or _highlight != null or _run_view != null or _steal != null or _field != null:
+		return
+	_waiting_for_turn = false
+	_game.sim_to_end(_app.career.rng_for("sim-rest").seed)
+	_refresh()
+	_app.show_result(_game)
 
 
 func _toggle_fast() -> void:
@@ -328,6 +343,7 @@ func _refresh() -> void:
 		_batter.text = ["패배…", "무승부", "승리!"][r + 1]
 		_done_button.visible = true
 		_fast_button.visible = false
+		_sim_button.visible = false
 	else:
 		_batter.text = "타석: %s" % _game.current_batter_name()
 	for c in _log_box.get_children():

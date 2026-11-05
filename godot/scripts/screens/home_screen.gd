@@ -741,9 +741,87 @@ func _match_card() -> Control:
 	col.add_child(vs)
 	col.add_child(UiKit.spacer())
 	var pitcher: BattingConfig.PitcherProfile = _app.batting_config.pitchers[opp.pitcher_profile]
-	col.add_child(UiKit.label("상대 선발 · %s 투수 · 전력 %s" % [pitcher.name, _stars(opp.strength)], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	col.add_child(UiKit.label("상대 선발 · %s 투수 · 전력 %s · %s" % [pitcher.name, _stars(opp.strength), GameCalendar.text(GameCalendar.hs_today(career))],
+		Tokens.FONT_CAPTION, Tokens.INK_SOFT))
 	col.add_child(_lineup_row())
+	if not career.game_done:
+		col.add_child(_sim_row())
 	return card
+
+
+## 시뮬레이션 (더쇼처럼): 이 경기만 · 달력에서 날짜를 골라 그날 경기 전까지. 이야기가 있는 경기는 직접 한다
+func _sim_row() -> Control:
+	var career: CareerState = _app.career
+	var row := UiKit.hbox(Tokens.SPACE_XS)
+	var can := HsSim.can_sim(career)
+	var b := UiKit.button("이 경기 시뮬레이션", _hs_sim_one, Tokens.NAVY_SOFT, Tokens.FONT_CAPTION)
+	b.disabled = not can or (career.week_training == "" and not career.plan_ready())
+	row.add_child(b)
+	row.add_child(UiKit.button("달력 · 날짜까지", _open_calendar, Tokens.NAVY_SOFT, Tokens.FONT_CAPTION))
+	if not can:
+		row.add_child(UiKit.label("이야기 경기 — 직접 한다", Tokens.FONT_CAPTION, Tokens.ACCENT, Tokens.FONT_BOLD))
+	return row
+
+
+func _hs_sim_one() -> void:
+	var r := HsSim.sim_game(_app.career)
+	_app.save_career()
+	_rebuild()
+	_show_sim_result([HsSim.result_text(r["game"])], r["notes"], "이 경기를 시뮬레이션했다")
+
+
+## 시즌 달력 (지난 경기·이번 주·남은 토요일) — 날짜를 고르면 그날 경기 전까지 시뮬레이션
+func _open_calendar() -> void:
+	var career: CareerState = _app.career
+	var card := _card()
+	card.custom_minimum_size = Vector2(Tokens.SPACE_XL * 18, 0)
+	var col := UiKit.vbox(Tokens.SPACE_XS)
+	card.add_child(col)
+	col.add_child(UiKit.kicker("시즌 달력 · 오늘 %s" % GameCalendar.text(GameCalendar.hs_today(career), true)))
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, Tokens.SPACE_XL * 8)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var cal := CalendarView.new(func(y: int, m: int) -> Dictionary: return HsSim.calendar_cells(career, y, m), GameCalendar.hs_today(career))
+	scroll.add_child(cal)
+	col.add_child(scroll)
+	var sel := [-1]
+	var go := UiKit.button("날짜를 고른다", func() -> void:
+		if sel[0] > 0:
+			_hs_sim_until(sel[0]), Tokens.ACCENT, Tokens.FONT_CAPTION)
+	go.disabled = true
+	cal.picked.connect(func(z: int) -> void:
+		sel[0] = z
+		go.text = "%s 경기 전까지 시뮬레이션 ▶" % GameCalendar.text(z)
+		go.disabled = false)
+	col.add_child(go)
+	col.add_child(UiKit.label("이야기 카드 · 이야기 경기 · 시즌 끝에서는 멈춘다", Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	_open_popup(card)
+
+
+func _hs_sim_until(target: int) -> void:
+	var r := HsSim.sim_until(_app.career, target, _app.settings.sim_stops)
+	_app.save_career()
+	_rebuild()
+	_show_sim_result(r["games"], r["notes"], r["text"])
+
+
+## 시뮬레이션 결과 카드 (경기들 · 변화 · 멈춘 까닭) → [확인] 뒤 남은 이야기
+func _show_sim_result(games: Array, notes: Array, stop_text: String) -> void:
+	var card := _card()
+	card.custom_minimum_size = Vector2(Tokens.SPACE_XL * 14, 0)
+	var col := UiKit.vbox(Tokens.SPACE_XS)
+	card.add_child(col)
+	col.add_child(UiKit.kicker("시뮬레이션 — %d경기" % games.size()))
+	if stop_text != "":
+		col.add_child(UiKit.label(stop_text, Tokens.FONT_BODY, Tokens.ACCENT, Tokens.FONT_BOLD))
+	for g: String in games.slice(maxi(0, games.size() - 6)):
+		col.add_child(UiKit.label(g, Tokens.FONT_CAPTION, Tokens.INK))
+	for n: String in notes.slice(maxi(0, notes.size() - 6)):
+		col.add_child(UiKit.label(n, Tokens.FONT_CAPTION, Tokens.GOOD))
+	col.add_child(UiKit.button("확인", func() -> void:
+		_close_picker()
+		_next_story(), Tokens.ACCENT, Tokens.FONT_LABEL))
+	_open_popup(card)
 
 
 ## 우리 팀 선발 타순 (작은 글씨, 내 선수는 강조). 내가 선발이 아니면 끝에 이유를 붙인다

@@ -3,7 +3,7 @@ extends RefCounted
 ## 병역 (docs/worldview.md 5-5, balance.json career.pro.military). 상태는 ProCareer.military 에 있고, 이 파일은 규칙만 (원칙 1).
 ##   none → (시즌 결산 카드: 상무 지원 · 현역 · 미루기) → 다음 시즌 시작에 입대 → sangmu | active → serviceWeeks 주 → done
 ##   아시안게임 금·올림픽 메달 → exempt (복무 중이면 조기 전역)
-## 상무: 상무 팀(퓨처스 수준)으로 직접 하는 경기 1 + 자동 경기, 성장은 줄여서. 현역: 경기 없음, 주마다 능력치가 조금씩 녹슨다.
+## 상무: 상무 팀(퓨처스 수준)으로 날마다 경기 (직접 하거나 시뮬레이션). 현역: 경기 없음, 주마다 능력치가 조금씩 녹슨다.
 ## 복무 중인 시즌은 FA 등록 시즌으로 세지 않는다 (ProFA).
 
 const NONE := "none"
@@ -61,8 +61,9 @@ static func season_start(career: CareerState, pro: ProCareer, notes: Array[Strin
 		Milestones.fire_event(career, pro, "enlist")
 
 
-## 복무 중 한 주 (정규시즌 주만). lines: 이번 주 내 경기 줄을 더한다
-static func week(career: CareerState, pro: ProCareer, lines: Array, notes: Array[String]) -> void:
+## 복무 중 한 주 (정규시즌 주만 — 한 주의 마지막 경기 날 뒤). 상무 경기는 날마다 내 경기로 (ProCareer.game_today "sangmu"),
+## 여기서는 현역의 녹슮과 남은 복무 주만 센다
+static func week(career: CareerState, pro: ProCareer, notes: Array[String]) -> void:
 	if not serving(pro):
 		return
 	var cfg := career.cfg
@@ -74,16 +75,6 @@ static func week(career: CareerState, pro: ProCareer, lines: Array, notes: Array
 			var st: String = PlayerData.STATS[rng.randi_range(0, PlayerData.STATS.size() - 1)]
 			p.add_stat(st, -1, cfg)
 			notes.append("훈련소·부대 생활 — %s −1" % PlayerData.STAT_LABELS[st])
-	elif not p.is_injured():
-		for i in int(mc["sangmuAutoGames"]):
-			var opp: ProTeam = pro.league.teams[(pro.week_no() + i) % pro.league.teams.size()]
-			var g := GameRunner.new(cfg, career.batting, p, sangmu_school(career, pro), opp.futures, i % 2 == 0,
-				hash([pro.league.seed, pro.league.year, pro.week_no(), i, "sangmu-auto"]), false, false)
-			g.teams[g.my_side].lineup[p.lineup_slot - 1] = pro.me.batter
-			g.run_to_end()
-			var ln := PlayerData.SeasonStats.from_box(g.box.batters[g.my_side][p.lineup_slot - 1])
-			pro.service_line.merge(ln)
-			lines.append(ln)
 	pro.service_weeks_left -= 1
 	if pro.service_weeks_left <= 0:
 		discharge(career, pro, notes, "전역")

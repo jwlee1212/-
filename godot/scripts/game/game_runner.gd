@@ -519,6 +519,22 @@ func _step_fixed() -> Dictionary:
 	return {"type": "auto", "text": text, "highlight": null, "side": GameState.AWAY}
 
 
+## 시뮬레이션: 지금부터 경기 끝까지 한 번에 — 내 타석도 다른 타자와 같은 자동 타석(AutoPa, 내 경기용 능력치)으로,
+## 주루·도루·수비는 자동 (더쇼의 "경기 시뮬레이션" · 경기 중 "남은 경기 시뮬레이션"). 이야기 장면이 있는 경기(경기 대본)는 쓰지 않는다.
+## seed_value: 내 타석 난수 (같은 경기·같은 시드면 같은 결과)
+func sim_to_end(seed_value: int) -> void:
+	assert(not planned, "경기 대본이 있는 경기는 직접 한다")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	running_mode = RunControl.AUTO
+	fielding = false
+	while not state.over:
+		var st := step()
+		if st["type"] == "my_turn":
+			var pa := AutoPa.simulate(cfg.auto_pa, bc, current_batter().skills, current_pitcher(), rng)
+			apply_my_result(AtBat.Result.new(pa["outcome"], SwingJudge.BattedBall.NONE, int(pa["pitches"]), null))
+
+
 ## 내 타석이 없는 경기(벤치·결장)를 끝까지 한 번에 돌린다 — 화면에서 지켜볼 게 없을 때 쓴다
 func run_to_end() -> void:
 	assert(my_slot < 0 and not on_bench, "내 타석이 있는 경기는 한 번에 돌릴 수 없다")
