@@ -173,7 +173,8 @@
     "convenience": "아파트 앞 편의점",
     "restaurant": "은하식당",
     "seoho_field": "서호대 야구장",
-    "museum": "미술관"
+    "museum": "미술관",
+    "national_camp": "상비군 훈련장"
   },
   "proTeams": [
     {
@@ -3846,6 +3847,682 @@
       ]
     },
     {
+      "id": "ep09_01",
+      "story": true,
+      "free": true,
+      "card": true,
+      "grade": [
+        2,
+        2
+      ],
+      "week": [
+        1,
+        1
+      ],
+      "timing": "start",
+      "after": [
+        "ep08_07"
+      ],
+      "episode": 9,
+      "speaker": "buddy",
+      "title": "운동장",
+      "place": "field",
+      "script": [
+        {
+          "do": {
+            "meet": [
+              "junior"
+            ]
+          }
+        },
+        {
+          "text": "3월. 신입생 넷이 들어왔다. 올해 스톱워치는 준수가 든다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "야. 우리 이제 선배다."
+        },
+        {
+          "speaker": "junior",
+          "text": "선배님 작년 영상 다 봤습니다. 소율 선배님 채널에서요."
+        },
+        {
+          "id": "ep09_junior",
+          "choices": [
+            {
+              "label": "같이 쳐 보자. 손 먼저 나가지 말고.",
+              "key": "A",
+              "hint": "후배 친분 ▲ · 컨택 경험치 (가르치며 배운다)",
+              "effects": {
+                "rel": {
+                  "junior": 10
+                },
+                "train": {
+                  "contact": 1.0
+                }
+              },
+              "then": [
+                {
+                  "speaker": "junior",
+                  "text": "네! 내일 6시 반에 나오겠습니다."
+                }
+              ]
+            },
+            {
+              "label": "내 연습부터 할게. 나중에 봐.",
+              "key": "B",
+              "hint": "파워 경험치 (혼자 롱티)",
+              "effects": {
+                "train": {
+                  "power": 1.5
+                }
+              },
+              "then": [
+                {
+                  "text": "케이지 밖에서 후배가 내 스윙을 그대로 따라 한다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ep10_01",
+      "story": true,
+      "free": true,
+      "card": true,
+      "grade": [
+        2,
+        2
+      ],
+      "week": [
+        3,
+        3
+      ],
+      "timing": "start",
+      "after": [
+        "ep09_01"
+      ],
+      "episode": 10,
+      "speaker": "manager",
+      "title": "주말리그 경기 전 덕아웃",
+      "place": "dugout",
+      "script": [
+        {
+          "do": {
+            "meet": [
+              "manager",
+              "scout"
+            ]
+          }
+        },
+        {
+          "branch": [
+            {
+              "if": {
+                "var": "scout_interest",
+                "eq": "checked"
+              },
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "1루 관중석, 나성만 팀장. 오늘은 옆에 다른 구단 점퍼도 하나 있어."
+                },
+                {
+                  "id": "ep10_checked",
+                  "choices": [
+                    {
+                      "label": "(경기 전에 인사드리러 간다)",
+                      "key": "A",
+                      "hint": "스카우트 관심 ▲ · 평판 ▲",
+                      "effects": {
+                        "scoutInterest": 3,
+                        "reputation": 2,
+                        "rel": {
+                          "scout": 5
+                        }
+                      },
+                      "then": [
+                        {
+                          "speaker": "scout",
+                          "text": "인사는 됐고. 초구부터 쳐 봐."
+                        }
+                      ]
+                    },
+                    {
+                      "label": "(신경 끄고 몸만 푼다)",
+                      "key": "B",
+                      "hint": "이번 경기 컨택 ▲",
+                      "effects": {
+                        "gameBoost": {
+                          "contact": 6
+                        }
+                      },
+                      "then": [
+                        {
+                          "text": "관중석은 보지 않는다. 배트 끝만 본다."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "if": {
+                "var": "scout_interest",
+                "eq": "watching"
+              },
+              "then": [
+                {
+                  "speaker": "scout",
+                  "text": "(펜스 너머에서) 봄에 한 번 더 본다고 했지."
+                },
+                {
+                  "id": "ep10_watching",
+                  "choices": [
+                    {
+                      "label": "네. 이번엔 끝까지 보세요.",
+                      "key": "A",
+                      "hint": "스카우트 관심 ▲ · 이번 경기 파워 ▲",
+                      "effects": {
+                        "scoutInterest": 2,
+                        "gameBoost": {
+                          "power": 4
+                        }
+                      },
+                      "then": [
+                        {
+                          "speaker": "scout",
+                          "text": "말은 좋네."
+                        }
+                      ]
+                    },
+                    {
+                      "label": "(고개만 숙인다)",
+                      "key": "B",
+                      "hint": "이번 경기 선구안 ▲",
+                      "effects": {
+                        "gameBoost": {
+                          "eye": 6
+                        }
+                      },
+                      "then": [
+                        {
+                          "text": "나 팀장이 수첩을 편다."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "1루 관중석에 태성 썬더스. 근데 상대 4번 보러 온 거래."
+                },
+                {
+                  "id": "ep10_none",
+                  "choices": [
+                    {
+                      "label": "그럼 상대 4번보다 잘 치면 되죠.",
+                      "key": "A",
+                      "hint": "이번 경기 파워 ▲ · 컨택 ▼",
+                      "effects": {
+                        "gameBoost": {
+                          "power": 8,
+                          "contact": -4
+                        }
+                      },
+                      "then": [
+                        {
+                          "speaker": "manager",
+                          "text": "오, 그 말 녹음했다."
+                        }
+                      ]
+                    },
+                    {
+                      "label": "(평소대로 한다)",
+                      "key": "B",
+                      "hint": "컨디션 ▲",
+                      "effects": {
+                        "condition": 5
+                      },
+                      "then": [
+                        {
+                          "text": "6시 반 루틴 그대로. 오늘도 같은 순서로 몸을 푼다."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "do": {
+            "set": {
+              "scout_revisit": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ep11_01",
+      "story": true,
+      "free": true,
+      "card": true,
+      "grade": [
+        2,
+        2
+      ],
+      "lastPhaseEnd": "leagueEnd",
+      "timing": "after",
+      "after": [
+        "ep10_01"
+      ],
+      "episode": 11,
+      "speaker": "manager",
+      "title": "부실",
+      "place": "clubroom",
+      "script": [
+        {
+          "do": {
+            "meet": [
+              "jaehyuk",
+              "manager"
+            ]
+          }
+        },
+        {
+          "speaker": "manager",
+          "text": "백호기 본선, 2년 연속이야."
+        },
+        {
+          "speaker": "jaehyuk",
+          "text": "전국대회 1승. 작년에 도윤 선배가 남기고 간 거."
+        },
+        {
+          "id": "ep11_meeting",
+          "choices": [
+            {
+              "label": "제가 앞에서 출루하겠습니다.",
+              "key": "A",
+              "hint": "감독 신뢰 ▲ · 컨디션 ▼ (부담)",
+              "effects": {
+                "rel": {
+                  "coach": 6
+                },
+                "condition": -5
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "타순은 내가 정한다. ...마음은 받아 두마."
+                }
+              ]
+            },
+            {
+              "label": "(말 대신 배팅 케이지로 간다)",
+              "key": "B",
+              "hint": "컨택·파워 경험치",
+              "effects": {
+                "train": {
+                  "contact": 1.0,
+                  "power": 1.0
+                }
+              },
+              "then": [
+                {
+                  "text": "그날 밤 케이지 불은 열한 시에 꺼졌다."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ep11_02",
+      "story": true,
+      "free": true,
+      "card": true,
+      "grade": [
+        2,
+        2
+      ],
+      "lastNational": true,
+      "timing": "after",
+      "after": [
+        "ep11_01"
+      ],
+      "episode": 11,
+      "speaker": "manager",
+      "title": "덕아웃",
+      "place": "dugout",
+      "script": [
+        {
+          "do": {
+            "meet": [
+              "jaehyuk",
+              "manager"
+            ]
+          }
+        },
+        {
+          "branch": [
+            {
+              "if": {
+                "lastResult": "win"
+              },
+              "then": [
+                {
+                  "do": {
+                    "set": {
+                      "ep11_result": "win"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "then": [
+                {
+                  "do": {
+                    "set": {
+                      "ep11_result": "lose"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "branch": [
+            {
+              "if": {
+                "var": "ep11_result",
+                "eq": "win"
+              },
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "이겼어. 전국대회 1승. 창단 9년 만에 처음이야."
+                },
+                {
+                  "text": "3학년 셋이 덕아웃 난간에 매달려 운다."
+                },
+                {
+                  "do": {
+                    "set": {
+                      "national_first_win_done": true
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "또 1회전. 근데 작년엔 다섯 점 차였고, 오늘은 9회까지 붙었어."
+                },
+                {
+                  "speaker": "jaehyuk",
+                  "text": "내년엔 너희가 해라. 우리 몫까지."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ep12_01",
+      "story": true,
+      "free": true,
+      "card": true,
+      "grade": [
+        2,
+        2
+      ],
+      "lastPhaseEnd": "leagueEnd",
+      "timing": "after",
+      "after": [
+        "ep11_02"
+      ],
+      "episode": 12,
+      "speaker": "coach",
+      "title": "부실",
+      "place": "clubroom",
+      "script": [
+        {
+          "do": {
+            "meet": [
+              "manager"
+            ]
+          }
+        },
+        {
+          "speaker": "coach",
+          "text": "청소년 대표 상비군 소집. 경기도에서 둘. 하나가 너다."
+        },
+        {
+          "speaker": "manager",
+          "text": "상비군 명단에 청운고 강태오도 있어. 유격수 둘이네."
+        },
+        {
+          "do": {
+            "set": {
+              "sangbi_called": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ep12_02",
+      "story": true,
+      "free": true,
+      "card": true,
+      "grade": [
+        2,
+        2
+      ],
+      "timing": "start",
+      "after": [
+        "ep12_01"
+      ],
+      "episode": 12,
+      "speaker": "rival",
+      "title": "상비군 훈련장",
+      "place": "national_camp",
+      "script": [
+        {
+          "do": {
+            "meet": [
+              "rival"
+            ]
+          }
+        },
+        {
+          "text": "상비군 훈련 첫날. 유격수 자리에 둘이 선다."
+        },
+        {
+          "branch": [
+            {
+              "if": {
+                "var": "taeo_first_talk",
+                "eq": true
+              },
+              "then": [
+                {
+                  "speaker": "rival",
+                  "text": "수돗가. 3유간 물어본 거."
+                }
+              ]
+            },
+            {
+              "then": [
+                {
+                  "speaker": "rival",
+                  "text": "서림고. 작년 대수비."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "speaker": "rival",
+          "text": "...이름이 뭐냐."
+        },
+        {
+          "id": "ep12_name",
+          "choices": [
+            {
+              "label": "{player}.",
+              "key": "A",
+              "hint": "라이벌 의식 ▲ · 태오가 내 이름을 기억한다",
+              "effects": {
+                "set": {
+                  "taeo_knows_name": true
+                },
+                "rel": {
+                  "rival": 10
+                }
+              },
+              "then": [
+                {
+                  "speaker": "rival",
+                  "text": "{player}. 기억해 둔다."
+                }
+              ]
+            },
+            {
+              "label": "내년 결승에서 알려 줄게.",
+              "key": "B",
+              "hint": "라이벌 의식 ▲▲ · 컨디션 ▼",
+              "effects": {
+                "set": {
+                  "taeo_knows_name": false
+                },
+                "rel": {
+                  "rival": 15
+                },
+                "condition": -4
+              },
+              "then": [
+                {
+                  "speaker": "rival",
+                  "text": "...그래. 그럼 결승까지 와."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ep13_01",
+      "story": true,
+      "free": true,
+      "card": true,
+      "grade": [
+        2,
+        2
+      ],
+      "winter": true,
+      "campWeek": [
+        1,
+        1
+      ],
+      "timing": "start",
+      "after": [
+        "ep12_02"
+      ],
+      "episode": 13,
+      "speaker": "coach",
+      "title": "부실",
+      "place": "clubroom",
+      "script": [
+        {
+          "speaker": "coach",
+          "text": "내년 9월이 드래프트다. 서호대에서도 전화가 왔다."
+        },
+        {
+          "branch": [
+            {
+              "if": {
+                "var": "scout_interest",
+                "eq": "checked"
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "태성 썬더스는 내년 봄부터 매주 온다고 했다."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "speaker": "coach",
+          "text": "지금 정하라는 거 아니다. 겨울 동안 어느 쪽을 보고 몸을 만들지만 말해."
+        },
+        {
+          "id": "ep13_path",
+          "choices": [
+            {
+              "label": "프로요. 졸업하고 바로.",
+              "key": "A",
+              "hint": "진로 예고: 드래프트 · 스카우트 관심 ▲",
+              "effects": {
+                "set": {
+                  "career_lean": "draft"
+                },
+                "scoutInterest": 3
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "그럼 겨울엔 몸부터 다시 만든다. 프로는 144경기다."
+                }
+              ]
+            },
+            {
+              "label": "대학도 생각해 볼게요.",
+              "key": "B",
+              "hint": "진로 예고: 대학 · 감독 신뢰 ▲",
+              "effects": {
+                "set": {
+                  "career_lean": "college"
+                },
+                "rel": {
+                  "coach": 6
+                }
+              },
+              "then": [
+                {
+                  "speaker": "coach",
+                  "text": "서호대 감독이랑 통화해 두마. 대학 4년 뒤에 다시 드래프트다."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ui": "system",
+          "text": "2학년 종료 예고 — 고교 마지막 해. 9월 드래프트 전에 진로를 정한다"
+        }
+      ]
+    },
+    {
       "id": "camp_joint",
       "requires": [
         "rival_noticed"
@@ -4118,6 +4795,132 @@
               "manager": 3
             }
           }
+        }
+      ]
+    },
+    {
+      "id": "y2_side_harin_answer",
+      "story": true,
+      "free": true,
+      "card": true,
+      "scheduledOnly": true,
+      "timing": "start",
+      "grade": [
+        2,
+        3
+      ],
+      "partner": "none",
+      "speaker": "neighbor",
+      "title": "놀이터",
+      "place": "playground",
+      "script": [
+        {
+          "text": "토요일 저녁, 아파트 놀이터. 하린이 그네에 앉아 있다."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "...대답하러 온 거지?"
+        },
+        {
+          "choices": [
+            {
+              "label": "나도 좋아해.",
+              "key": "A",
+              "hint": "하린과 사귄다 (응원·기념일 이야기가 열린다)",
+              "effects": {
+                "partner": "neighbor",
+                "rel": {
+                  "neighbor": 10
+                }
+              },
+              "then": [
+                {
+                  "speaker": "neighbor",
+                  "text": "...그럼 됐어. 내일 6시 반이지? 들어가."
+                }
+              ]
+            },
+            {
+              "label": "지금은 야구밖에 못 하겠어.",
+              "key": "B",
+              "hint": "하린 호감 ▼ · 컨디션 ▲ (마음이 가볍다)",
+              "effects": {
+                "rel": {
+                  "neighbor": -8
+                },
+                "condition": 5
+              },
+              "then": [
+                {
+                  "speaker": "neighbor",
+                  "text": "알아. 그래서 문자로 한 거야. 그럼 친구로, 계속."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "y2_side_soyul_answer",
+      "story": true,
+      "free": true,
+      "card": true,
+      "scheduledOnly": true,
+      "timing": "start",
+      "grade": [
+        2,
+        3
+      ],
+      "partner": "none",
+      "speaker": "manager",
+      "title": "부실",
+      "place": "clubroom",
+      "script": [
+        {
+          "text": "부실. 소율이 노트북을 덮는다."
+        },
+        {
+          "speaker": "manager",
+          "text": "졸업해도 네 영상은 내가 찍을래. ...옆에서."
+        },
+        {
+          "choices": [
+            {
+              "label": "옆에서 찍어 주세요.",
+              "key": "A",
+              "hint": "소율과 사귄다 (응원·기념일 이야기가 열린다)",
+              "effects": {
+                "partner": "manager",
+                "rel": {
+                  "manager": 10
+                }
+              },
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "좋아. 그럼 3학년 폴더는 둘이 같이 만든다."
+                }
+              ]
+            },
+            {
+              "label": "선배는 선배로 남아 주세요.",
+              "key": "B",
+              "hint": "소율 호감 ▼ · 폼 ▲ (영상 분석은 계속 받는다)",
+              "effects": {
+                "rel": {
+                  "manager": -6
+                },
+                "form": 0.5
+              },
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "...그래. 그럼 분석은 계속 보내 줄게. 그건 선배 일이니까."
+                }
+              ]
+            }
+          ]
         }
       ]
     }
@@ -6991,6 +7794,523 @@
           ]
         }
       ]
+    },
+    {
+      "id": "m_y2_harin_class",
+      "speaker": "neighbor",
+      "grade": [
+        2,
+        2
+      ],
+      "after": [
+        "ep09_01"
+      ],
+      "lines": [
+        "반 배정 나왔어",
+        "또 다른 반. 7반 2년째"
+      ],
+      "replies": [
+        {
+          "label": "복도에서 보면 되지",
+          "effects": {
+            "rel": {
+              "neighbor": 3
+            }
+          },
+          "then": [
+            "복도 끝과 끝이야",
+            "...그래도 보이긴 해"
+          ]
+        },
+        {
+          "label": "응",
+          "then": [
+            "ㅇㅇ"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_y2_harin_exhibit",
+      "speaker": "neighbor",
+      "grade": [
+        2,
+        2
+      ],
+      "after": [
+        "ep11_02"
+      ],
+      "lines": [
+        "학교 전시에 내 그림 걸림",
+        "운동장 그린 거. 흙 운동장"
+      ],
+      "replies": [
+        {
+          "label": "경기 없는 날 보러 갈게",
+          "effects": {
+            "rel": {
+              "neighbor": 4
+            }
+          },
+          "then": [
+            "...너 나오는 그림 아니야. 그냥 운동장"
+          ]
+        },
+        {
+          "label": "흙 운동장을 왜 그려",
+          "effects": {
+            "rel": {
+              "neighbor": 1
+            }
+          },
+          "then": [
+            "그러게. 2년 내내 봐서 그런가"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_y2_harin_walk",
+      "speaker": "neighbor",
+      "grade": [
+        2,
+        2
+      ],
+      "requires": [
+        "harin_route"
+      ],
+      "after": [
+        "ep10_01"
+      ],
+      "lines": [
+        "작년엔 미술관 갔잖아",
+        "이번엔 네가 정해"
+      ],
+      "replies": [
+        {
+          "label": "경기 끝나고 수원천 걷자",
+          "effects": {
+            "rel": {
+              "neighbor": 4
+            },
+            "flag": [
+              "harin_walk"
+            ]
+          },
+          "then": [
+            "좋아. 유니폼은 갈아입고 와"
+          ]
+        },
+        {
+          "label": "시즌 끝나면",
+          "effects": {
+            "rel": {
+              "neighbor": 1
+            }
+          },
+          "then": [
+            "...알았어. 기다릴게"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_y2_harin_confess",
+      "speaker": "neighbor",
+      "grade": [
+        2,
+        2
+      ],
+      "requires": [
+        "harin_route",
+        "harin_walk"
+      ],
+      "minRel": {
+        "neighbor": 50
+      },
+      "after": [
+        "ep12_01"
+      ],
+      "partner": "none",
+      "lines": [
+        "할 말 있어",
+        "전화 말고 문자로 할게. 얼굴 보면 못 할 것 같아서"
+      ],
+      "replies": [
+        {
+          "label": "말해",
+          "effects": {
+            "schedule": {
+              "event": "y2_side_harin_answer",
+              "weeks": 1
+            }
+          },
+          "then": [
+            "...나 너 좋아해. 꽤 오래",
+            "대답은 토요일에 해. 놀이터에서"
+          ]
+        },
+        {
+          "label": "나중에 얘기하자",
+          "effects": {
+            "rel": {
+              "neighbor": -2
+            }
+          },
+          "then": [
+            "...그래"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_y2_soyul_folder",
+      "speaker": "manager",
+      "grade": [
+        2,
+        2
+      ],
+      "after": [
+        "ep09_01"
+      ],
+      "lines": [
+        "{player}_2학년 폴더 만들었어",
+        "1학년 폴더는 닫았어. 올해는 더 두껍게"
+      ],
+      "replies": [
+        {
+          "label": "타석에 많이 서 볼게요",
+          "effects": {
+            "rel": {
+              "manager": 4
+            }
+          },
+          "then": [
+            "그 말 기록했다"
+          ]
+        },
+        {
+          "label": "선배 졸업 전에 다 채워요?",
+          "effects": {
+            "rel": {
+              "manager": 3
+            }
+          },
+          "then": [
+            "그러니까 빨리 서라고"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_y2_soyul_jian",
+      "speaker": "manager",
+      "grade": [
+        2,
+        2
+      ],
+      "after": [
+        "ep10_01"
+      ],
+      "lines": [
+        "다른 학교 방송부 애가 네 영상 달래",
+        "고교야구 채널 하는 애. 연락처 줘도 돼?"
+      ],
+      "replies": [
+        {
+          "label": "네, 주세요",
+          "effects": {
+            "rel": {
+              "manager": 1
+            },
+            "meet": [
+              "reporter"
+            ]
+          },
+          "then": [
+            "줬다. 근데 원본은 내 거라고 꼭 말해"
+          ]
+        },
+        {
+          "label": "아직은요",
+          "effects": {
+            "rel": {
+              "manager": 2
+            }
+          },
+          "then": [
+            "알았어. 내 채널 독점이다"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_y2_soyul_movie",
+      "speaker": "manager",
+      "grade": [
+        2,
+        2
+      ],
+      "requires": [
+        "soyul_route"
+      ],
+      "after": [
+        "ep11_02"
+      ],
+      "lines": [
+        "KKG배 끝나면 하루 비어",
+        "영화 보자. 야구 영화 말고"
+      ],
+      "replies": [
+        {
+          "label": "좋아요",
+          "effects": {
+            "rel": {
+              "manager": 4
+            },
+            "flag": [
+              "soyul_movie"
+            ]
+          },
+          "then": [
+            "그럼 그날은 촬영 안 해"
+          ]
+        },
+        {
+          "label": "야구 영화 보면 안 돼요?",
+          "effects": {
+            "rel": {
+              "manager": 2
+            },
+            "flag": [
+              "soyul_movie"
+            ]
+          },
+          "then": [
+            "...그럼 보고 나서 분석은 금지"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_y2_soyul_confess",
+      "speaker": "manager",
+      "grade": [
+        2,
+        2
+      ],
+      "requires": [
+        "soyul_route",
+        "soyul_movie"
+      ],
+      "minRel": {
+        "manager": 55
+      },
+      "after": [
+        "ep12_02"
+      ],
+      "partner": "none",
+      "lines": [
+        "나 졸업하면 영상 누가 찍냐고 작년에 물었지",
+        "대답 생각해 봤어. 부실로 와"
+      ],
+      "replies": [
+        {
+          "label": "갈게요",
+          "effects": {
+            "schedule": {
+              "event": "y2_side_soyul_answer",
+              "weeks": 1
+            }
+          },
+          "then": [
+            "응. 기다릴게"
+          ]
+        },
+        {
+          "label": "다음 주에 가도 돼요?",
+          "effects": {
+            "rel": {
+              "manager": -1
+            }
+          },
+          "then": [
+            "응. 천천히"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_y2_jian_hello",
+      "speaker": "reporter",
+      "grade": [
+        2,
+        2
+      ],
+      "lines": [
+        "안녕하세요, {school} 유격수 맞죠?",
+        "고교야구 채널 하는 방송부예요. 소율 선배한테 허락 받았어요",
+        "짧은 인터뷰 가능해요?"
+      ],
+      "replies": [
+        {
+          "label": "좋아요",
+          "effects": {
+            "rel": {
+              "reporter": 5
+            },
+            "reputation": 1,
+            "flag": [
+              "jian_hello"
+            ]
+          },
+          "then": [
+            "그럼 다음 경기 끝나고 3분만",
+            "질문은 미리 안 보내요. 그게 재밌거든요"
+          ]
+        },
+        {
+          "label": "말 잘 못하는데요",
+          "effects": {
+            "rel": {
+              "reporter": 3
+            },
+            "flag": [
+              "jian_hello"
+            ]
+          },
+          "then": [
+            "그게 더 좋아요. 다들 잘하려고 해서 재미없거든요"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_y2_jian_upload",
+      "speaker": "reporter",
+      "grade": [
+        2,
+        2
+      ],
+      "requires": [
+        "jian_hello"
+      ],
+      "lines": [
+        "영상 올렸어요. 제목은 '흙 운동장 유격수'",
+        "댓글에서 수비 영상 더 달래요"
+      ],
+      "replies": [
+        {
+          "label": "제목 바꿔 주세요",
+          "effects": {
+            "rel": {
+              "reporter": 2
+            }
+          },
+          "then": [
+            "싫어요. 조회수 잘 나와요"
+          ]
+        },
+        {
+          "label": "수비 영상은 소율 선배 거예요",
+          "effects": {
+            "rel": {
+              "reporter": 4
+            }
+          },
+          "then": [
+            "알아요. 그래서 원본 주소 달았어요"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_y2_jian_offcam",
+      "speaker": "reporter",
+      "grade": [
+        2,
+        2
+      ],
+      "requires": [
+        "jian_hello"
+      ],
+      "minRel": {
+        "reporter": 30
+      },
+      "after": [
+        "ep12_02"
+      ],
+      "lines": [
+        "다음 인터뷰는 카메라 없이 해도 돼요?",
+        "그냥 궁금한 게 있어서요"
+      ],
+      "replies": [
+        {
+          "label": "좋아요",
+          "effects": {
+            "rel": {
+              "reporter": 3
+            },
+            "flag": [
+              "jian_route"
+            ]
+          },
+          "then": [
+            "그럼 3학년 개막 전에",
+            "질문은 여전히 안 보내요"
+          ]
+        },
+        {
+          "label": "카메라 있는 게 편해요",
+          "effects": {
+            "rel": {
+              "reporter": 1
+            }
+          },
+          "then": [
+            "ㅎ 알겠어요. 그럼 계속 방송부로"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_y2_junsu_junior",
+      "speaker": "buddy",
+      "grade": [
+        2,
+        2
+      ],
+      "after": [
+        "ep09_01"
+      ],
+      "lines": [
+        "후배가 너 스윙 따라 하더라",
+        "손 먼저 나가는 것까지"
+      ],
+      "replies": [
+        {
+          "label": "그건 따라 하면 안 되는데",
+          "effects": {
+            "rel": {
+              "buddy": 1
+            }
+          },
+          "then": [
+            "ㅋㅋ 너 작년 그대로야"
+          ]
+        },
+        {
+          "label": "잘 따라 하네",
+          "effects": {
+            "rel": {
+              "buddy": 1
+            }
+          },
+          "then": [
+            "칭찬이냐"
+          ]
+        }
+      ]
     }
   ],
   "pendingFlags": [
@@ -7209,6 +8529,32 @@
     "ep08_performance": {
       "type": "int"
     },
+    "scout_revisit": {
+      "type": "bool"
+    },
+    "ep11_result": {
+      "type": "enum",
+      "values": [
+        "win",
+        "lose"
+      ]
+    },
+    "national_first_win_done": {
+      "type": "bool"
+    },
+    "sangbi_called": {
+      "type": "bool"
+    },
+    "taeo_knows_name": {
+      "type": "bool"
+    },
+    "career_lean": {
+      "type": "enum",
+      "values": [
+        "draft",
+        "college"
+      ]
+    },
     "ep02_warmup": {
       "type": "enum",
       "values": [
@@ -7250,6 +8596,55 @@
         "A",
         "B",
         "C"
+      ]
+    },
+    "ep09_junior": {
+      "type": "enum",
+      "values": [
+        "A",
+        "B"
+      ]
+    },
+    "ep10_checked": {
+      "type": "enum",
+      "values": [
+        "A",
+        "B"
+      ]
+    },
+    "ep10_watching": {
+      "type": "enum",
+      "values": [
+        "A",
+        "B"
+      ]
+    },
+    "ep10_none": {
+      "type": "enum",
+      "values": [
+        "A",
+        "B"
+      ]
+    },
+    "ep11_meeting": {
+      "type": "enum",
+      "values": [
+        "A",
+        "B"
+      ]
+    },
+    "ep12_name": {
+      "type": "enum",
+      "values": [
+        "A",
+        "B"
+      ]
+    },
+    "ep13_path": {
+      "type": "enum",
+      "values": [
+        "A",
+        "B"
       ]
     }
   },

@@ -69,6 +69,7 @@ func _init() -> void:
 		"test_pinch_hit",
 		"test_scenario_keys",
 		"test_y1_story",
+		"test_y2_story",
 		"test_real_content",
 		"test_training_and_growth",
 		"test_condition_affects_skills",
@@ -2373,7 +2374,7 @@ func test_y1_story() -> void:
 		var v := p.vars
 		var all_seen := true
 		for id: String in career.book.order:
-			if id.begins_with("ep0") and not career.book.fired.has(id):
+			if id.substr(0, 2) == "ep" and int(id.substr(2, 2)) <= 8 and not career.book.fired.has(id):  # 1학년 EP01~08 만 (EP09~ 는 2학년)
 				all_seen = false
 				check(false, "못 본 장면 %s" % id)
 		check(all_seen and p.grade == 2 and p.flags.has("y1_done") and int(v["school_year"]) == 2, "EP01~08 이 다 나오고 2학년이 된다")
@@ -2422,6 +2423,115 @@ func test_y1_story() -> void:
 		check(int(v["stats.at_bat_video_count"]) >= 1 + 1 + 2 + 3 and int(v["stats.fielding_video_count"]) >= 1 + 1 + 1 + 2 + 1, "영상 수 타석 %d · 수비 %d" % [int(v["stats.at_bat_video_count"]), int(v["stats.fielding_video_count"])])
 		for k in ["phone_contacts", "phone_records_team", "phone_profile_taeo", "phone_records_personal", "phone_news", "phone_records_season", "scout_tab_unlocked"]:
 			check(v.get(k, false) == true, "휴대폰 해금 %s" % k)
+
+
+func test_y2_story() -> void:
+	# 2학년 EP09~13 (docs/scenario/scenario_y2_ep09-13.md): 1학년부터 자동으로 진행해 3학년이 될 때까지 2학년 장면이 다 나온다.
+	# 내 타석은 모두 안타 / 모두 삼진 두 갈래 (경기 결과가 달라도 장면이 다 나와야 한다)
+	var y2_ids: Array = _real_cfg().events.map(func(e: Dictionary) -> String: return e.id).filter(
+		func(id: String) -> bool: return id.substr(0, 2) == "ep" and int(id.substr(2, 2)) >= 9)
+	check(y2_ids.size() >= 7, "2학년 장면 %d개" % y2_ids.size())
+	for hit: bool in [true, false]:
+		var career := CareerState.new(_real_cfg(), "테스트", _config)
+		var p := career.player
+		var seen := {}  # 이벤트 id -> "학년-주차" 또는 "학년-c캠프주차"
+		var order := []
+		var guard := 0
+		while p.grade <= 2 and guard < 140:
+			guard += 1
+			if career.camp_finished():
+				career.winter_training()
+				career.start_next_season()
+				continue
+			if career.is_season_over() and career.camp_week == 0:
+				while not career.events("seasonEnd").is_empty():
+					career.resolve_event(career.events("seasonEnd")[0], 0)
+				career.start_camp()
+				continue
+			var at := "%d-%s" % [p.grade, ("c%d" % career.camp_week) if career.in_camp() else ("w%d" % career.week)]
+			for timing: String in ["start"]:
+				var g2 := 0
+				while not career.events(timing).is_empty() and g2 < 30:
+					g2 += 1
+					var e: Dictionary = career.events(timing)[0]
+					seen[e.id] = at
+					order.append(e.id)
+					career.resolve_event(e, 0)
+			career.train("rest")
+			if career.in_camp() and not career.camp_has_game():
+				career.finish_camp_week()
+			else:
+				var game := career.new_game()
+				while not game.state.over:
+					if game.in_scene():
+						var ev := career.scene_event(game)
+						if not ev.is_empty():
+							seen[ev.id] = at
+							career.resolve_event(ev, 0)
+					if game.step().type == "my_turn":
+						game.apply_my_result(AtBat.Result.new(SwingJudge.Outcome.SINGLE if hit else SwingJudge.Outcome.STRIKEOUT, SwingJudge.BattedBall.NONE, 3, null))
+				career.finish_game(game)
+			var g3 := 0
+			while not career.events("after").is_empty() and g3 < 30:
+				g3 += 1
+				var e2: Dictionary = career.events("after")[0]
+				seen[e2.id] = at
+				order.append(e2.id)
+				career.resolve_event(e2, 0)
+			career.advance_week()
+		var label := "안타" if hit else "삼진"
+		check(p.grade == 3, "[%s] 3학년이 된다 (%d학년, %d번 돌았다)" % [label, p.grade, guard])
+		for id: String in y2_ids:
+			check(career.book.fired.has(id) and str(seen.get(id, "")).begins_with("2-"), "[%s] 2학년 장면 %s 이 2학년에 나온다 (%s)" % [label, id, seen.get(id, "못 봄")])
+		# 순서: EP09 → EP10 → EP11 → EP12 → EP13
+		var idx := y2_ids.map(func(id: String) -> int: return order.find(id))
+		var sorted_idx := idx.duplicate()
+		sorted_idx.sort()
+		check(idx == sorted_idx, "[%s] 2학년 장면 순서 %s" % [label, [idx]])
+		check(seen.get("ep09_01", "") == "2-w1" and seen.get("ep10_01", "") == "2-w3" and str(seen.get("ep13_01", "")) == "2-c1", "[%s] EP09 첫 주 · EP10 셋째 주 · EP13 겨울 캠프 첫 주 (%s %s %s)" % [label, seen.get("ep09_01"), seen.get("ep10_01"), seen.get("ep13_01")])
+		var v := p.vars
+		check(v.get("scout_revisit", false) == true and v.get("sangbi_called", false) == true and v.get("taeo_knows_name", null) == true and v.get("career_lean", "") == "draft", "[%s] 2학년 변수 (첫 선택지대로)" % label)
+		check(v.get("ep11_result", "") in ["win", "lose"] and (v.get("ep11_result") == "win") == (v.get("national_first_win_done", false) == true), "[%s] 백호기 첫 경기 결과 %s" % [label, v.get("ep11_result")])
+		check(career.people.is_met("junior"), "[%s] 후배를 만난다" % label)
+	# EP10 은 1학년 스카우트 평가로 갈린다 — 세 갈래 모두 고를 수 있는 선택지가 둘씩 있고 서로 다르다
+	var labels := {}
+	for interest: String in ["checked", "watching", "none"]:
+		var c := CareerState.new(_real_cfg(), "테스트", _config)
+		c.player.vars["scout_interest"] = interest
+		var run := DialogueRun.new(c, _event(c.cfg, "ep10_01"))
+		var step := run.next()
+		while step.type == "line":
+			step = run.next()
+		check(step.type == "choice" and step.options.size() == 2 and step.options.all(func(o: Dictionary) -> bool: return o.hint != ""), "EP10 %s: 선택지 둘, 힌트 있음" % interest)
+		labels[interest] = step.options[0].label
+	check(labels.checked != labels.watching and labels.watching != labels.none, "EP10 갈래마다 다른 선택지")
+	# EP12: 태오가 처음 이름을 묻는다 — 선택지에 내 이름이 들어간다
+	var named := CareerState.new(_real_cfg(), "김도윤", _config)
+	var r12 := DialogueRun.new(named, _event(named.cfg, "ep12_02"))
+	var st := r12.next()
+	var asked := false
+	while st.type == "line":
+		asked = asked or st.text.contains("이름이 뭐냐")
+		st = r12.next()
+	check(asked and st.type == "choice" and st.options[0].label.contains("김도윤"), "EP12 태오가 이름을 묻고, 선택지에 내 이름")
+	# 사이드 스토리: 하린·소율 고백 카드는 문자 답장으로만 예약되고, 고르면 사귄다
+	for pair in [["m_y2_harin_confess", "y2_side_harin_answer", "neighbor", "harin_route"], ["m_y2_soyul_confess", "y2_side_soyul_answer", "manager", "soyul_route"]]:
+		var msg: Dictionary = {}
+		for m: Dictionary in _real_cfg().messages:
+			if m.get("id", "") == pair[0]:
+				msg = m
+		check(not msg.is_empty() and pair[3] in msg.get("requires", []) and msg.replies[0].effects.schedule.event == pair[1], "%s: %s 플래그가 있어야 오고, 답하면 %s 예약" % [pair[0], pair[3], pair[1]])
+		var lover := CareerState.new(_real_cfg(), "테스트", _config)
+		var ev := _event(lover.cfg, pair[1])
+		check(ev.get("scheduledOnly", false) and not lover.book.eligible(lover, ev), "%s 는 예약으로만" % pair[1])
+		lover.resolve_event(ev, 0)
+		check(lover.people.partner == pair[2], "%s 첫 선택지 → 사귄다 (%s)" % [pair[1], lover.people.partner])
+	# 세 번째 연애 후보(방송부)는 소율 문자로 연락처를 받아야 문자가 온다
+	var jian: Dictionary = {}
+	for m: Dictionary in _real_cfg().messages:
+		if m.get("id", "") == "m_y2_soyul_jian":
+			jian = m
+	check(not jian.is_empty() and jian.replies[0].effects.get("meet", []) == ["reporter"] and _real_cfg().people.reporter.get("romance", false), "방송부(reporter)는 소율 문자 답장으로 처음 만난다")
 
 
 func test_real_content() -> void:
