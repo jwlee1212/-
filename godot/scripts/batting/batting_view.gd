@@ -175,7 +175,7 @@ func _layout() -> void:
 	_zone_center = Vector2(size.x * 0.5, size.y * ZONE_Y)
 	_zone_half = Vector2(size.x * ZONE_HALF_W, size.y * ZONE_HALF_H)
 	# 공은 투수 그림의 공 놓는 손에서 출발한다
-	_release = PixelArt.snap(Vector2(size.x * 0.5, size.y * MOUND_Y), size) + PixelMeta.PITCHER_RELEASE * PixelArt.unit(size) * PixelArt.PITCHER_SCALE
+	_release = PixelArt.snap(Vector2(size.x * 0.5, size.y * MOUND_Y), size) + _pitcher_release() * PixelArt.unit(size)
 
 
 ## 존 좌표 → 화면
@@ -233,7 +233,26 @@ func _draw_pitcher() -> void:
 		BattingSession.Phase.FLIGHT, BattingSession.Phase.HIT:
 			since_release = session.since(session.phase_since_ms) + (session.pitch.flight_ms if session.phase == BattingSession.Phase.HIT else 0.0)
 	var mound := Vector2(size.x * 0.5, size.y * MOUND_Y)
-	PixelArt.draw_cell(self, "pitcher", PixelArt.pitcher_cell(windup, since_release), PixelMeta.PITCHER_CELL, PixelMeta.PITCHER_FEET, mound, size, PixelArt.PITCHER_SCALE)
+	var cell := PixelArt.pitcher_cell(windup, since_release)
+	if PixelArt.texture("pitcher_ext") != null:
+		PixelArt.draw_cell(self, "pitcher_ext", cell, PitcherExtMeta.CELL, PitcherExtMeta.FEET, mound, size, 1.0 / PitcherExtMeta.DENSITY)
+	else:
+		PixelArt.draw_cell(self, "pitcher", cell, PixelMeta.PITCHER_CELL, PixelMeta.PITCHER_FEET, mound, size, PixelArt.PITCHER_SCALE)
+
+
+## 타자 그림 배율: 옛 코드 도트는 경기장과 같은 배율, SpriteCook 타자는 촘촘함(density)으로 나눈 뒤 batterArtScale 을 곱한다
+func _batter_scale() -> float:
+	if _batter.density > 1:
+		return PixelArt.unit(size) / _batter.density * session.presentation.batter_art_scale
+	return PixelArt.unit(size)
+
+
+## 공이 출발하는 손 자리 (발 기준, 경기장 도트 단위). SpriteCook 투수 시트(pitcher_ext, scripts/tidy_sheet.py pitcher)가 있으면
+## 그 칸 정보를 쓴다 (2026-11-07 인게임 갈아엎기). 칸 순서는 옛 투수 칸과 같다
+func _pitcher_release() -> Vector2:
+	if PixelArt.texture("pitcher_ext") != null:
+		return PitcherExtMeta.RELEASE / PitcherExtMeta.DENSITY
+	return PixelMeta.PITCHER_RELEASE * PixelArt.PITCHER_SCALE
 
 
 ## 타자 자세 (오른손 타자, 홈플레이트 왼쪽). 투수가 던지기 시작하면 힘을 모으고(load), 공이 날아오는 동안 앞발을 내딛고,
@@ -258,12 +277,15 @@ func _pose_batter() -> void:
 		load = 1.0
 
 	var feet := Vector2(size.x * BATTER_X, h * BATTER_FEET_Y)
+	if _batter.density > 1:
+		# SpriteCook 타자: 컨택 칸의 배트 스위트 스폿(BatterExtMeta.CONTACT)이 스트라이크 존 가운데를 지나게 선다
+		feet = _zone_center - BatterExtMeta.CONTACT * _batter_scale()
 	var bunt := session.swing_type == "bunt"
 	# 칸을 갈아 끼우기만 한다 (돌리면 픽셀이 깨진다). 높은 공·낮은 공은 맞는 순간 칸이 따로 있다
 	var height_px := 0.0
 	if swing_progress >= 0.0:
 		height_px = (_ball(session.pitch, session.swing_at_ms).y - _zone_center.y) / PixelArt.unit(size)
-	_batter.scale = Vector2.ONE * PixelArt.unit(size)
+	_batter.scale = Vector2.ONE * _batter_scale()
 	_batter.position = PixelArt.snap(feet, size) + _shake()
 	# 공이 날아오는 동안 앞발을 내디뎌 strideLandAt 에 땅을 딛는다 (휘두르기 전까지)
 	var stride := 0.0

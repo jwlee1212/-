@@ -1,0 +1,95 @@
+{
+  "_doc": "SpriteCook asset 기록 (asset_id·sha12·label만, 링크·토큰은 적지 않는다)",
+  "assets": [
+    {
+      "asset_id": "0af64faa-f27d-4752-9d7a-1fb729eaa1db",
+      "sha12": "560306d76721",
+      "label": "기준 그림 v1: 타자(뒤 시점, 우리 팀 파랑)+투수(정면, 빨강) — docs/refs/sprites/base_batter_pitcher_v1.png"
+    },
+    {
+      "asset_id": "fbf6011d-ee99-4bed-af3d-dc82542f8bd3",
+      "sha12": "1de08bc87075",
+      "label": "옛 시험 Batter Full Swing (옆 시점·칠한 그림) — docs/refs/batter/full_swing_sheet.png"
+    },
+    {
+      "asset_id": "1e8f9559-dcaa-4078-b810-795c6172047f",
+      "sha12": "c0eaba2bce2b",
+      "label": "기준 그림 v2: 7등신 일러스트풍 타자(비스듬한 뒷모습, 원본은 좌타)+투수 — docs/refs/sprites/base_batter_pitcher_v2.png. 좌우 뒤집은 우타 판은 base_batter_pitcher_v2_rh.png (아직 업로드 안 함)"
+    },
+    {
+      "asset_id": "afa54f27-1b3c-4ea9-876b-a781a3ca75ed",
+      "sha12": "3618173d849b",
+      "label": "유저가 준 타자 시점 참고 그림 — docs/refs/sprites/user_batter_view_ref.webp"
+    },
+    {
+      "asset_id": "518f56b2-ab3e-4cec-8d6d-3742113c7a6c",
+      "sha12": "c3800335ed53",
+      "label": "실패: 참고+스타일 그림으로 다시 그림 — v2 자세를 따라감 (base_batter_v3.png)"
+    },
+    {
+      "asset_id": "d49c74cd-86b3-4710-abfb-85e373acac06",
+      "sha12": "03edbd4f2238",
+      "label": "타자 기준 그림 v4: 유저 참고 그림 시점·자세 그대로 우리 팀 파랑으로 (base_batter_v4.png)"
+    },
+    {
+      "asset_id": "146d0f32-116f-4023-8e8b-4af5659a3ca8",
+      "sha12": "3bd3072b83c8",
+      "label": "타자 풀스윙 v1 (v4 에서, pixel-engine-v1.5, 12칸) — docs/refs/sprites/batter_swing_v1_sheet.png → scripts/sheets.json batter"
+    },
+    {
+      "asset_id": "cd70b47a-fe2b-4e87-8567-c933bbd2a429",
+      "sha12": "b53073206a89",
+      "label": "투수 기준 그림 (v2 에서 잘라 올림, 세트 자세) — docs/refs/sprites/base_pitcher_v2.png"
+    },
+    {
+      "asset_id": "d1557f06-38a6-4168-a0d5-33d605ceedc0",
+      "sha12": "2c490ddcca04",
+      "label": "투수 투구 v1 (pixel-engine-v1.5, 16칸) — docs/refs/sprites/pitcher_throw_v1_sheet.png → scripts/sheets.json pitcher"
+    },
+    {
+      "asset_id": "415789f4-d75e-4354-a330-4f7df5c1966f",
+      "sha12": "6bee9a55c766",
+      "label": "투수 기준 그림 v3: 완전 정면 세트 자세 (v2 투수 고치기) — docs/refs/sprites/base_pitcher_v3_front.png"
+    },
+    {
+      "asset_id": "06921723-30f1-4848-a3e8-27afa2c9509b",
+      "sha12": "a21fbae6d583",
+      "label": "투수 투구 v2 (정면, pixel-engine-v1.5, 16칸) — docs/refs/sprites/pitcher_throw_v2_sheet.png → scripts/sheets.json pitcher (v1 은 비스듬해서 버림)"
+    },
+    {
+      "asset_id": "0e76293c-b6e6-4b15-93c2-8d1c665fd979",
+      "sha12": "8d1c91b81051",
+      "label": "실패: 정면 투수 고치기로 3루 쪽 돌리기 — 머리 잘림·자세 그대로"
+    },
+    {
+      "asset_id": "36c4fd2a-0327-43d2-8603-59b264d61036",
+      "sha12": "5e5e9a935482",
+      "label": "투수 새로 그림 v5 (1루 쪽 좌완으로 나옴, 180px) — 뒤집고 줄인 판 base_pitcher_v5_small.png"
+    },
+    {
+      "asset_id": "54047c16-d742-4004-9a7a-caadb0b7ec2e",
+      "sha12": "2a7af959fea7",
+      "label": "v5 뒤집어 1/3 로 줄여 올린 판"
+    },
+    {
+      "asset_id": "5bcbd372-a4b1-49ac-96fe-1f973f6cf4f5",
+      "sha12": "59c098d5d2d8",
+      "label": "v6: 작은 크기로 깨끗하게 다시 그림, 얼굴 정면 (몸은 1루 쪽)"
+    },
+    {
+      "asset_id": "2b5a4ccb-2961-44dd-a465-0d6736b5d89a",
+      "sha12": "6aedbc2842db",
+      "label": "실패: v6 몸만 돌리기 고치기 — 거의 그대로"
+    },
+    {
+      "asset_id": "8fc4da25-547a-4490-bbcb-d01263efe79e",
+      "sha12": "85247ab90f95",
+      "label": "투수 기준 그림 v8 (확정): v6 좌우 뒤집기 — 시선 정면·몸만 3루 쪽, 키 약 60px"
+    },
+    {
+      "asset_id": "3911c9de-f841-4f5d-a7bd-22ecca35e4d2",
+      "sha12": "bcc8beee2938",
+      "label": "투수 투구 v3 (v8 에서, 16칸) — scripts/sheets.json pitcher"
+    }
+  ]
+}

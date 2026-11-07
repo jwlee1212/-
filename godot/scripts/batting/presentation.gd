@@ -51,6 +51,8 @@ var pitch_memo_text: String
 ## 로비 메뉴 판이 미끄러져 들어오는 시간, 메뉴 줄이 하나씩 나타나는 간격
 ## 타자가 앞발을 내디뎌 땅을 딛는 때 (공이 날아오는 시간 중 비율). 그 전에 스트라이드, 뒤에는 발사 자세
 var stride_land_at: float
+## SpriteCook 타자 그림의 화면 배율 (경기장 도트 배율과 따로, 1 = 그림 1칸이 화면 1칸)
+var batter_art_scale: float
 ## 공이 끝난 뒤 멈춰 있던 타자가(pitchIntervalMs 동안) 준비 자세로 돌아가는 시간
 var batter_recover_ms: float
 ## 홈런 뒤 이만큼(ms) 지나면 탭으로 베이스 도는 장면을 건너뛸 수 있다
@@ -99,6 +101,7 @@ static func from_balance(balance: Dictionary) -> Presentation:
 	p.lobby_menu_slide_ms = BattingConfig.num(s, "lobby.menuSlideMs")
 	p.lobby_menu_stagger_ms = BattingConfig.num(s, "lobby.menuStaggerMs")
 	p.stride_land_at = BattingConfig.num(s, "strideLandAt")
+	p.batter_art_scale = BattingConfig.num(s, "batterArtScale")
 	p.batter_recover_ms = BattingConfig.num(s, "batterRecoverMs")
 	p.skip_after_ms = BattingConfig.num(s, "skipAfterMs")
 	return p
