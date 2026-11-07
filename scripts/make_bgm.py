@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""배경음악(BGM) 3곡을 코드로 합성한다. 음원·샘플·AI 생성 없이 사인파·펄스파·잡음만 섞는다 (효과음 SoundSynth 와 같은 방식).
+"""관중 함성을 코드로 합성한다 (옛날엔 배경음악 3곡·심판 콜도 여기서 만들었다).
+
+2026-11-07: 배경음악 3곡과 심판 콜은 ElevenLabs 로 만든 소리로 바꿨다 (scripts/import_audio.py → bgm/*.ogg, sfx/call_*.wav).
+그래서 그냥 실행하면 관중 함성(cheer)만 만든다. 옛 합성 곡·콜은 이름을 줘야 만든다 (python3 scripts/make_bgm.py lobby call) —
+call 은 ElevenLabs 콜을 덮어쓰고, 곡 .wav 는 같은 이름 .ogg 가 있으면 게임이 안 읽는다.
+
+옛 설명: 배경음악(BGM) 3곡을 코드로 합성한다. 음원·샘플·AI 생성 없이 사인파·펄스파·잡음만 섞는다 (효과음 SoundSynth 와 같은 방식).
 
     python3 scripts/make_bgm.py          (외부 라이브러리 필요 없음)
 
@@ -928,7 +934,7 @@ def song_game():
 
 if __name__ == "__main__":
     import sys
-    only = sys.argv[1:]  # 곡 이름을 주면 그 곡만 (예: python3 scripts/make_bgm.py game)
+    only = sys.argv[1:] or ["cheer"]  # 이름을 주면 그것만 (예: python3 scripts/make_bgm.py game). 안 주면 관중 함성만
     for name, fn in (("lobby", song_lobby), ("home", song_home), ("game", song_game), ("cheer", sfx_cheers), ("call", sfx_calls)):
-        if not only or name in only:
+        if name in only:
             fn()

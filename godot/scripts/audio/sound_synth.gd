@@ -19,10 +19,11 @@ enum Sfx {
 	CLANK,    ## 미니게임: 바벨 원판 "철컥"
 	BEEP,     ## 미니게임: 신호등이 켜지는 "삑"
 	BUZZ,     ## 미니게임: 실패 "부—"
+	CALL_BALL,  ## 심판 "볼." (파일만)
 }
 
-## 실행 중 합성하지 않고 audio/sfx/ 파일로만 있는 소리 (scripts/make_bgm.py 가 만든다)
-const FILE_ONLY: Array[Sfx] = [Sfx.CALL_STRIKE, Sfx.CALL_STRIKEOUT]
+## 실행 중 합성하지 않고 audio/sfx/ 파일로만 있는 소리 (심판 콜은 ElevenLabs 원본을 scripts/import_audio.py 로 다듬은 것)
+const FILE_ONLY: Array[Sfx] = [Sfx.CALL_STRIKE, Sfx.CALL_STRIKEOUT, Sfx.CALL_BALL]
 
 ## 타격음·미트 소리의 높은 대역(딱! 하고 갈라지는 소리)을 살리려고 44.1kHz (2026-10-31, 22050 에서 올림)
 const SAMPLE_RATE := 44100

@@ -107,15 +107,16 @@ godot/                     Godot 프로젝트
 │  └─ main.gd
 ├─ art/pixel/              인게임 도트 시트 (field·batter·pitcher·catcher·mitt·fielders·closeup(1루수·타자 주자·루심)·closeup_bg — make_pixel_art.py, training — make_training_art.py, minigame·minigame_bg — make_minigame_art.py, cutscene·cutscene_bg — make_cutscene_art.py). 손으로 고치지 않는다
 ├─ art/portraits/, backgrounds/  대화 화면 일러스트·배경 (파일 목록은 art/README.md, 없으면 자리만 보인다)
-├─ audio/bgm/              배경음악 루프 WAV 3곡 (lobby·home 은 음악, game 은 음악 없이 관중 웅성거림·떼창 응원가) — scripts/make_bgm.py 가 만든다
-├─ audio/sfx/              미리 만든 효과음 (관중 함성 cheer_small·cheer_big, 심판 콜 call_strike·call_strikeout — scripts/make_bgm.py). 없는 소리는 SoundSynth 가 실행 중에 합성
+├─ audio/bgm/              배경음악 루프 OGG 3곡 (lobby·home 은 음악, game 은 음악 없이 관중 웅성거림) — ElevenLabs 원본을 scripts/import_audio.py 가 루프·크기 맞춰 압축 (원본은 저장소 밖)
+├─ audio/sfx/              미리 만든 효과음 (관중 함성 cheer_small·cheer_big — scripts/make_bgm.py, 심판 콜 call_strike·call_strikeout·call_ball — ElevenLabs → scripts/import_audio.py). 없는 소리는 SoundSynth 가 실행 중에 합성
 ├─ fonts/                  Pretendard (OFL)
 ├─ tests/                  run_tests.gd(헤드리스 테스트), fixtures/legacy_events.json(테스트 전용 옛 이벤트 — 게임은 안 읽는다), shots(스크린샷: 전체 흐름 · shots_menu 로비·허브·이야기 · shots_lobby 로비 · shots_camp 겨울 캠프 · shots_runners 주루 · shots_steal 도루·주루 버튼·런다운 · shots_run_game 실제 경기 화면에서 내 주루 · shots_run_practice 주루 연습 · shots_batter 타자 포즈 · shots_effects 타격 이펙트 · shots_hud 타석 중계 그래픽 · shots_pitches 8개 구종 궤적 · shots_pitch_flight 실제 타석 화면에서 구종별 날아오는 공 · shots_fitness 입부 체력 테스트 세 종목 · shots_field 유격수 수비 · shots_news 폰 뉴스 · shots_tutorial 튜토리얼 팁 카드 · shots_cutscene 컷신 컷마다), calibrate.gd(가상 타자 튜닝 도구), export_sfx.gd(효과음을 build/sfx/ 에 WAV 로 꺼내 들어 보기), calibrate_career.gd(고교 3년 자동 커리어 → 랭킹·지명 분포)
 └─ data/                   빌드 때 복사되는 balance.json (저장소에 넣지 않음)
 scripts/godot-web.sh       웹 빌드(개발용) + 개발 서버 실행
 scripts/dev_server.py      개발 서버: 웹 빌드 + 원본 balance.json 실시간 제공·저장
 scripts/build_scenario.py  시나리오 문서(docs/scenario) → content.json 이야기 이벤트·변수. 문서에 없는 엔진 정보(어느 주·경기 대본 gamePlan·연습 drill·장소)만 이 파일에 적는다
-scripts/make_bgm.py        배경음악 3곡·관중 함성·심판 콜(목소리 합성)을 코드로 합성 (외부 라이브러리 없음, 곡을 고치면 다시 실행)
+scripts/make_bgm.py        관중 함성을 코드로 합성 (외부 라이브러리 없음. 옛 합성 곡·콜은 이름을 줘야 만든다)
+scripts/import_audio.py    ElevenLabs 원본 → 배경음악 OGG(루프 이음매·크기)·심판 콜 WAV(앞 무음 자르기). `.venv/bin/python scripts/import_audio.py ~/Desktop/audio`
 scripts/make_minigame_art.py  미니게임 도트(체력 테스트 배경·인물 칸) → godot/art/pixel/minigame*.png + minigame_meta.gd (make_pixel_art.py 의 도구를 쓴다)
 scripts/import_cutscene_stills.py  외부(Gemini) 컷신 그림 docs/refs/cutscene → godot/art/cutscene_stills (생성 표시만 지우고 원본 해상도)
 scripts/make_cutscene_art.py  컷신 도트(판·인물 칸) → godot/art/pixel/cutscene*.png + cutscene_meta.gd (make_pixel_art.py 의 도구를 쓴다)
