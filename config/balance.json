@@ -116,7 +116,7 @@
     "pitch_common": {
       "_note": "모든 구종 공통. decel: 감속 보정(0 이상 1 미만) — 클수록 공이 앞에서 빠르고 홈플레이트 앞에서 느려진다(도착 시각은 그대로). four_seam_flight_ms: 포심이 홈플레이트까지 걸리는 시간 = 모든 구종 비행 시간의 기준 (손맛 패널 '공 비행 시간'이 바꾼다). flight_jitter_ms: 공마다 비행 시간이 ± 이만큼 흔들린다. speed_display_spread: 화면 구속에만 쓴다(판정 무관) — 투수 보정·흔들림으로 비행 시간이 달라진 만큼 구속 숫자를 이 비율만큼만 바꾼다 (1 = 물리 그대로, 흔들림 ±30ms 면 ±11km/h 라 너무 커서 옛 speedDisplay 와 같은 0.4 쯤으로 줄여 보여 준다). location_min·location_max: 투구 위치에 따른 변화폭 배율의 범위 (구종별 location_effect 와 함께, pitch_trajectory.gd)",
       "decel": 0.06,
-      "four_seam_flight_ms": 582,
+      "four_seam_flight_ms": 640,
       "flight_jitter_ms": 30.0,
       "speed_display_spread": 0.4,
       "location_min": 0.5,
@@ -149,7 +149,7 @@
       },
       "power": {
         "name": "강속구형",
-        "speedMs": -31,
+        "speedMs": -34,
         "hand": "R",
         "mix": {
           "four_seam": 1.2,
@@ -170,7 +170,7 @@
       },
       "finesse": {
         "name": "기교파",
-        "speedMs": 23,
+        "speedMs": 25,
         "hand": "R",
         "mix": {
           "four_seam": 0.0,
@@ -296,14 +296,14 @@
       "resultHoldMs": 1400,
       "hitFlightMs": 900,
       "swingMs": 150,
-      "hitStopMs": 125,
+      "hitStopMs": 140,
       "flashMs": 140,
       "burstMs": 320,
       "burstHomeRunMs": 420,
       "shakeMs": 280,
-      "shakeSolidPx": 18.2,
-      "shakeWeakPx": 5.2,
-      "shakeHomeRunPx": 41.9,
+      "shakeSolidPx": 25.5,
+      "shakeWeakPx": 7.3,
+      "shakeHomeRunPx": 58.7,
       "confettiMs": 1800,
       "sfxVolume": 0.9,
       "umpireCall": {
