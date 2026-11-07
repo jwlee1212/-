@@ -8,8 +8,8 @@
 
 | 묶음 | 컷신 | 그림 (필수 + 선택) | 지금 |
 |---|---|---|---|
-| 인물 기준 그림 | — | 7장 있음 + **새로 6장** | 1학년 7명 있음 |
-| 1학년 EP01~08 (4장) | 8개 | 필수 19 + 선택 4 | `ep01_join` 만 그림 있음, 나머지는 도트 판으로 돈다 |
+| 인물 기준 그림 | — | 7장 + 새로 6장 | 12장 있음, `char_me_pro` 남음 |
+| 1학년 EP01~08 (4장) | 8개 | 필수 19 + 선택 4 | ep01~04 그림 있음 (필수 6장 끝), ep05~08 은 도트 판으로 돈다 |
 | 2학년 EP09~13 (5장) | 5개 | 필수 7 + 선택 1 | 자리 없음 (대본에 후보만) |
 | 2학년 끝·3학년 EP14~22 (6장) | 6개 | 필수 11 + 선택 3 | 자리 없음 |
 | 사이드 스토리 (7장) | 8개 (1학년 둘 포함) | 필수 8 + 선택 3 | 1학년 둘은 도트 판, 나머지는 자리 없음 |
@@ -66,7 +66,7 @@ Keep important subjects inside the central 70% of the image height (top and bott
 | `char_taeo.png` | 강태오 (청운고 라이벌) | `Character reference sheet. A tall, lean, expressionless 16-year-old Korean shortstop prodigy, white uniform with deep green and gold trim, deep green helmet. Plain gray background, full body, front and side.` |
 | `char_seongho.png` | 김성호 (3학년 외야수) | `Character reference sheet. A thin, quiet 18-year-old Korean outfielder, same white uniform with navy-blue trim, navy helmet, a little worn and dusty. Plain gray background, full body, front and side.` |
 
-### 3-2. 새로 만들 것 (6장)
+### 3-2. 새로 만들 것 (6장) — ✅ 5장 있음, `char_me_pro.png` 만 남음
 
 | 파일 | 인물 | 쓰는 곳 | 프롬프트 |
 |---|---|---|---|
@@ -87,21 +87,21 @@ Keep important subjects inside the central 70% of the image height (top and bott
 |---|---|
 | `ep01_join_3.png` (선택) | `Medium shot on the dirt field in the morning. The coach stands with arms crossed facing two first-year players: the slim shortstop (seen from behind, face not visible) and the big catcher with a backwards cap. Cold morning light.` |
 
-### ep02_bench — 차례는 오지 않았다 (2장)
+### ep02_bench — 차례는 오지 않았다 (2장) ✅ 그림 있음
 
 | 파일 | 장면 |
 |---|---|
 | `ep02_bench_1.png` (필수) | `Overcast April afternoon at a small public stadium with almost empty stands. Inside a simple concrete dugout, players sit on a bench seen from behind; the slim shortstop stands at the dugout edge with a bat on his shoulder, warming up, seen from behind. Gray, quiet mood.` |
 | `ep02_bench_2.png` (필수) | `Wide shot, same overcast stadium, the game is over: the opposing team (gray uniforms) gathers to celebrate in the distance, our players in white walk back slowly. Muted colors.` |
 
-### ep03_sink — 수돗가 (2장)
+### ep03_sink — 수돗가 (2장) ✅ 그림 있음
 
 | 파일 | 장면 |
 |---|---|
 | `ep03_sink_1.png` (필수) | `A modern elite high school baseball complex in Seoul on a bright day: green artificial turf, a big blank scoreboard, a three-story dormitory, indoor practice hall. Small figures of our team in white stepping off a bus and stopping to stare.` |
 | `ep03_sink_2.png` (필수) | `Late afternoon backlight behind the stadium at a long concrete outdoor sink with many faucets. The tall rival shortstop in deep green trim splashes water on his face; the slim shortstop (seen from behind, face hidden) stands a few steps away. Golden rim light, quiet tension.` |
 
-### ep04_first — 고교 첫 타석 (2장)
+### ep04_first — 고교 첫 타석 (2장) ✅ 그림 있음
 
 | 파일 | 장면 |
 |---|---|

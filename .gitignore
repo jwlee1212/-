@@ -1,2 +1,5 @@
 .DS_Store
 .idea/
+
+# 그림 스크립트용 파이썬 환경 (numpy·pillow)
+.venv/

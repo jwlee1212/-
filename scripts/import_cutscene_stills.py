@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """컷신 정지 그림 가져오기 (2026-11-05): 외부에서 만든 장면 그림(docs/refs/cutscene/*.png, Gemini)을 컷신 판으로 가공한다.
 
-하는 일 (그림마다): 오른쪽 아래 생성 도구 표시(반짝이)를 지운다 — 그 자리를 바로 위 띠로 덮는다.
+하는 일 (그림마다): 오른쪽 아래 생성 도구 표시(반짝이)를 지운다 — 반투명 흰색을 걷어 내 원래 색으로 되돌린다.
 크기는 줄이지 않는다 (2026-11-05 유저: 98칸으로 줄이니 화질이 깨진다 → 원본 해상도 그대로, 화면 가운데 TV 틀에 띄운다).
 나온 그림은 godot/art/cutscene_stills/<이름>.png. 컷신 정의의 컷에 "still": "<이름>" 으로 쓴다 (CutscenePlan · CutsceneView).
 
@@ -12,22 +12,36 @@
 import glob
 import os
 
-from PIL import Image
+import numpy as np
+from PIL import Image, ImageFilter
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 SRC = os.path.join(ROOT, "docs", "refs", "cutscene")
 OUT = os.path.join(ROOT, "godot", "art", "cutscene_stills")
 
-# 생성 도구 표시 자리 (원본 넓이·높이에 대한 비율: 왼쪽, 위, 오른쪽, 아래) — Gemini 는 오른쪽 아래 반짝이
-MARK = (0.895, 0.78, 0.975, 0.905)
+# 생성 도구 표시 (2026-11-05 바꿈): Gemini 반짝이는 흰색을 반투명하게 얹은 것이라, 그 투명도 판(scripts/gemini_mark_alpha.png,
+# 1024×434 그림 기준 MARK_BOX 자리)을 알면 얹기 전 색을 되돌려 낼 수 있다: 원래 색 = (보이는 색 − α·255) / (1 − α).
+# 투명도 판은 바탕이 고른 그림 넷에서 잰 값의 중앙값이다. 옛 방식(위 띠를 복사해 덮기)은 배경이 복잡하면 티가 났다.
+MARK_BOX = (905, 315, 985, 395)
+MARK_BASE = (1024, 434)
+ALPHA = os.path.join(os.path.dirname(__file__), "gemini_mark_alpha.png")
 
 
 def erase_mark(im):
-    """표시 자리를 바로 위의 같은 크기 띠로 덮는다 (땅·옷처럼 위아래로 이어지는 배경이 많다 — 왼쪽은 인물 그림자가 끼기 쉽다)"""
+    """반짝이의 반투명 흰색을 걷어 낸다 (그림 크기가 다르면 자리·판을 비율대로 늘린다)"""
     w, h = im.size
-    x0, y0, x1, y1 = int(MARK[0] * w), int(MARK[1] * h), int(MARK[2] * w), int(MARK[3] * h)
-    patch = im.crop((x0, y0 - (y1 - y0), x1, y0))
-    im.paste(patch, (x0, y0))
+    sx, sy = w / MARK_BASE[0], h / MARK_BASE[1]
+    box = (round(MARK_BOX[0] * sx), round(MARK_BOX[1] * sy), round(MARK_BOX[2] * sx), round(MARK_BOX[3] * sy))
+    alpha = Image.open(ALPHA).convert("L").resize((box[2] - box[0], box[3] - box[1]), Image.BILINEAR)
+    a = np.asarray(alpha).astype(float)[..., None] / 255.0
+    crop = np.asarray(im.crop(box)).astype(float)
+    fixed = np.clip((crop - a * 255.0) / np.maximum(1.0 - a, 0.3), 0, 255)
+    patch = Image.fromarray(fixed.round().astype(np.uint8))
+    # 가장자리에 남는 옅은 테두리는 반짝이 자리 안에서만 3칸 중앙값으로 고른다
+    soft = patch.filter(ImageFilter.MedianFilter(3))
+    edge = alpha.point(lambda v: 255 if v > 0 else 0).filter(ImageFilter.MaxFilter(3))
+    patch.paste(soft, (0, 0), edge)
+    im.paste(patch, box[:2])
     return im
 
 
