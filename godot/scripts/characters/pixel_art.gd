@@ -39,7 +39,11 @@ static func snap(p: Vector2, view_size: Vector2) -> Vector2:
 
 static func draw_field(canvas: CanvasItem, view_size: Vector2) -> void:
 	var u := unit(view_size)
-	canvas.draw_texture_rect(texture("field"), Rect2(origin(view_size), PixelMeta.FIELD_SIZE * u), false)
+	# SpriteCook 배경(field_ext, scripts/tidy_sheet.py field)이 있으면 그것을 쓴다 — 옛 판과 같은 크기·같은 구도로 맞춰 둔다 (2026-11-07)
+	var tex := texture("field_ext")
+	if tex == null:
+		tex = texture("field")
+	canvas.draw_texture_rect(tex, Rect2(origin(view_size), PixelMeta.FIELD_SIZE * u), false)
 
 
 ## 전광판 글자 (3×5, 위 줄부터 — 1 이 켜진 LED)
@@ -163,8 +167,10 @@ static var _field_cache := {}
 ## 수비 화면 경기장을 도트로: 화면 한 칸(그림 1픽셀)마다 그 자리가 땅의 어디인지 카메라를 거꾸로 계산해 색을 정한다
 ## (잔디 줄무늬·내야 흙·파울 라인·베이스·담장·관중석). 그래서 원근이 BroadcastView 의 계산과 똑같이 맞는다
 static func draw_broadcast_field(canvas: CanvasItem, cam: BroadcastView.Cam, cfg: BattedBallSim.Config) -> void:
-	var u := unit(cam.rect.size)
-	var key := "%s|%s|%s|%s|%s" % [cam.rect, cam.focal, cam.center, cfg.center_fence, cfg.line_fence]
+	# 칸 크기는 확대(ZOOM)와 상관없이 보이는 창 기준 — 확대해도 도트가 굵어지지 않는다
+	var u := unit(cam.rect.size / BroadcastView.ZOOM)
+	# 카메라가 옮겨 가도(pan) 다시 칠하지 않게 판 위치와 상관없는 값으로 열쇠를 만든다
+	var key := "%s|%s|%s|%s|%s" % [cam.rect.size, cam.focal, cam.center - cam.rect.position, cfg.center_fence, cfg.line_fence]
 	if not _field_cache.has(key):
 		_field_cache.clear()
 		_field_cache[key] = ImageTexture.create_from_image(_broadcast_field_image(cam, cfg, u))
@@ -244,11 +250,14 @@ static func _ground_color(p: Vector2, cfg: BattedBallSim.Config, d: float, grass
 	# 파울 라인
 	if r > 1.0 and absf(absf(deg) - 45.0) * deg_to_rad(1.0) * r < line_w and r < cfg.line_fence:
 		return Tokens.CHALK
-	# 베이스
+	# 베이스: 흰 마름모 판 (2026-11-07 — 멀리서도 보이게 크게, 둘레 한 칸은 연회색)
+	var pad := maxf(1.4, m_per_px * 1.6)
 	for b in [1, 2, 3]:
-		if p.distance_to(cfg.base_pos(b)) < maxf(0.45, m_per_px * 0.7):
-			return Tokens.CHALK
-	if r < maxf(0.5, m_per_px * 0.8):
+		var q := p - cfg.base_pos(b)
+		var k := absf(q.x) + absf(q.y)
+		if k < pad:
+			return Tokens.CHALK if k < pad - m_per_px else Tokens.BASE_EDGE
+	if absf(p.x) + absf(p.y) < pad * 0.9:
 		return Tokens.CHALK  # 홈플레이트
 	var fair := absf(deg) <= 45.0 and r <= cfg.fence_at(deg)
 	# 내야 흙: 베이스를 감싸는 다이아몬드(안쪽 잔디 빼고) + 마운드 + 홈 둘레
@@ -256,33 +265,41 @@ static func _ground_color(p: Vector2, cfg: BattedBallSim.Config, d: float, grass
 	var dy := absf(p.y - d)
 	var in_outer := dx + dy <= d + 6.0
 	var in_inner := dx + dy <= d - 4.5
-	if p.distance_to(Vector2(0, 18.4)) < 2.7 or r < 4.0 or (in_outer and not in_inner and p.y > -4.0):
-		return dirt2 if (int(floor(p.x * 1.5)) + int(floor(p.y * 1.5))) % 7 == 0 else dirt
+	# 흙: 잡점 없이 한 색, 마운드만 조금 밝게 (2026-11-07 잡점 줄이기)
+	if p.distance_to(Vector2(0, 18.4)) < 2.7:
+		return Tokens.DIRT.lightened(0.08)
+	if r < 4.0 or (in_outer and not in_inner and p.y > -4.0):
+		return dirt
+	# 잔디: 가운데 방향과 나란한 깎은 줄무늬 (위에서 보면 세로 줄). 파울 지역도 같은 줄무늬, 한 톤 어둡게
+	var band := int(floor((p.x + 2.5) / 5.0)) % 2
 	if not fair:
-		return foul if p.y > -14.0 else Tokens.DIRT.darkened(0.25)
-	# 잔디 깎은 줄무늬 (바둑판)
-	var band := (int(floor((p.x + p.y) / 9.0)) + int(floor((p.y - p.x) / 9.0))) % 2
+		if p.y <= -14.0:
+			return Tokens.DIRT.darkened(0.25)
+		return foul if band == 0 else foul.lightened(0.06)
 	return grass if band == 0 else grass2
 
 
 ## 관중석: 사람 한 줄 = 3칸 — 머리(1칸) · 옷(2칸 폭) · 의자 그늘. 번호로 정해지는 가짜 난수라 매번 같다
 static func _stands_color(x: int, y: int, wall_top: float) -> Color:
+	# 관중석 (2026-11-07 잡점 줄이기): 칸마다 다른 색을 찍지 않고 계단식 좌석 줄(4칸) + 드문드문한 관중 덩어리(2×2칸)
 	if wall_top > 0.0 and y > wall_top - 3.0:
 		return Tokens.STANDS_DARK
-	var hsh := fposmod(sin((x / 2) * 12.9898 + (y / 3) * 78.233) * 43758.5453, 1.0)
-	var row := y % 3
-	if row == 2 or hsh < 0.12:
-		return Tokens.STANDS_DARK if row == 2 else Tokens.STANDS
-	if row == 0:
-		if x % 2 != int(hsh * 7.0) % 2:
-			return Tokens.STANDS
-		return Tokens.CROWD_HEADS[int(hsh * 131.0) % Tokens.CROWD_HEADS.size()]
-	var shirt: Color = Tokens.CROWD[int(hsh * 997.0) % Tokens.CROWD.size()]
-	return shirt if x % 2 == 0 else shirt.darkened(0.15)
+	if y % 4 == 3:
+		return Tokens.STANDS_DARK
+	var hsh := fposmod(sin(floor(x / 2.0) * 12.9898 + floor(y / 4.0) * 78.233) * 43758.5453, 1.0)
+	if hsh < 0.45 and y % 4 != 0:
+		return Tokens.CROWD[int(hsh * 997.0) % Tokens.CROWD.size()]
+	return Tokens.STANDS
 
 
 ## 수비 화면 선수 (원근으로 크기를 바꾸지 않는 도트). vel: 화면에서 움직이는 방향 (멈춰 있으면 0 — 서기, 아니면 달리기 두 칸 번갈아)
-static func draw_fielder(canvas: CanvasItem, cam: BroadcastView.Cam, at: Vector2, us: bool, vel: Vector2 = Vector2.ZERO, t: float = 0.0) -> void:
+## vel: 최근 FIELDER_VEL_DT 초 동안 화면에서 움직인 픽셀 (호출하는 쪽이 모두 같은 간격으로 잰다).
+## pose: 상황 동작 칸 이름(FieldersExtMeta.FRAMES — grounder·fly·throw·dive·slide·lead·onbase), "" 면 움직임으로 고른다.
+## face: 동작 칸이 바라볼 쪽 (-1 왼쪽이면 뒤집기, 0·+1 그대로)
+static func draw_fielder(canvas: CanvasItem, cam: BroadcastView.Cam, at: Vector2, us: bool, vel: Vector2 = Vector2.ZERO, t: float = 0.0, pose: String = "", face: float = 0.0) -> void:
+	if texture("fielders_ext") != null:
+		_draw_fielder_ext(canvas, cam, at, us, vel, t, pose, face)
+		return
 	var tex := texture("fielders")
 	if tex == null:
 		return
@@ -306,7 +323,19 @@ static func draw_fielder(canvas: CanvasItem, cam: BroadcastView.Cam, at: Vector2
 
 
 ## 화면 좌표에 바로 그리는 선수 (타석 화면에서 투수 뒤의 수비수·주자). px: 그림 한 칸의 화면 크기
-static func draw_fielder_screen(canvas: CanvasItem, feet: Vector2, us: bool, px: float) -> void:
+static func draw_fielder_screen(canvas: CanvasItem, feet: Vector2, us: bool, px: float, pose: String = "ready") -> void:
+	if texture("fielders_ext") != null:
+		# 옛 그림 키(8칸 × px)에 가장 가까운 줄인 판을 고른다 — 멀수록 작은 판, 화면 1px = 그림 1칸
+		var tall := FieldersExtMeta.CELL.y * 0.8
+		var k: int = FieldersExtMeta.VARIANTS[-1]
+		for v: int in FieldersExtMeta.VARIANTS:
+			if tall / v <= 8.0 * px * 1.25:
+				k = v
+				break
+		feet = feet.round()
+		canvas.draw_rect(Rect2(feet + Vector2(-0.3, -0.06) * tall / k, Vector2(0.6, 0.12) * tall / k), Tokens.SHADOW)
+		_blit_fielder(canvas, feet, us, FieldersExtMeta.FRAMES.get(pose, 0), k, 1.0, false)
+		return
 	var tex := texture("fielders")
 	if tex == null:
 		return
@@ -315,3 +344,65 @@ static func draw_fielder_screen(canvas: CanvasItem, feet: Vector2, us: bool, px:
 	feet = feet.round()
 	canvas.draw_rect(Rect2(feet + Vector2(-2, 0) * px, Vector2(4, 1) * px), Tokens.SHADOW)
 	canvas.draw_texture_rect_region(tex, Rect2(feet - PixelMeta.FIELDER_FEET * px, cell * px), Rect2(Vector2(index * cell.x, 0), cell))
+
+
+## SpriteCook 수비수·주자 (fielders_ext, scripts/tidy_sheet.py fielders — 2026-11-07). 칸 하나를 그린다:
+## k = 줄인 판(1/k), scale = 그림 한 칸의 화면 크기, flip = 좌우 뒤집기(왼쪽으로 달릴 때)
+static func _blit_fielder(canvas: CanvasItem, feet: Vector2, us: bool, frame: int, k: int, scale: float, flip: bool) -> void:
+	var tex := texture("fielders_ext" + ("" if us else "_them") + ("" if k == 1 else "_s%d" % k))
+	if tex == null:
+		return
+	var cell := FieldersExtMeta.CELL / k
+	var foot := FieldersExtMeta.FEET / k
+	var region := Rect2(Vector2(frame * cell.x, 0), cell)
+	var r := Rect2(feet - foot * scale, cell * scale)
+	if flip:
+		r = Rect2(Vector2(feet.x + (foot.x - cell.x) * scale + cell.x * scale, r.position.y), Vector2(-cell.x * scale, r.size.y))
+	canvas.draw_texture_rect_region(tex, r, region)
+
+
+## 중계 화면 선수 (2026-11-07 유저: 너무 크고 움직임이 이상하다 → 고침):
+## - 크기: 그 자리에 선 사람(1.8m × FIELDER_SD)의 원근 키에 가장 가까운 줄인 판(1/k)을 화면 1px = 그림 1칸으로 그린다
+##   (FIELDER_SD 1.25 는 실제에 가까워 너무 작고, 옛 그림(키 24px 고정)은 너무 컸다. 2.5등신 SD 로 바꾸며 3.6 — 판이 38·19·13·10px 로 띄엄띄엄이라 내야에서 38px 판이 골라지게, 2026-11-07)
+## - 달리기 칸은 시간이 아니라 달린 거리(속도 × 시간)로 넘긴다 — 다리가 땅을 미끄러지지 않는다
+## - 방향: 화면에서 거의 세로(세로가 가로의 2배 넘게)로 움직일 때만 등·앞모습, 나머지는 옆모습(왼쪽이면 뒤집기)
+## - 느리게(초속 FIELDER_JOG_MPS 아래) 움직이면 조깅 칸, 멈추면 준비 자세
+const FIELDER_JOG_MPS := 3.0
+const FIELDER_SD := 3.6
+const FIELDER_VEL_DT := 0.06
+const FIELDER_STRIDE_M := 0.8
+
+static func _draw_fielder_ext(canvas: CanvasItem, cam: BroadcastView.Cam, at: Vector2, us: bool, vel: Vector2, t: float, pose: String = "", face: float = 0.0) -> void:
+	var feet := cam.ground(at).round()
+	var head := cam.to_screen(Vector3(at.x, at.y, 1.8 * FIELDER_SD))
+	var want := maxf(feet.y - head.y, 4.0)
+	var full := FieldersExtMeta.CELL.y * 0.8
+	# 크기는 연속으로 (2026-11-07 유저: 순간이동처럼 보인다 — 판을 고르기만 하면 달리다 크기가 두 배로 툭 바뀌었다):
+	# 원근 키 이상인 판 중 가장 작은 판을 골라 그 키에 맞게 줄여 그린다 (줄이는 배율은 0.5~1)
+	var k: int = 1
+	for v: int in FieldersExtMeta.VARIANTS:
+		if full / v >= want:
+			k = v
+	var draw_scale := clampf(want / (full / k), 0.5, 1.0)
+	var f := FieldersExtMeta.FRAMES
+	var frame: int = f["ready"]
+	var flip := false
+	# 화면 픽셀 변화 → 실제 속도 (그 자리에서 1m 가 몇 px 인지로 나눈다)
+	var px_per_m := maxf(cam.scale_at(Vector3(at.x, at.y, 0.0)), 0.01)
+	var speed := vel.length() / FIELDER_VEL_DT / px_per_m
+	if pose != "" and f.has(pose):
+		frame = f[pose]
+		flip = face < 0.0
+	elif speed > 0.5:
+		var step := int(floor(t * speed / FIELDER_STRIDE_M))
+		if absf(vel.y) > absf(vel.x) * 2.0:
+			frame = ([f["away1"], f["away2"]] if vel.y < 0.0 else [f["toward1"], f["toward2"]])[step % 2]
+		elif speed < FIELDER_JOG_MPS:
+			frame = [f["jog"], f["run_r2"]][step % 2]
+			flip = vel.x < 0.0
+		else:
+			frame = [f["run_r1"], f["run_r2"], f["run_r3"], f["run_r2"]][step % 4]
+			flip = vel.x < 0.0
+	var tall := full / k * draw_scale
+	canvas.draw_rect(Rect2(feet + Vector2(-0.3, -0.06) * tall, Vector2(0.6, 0.12) * tall), Tokens.SHADOW)
+	_blit_fielder(canvas, feet, us, frame, k, draw_scale, flip)

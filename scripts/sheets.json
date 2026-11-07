@@ -79,5 +79,95 @@
       "c13": 14,
       "c14": 15
     }
+  },
+  "field": {
+    "_note": "타석 배경 v2 (SpriteCook, 옛 field.png 를 2배로 올려 고치기 8d948acf). 원본 328x189 에서 하늘 59줄을 잘라 옛 판(340x130)과 같은 세로 위치에 둔다 — 펜스·흙·마운드·홈플레이트·전광판이 옛 판과 같은 줄이다. 홈플레이트가 옛 판보다 12칸 왼쪽이라 place x 12. 원본이 마운드를 하나 더 그린 자리(가운데 아래, 판 좌표 x 150~190 · y 19~29)는 옆 잔디로 덮는다. 잡점 줄이기: 32색 + 외톨이 점 메우기 (palette)",
+    "kind": "still",
+    "asset_id": "8d948acf-8cf9-47fc-8629-17fe5f86771d",
+    "src": "docs/refs/sprites/field_bg_v2.png",
+    "crop": [
+      0,
+      59,
+      328,
+      189
+    ],
+    "canvas": [
+      340,
+      130
+    ],
+    "place": [
+      12,
+      0
+    ],
+    "fill_edges": true,
+    "patches": [
+      [
+        [
+          110,
+          77,
+          150,
+          88
+        ],
+        [
+          150,
+          77
+        ]
+      ],
+      [
+        [
+          110,
+          77,
+          150,
+          88
+        ],
+        [
+          180,
+          77
+        ]
+      ]
+    ],
+    "png": "godot/art/pixel/field_ext.png",
+    "palette": 32
+  },
+  "fielders": {
+    "_note": "수비수·주자 16동작 SD (2.5등신, 높은 카메라, 16비트 — SpriteCook 4x4 격자 한 장 a5d7e2ab, 2026-11-07 유저 참고 화면 느낌). 칸마다 발 자리를 맞춘다. 우리 팀 파랑으로 뽑고 상대 팀은 팀 색만 빨강으로 돌린 _them 판. 멀리 있는 선수용 1/2·1/3·1/4 판. 잡점 줄이기 32색. 가로 기준점은 몸 무게중심(anchor centroid) — 발 띠 가운데로 잡으면 다리를 벌리거나 눕는 칸에서 몸이 밀려 보였다",
+    "kind": "grid",
+    "asset_id": "a5d7e2ab-6d8b-4be1-82d7-4a0c4a269504",
+    "src": "docs/refs/sprites/fielders_sd_grid_v1.png",
+    "cols": 4,
+    "rows": 4,
+    "drop_small": 8,
+    "foot_rows": 3,
+    "variants": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "them": 355,
+    "density": 3,
+    "png": "godot/art/pixel/fielders_ext.png",
+    "meta": "godot/scripts/characters/fielders_ext_meta.gd",
+    "class": "FieldersExtMeta",
+    "names": [
+      "ready",
+      "run_r1",
+      "run_r2",
+      "run_r3",
+      "away1",
+      "away2",
+      "toward1",
+      "toward2",
+      "grounder",
+      "fly",
+      "throw",
+      "dive",
+      "lead",
+      "slide",
+      "onbase",
+      "jog"
+    ],
+    "palette": 24,
+    "anchor": "centroid"
   }
 }

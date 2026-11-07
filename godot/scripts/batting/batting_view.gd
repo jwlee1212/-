@@ -217,7 +217,7 @@ const BALL_PERSPECTIVE := 4.0
 
 func _ball_radius(s: float) -> float:
 	var t := (-0.25 + sqrt(0.0625 + 3.0 * clampf(s, 0.0, 1.0))) / 1.5  # _ball 의 s = 0.25t + 0.75t² 를 거꾸로 — 거리 진행률
-	return maxf(_zone_half.x * session.config.zone_ball_radius / (1.0 + BALL_PERSPECTIVE * (1.0 - t)), 1.5)
+	return maxf(_zone_half.x * session.config.zone_ball_radius / (1.0 + BALL_PERSPECTIVE * (1.0 - t)), session.presentation.ball_min_radius_px)
 
 
 # ---------- 사람 ----------
@@ -247,9 +247,9 @@ func _batter_scale() -> float:
 	return PixelArt.unit(size)
 
 
-## 도트 공의 칸 크기 (화면 px): 타자 그림 한 칸과 같게 해서 그림체를 맞춘다
+## 도트 공의 칸 크기 (화면 px). 처음엔 타자 그림 한 칸(2px)과 같았는데 공이 덩어리져 안 보여서(2026-11-07 유저) 따로 촘촘하게 — balance.json ballCellPx
 func _ball_cell() -> float:
-	return _batter_scale()
+	return session.presentation.ball_cell_px
 
 
 ## 공이 출발하는 손 자리 (발 기준, 경기장 도트 단위). SpriteCook 투수 시트(pitcher_ext, scripts/tidy_sheet.py pitcher)가 있으면
@@ -381,7 +381,7 @@ func _draw_pixel_defense() -> void:
 		var feet := _field_to_screen(p)
 		# 사람 키 1.8m 의 화면 높이 → 그림 8칸에 맞는 정수 배율 (SD 라 1.3배 크게)
 		var tall := 1.3 * 1.8 * FIELD_F / (p.y + FIELD_C)
-		PixelArt.draw_fielder_screen(self, feet, person[1], clampf(round(tall / PixelMeta.FIELDER_CELL.y), 1.0, 4.0))
+		PixelArt.draw_fielder_screen(self, feet, person[1], clampf(round(tall / PixelMeta.FIELDER_CELL.y), 1.0, 4.0), "lead" if person[1] else "ready")
 
 
 ## 도트 시험판: 포수 뒷모습. 홈플레이트 뒤에 쪼그려 앉아 헬멧 꼭대기가 존 아래 아홉 칸에 온다 (어깨까지만 보인다) (아래는 화면 밖)

@@ -90,6 +90,81 @@
       "asset_id": "3911c9de-f841-4f5d-a7bd-22ecca35e4d2",
       "sha12": "bcc8beee2938",
       "label": "투수 투구 v3 (v8 에서, 16칸) — scripts/sheets.json pitcher"
+    },
+    {
+      "asset_id": "a5e9b437-48d6-4bc2-bf1f-aafdb20c2a3e",
+      "sha12": "c74de3374ffc",
+      "label": "옛 타석 배경 field.png 를 2배로 키우고 위에 하늘을 덧대 16:9 로 올린 구도 참고 판"
+    },
+    {
+      "asset_id": "492e5ac7-f809-4a96-ae2a-dd2fc6a696e5",
+      "sha12": "ffff3e9a787c",
+      "label": "타석 배경 v1 — 넓은 구도로 바뀌어(투수가 가까워짐) 안 씀"
+    },
+    {
+      "asset_id": "8d948acf-8cf9-47fc-8629-17fe5f86771d",
+      "sha12": "a203722d1aa6",
+      "label": "타석 배경 v2 (확정) — 옛 망원 구도 유지, 남는 마운드는 tidy_sheet field 가 지움 → godot/art/pixel/field_ext.png"
+    },
+    {
+      "asset_id": "88d7b919-5741-4482-906c-413290ff16e9",
+      "sha12": "7eeab3767bfa",
+      "label": "수비수·주자 16동작 4x4 격자 (12크레딧 한 장) → scripts/sheets.json fielders"
+    },
+    {
+      "asset_id": "20852d3d-4c8d-4c45-9f6a-a8e4e05a23cf",
+      "sha12": "7b7d6c5042a3",
+      "label": "맛보기: 일러스트(도트 아님) 투수 세트 자세, GPT 2.5 Flare 1024px — 그림체 비교용"
+    },
+    {
+      "asset_id": "d5eab669-9e72-49e6-940d-6fefc452a792",
+      "sha12": "e2cc9a98e3d9",
+      "label": "타자 v4 를 1.5배로 부드럽게 키운 크기 참고 판"
+    },
+    {
+      "asset_id": "6d44eb87-1e37-4247-bdda-31964c9da059",
+      "sha12": "24e420cff4d2",
+      "label": "실패: 고해상도 도트 시도 (Nano Banana 2.1) — 크기만 크고 픽셀이 흐릿"
+    },
+    {
+      "asset_id": "f32c7098-80ef-4e63-aef9-1831adb82934",
+      "sha12": "d5893ce0581e",
+      "label": "실패: 고해상도 도트 시도 (GPT 2.5 Sunburst) — 명암이 번지고 검은 얼룩"
+    },
+    {
+      "asset_id": "7d46f7c8-abb3-4c97-9c84-4ec06d256b14",
+      "sha12": "e5b5599f1503",
+      "label": "그림체 비교: 같은 투수를 깔끔한 16비트 도트 · 플랫 카툰 SD · 애니 셀 일러스트로 (GPT 2.5 Flare 2048x1152)"
+    },
+    {
+      "asset_id": "324b9d72-30bc-4fde-b032-92cf37c75f3e",
+      "sha12": "8dbc0ff93128",
+      "label": "16비트 SD 도트 기준 그림 v1: 타자(뒤 시점, 좌타로 나옴 → sd16_base_v1_rh.png 에서 우타로 뒤집음)+투수, 4.5등신"
+    },
+    {
+      "asset_id": "8cea296e-b03f-4105-940d-b52f5ce0c962",
+      "sha12": "7db39a4aece3",
+      "label": "유저가 준 일러스트 타자 참고 그림 (Gemini 생성 표시 있음)"
+    },
+    {
+      "asset_id": "47ee22b2-8b20-4deb-a97e-5512a8fb34c0",
+      "sha12": "cf90cf903bbc",
+      "label": "일러스트 타자 기준 v1: 유저 그림을 로열 블루로·흙·그림자·반짝이·등번호 지움 (GPT 2.5 Flare)"
+    },
+    {
+      "asset_id": "3865a909-b5c0-4581-a89e-0f7c5179d009",
+      "sha12": "a82646ca8b47",
+      "label": "일러스트 투수 기준 v1 (유저 그림 화풍 기준, GPT 2.5 Flare)"
+    },
+    {
+      "asset_id": "e6ba12f3-bad8-4c13-9542-c96928a1439b",
+      "sha12": "0a1ec7bdb8ca",
+      "label": "일러스트 타석 배경 v1 (옛 구도 판 고치기 + 타자 화풍, 2048x1152) — 마운드가 옛 판보다 낮아 비교 합성에서는 마운드·홈플레이트로 맞춰 키움"
+    },
+    {
+      "asset_id": "a5d7e2ab-6d8b-4be1-82d7-4a0c4a269504",
+      "sha12": "0993384dbd9b",
+      "label": "수비수·주자 SD 16동작 4x4 격자 (2.5등신, 높은 카메라, 16비트) → scripts/sheets.json fielders"
     }
   ]
 }

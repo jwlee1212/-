@@ -8,7 +8,9 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build/shots"))
 	# 실제 타석 화면(타격 연습)에서: 준비 → 와인드업 → 공이 오는 중 → 맞는 순간 → 팔로스루
 	get_window().mode = Window.MODE_WINDOWED
-	get_window().size = Vector2i(844, 390)
+	# SHOT_SCALE=3 처럼 주면 폰 해상도(아이폰 3배)로 찍는다 — 화면은 기기 해상도로 그리므로 폰에서 보이는 선명도 그대로
+	var k := maxi(int(OS.get_environment("SHOT_SCALE")), 1)
+	get_window().size = Vector2i(844 * k, 390 * k)
 	await get_tree().process_frame
 	var app: Control = load("res://scenes/batting.tscn").instantiate()
 	app.save_path = "user://shots.save"

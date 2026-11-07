@@ -290,7 +290,7 @@
       "foulAngleDeg": 60
     },
     "presentation": {
-      "_note": "화면 연출·소리. 판정에는 영향 없음. crackPitchSpread: 타이밍이 완벽할수록 타격음이 이만큼 높고 맑아진다. 정타 뒤: 히트스톱 → launchMs 동안 투구 화면에서 공이 튀어 나감 → 타구 중계 화면(실제 시간 × broadcastSpeed 배속) → 플레이가 끝나고 afterPlayHoldMs 뒤 결과. selectMs: 투수가 세트 자세로 기다리며 유저가 스윙 종류를 고르는 시간 (스윙 버튼을 누르면 바로 던진다). batterCardMs: 타석 시작에 왼쪽 아래 타자 자막(오늘·시즌 기록)이 떠 있는 시간 — 첫 공을 던지면 더 일찍 들어간다, batterCardSlideMs: 자막이 미끄러져 나오고 들어가는 시간. batterArtScale: SpriteCook 타자 그림의 화면 배율 (1 = 그림 1칸이 화면 1칸, 1.3333 = 아이폰 3배 화면에서 그림 1칸이 기기 4칸으로 딱 맞음 — 2배 화면에서는 칸 크기가 들쭉날쭉할 수 있다). 컨택 칸 배트가 존 가운데를 지나는 자리는 배율에 맞춰 다시 잡힌다. strideLandAt: 타자가 앞발을 내디뎌 땅을 딛는 때 (공이 날아오는 시간 중 비율, 0~1) — 그 전에 로드 → 스트라이드, 그 뒤에는 발사 자세로 기다린다. 공이 끝나면 타자는 그 자세(휘둘렀으면 팔로스루 마무리, 안 휘둘렀으면 랜딩)로 pitchIntervalMs 동안 멈춰 있다가 batterRecoverMs 동안 준비 자세로 돌아간다. skipAfterMs: 홈런 뒤 이만큼 지나면 화면을 탭해 베이스 도는 장면을 건너뛸 수 있다 (친 탭이 그대로 건너뛰지 않게 조금 기다린다). trailMs·trailDots: 날아오는 공 뒤 잔상 — 이만큼 지난 시간의 자리들을 점 trailDots 개로 흐리게 그린다 (휘는 길이 보이게, 0 이면 끔). movementScaleX·movementScaleY: 화면에서만 변화(break·arc)를 과장하는 배율 (판정·도착점 무관). 화면의 공은 투수 손에서 '지금 향하는 곳'(PitchTrajectory.pointing_at × 배율)으로 원근을 따라 날아오고, 향하는 곳은 손보다 위로 올라가지 않는다 (공이 화면에서 솟아 보이지 않게)",
+      "_note": "화면 연출·소리. 판정에는 영향 없음. crackPitchSpread: 타이밍이 완벽할수록 타격음이 이만큼 높고 맑아진다. 정타 뒤: 히트스톱 → launchMs 동안 투구 화면에서 공이 튀어 나감 → 타구 중계 화면(실제 시간 × broadcastSpeed 배속) → 플레이가 끝나고 afterPlayHoldMs 뒤 결과. selectMs: 투수가 세트 자세로 기다리며 유저가 스윙 종류를 고르는 시간 (스윙 버튼을 누르면 바로 던진다). batterCardMs: 타석 시작에 왼쪽 아래 타자 자막(오늘·시즌 기록)이 떠 있는 시간 — 첫 공을 던지면 더 일찍 들어간다, batterCardSlideMs: 자막이 미끄러져 나오고 들어가는 시간. ballCellPx: 날아오는 도트 공 한 칸의 화면 크기(게임 좌표 px, 1 = 아이폰 기기 3px) — 작을수록 공이 촘촘하고 또렷하다(타자 그림 칸 2px 와 따로, 2026-11-07 유저: 공이 안 보인다). ballMinRadiusPx: 투수 손을 떠난 직후 공의 최소 반지름(px) — 크면 멀리서도 잘 보인다(홈플레이트에서의 크기 = 판정 크기는 그대로). batterArtScale: SpriteCook 타자 그림의 화면 배율 (1 = 그림 1칸이 화면 1칸, 1.3333 = 아이폰 3배 화면에서 그림 1칸이 기기 4칸으로 딱 맞음 — 2배 화면에서는 칸 크기가 들쭉날쭉할 수 있다). 컨택 칸 배트가 존 가운데를 지나는 자리는 배율에 맞춰 다시 잡힌다. strideLandAt: 타자가 앞발을 내디뎌 땅을 딛는 때 (공이 날아오는 시간 중 비율, 0~1) — 그 전에 로드 → 스트라이드, 그 뒤에는 발사 자세로 기다린다. 공이 끝나면 타자는 그 자세(휘둘렀으면 팔로스루 마무리, 안 휘둘렀으면 랜딩)로 pitchIntervalMs 동안 멈춰 있다가 batterRecoverMs 동안 준비 자세로 돌아간다. skipAfterMs: 홈런 뒤 이만큼 지나면 화면을 탭해 베이스 도는 장면을 건너뛸 수 있다 (친 탭이 그대로 건너뛰지 않게 조금 기다린다). trailMs·trailDots: 날아오는 공 뒤 잔상 — 이만큼 지난 시간의 자리들을 점 trailDots 개로 흐리게 그린다 (휘는 길이 보이게, 0 이면 끔). movementScaleX·movementScaleY: 화면에서만 변화(break·arc)를 과장하는 배율 (판정·도착점 무관). 화면의 공은 투수 손에서 '지금 향하는 곳'(PitchTrajectory.pointing_at × 배율)으로 원근을 따라 날아오고, 향하는 곳은 손보다 위로 올라가지 않는다 (공이 화면에서 솟아 보이지 않게)",
       "windupMs": 1250,
       "pitchIntervalMs": 900,
       "resultHoldMs": 1400,
@@ -328,6 +328,8 @@
       "batterCardSlideMs": 280,
       "strideLandAt": 0.45,
       "batterArtScale": 1.3333,
+      "ballCellPx": 1.0,
+      "ballMinRadiusPx": 3.0,
       "batterRecoverMs": 300,
       "skipAfterMs": 700,
       "lobby": {

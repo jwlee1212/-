@@ -135,6 +135,159 @@ def tidy(name, d):
     print(f"{name}: {len(names)}칸 {cw}x{ch} 발 {feet} → {d['png']}")
 
 
+def tidy_still(name, d):
+    """한 장짜리 그림(배경 등): 원본에서 crop 을 잘라 canvas 크기 판의 place 자리에 놓고, patches 로 작은 곳을 덮는다.
+    그림은 줄이거나 늘리지 않는다(칸 그대로). patches: [[원본 판의 [x0, y0, x1, y1], 붙일 [x, y]], ...] — canvas 좌표.
+    판 밖으로 남는 빈 칸은 fill_edges 면 가장자리 열을 되풀이해 채운다."""
+    src = Image.open(os.path.join(ROOT, d["src"])).convert("RGB")
+    piece = src.crop(tuple(d["crop"]))
+    cw, ch = d["canvas"]
+    out = Image.new("RGB", (cw, ch))
+    px, py = d["place"]
+    out.paste(piece, (px, py))
+    if d.get("fill_edges"):
+        for x in range(0, px):
+            out.paste(out.crop((px + (x % 8), 0, px + (x % 8) + 1, ch)), (x, 0))
+        for x in range(px + piece.width, cw):
+            k = px + piece.width - 8 + (x % 8)
+            out.paste(out.crop((k, 0, k + 1, ch)), (x, 0))
+    for (x0, y0, x1, y1), (dx, dy) in d.get("patches", []):
+        out.paste(out.crop((x0, y0, x1, y1)), (dx, dy))
+    if d.get("palette"):
+        a = np.array(out.convert("RGBA"))
+        out = Image.fromarray(reduce_colors(a, d["palette"])).convert("RGB")
+    out.save(os.path.join(ROOT, d["png"]))
+    out.resize((cw * 3, ch * 3), Image.NEAREST).save(os.path.join(ROOT, "godot", "build", f"{name}_preview.png"))
+    print(f"{name}: {cw}x{ch} → {d['png']}")
+
+
+def reduce_colors(a, n):
+    """잡점 줄이기 (2026-11-07 유저: 도트로 확정, 잡점 줄이기): 칠한 칸의 색을 n 개로 줄이고(섞어 찍기 없음),
+    상하좌우 네 칸이 모두 같은 색인데 가운데만 다른 외톨이 점을 그 색으로 메운다. 투명 칸은 그대로."""
+    # 투명 칸(검게 저장됨)이 색 계산에 끼면 작은 갈색 같은 색이 검게 끌려간다 → 칠한 칸의 색 하나로 채운 뒤 줄인다
+    solid0 = a[:, :, 3] > 0
+    src = a[:, :, :3].copy()
+    if solid0.any():
+        src[~solid0] = src[solid0][0]
+    rgb = Image.fromarray(src)
+    q = np.array(rgb.quantize(colors=n, method=Image.Quantize.FASTOCTREE, kmeans=3, dither=Image.Dither.NONE).convert("RGB"))  # 옥트리: 작은 면의 색(갈색 글러브)도 지킨다
+    out = a.copy()
+    out[:, :, :3] = q
+    solid = a[:, :, 3] > 0
+    up, dn, lf, rt = q[:-2, 1:-1], q[2:, 1:-1], q[1:-1, :-2], q[1:-1, 2:]
+    s4 = solid[:-2, 1:-1] & solid[2:, 1:-1] & solid[1:-1, :-2] & solid[1:-1, 2:] & solid[1:-1, 1:-1]
+    same = (up == dn).all(-1) & (up == lf).all(-1) & (up == rt).all(-1)
+    lone = same & ~(q[1:-1, 1:-1] == up).all(-1) & s4
+    inner = out[1:-1, 1:-1]
+    inner[lone, :3] = up[lone]
+    return out
+
+
+def recolor_team(a, hue_to):
+    """팀 색 바꾸기: 파랑 계열(색상 190~260도, 채도 0.3 이상) 칸만 색상을 hue_to 로 돌린다. 밝기·채도는 그대로.
+    (셰이더로 하려던 팀 색 바꾸기를 미리 구워 둔다 — 그림의 다른 색은 건드리지 않는다)"""
+    import colorsys
+    out = a.copy()
+    h, w = a.shape[:2]
+    for y in range(h):
+        for x in range(w):
+            r, g, b, al = a[y, x]
+            if al == 0:
+                continue
+            hh, ll, ss = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+            if 190 / 360 <= hh <= 260 / 360 and ss >= 0.3:
+                rr, gg, bb = colorsys.hls_to_rgb(hue_to / 360, ll, ss)
+                out[y, x, :3] = (round(rr * 255), round(gg * 255), round(bb * 255))
+    return out
+
+
+def tidy_grid(name, d):
+    """격자 한 장(cols×rows, 칸마다 따로 그린 동작)을 한 줄 시트로: 칸마다 발 자리(바닥 줄·바닥 띠의 가운데)를 맞춰
+    모든 칸을 같은 크기·같은 발 자리로 놓는다. variants 의 k 마다 1/k 로 줄인 판(box, 반투명 없음)도 쓴다 — 멀리 있는 선수용.
+    them 이 있으면 팀 색을 바꾼 판(*_them)도 쓴다."""
+    src = np.array(Image.open(os.path.join(ROOT, d["src"])).convert("RGBA"))
+    cols, rows = d["cols"], d["rows"]
+    gw, gh = src.shape[1] // cols, src.shape[0] // rows
+    figs = []
+    for j in range(rows):
+        for i in range(cols):
+            f = src[j * gh:(j + 1) * gh, i * gw:(i + 1) * gw].copy()
+            if d.get("drop_small"):
+                keep = drop_small(f[:, :, 3] > 0, d["drop_small"])
+                f[~keep] = 0
+            al = f[:, :, 3] > 0
+            ys, xs = np.nonzero(al)
+            bottom = int(ys.max())
+            if d.get("anchor") == "centroid":
+                # 칸이 바뀌어도 몸이 옆으로 밀려 보이지 않게 가로 기준점 = 칠한 칸 전체의 무게중심 (2026-11-07 유저)
+                fx = int(round(xs.mean()))
+            else:
+                band = al[max(bottom - d.get("foot_rows", 3) + 1, 0):bottom + 1]
+                bx = np.nonzero(band.any(0))[0]
+                fx = int(round((bx.min() + bx.max()) / 2))
+            figs.append((f, fx, bottom + 1, xs.min(), xs.max(), ys.min()))
+    left = max(fx - x0 for _, fx, _, x0, _, _ in figs)
+    right = max(x1 + 1 - fx for _, fx, _, _, x1, _ in figs)
+    up = max(fb - y0 for _, _, fb, _, _, y0 in figs)
+    m = 1
+    for k in d.get("variants", [1]):
+        m = m * k // __import__("math").gcd(m, k)
+    # 발 자리·칸 크기를 m(줄인 판 배율들의 최소공배수)의 배수로 — 줄인 판에서도 발 자리가 정수 칸이다
+    fx0 = int(-(-left // m) * m)
+    cw = int(-(-(fx0 + right) // m) * m)
+    ch = int(-(-up // m) * m)
+    feet = (fx0, ch)
+    names = d["names"]
+    sheet = np.zeros((ch, cw * len(names), 4), np.uint8)
+    for n, (f, fx, fb, *_ ) in enumerate(figs[:len(names)]):
+        ox = n * cw + feet[0] - fx
+        oy = feet[1] - fb
+        for y in range(f.shape[0]):
+            ty = y + oy
+            if not 0 <= ty < ch:
+                continue
+            for x in range(f.shape[1]):
+                tx = x + ox
+                if f[y, x, 3] and n * cw <= tx < (n + 1) * cw:
+                    sheet[ty, tx] = f[y, x]
+    if d.get("palette"):
+        sheet = reduce_colors(sheet, d["palette"])
+    base = os.path.join(ROOT, d["png"])
+    stem = base[:-4]
+    sheets = {"": sheet}
+    if d.get("them"):
+        sheets["_them"] = recolor_team(sheet, d["them"])
+    for suffix, sh in sheets.items():
+        for k in d.get("variants", [1]):
+            im = Image.fromarray(sh)
+            if k > 1:
+                im = im.resize((im.width // k, im.height // k), Image.BOX)
+                a = np.array(im)
+                a[:, :, 3] = np.where(a[:, :, 3] >= 110, 255, 0)
+                im = Image.fromarray(a)
+            im.save(f"{stem}{suffix}{'' if k == 1 else '_s%d' % k}.png")
+    order = ", ".join(f'"{nm}": {j}' for j, nm in enumerate(names))
+    meta = (
+        f"class_name {d['class']}\n"
+        f"## scripts/tidy_sheet.py {name} 가 만든다 (정의 scripts/sheets.json). 손으로 고치지 않는다.\n"
+        f"## {d['png']} (+ 팀 색 바꾼 *_them, 1/k 로 줄인 *_sK) 의 칸 정보. 원본: {d['src']} (SpriteCook {d.get('asset_id', '?')})\n"
+        f"const CELL := Vector2({cw}, {ch})\n"
+        f"const FEET := Vector2({feet[0]}, {feet[1]})\n"
+        f"const FRAMES := {{{order}}}\n"
+        f"## 줄인 판의 배율 (1/k). 칸 크기·발 자리는 k 로 나누면 정수다\n"
+        f"const VARIANTS := {d.get('variants', [1])}\n"
+        f"## 경기장 도트 1칸에 이 그림 몇 칸 (화면 배율 = PixelArt.unit / DENSITY)\n"
+        f"const DENSITY := {int(d.get('density', 1))}\n"
+    )
+    with open(os.path.join(ROOT, d["meta"]), "w", encoding="utf-8") as f:
+        f.write(meta)
+    prev = Image.new("RGBA", (sheet.shape[1], ch * len(sheets)), (120, 170, 110, 255))
+    for r, sh in enumerate(sheets.values()):
+        prev.alpha_composite(Image.fromarray(sh), (0, r * ch))
+    prev.resize((prev.width * 3, prev.height * 3), Image.NEAREST).save(os.path.join(ROOT, "godot", "build", f"{name}_preview.png"))
+    print(f"{name}: {len(names)}칸 {cw}x{ch} 발 {feet} 판 {list(sheets)} × {d.get('variants', [1])} → {d['png']}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("names", nargs="*")
@@ -146,7 +299,12 @@ def main():
     if not names:
         sys.exit("시트 이름을 주거나 --all: " + ", ".join(defs))
     for nm in names:
-        tidy(nm, defs[nm])
+        if defs[nm].get("kind") == "still":
+            tidy_still(nm, defs[nm])
+        elif defs[nm].get("kind") == "grid":
+            tidy_grid(nm, defs[nm])
+        else:
+            tidy(nm, defs[nm])
 
 
 if __name__ == "__main__":

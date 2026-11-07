@@ -9,7 +9,9 @@ const AT := [0.25, 0.6, 0.85, 0.97, 1.08]
 
 func _ready() -> void:
 	get_window().mode = Window.MODE_WINDOWED
-	get_window().size = Vector2i(844, 390)
+	# SHOT_SCALE=3 이면 폰 해상도로 찍는다
+	var k := maxi(int(OS.get_environment("SHOT_SCALE")), 1)
+	get_window().size = Vector2i(844 * k, 390 * k)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build/shots"))
 	var app: Control = load("res://scenes/batting.tscn").instantiate()
 	app.save_path = "user://shots.save"
