@@ -149,6 +149,7 @@ func _init() -> void:
 		"test_base_running_rates",
 		"test_fielder_steps_on_near_base",
 		"test_six_four_three_double_play",
+		"test_broadcast_poses",
 		"test_no_pointless_throws",
 		"test_force_outs_and_cover",
 		"test_relay_play",
@@ -3134,6 +3135,73 @@ func test_fielder_steps_on_near_base() -> void:
 	var far := _sim(130, -5, -30)
 	var res2 := PlaySimulator.new(p, far, 4, [1, -1, -1], func(_x: int) -> int: return 50, 0, _rng(1)).run()
 	check(not res2.throws.is_empty() and not res2.throws[0].carry, "멀리서 잡으면 송구")
+
+
+func test_broadcast_poses() -> void:
+	# 중계 화면 상황 동작 (2026-11-07): 판정에 쓴 시각에 맞는 칸을 고른다
+	var p := _config.ball_physics
+	var cam := BroadcastView.Cam.new(Rect2(0, 0, 844, 390), p.center_fence, p.line_fence, p.fence_height)
+	var dp: PlaySimulator.PlayResult = null
+	var dp_ball: BattedBallSim.Result = null
+	for ev in [120, 135, 150]:
+		for spray in range(-24, -3, 2):
+			var ball := BattedBallSim.simulate(p, ev, -8, spray, 50, false, true)
+			if ball.fielder != "SS" or ball.caught:
+				continue
+			var play := PlaySimulator.new(p, ball, 4, [1, -1, -1], func(_x: int) -> int: return 50, 0, _rng(3)).run()
+			if play.double_play and dp == null:
+				dp = play
+				dp_ball = ball
+	check(dp != null, "병살 플레이가 있다")
+	if dp == null:
+		return
+	var pos := BattedBallSim.fielder_positions(p, false, dp_ball.dp_depth)
+	var cover := BroadcastView._cover_assignments(dp)
+	var pose := func(name: String, t: float) -> String:
+		return BroadcastView._fielder_pose(name, pos, p, dp_ball, dp, cover, t, cam)[0]
+	check(pose.call("SS", dp_ball.fielder_arrive) == "grounder", "유격수가 땅볼을 잡는 순간 낮게 잡기 (%s)" % pose.call("SS", dp_ball.fielder_arrive))
+	check(pose.call("SS", float(dp.throws[0].release)) == "throw", "유격수가 2루로 던지는 순간 송구")
+	check(pose.call("2B", float(dp.throws[1].release)) == "throw", "2루수가 피벗해 1루로 던지는 순간 송구")
+	check(pose.call("CF", float(dp.throws[0].release)) == "", "상관없는 수비수는 움직임대로")
+	check(pose.call("SS", 0.0) == "", "공이 오기 전에는 움직임대로")
+	# 1루 주자가 2루 포스 아웃 판정 때 슬라이딩
+	var call2: Dictionary = dp.calls[0]
+	var runner: RunnerAI = null
+	for rr in dp.runners:
+		if rr.origin == 1:
+			runner = rr
+	check(runner != null, "1루 주자")
+	if runner != null:
+		check(BroadcastView._runner_pose(cam, dp, runner, float(call2.t), Vector2(5, 0))[0] == "slide", "2루에서 슬라이딩")
+	for rr in dp.runners:
+		if rr.origin == 0:
+			check(BroadcastView._runner_pose(cam, dp, rr, float(dp.calls[1].t), Vector2(5, 0))[0] != "slide", "1루는 달려 지나간다 (슬라이딩 없음)")
+	# 잡고 있는 공은 숨긴다: 잡은 뒤 ~ 송구 전은 숨김, 송구가 날아가는 동안은 보임
+	var t0 := float(dp.throws[0].release)
+	check(BroadcastView._ball_held(dp_ball, dp, (dp_ball.duration() + t0) / 2.0), "잡은 뒤 송구 전에는 공을 숨긴다")
+	check(not BroadcastView._ball_held(dp_ball, dp, (t0 + float(dp.throws[0].arrive)) / 2.0), "송구가 날아가는 동안은 공이 보인다")
+	check(not BroadcastView._ball_held(dp_ball, dp, dp_ball.duration() * 0.5), "굴러가는 공은 보인다")
+	# 다이빙: 같은 타구면 늘 같고, 범위 안 타구의 일부만 다이빙한다
+	var dives := 0
+	var in_range := 0
+	for ev in range(90, 171, 8):
+		for la in [-5, 8, 18, 30]:
+			for spray in range(-40, 41, 8):
+				var b := BattedBallSim.simulate(p, ev, la, spray, 50)
+				if b.home_run or b.fielder == "":
+					continue
+				var run := b.fielder_from.distance_to(b.fielder_to)
+				if run >= BroadcastView.DIVE_MIN_M and run <= BroadcastView.DIVE_MAX_M:
+					in_range += 1
+					if BroadcastView._dives(b):
+						dives += 1
+				check(BroadcastView._dives(b) == BroadcastView._dives(b), "같은 타구 같은 다이빙")
+	check(in_range > 10 and dives > 0 and dives < in_range, "범위 안 타구 %d개 중 %d개만 다이빙" % [in_range, dives])
+	# 뜬공 잡기
+	var fly := BattedBallSim.simulate(p, 140, 35, 0, 50)
+	if fly.caught:
+		var fpos := BattedBallSim.fielder_positions(p, false)
+		check(BroadcastView._fielder_pose(fly.fielder, fpos, p, fly, null, {}, fly.fielder_arrive, cam)[0] in ["fly", "dive"], "뜬공을 잡는 순간 글러브를 든다")
 
 
 func test_six_four_three_double_play() -> void:

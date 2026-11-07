@@ -217,7 +217,7 @@ const BALL_PERSPECTIVE := 4.0
 
 func _ball_radius(s: float) -> float:
 	var t := (-0.25 + sqrt(0.0625 + 3.0 * clampf(s, 0.0, 1.0))) / 1.5  # _ball 의 s = 0.25t + 0.75t² 를 거꾸로 — 거리 진행률
-	return maxf(_zone_half.x * session.config.zone_ball_radius / (1.0 + BALL_PERSPECTIVE * (1.0 - t)), 1.5)
+	return maxf(_zone_half.x * session.config.zone_ball_radius / (1.0 + BALL_PERSPECTIVE * (1.0 - t)), session.presentation.ball_min_radius_px)
 
 
 # ---------- 사람 ----------
@@ -245,6 +245,11 @@ func _batter_scale() -> float:
 	if _batter.density > 1:
 		return PixelArt.unit(size) / _batter.density * session.presentation.batter_art_scale
 	return PixelArt.unit(size)
+
+
+## 도트 공의 칸 크기 (화면 px). 처음엔 타자 그림 한 칸(2px)과 같았는데 공이 덩어리져 안 보여서(2026-11-07 유저) 따로 촘촘하게 — balance.json ballCellPx
+func _ball_cell() -> float:
+	return session.presentation.ball_cell_px
 
 
 ## 공이 출발하는 손 자리 (발 기준, 경기장 도트 단위). SpriteCook 투수 시트(pitcher_ext, scripts/tidy_sheet.py pitcher)가 있으면
@@ -376,7 +381,7 @@ func _draw_pixel_defense() -> void:
 		var feet := _field_to_screen(p)
 		# 사람 키 1.8m 의 화면 높이 → 그림 8칸에 맞는 정수 배율 (SD 라 1.3배 크게)
 		var tall := 1.3 * 1.8 * FIELD_F / (p.y + FIELD_C)
-		PixelArt.draw_fielder_screen(self, feet, person[1], clampf(round(tall / PixelMeta.FIELDER_CELL.y), 1.0, 4.0))
+		PixelArt.draw_fielder_screen(self, feet, person[1], clampf(round(tall / PixelMeta.FIELDER_CELL.y), 1.0, 4.0), "lead" if person[1] else "ready")
 
 
 ## 도트 시험판: 포수 뒷모습. 홈플레이트 뒤에 쪼그려 앉아 헬멧 꼭대기가 존 아래 아홉 칸에 온다 (어깨까지만 보인다) (아래는 화면 밖)
@@ -423,10 +428,7 @@ func _draw_ball_in_flight() -> void:
 		var b := _ball(p, now)
 		var pos := Vector2(b.x, b.y)
 		var r := _ball_radius(b.z)
-		# 구종이 드러나면 테두리가 구종 색이 되고, 직구가 아니면 공도 그 색으로 물든다
-		var revealed := p.is_revealed_at(progress)
-		var type_color := _pitch_color(p.type)
-		var offspeed := revealed and p.type != "four_seam"
+		# 공 색은 구종과 상관없이 늘 같다 (2026-11-07 유저: 구종마다 색 차이를 없앤다 — 휘는 모양으로만 읽는다)
 		# 잔상: 지난 자리들을 흐리게 — 휘는 길이 눈에 보인다 (궤적이 시간만의 함수라 지난 자리를 그대로 다시 구한다)
 		var dots := pres.trail_dots
 		for i in range(dots, 0, -1):
@@ -435,10 +437,10 @@ func _draw_ball_in_flight() -> void:
 				continue
 			var tb := _ball(p, t_ms)
 			var fade := 1.0 - float(i) / (dots + 1)
-			draw_circle(Vector2(tb.x, tb.y), _ball_radius(tb.z) * (0.45 + 0.45 * fade), Color(type_color if offspeed else Tokens.CHALK, 0.45 * fade), true, -1.0, true)
-		draw_circle(pos + Vector2(r * 0.3, r * 0.5), r, Tokens.SHADOW, true, -1.0, true)
-		draw_circle(pos, r, type_color if offspeed else Tokens.CHALK, true, -1.0, true)
-		draw_circle(pos, r, type_color if revealed else Tokens.INK, false, 1.5, true)
+			PixelBall.draw(self, Vector2(tb.x, tb.y), _ball_radius(tb.z) * (0.45 + 0.45 * fade), _ball_cell(), Tokens.CHALK, Tokens.CHALK, 0.45 * fade)
+		# 도트 공 (PixelBall): 칸 크기는 타자 그림과 같다. 그림자도 같은 도트 원
+		PixelBall.draw(self, pos + Vector2(r * 0.3, r * 0.5), r, _ball_cell(), Tokens.SHADOW, Tokens.SHADOW)
+		PixelBall.draw(self, pos, r, _ball_cell(), Tokens.CHALK, Tokens.INK)
 	# 미트에 꽂힌 순간 작은 링
 	if session.mitt_played and progress < 1.0 + MITT_RING_MS / p.flight_ms:
 		var end := _ball(p, p.flight_ms)
@@ -468,10 +470,6 @@ func _draw_hit_launch(canvas: CanvasItem) -> void:
 	_draw_burst(canvas, hit_pos, e, c.quality, session.impact != null and session.impact.home_run)
 
 
-func _pitch_color(type: String) -> Color:
-	return Tokens.PITCH_COLORS.get(type, Tokens.PRIMARY)
-
-
 # ---------- 연출 ----------
 
 ## 맞은 공이 from 에서 to 로 날아가며 작아진다. 꼬리를 그린다
@@ -482,9 +480,8 @@ func _draw_launched_ball(canvas: CanvasItem, from: Vector2, to: Vector2, t: floa
 		return start_radius * (1.0 - 0.75 * tt)
 	for k in range(1, 7):
 		var tt := maxf(t - k * 0.025, 0.0)
-		canvas.draw_circle(at.call(tt), radius.call(tt) * (1.0 - k * 0.08), Color(Tokens.CHALK, 0.55 - k * 0.08), true, -1.0, true)
-	canvas.draw_circle(at.call(t), radius.call(t), Tokens.CHALK, true, -1.0, true)
-	canvas.draw_circle(at.call(t), radius.call(t), Tokens.INK, false, 1.0, true)
+		PixelBall.draw(canvas, at.call(tt), radius.call(tt) * (1.0 - k * 0.08), _ball_cell(), Tokens.CHALK, Tokens.CHALK, 0.55 - k * 0.08)
+	PixelBall.draw(canvas, at.call(t), radius.call(t), _ball_cell(), Tokens.CHALK, Tokens.INK)
 
 
 ## 타격 이펙트: 맞은 자리에서 터지는 만화식 별. 맞은 질에 따라 급이 다르다 —

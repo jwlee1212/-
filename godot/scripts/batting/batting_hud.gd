@@ -166,7 +166,8 @@ func _refresh_speed() -> void:
 	# 구종은 선구안 시점이 지나야, 구속은 공이 지나간 뒤에
 	var revealed := p.is_revealed_at(progress)
 	_speed.type_label = p.label if revealed else ""
-	_speed.type_color = Tokens.PITCH_COLORS.get(p.type, Tokens.HUD_TEXT) if revealed else Tokens.HUD_BORDER
+	# 구종마다 색을 다르게 하지 않는다 (2026-11-07 유저) — 구종이 드러나면 띠가 켜지기만 한다
+	_speed.type_color = Tokens.PRIMARY if revealed else Tokens.HUD_BORDER
 	_speed.speed = str(p.speed_kmh) if progress >= 1.0 else ""
 
 
