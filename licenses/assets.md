@@ -34,6 +34,8 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 | `godot/art/pixel/*.png` (경기장·타자·투수·포수·미트·수비 화면 선수) | 이 저장소의 `scripts/make_pixel_art.py` 가 코드로 찍어 만든 그림 (AI 생성 아님, 외부 에셋 없음) | 가능 (자체 제작) |
 | `godot/art/pixel/training.png` (훈련 장면 5개: 티 배팅 · 헬스장 스쿼트 · 피칭머신 선구안 · 트랙 달리기 · 침대에서 잠, 2026-11-01) | 이 저장소의 `scripts/make_training_art.py` 가 코드로 찍어 만든 그림 (AI 생성 아님, 외부 에셋 없음) | 가능 (자체 제작) |
 | `docs/refs/cutscene/*.png` (컷신 장면·인물 기준 그림 원본) → `godot/art/pixel/stills/*.png` (`scripts/import_cutscene_stills.py` 로 줄이고 색을 정리한 컷신 판, 2026-11-05) | 유저가 **Google Gemini** 로 생성 (프롬프트: `docs/scenario/cutscene-gemini-prompts.md`). 생성 도구 표시(반짝이)는 가공 때 지운다 | **확인 대기** — Gemini 이용 약관의 상업 이용 허용 여부를 유저가 확인한 뒤 적는다. 확인 전에는 출시 빌드에 넣지 않는다 |
+| `godot/art/pixel/batter_ext.png`, `pitcher_ext.png` (인게임 타자 풀스윙·투수 투구, 2026-11-07 인게임 갈아엎기) ← 원본 `docs/refs/sprites/*.png` | **SpriteCook** (Claude 가 SpriteCook MCP 로 생성: 기준 그림 Nano Banana 2.1, 애니메이션 Pixel Engine v1.5). 타자 시점은 유저가 준 참고 그림(`docs/refs/sprites/user_batter_view_ref.webp`)을 고쳐 그렸다. `scripts/tidy_sheet.py` 가 칸 정리만 한다(색·윤곽 그대로). asset_id 는 `spritecook-assets.json` | **확인 대기** — SpriteCook 요금제(Apprentice)의 상업 이용 조건을 유저가 확인한 뒤 적는다. 확인 전에는 출시 빌드에 넣지 않는다 |
+| `docs/refs/batter/*` (옛 시험: SpriteCook 옆 시점 스윙·도트 변환 미리보기) | SpriteCook (유저가 웹에서 생성) | 확인 대기 — 게임에는 안 들어간다 |
 | `godot/art/pixel/cutscene.png`, `cutscene_bg.png` (컷신: 덕아웃·얼굴 클로즈업·타석·1루 가는 길·1루 베이스·하늘·운동장 전체 판, 감독·덕아웃 실루엣·김성호 얼굴·타격·달리기·날아가는 헬멧·발·미트·루심·먼 인물 칸, 2026-11-05) | 이 저장소의 `scripts/make_cutscene_art.py` 가 코드로 찍어 만든 그림 (AI 생성 아님, 외부 에셋 없음) | 가능 (자체 제작) |
 | `godot/art/pixel/minigame.png`, `minigame_bg.png` (입부 체력 테스트: 트랙·웨이트장·신호등 배경, 달리는 나·동기, 스쿼트, 반응 스윙, 신호등, 감독, 출발·결승선, 2026-11-01) | 이 저장소의 `scripts/make_minigame_art.py` 가 코드로 찍어 만든 그림 (AI 생성 아님, 외부 에셋 없음) | 가능 (자체 제작) |
 

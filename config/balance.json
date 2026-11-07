@@ -116,7 +116,7 @@
     "pitch_common": {
       "_note": "모든 구종 공통. decel: 감속 보정(0 이상 1 미만) — 클수록 공이 앞에서 빠르고 홈플레이트 앞에서 느려진다(도착 시각은 그대로). four_seam_flight_ms: 포심이 홈플레이트까지 걸리는 시간 = 모든 구종 비행 시간의 기준 (손맛 패널 '공 비행 시간'이 바꾼다). flight_jitter_ms: 공마다 비행 시간이 ± 이만큼 흔들린다. speed_display_spread: 화면 구속에만 쓴다(판정 무관) — 투수 보정·흔들림으로 비행 시간이 달라진 만큼 구속 숫자를 이 비율만큼만 바꾼다 (1 = 물리 그대로, 흔들림 ±30ms 면 ±11km/h 라 너무 커서 옛 speedDisplay 와 같은 0.4 쯤으로 줄여 보여 준다). location_min·location_max: 투구 위치에 따른 변화폭 배율의 범위 (구종별 location_effect 와 함께, pitch_trajectory.gd)",
       "decel": 0.06,
-      "four_seam_flight_ms": 672,
+      "four_seam_flight_ms": 582,
       "flight_jitter_ms": 30.0,
       "speed_display_spread": 0.4,
       "location_min": 0.5,
@@ -149,7 +149,7 @@
       },
       "power": {
         "name": "강속구형",
-        "speedMs": -37,
+        "speedMs": -31,
         "hand": "R",
         "mix": {
           "four_seam": 1.2,
@@ -170,7 +170,7 @@
       },
       "finesse": {
         "name": "기교파",
-        "speedMs": 26,
+        "speedMs": 23,
         "hand": "R",
         "mix": {
           "four_seam": 0.0,
@@ -272,12 +272,12 @@
     },
     "timing": {
       "inputLatencyMs": 0,
-      "solidWindowMsAt0": 32.5,
-      "solidWindowMsAt100": 54.1,
-      "weakWindowMsAt0": 64.9,
-      "weakWindowMsAt100": 97.4,
-      "foulWindowMsAt0": 111.8,
-      "foulWindowMsAt100": 151.4,
+      "solidWindowMsAt0": 46.8,
+      "solidWindowMsAt100": 77.9,
+      "weakWindowMsAt0": 93.5,
+      "weakWindowMsAt100": 140.3,
+      "foulWindowMsAt0": 161.0,
+      "foulWindowMsAt100": 218.0,
       "outOfZoneWindowFactor": 0.45,
       "outOfZoneEdgeFactor": 0.85,
       "outOfZoneFarDistance": 0.6,
@@ -290,20 +290,20 @@
       "foulAngleDeg": 60
     },
     "presentation": {
-      "_note": "화면 연출·소리. 판정에는 영향 없음. crackPitchSpread: 타이밍이 완벽할수록 타격음이 이만큼 높고 맑아진다. 정타 뒤: 히트스톱 → launchMs 동안 투구 화면에서 공이 튀어 나감 → 타구 중계 화면(실제 시간 × broadcastSpeed 배속) → 플레이가 끝나고 afterPlayHoldMs 뒤 결과. selectMs: 투수가 세트 자세로 기다리며 유저가 스윙 종류를 고르는 시간 (스윙 버튼을 누르면 바로 던진다). batterCardMs: 타석 시작에 왼쪽 아래 타자 자막(오늘·시즌 기록)이 떠 있는 시간 — 첫 공을 던지면 더 일찍 들어간다, batterCardSlideMs: 자막이 미끄러져 나오고 들어가는 시간. strideLandAt: 타자가 앞발을 내디뎌 땅을 딛는 때 (공이 날아오는 시간 중 비율, 0~1) — 그 전에 로드 → 스트라이드, 그 뒤에는 발사 자세로 기다린다. 공이 끝나면 타자는 그 자세(휘둘렀으면 팔로스루 마무리, 안 휘둘렀으면 랜딩)로 pitchIntervalMs 동안 멈춰 있다가 batterRecoverMs 동안 준비 자세로 돌아간다. skipAfterMs: 홈런 뒤 이만큼 지나면 화면을 탭해 베이스 도는 장면을 건너뛸 수 있다 (친 탭이 그대로 건너뛰지 않게 조금 기다린다). trailMs·trailDots: 날아오는 공 뒤 잔상 — 이만큼 지난 시간의 자리들을 점 trailDots 개로 흐리게 그린다 (휘는 길이 보이게, 0 이면 끔). movementScaleX·movementScaleY: 화면에서만 변화(break·arc)를 과장하는 배율 (판정·도착점 무관). 화면의 공은 투수 손에서 '지금 향하는 곳'(PitchTrajectory.pointing_at × 배율)으로 원근을 따라 날아오고, 향하는 곳은 손보다 위로 올라가지 않는다 (공이 화면에서 솟아 보이지 않게)",
+      "_note": "화면 연출·소리. 판정에는 영향 없음. crackPitchSpread: 타이밍이 완벽할수록 타격음이 이만큼 높고 맑아진다. 정타 뒤: 히트스톱 → launchMs 동안 투구 화면에서 공이 튀어 나감 → 타구 중계 화면(실제 시간 × broadcastSpeed 배속) → 플레이가 끝나고 afterPlayHoldMs 뒤 결과. selectMs: 투수가 세트 자세로 기다리며 유저가 스윙 종류를 고르는 시간 (스윙 버튼을 누르면 바로 던진다). batterCardMs: 타석 시작에 왼쪽 아래 타자 자막(오늘·시즌 기록)이 떠 있는 시간 — 첫 공을 던지면 더 일찍 들어간다, batterCardSlideMs: 자막이 미끄러져 나오고 들어가는 시간. batterArtScale: SpriteCook 타자 그림의 화면 배율 (1 = 그림 1칸이 화면 1칸, 1.3333 = 아이폰 3배 화면에서 그림 1칸이 기기 4칸으로 딱 맞음 — 2배 화면에서는 칸 크기가 들쭉날쭉할 수 있다). 컨택 칸 배트가 존 가운데를 지나는 자리는 배율에 맞춰 다시 잡힌다. strideLandAt: 타자가 앞발을 내디뎌 땅을 딛는 때 (공이 날아오는 시간 중 비율, 0~1) — 그 전에 로드 → 스트라이드, 그 뒤에는 발사 자세로 기다린다. 공이 끝나면 타자는 그 자세(휘둘렀으면 팔로스루 마무리, 안 휘둘렀으면 랜딩)로 pitchIntervalMs 동안 멈춰 있다가 batterRecoverMs 동안 준비 자세로 돌아간다. skipAfterMs: 홈런 뒤 이만큼 지나면 화면을 탭해 베이스 도는 장면을 건너뛸 수 있다 (친 탭이 그대로 건너뛰지 않게 조금 기다린다). trailMs·trailDots: 날아오는 공 뒤 잔상 — 이만큼 지난 시간의 자리들을 점 trailDots 개로 흐리게 그린다 (휘는 길이 보이게, 0 이면 끔). movementScaleX·movementScaleY: 화면에서만 변화(break·arc)를 과장하는 배율 (판정·도착점 무관). 화면의 공은 투수 손에서 '지금 향하는 곳'(PitchTrajectory.pointing_at × 배율)으로 원근을 따라 날아오고, 향하는 곳은 손보다 위로 올라가지 않는다 (공이 화면에서 솟아 보이지 않게)",
       "windupMs": 1250,
       "pitchIntervalMs": 900,
       "resultHoldMs": 1400,
       "hitFlightMs": 900,
       "swingMs": 150,
-      "hitStopMs": 100,
+      "hitStopMs": 125,
       "flashMs": 140,
       "burstMs": 320,
       "burstHomeRunMs": 420,
       "shakeMs": 280,
-      "shakeSolidPx": 15.2,
-      "shakeWeakPx": 4.3,
-      "shakeHomeRunPx": 34.9,
+      "shakeSolidPx": 18.2,
+      "shakeWeakPx": 5.2,
+      "shakeHomeRunPx": 41.9,
       "confettiMs": 1800,
       "sfxVolume": 0.9,
       "umpireCall": {
@@ -327,6 +327,7 @@
       "batterCardMs": 2400,
       "batterCardSlideMs": 280,
       "strideLandAt": 0.45,
+      "batterArtScale": 1.3333,
       "batterRecoverMs": 300,
       "skipAfterMs": 700,
       "lobby": {
@@ -1422,7 +1423,16 @@
     "news": {
       "_note": "폰 뉴스 (scripts/phone/news_feed.gd, 문장 틀은 content.json news). 공식 경기가 끝날 때마다 눈에 띄는 일을 기사 후보로 모아 중요한 순서로 한 주에 maxPerWeek 건까지 싣는다 (늘리면 뉴스가 많아지지만 같은 틀이 빨리 반복된다). 매체 단계: 스카우트 관심도 reportScout 이상·유망주 랭킹 reportRank 위 이내·전국대회 경기면 전문 매체(1), dailyScout·dailyRank·전국대회 bigRounds 라운드면 일간 매체(2), 아니면 커뮤니티 게시글(0) — 문턱을 낮추면 일찍 '유명해진' 느낌이 난다. goodGameChance: 2안타 경기가 커뮤니티 글이 될 확률. slumpChance: 이름이 알려진 뒤(매체 1 이상) 무안타·2삼진 경기가 비판 글이 될 확률, hitlessGames 경기 연속 무안타면 반드시. rivalChance: 라이벌이 홈런·3안타를 친 주에 기사가 날 확률 (rivalCooldownWeeks 주 안에는 다시 안 난다). leagueRankNews: 주말리그를 이 순위 안으로 마치면 지역 신문 기사. rankingEveryWeeks: 파워랭킹이 나오는 주기(주). rankedTop: 파워랭킹 기사에서 내 순위를 따로 말하는 순위 안. comments: 기사 한 건 댓글 수 [최소, 최대]. keep: 폰에 남기는 기사 수",
       "maxPerWeek": 2,
-      "tiers": {"reportScout": 20, "reportRank": 10, "dailyScout": 45, "dailyRank": 3, "bigRounds": ["준결승", "결승"]},
+      "tiers": {
+        "reportScout": 20,
+        "reportRank": 10,
+        "dailyScout": 45,
+        "dailyRank": 3,
+        "bigRounds": [
+          "준결승",
+          "결승"
+        ]
+      },
       "goodGameChance": 0.35,
       "slumpChance": 0.5,
       "hitlessGames": 3,
@@ -1431,7 +1441,10 @@
       "leagueRankNews": 3,
       "rankingEveryWeeks": 4,
       "rankedTop": 20,
-      "comments": [3, 5],
+      "comments": [
+        3,
+        5
+      ],
       "keep": 120
     },
     "romance": {
@@ -1925,10 +1938,19 @@
       "groundFumbleChance": 0.03,
       "groundThrowChance": 0.02,
       "flyDropChance": 0.015,
-      "fumbleS": [0.9, 1.6],
-      "wildThrowS": [1.2, 2.2],
+      "fumbleS": [
+        0.9,
+        1.6
+      ],
+      "wildThrowS": [
+        1.2,
+        2.2
+      ],
       "wildThrowRollM": 8,
-      "dropS": [0.7, 1.3]
+      "dropS": [
+        0.7,
+        1.3
+      ]
     }
   }
 }
