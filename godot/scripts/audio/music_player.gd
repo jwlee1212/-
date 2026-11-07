@@ -1,7 +1,8 @@
 class_name MusicPlayer
 extends Node
 ## 배경음악 재생기. 화면이 바뀌면 곡을 바꾸고, 앞 곡은 줄이면서 새 곡을 키운다(크로스페이드).
-## 곡 파일은 scripts/make_bgm.py 가 코드로 합성한 루프 WAV (audio/bgm/<곡 id>.wav). 파일이 없으면 조용히 넘어간다.
+## 곡 파일은 audio/bgm/<곡 id>.ogg — ElevenLabs 원본을 scripts/import_audio.py 가 루프 이음매·크기를 맞춰 압축한 것.
+## OGG 가 없으면 같은 이름 .wav (옛 합성 곡, scripts/make_bgm.py), 둘 다 없으면 조용히 넘어간다.
 ## 곡마다 크기·바꾸는 시간은 balance.json presentation.bgm 에서 읽는다 (Presentation).
 
 const DIR := "res://audio/bgm/"
@@ -26,17 +27,28 @@ func _ready() -> void:
 		add_child(p)
 		_players.append(p)
 	for id in TRACKS:
-		var path := DIR + id + ".wav"
+		var s := load_track(id)
+		if s != null:
+			_streams[id] = s
+
+
+## 곡 하나 읽고 끝 → 처음 루프를 건다 (OGG 먼저, 없으면 WAV). 없으면 null
+static func load_track(id: String) -> AudioStream:
+	for ext in [".ogg", ".wav"]:
+		var path: String = DIR + id + ext
 		if not ResourceLoader.exists(path):
 			continue
 		var s: AudioStream = load(path)
-		if s is AudioStreamWAV:
+		if s is AudioStreamOggVorbis:
+			(s as AudioStreamOggVorbis).loop = true  # 이음매는 import_audio.py 가 맞춰 두었다
+		elif s is AudioStreamWAV:
 			# 루프: 파일의 루프 지점과 상관없이 처음 → 끝을 반복
 			var wav := s as AudioStreamWAV
 			wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
 			wav.loop_begin = 0
 			wav.loop_end = int(round(wav.get_length() * wav.mix_rate))
-		_streams[id] = s
+		return s
+	return null
 
 
 ## 수치 반영 (처음과 손맛 패널 "다시 읽기" 때). 지금 곡 크기도 바로 바꾼다

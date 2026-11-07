@@ -27,8 +27,9 @@ var sfx_volume: float
 ## 배경음악 크기 (곡 id -> 0~1, MusicPlayer.TRACKS) · 곡 바꿀 때 크로스페이드 시간
 var bgm_volumes := {}
 var bgm_fade_ms: float
-## 심판 콜 크기 (0~1, 효과음 크기에 곱한다): 그냥 보낸 스트라이크 · 루킹 삼진 · 헛스윙 삼진
+## 심판 콜 크기 (0~1, 효과음 크기에 곱한다): 그냥 보낸 스트라이크 · 루킹 삼진 · 헛스윙 삼진 · 볼(0 이면 말없이)
 var umpire_strike_volume: float
+var umpire_ball_volume: float
 var umpire_strikeout_looking_volume: float
 var umpire_strikeout_swinging_volume: float
 ## 타이밍이 완벽할수록 타격음이 이만큼 높아진다 (재생 속도 비율)
@@ -89,6 +90,7 @@ static func from_balance(balance: Dictionary) -> Presentation:
 		p.bgm_volumes[id] = BattingConfig.num(s, "bgm." + id)
 	p.bgm_fade_ms = BattingConfig.num(s, "bgm.fadeMs")
 	p.umpire_strike_volume = BattingConfig.num(s, "umpireCall.strike")
+	p.umpire_ball_volume = BattingConfig.num(s, "umpireCall.ball")
 	p.umpire_strikeout_looking_volume = BattingConfig.num(s, "umpireCall.strikeoutLooking")
 	p.umpire_strikeout_swinging_volume = BattingConfig.num(s, "umpireCall.strikeoutSwinging")
 	p.crack_pitch_spread = BattingConfig.num(s, "crackPitchSpread")

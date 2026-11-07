@@ -27,8 +27,8 @@ func _ready() -> void:
 		_next[sfx] = 0
 
 
-## 미리 만들어 둔 소리 파일 (audio/sfx/<소리 이름 소문자>.wav — 관중 함성처럼 실행 중 합성하기엔 무거운 것,
-## scripts/make_bgm.py 가 만든다). 없으면 null 이고 SoundSynth 합성음을 쓴다
+## 미리 만들어 둔 소리 파일 (audio/sfx/<소리 이름 소문자>.wav — 관중 함성(scripts/make_bgm.py)·심판 콜(ElevenLabs →
+## scripts/import_audio.py)처럼 실행 중 합성하기엔 무거운 것). 없으면 null 이고 SoundSynth 합성음을 쓴다
 static func file_stream(sfx: SoundSynth.Sfx) -> AudioStream:
 	var path := "res://audio/sfx/%s.wav" % String(SoundSynth.Sfx.keys()[sfx]).to_lower()
 	return load(path) if ResourceLoader.exists(path) else null

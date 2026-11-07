@@ -307,13 +307,14 @@
       "confettiMs": 1800,
       "sfxVolume": 0.9,
       "umpireCall": {
-        "_note": "심판 콜 크기 0~1 (sfxVolume 에 곱한다). 소리 파일은 scripts/make_bgm.py call 로 코드 합성 (audio/sfx/call_*.wav). 볼·볼넷은 말없이 넘어간다",
+        "_note": "심판 콜 크기 0~1 (sfxVolume 에 곱한다). 소리 파일은 ElevenLabs 원본을 scripts/import_audio.py 로 다듬은 것 (audio/sfx/call_*.wav). ball: 볼·볼넷 때 낮게 \"볼.\" (0 이면 말없이 넘어간다)",
         "strike": 0.7,
+        "ball": 0.45,
         "strikeoutLooking": 1.0,
         "strikeoutSwinging": 0.5
       },
       "bgm": {
-        "_note": "배경음악 크기 0~1 (곡 파일은 scripts/make_bgm.py 로 만든다). game 은 음악 없이 경기장 소리(관중 웅성거림·떼창 응원가) — 타격음·미트 소리를 가리지 않게 작게. fadeMs: 화면이 바뀔 때 앞 곡이 줄고 새 곡이 커지는 시간",
+        "_note": "배경음악 크기 0~1 (곡 파일은 ElevenLabs 원본을 scripts/import_audio.py 로 루프·크기 맞춰 OGG 로 만든다). game 은 음악 없이 경기장 소리(관중 웅성거림) — 타격음·미트 소리를 가리지 않게 작게. fadeMs: 화면이 바뀔 때 앞 곡이 줄고 새 곡이 커지는 시간",
         "lobby": 0.6,
         "home": 0.5,
         "game": 0.4,

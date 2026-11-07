@@ -2,13 +2,13 @@
 
 importer="wav"
 type="AudioStreamWAV"
-uid="uid://ygtr1a2n2a41"
-path="res://.godot/imported/home.wav-ae38e240b350225c2350b214028906b1.sample"
+uid="uid://c1rimyx2ntnv0"
+path="res://.godot/imported/call_ball.wav-514a4b6db76fa338ce49cd38dbab3e32.sample"
 
 [deps]
 
-source_file="res://audio/bgm/home.wav"
-dest_files=["res://.godot/imported/home.wav-ae38e240b350225c2350b214028906b1.sample"]
+source_file="res://audio/sfx/call_ball.wav"
+dest_files=["res://.godot/imported/call_ball.wav-514a4b6db76fa338ce49cd38dbab3e32.sample"]
 
 [params]
 

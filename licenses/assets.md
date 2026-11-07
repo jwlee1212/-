@@ -41,10 +41,17 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 | `godot/art/pixel/cutscene.png`, `cutscene_bg.png` (컷신: 덕아웃·얼굴 클로즈업·타석·1루 가는 길·1루 베이스·하늘·운동장 전체 판, 감독·덕아웃 실루엣·김성호 얼굴·타격·달리기·날아가는 헬멧·발·미트·루심·먼 인물 칸, 2026-11-05) | 이 저장소의 `scripts/make_cutscene_art.py` 가 코드로 찍어 만든 그림 (AI 생성 아님, 외부 에셋 없음) | 가능 (자체 제작) |
 | `godot/art/pixel/minigame.png`, `minigame_bg.png` (입부 체력 테스트: 트랙·웨이트장·신호등 배경, 달리는 나·동기, 스쿼트, 반응 스윙, 신호등, 감독, 출발·결승선, 2026-11-01) | 이 저장소의 `scripts/make_minigame_art.py` 가 코드로 찍어 만든 그림 (AI 생성 아님, 외부 에셋 없음) | 가능 (자체 제작) |
 
+## ElevenLabs 소리 (2026-11-07)
+| 파일 | 출처 | 상업 이용 |
+|---|---|---|
+| `godot/audio/bgm/lobby.ogg` `home.ogg` (배경음악) | ElevenLabs Music (유저가 웹에서 생성, 보컬 없음). 원본 WAV 는 유저 맥(`~/Desktop/audio`)에 두고 `scripts/import_audio.py` 가 루프 이음매·크기만 맞춰 OGG 로 압축 | **확인 대기** — ElevenLabs 무료 플랜 생성물은 상업 이용 불가·출처 표기 필요. 유료 플랜(Starter 이상)에서 만든 것이어야 출시에 쓸 수 있다. 출시 전 플랜·약관 확인 |
+| `godot/audio/bgm/game.ogg` (경기장 웅성거림) | ElevenLabs Sound Effects (유저가 웹에서 생성), 위와 같이 가공 | 확인 대기 (위와 같음) |
+| 심판 콜 `godot/audio/sfx/call_strike.wav` `call_strikeout.wav` `call_ball.wav` | ElevenLabs 음성 (유저가 웹에서 생성, 디자인한 목소리 — 실존 인물 복제 아님), `scripts/import_audio.py` 가 앞 무음만 자르고 크기 맞춤 | 확인 대기 (위와 같음) |
+
 ## 배경음악 (2026-10-31)
 | 파일 | 출처 | 상업 이용 |
 |---|---|---|
-| `godot/audio/bgm/lobby.wav` `home.wav` `game.wav` | 이 저장소의 `scripts/make_bgm.py` 가 사인파·펄스파·톱니파·잡음을 코드로 합성한 곡 (관중 목소리도 톱니파 + 모음 공명 필터로 합성, 녹음 없음) (작곡·합성 모두 자체, AI 생성 아님, 샘플·외부 음원 없음). 기존 곡의 멜로디를 옮기지 않았다 | 가능 (자체 제작) |
+| (옛, 2026-11-07 에 아래 ElevenLabs 곡으로 바뀜) `godot/audio/bgm/lobby.wav` `home.wav` `game.wav` | 이 저장소의 `scripts/make_bgm.py` 가 사인파·펄스파·톱니파·잡음을 코드로 합성한 곡 (관중 목소리도 톱니파 + 모음 공명 필터로 합성, 녹음 없음) (작곡·합성 모두 자체, AI 생성 아님, 샘플·외부 음원 없음). 기존 곡의 멜로디를 옮기지 않았다 | 가능 (자체 제작) |
 | 효과음 (타격음·미트·바람·함성) | `godot/scripts/audio/sound_synth.gd` 가 실행 중에 코드로 합성 (파일 없음, 녹음·AI 생성 아님) | 가능 (자체 제작) |
 | 관중 함성 `godot/audio/sfx/cheer_small.wav` `cheer_big.wav` | `scripts/make_bgm.py` 가 목소리 수십 개(톱니파 + 모음 공명 필터)·휘파람·박수를 코드로 합성 (녹음·AI 생성 아님) | 가능 (자체 제작) |
-| 심판 콜 `godot/audio/sfx/call_strike.wav` `call_strikeout.wav` | `scripts/make_bgm.py` 가 포먼트 합성(성대 펄스 + 공명 4개를 시간에 따라 옮김)으로 만든 목소리 (녹음·TTS·AI 생성 아님) | 가능 (자체 제작) |
+| (옛, 2026-11-07 에 아래 ElevenLabs 콜로 바뀜) 심판 콜 `godot/audio/sfx/call_strike.wav` `call_strikeout.wav` | `scripts/make_bgm.py` 가 포먼트 합성(성대 펄스 + 공명 4개를 시간에 따라 옮김)으로 만든 목소리 (녹음·TTS·AI 생성 아님) | 가능 (자체 제작) |
