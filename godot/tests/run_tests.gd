@@ -4487,7 +4487,7 @@ func test_phone_content() -> void:
 
 
 func test_bgm_tracks() -> void:
-	# 곡 파일 3개가 있고 (scripts/make_bgm.py), 루프로 돌고, 크기 수치가 있다
+	# 곡 파일 3개가 있고 (OGG — scripts/import_audio.py), 루프로 돌고, 크기 수치가 있다
 	var pres := Presentation.from_balance(BalanceLoader.load_balance())
 	var music := MusicPlayer.new()
 	music._ready()
@@ -4495,9 +4495,10 @@ func test_bgm_tracks() -> void:
 		check(music._streams.has(id), "곡 파일 %s" % id)
 		if not music._streams.has(id):
 			continue
-		var wav: AudioStreamWAV = music._streams[id]
-		check(wav.get_length() > 20.0, "%s 길이 %.1f초" % [id, wav.get_length()])
-		check(wav.loop_mode == AudioStreamWAV.LOOP_FORWARD, "%s 루프" % id)
+		var s: AudioStream = music._streams[id]
+		check(s is AudioStreamOggVorbis, "%s 는 압축 OGG" % id)
+		check(s.get_length() > 20.0, "%s 길이 %.1f초" % [id, s.get_length()])
+		check(s is AudioStreamOggVorbis and (s as AudioStreamOggVorbis).loop, "%s 루프" % id)
 		var v: float = pres.bgm_volumes[id]
 		check(v > 0.0 and v <= 1.0, "%s 크기 %.2f" % [id, v])
 	music.free()

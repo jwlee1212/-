@@ -334,7 +334,7 @@ func _after_pitch(o: AtBat.PitchOutcome) -> void:
 		_enter(Phase.WAITING)
 
 
-## 심판 콜: 미트 소리 takeGraceMs 뒤 (공이 꽂히고 잠깐 뒤 외친다). 볼·볼넷은 실제 심판처럼 말없이 넘어간다
+## 심판 콜: 미트 소리 takeGraceMs 뒤 (공이 꽂히고 잠깐 뒤 외친다). 볼·볼넷은 낮고 담담하게 (umpireCall.ball, 0 이면 말없이)
 func _umpire_call(o: AtBat.PitchOutcome) -> void:
 	var strikeout := o.result != null and o.result.outcome == SwingJudge.Outcome.STRIKEOUT
 	if o.call == AtBat.Call.CALLED_STRIKE:
@@ -342,6 +342,9 @@ func _umpire_call(o: AtBat.PitchOutcome) -> void:
 			_sound(SoundSynth.Sfx.CALL_STRIKEOUT, presentation.umpire_strikeout_looking_volume)  # 루킹 삼진 세리머니
 		else:
 			_sound(SoundSynth.Sfx.CALL_STRIKE, presentation.umpire_strike_volume)
+	elif o.call == AtBat.Call.BALL:
+		if presentation.umpire_ball_volume > 0.0:
+			_sound(SoundSynth.Sfx.CALL_BALL, presentation.umpire_ball_volume)
 	elif o.call == AtBat.Call.SWINGING_STRIKE and strikeout:
 		_sound(SoundSynth.Sfx.CALL_STRIKEOUT, presentation.umpire_strikeout_swinging_volume)  # 헛스윙 삼진은 작게
 
