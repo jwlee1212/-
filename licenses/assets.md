@@ -55,3 +55,7 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 | 효과음 (타격음·미트·바람·함성) | `godot/scripts/audio/sound_synth.gd` 가 실행 중에 코드로 합성 (파일 없음, 녹음·AI 생성 아님) | 가능 (자체 제작) |
 | 관중 함성 `godot/audio/sfx/cheer_small.wav` `cheer_big.wav` | `scripts/make_bgm.py` 가 목소리 수십 개(톱니파 + 모음 공명 필터)·휘파람·박수를 코드로 합성 (녹음·AI 생성 아님) | 가능 (자체 제작) |
 | (옛, 2026-11-07 에 아래 ElevenLabs 콜로 바뀜) 심판 콜 `godot/audio/sfx/call_strike.wav` `call_strikeout.wav` | `scripts/make_bgm.py` 가 포먼트 합성(성대 펄스 + 공명 4개를 시간에 따라 옮김)으로 만든 목소리 (녹음·TTS·AI 생성 아님) | 가능 (자체 제작) |
+
+## 주자 전용 방향·헤드퍼스트 시트 (2026-11-10)
+- 원본 `docs/refs/sprites/runners_directions_headfirst_v1.png`, 생성 지시 `runners_directions_headfirst_v1_prompt.md`. 내장 GPT 이미지 생성 도구 사용. 기존 프로젝트 SD 주자 그림을 참고했다.
+- 게임용 `godot/art/pixel/runners_ext*.png`는 `scripts/tidy_sheet.py runners`로 칸 정리·축소·팀 색 변환. 상업 이용 약관의 별도 확인은 대기 상태.

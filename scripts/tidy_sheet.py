@@ -225,7 +225,11 @@ def tidy_grid(name, d):
                 band = al[max(bottom - d.get("foot_rows", 3) + 1, 0):bottom + 1]
                 bx = np.nonzero(band.any(0))[0]
                 fx = int(round((bx.min() + bx.max()) / 2))
-            figs.append((f, fx, bottom + 1, xs.min(), xs.max(), ys.min()))
+            # 명시한 지면 기준점은 달리기 중 뜬 발이나 슬라이딩 팔에 끌려가지 않는다.
+            foot_y = bottom + 1
+            if "anchors" in d:
+                fx, foot_y = d["anchors"][j * cols + i]
+            figs.append((f, fx, foot_y, xs.min(), xs.max(), ys.min()))
     left = max(fx - x0 for _, fx, _, x0, _, _ in figs)
     right = max(x1 + 1 - fx for _, fx, _, _, x1, _ in figs)
     up = max(fb - y0 for _, _, fb, _, _, y0 in figs)
@@ -235,8 +239,10 @@ def tidy_grid(name, d):
     # 발 자리·칸 크기를 m(줄인 판 배율들의 최소공배수)의 배수로 — 줄인 판에서도 발 자리가 정수 칸이다
     fx0 = int(-(-left // m) * m)
     cw = int(-(-(fx0 + right) // m) * m)
-    ch = int(-(-up // m) * m)
-    feet = (fx0, ch)
+    foot_y = int(-(-up // m) * m)
+    below = max(f.shape[0] - fb for f, _, fb, _, _, _ in figs)
+    ch = int(-(-(foot_y + below) // m) * m) if "anchors" in d else foot_y
+    feet = (fx0, foot_y)
     names = d["names"]
     sheet = np.zeros((ch, cw * len(names), 4), np.uint8)
     for n, (f, fx, fb, *_ ) in enumerate(figs[:len(names)]):
@@ -261,7 +267,7 @@ def tidy_grid(name, d):
         for k in d.get("variants", [1]):
             im = Image.fromarray(sh)
             if k > 1:
-                im = im.resize((im.width // k, im.height // k), Image.BOX)
+                im = im.resize((im.width // k, im.height // k), Image.NEAREST if d.get("resample") == "nearest" else Image.BOX)
                 a = np.array(im)
                 a[:, :, 3] = np.where(a[:, :, 3] >= 110, 255, 0)
                 im = Image.fromarray(a)

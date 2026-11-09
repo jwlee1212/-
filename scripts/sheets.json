@@ -169,5 +169,146 @@
     ],
     "palette": 24,
     "anchor": "centroid"
+  },
+  "runners": {
+    "_note": "GPT 주자 24칸. 발·골반 지면점을 수동 지정. 원본 색과 자세 유지.",
+    "kind": "grid",
+    "src": "docs/refs/sprites/runners_directions_headfirst_v1.png",
+    "cols": 4,
+    "rows": 6,
+    "anchors": [
+      [
+        137,
+        244
+      ],
+      [
+        137,
+        244
+      ],
+      [
+        137,
+        244
+      ],
+      [
+        137,
+        244
+      ],
+      [
+        108,
+        232
+      ],
+      [
+        108,
+        232
+      ],
+      [
+        108,
+        232
+      ],
+      [
+        108,
+        232
+      ],
+      [
+        140,
+        225
+      ],
+      [
+        140,
+        225
+      ],
+      [
+        140,
+        225
+      ],
+      [
+        140,
+        225
+      ],
+      [
+        100,
+        218
+      ],
+      [
+        100,
+        218
+      ],
+      [
+        100,
+        218
+      ],
+      [
+        100,
+        218
+      ],
+      [
+        143,
+        217
+      ],
+      [
+        143,
+        217
+      ],
+      [
+        143,
+        217
+      ],
+      [
+        143,
+        217
+      ],
+      [
+        95,
+        202
+      ],
+      [
+        95,
+        202
+      ],
+      [
+        95,
+        202
+      ],
+      [
+        95,
+        202
+      ]
+    ],
+    "variants": [
+      1,
+      4,
+      8
+    ],
+    "resample": "nearest",
+    "them": 355,
+    "png": "godot/art/pixel/runners_ext.png",
+    "meta": "godot/scripts/characters/runners_ext_meta.gd",
+    "class": "RunnersExtMeta",
+    "names": [
+      "away_0",
+      "away_1",
+      "away_2",
+      "away_3",
+      "away_right_0",
+      "away_right_1",
+      "away_right_2",
+      "away_right_3",
+      "away_left_0",
+      "away_left_1",
+      "away_left_2",
+      "away_left_3",
+      "toward_right_0",
+      "toward_right_1",
+      "toward_right_2",
+      "toward_right_3",
+      "toward_left_0",
+      "toward_left_1",
+      "toward_left_2",
+      "toward_left_3",
+      "headfirst_0",
+      "headfirst_1",
+      "headfirst_2",
+      "headfirst_3"
+    ]
   }
 }
