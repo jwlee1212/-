@@ -25,6 +25,8 @@ var save_path := SaveGame.PATH
 const TEST_SAVE := "user://test.save"
 ## 지금 테스트 커리어를 하고 있나
 var test_mode := false
+## 로비 골목에서 내 선수가 서 있을 장소 (마지막에 들어간 곳 — 경기 뒤엔 야구장, 새 주엔 집). 저장하지 않는다
+var lobby_spot := ""
 
 var _source: BalanceSource
 var _screen_root: Control
@@ -124,6 +126,7 @@ func _show_current() -> void:
 ## 경기 뒤 다음 주로 (결과 화면·허브의 [다음 주])
 func next_week() -> void:
 	career.advance_week()
+	lobby_spot = ""  # 새 주 아침은 집 앞에서
 	_show_current()
 
 

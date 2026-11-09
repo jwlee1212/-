@@ -116,6 +116,26 @@ const CUTSCENE_WHO := Color("ffb37a")
 ## 로비: 데모 타석 위에 메뉴를 얹는 오른쪽 판
 const LOBBY_PANEL := Color(BACKGROUND, 0.93)
 const CONFETTI: Array[Color] = [PRIMARY, ACCENT, GOOD, WARN, BAD]
+## 로비 골목 (옆에서 본 동네, 2026-11-09). 골목 그림(street_hs.png)이 오기 전 코드로 임시로 그리는 색:
+## 하늘·먼 건물, 건물 벽 둘(아파트·학교), 창, 차양, 컨테이너 부실, 철망, 보도·차도·차선, 장소 이름표
+const STREET_SKY := Color("bfe3ff")
+const STREET_SKY_LOW := Color("fff1d6")
+const STREET_FAR := Color("d6e2f0")
+const STREET_WALL_A := Color("f2d7b6")
+const STREET_WALL_B := Color("e9e2d2")
+const STREET_ROOF := Color("8a5a44")
+const STREET_WINDOW := Color("7fa7d6")
+const STREET_AWNING := Color("ff8f5a")
+const STREET_CONTAINER := Color("4f8fbf")
+const STREET_FENCE := Color("6f7d8c")
+const STREET_SIDEWALK := Color("d9cfc0")
+const STREET_ROAD := Color("6b6f7a")
+const STREET_ROAD_LINE := Color("f4efe6")
+const STREET_TAG := Color(NAVY, 0.82)
+## 시간대: 경기 뒤 노을 막, 겨울 캠프 눈 막과 눈송이
+const STREET_DUSK := Color(1.0, 0.45, 0.25, 0.28)
+const STREET_SNOW_TINT := Color(0.85, 0.92, 1.0, 0.3)
+const STREET_SNOW := Color(1, 1, 1, 0.9)
 
 const SPACE_XS := 4
 const SPACE_SM := 8
@@ -142,6 +162,9 @@ const RADIUS_BUBBLE := 12
 ## 알림 배지 지름, 허브 알림 띠 너비
 const BADGE_SIZE := 16
 const TOAST_WIDTH := 280
+## 로비 위 고정 카드(다음 경기) 너비, 골목 말풍선 높이
+const LOBBY_CARD_WIDTH := 440
+const STREET_BUBBLE_HEIGHT := 26
 const BUBBLE_MAX_WIDTH := 196
 
 const FONT_CAPTION := 12

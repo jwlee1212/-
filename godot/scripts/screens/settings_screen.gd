@@ -44,9 +44,13 @@ func _ready() -> void:
 	tips.add_child(UiKit.button("다시 보기", _reset_tips, Tokens.PRIMARY, Tokens.FONT_LABEL))
 	col.add_child(tips_card)
 	col.add_child(UiKit.spacer())
-	var back := UiKit.button("‹ 돌아가기", _back, Tokens.INK_SOFT, Tokens.FONT_LABEL)
-	back.size_flags_horizontal = Control.SIZE_SHRINK_END  # 왼쪽 아래는 개발 빌드의 ⚙ 손맛 버튼 자리
-	col.add_child(back)
+	var bottom := UiKit.hbox(Tokens.SPACE_SM)
+	bottom.size_flags_horizontal = Control.SIZE_SHRINK_END  # 왼쪽 아래는 개발 빌드의 ⚙ 손맛 버튼 자리
+	# 커리어 중(홈 ⚙)에 열었으면 타이틀로 나가는 버튼도 (옛 허브 더보기에 있던 것)
+	if _back != Callable(_app, "show_title"):
+		bottom.add_child(UiKit.button("타이틀로", _app.show_title, Tokens.INK_SOFT, Tokens.FONT_LABEL))
+	bottom.add_child(UiKit.button("‹ 돌아가기", _back, Tokens.INK_SOFT, Tokens.FONT_LABEL))
+	col.add_child(bottom)
 	_refresh()
 
 

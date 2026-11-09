@@ -39,6 +39,9 @@ var cutscenes: Dictionary = {}
 var cutscene: Dictionary = {}
 ## 폰 (한 주 문자 수, 답장 기한, 말풍선 연출 시간)
 var phone: Dictionary
+## 로비 골목: 걷기·밀기 수치(balance.json career.street) · 장소 배치(content.json street: hs → StreetMap)
+var street: Dictionary = {}
+var street_maps: Dictionary = {}
 ## 폰 뉴스: 수치(balance.json career.news)와 문장 틀(content.json news)
 var news_cfg: Dictionary
 var news: Dictionary = {}
@@ -124,6 +127,7 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.schedule = car["schedule"]
 	assert(not (c.schedule["slots"] as Array).is_empty(), "balance.json: career.schedule.slots 가 비었다")
 	c.phone = car["phone"]
+	c.street = car.get("street", {})
 	c.news_cfg = car["news"]
 	c.fitness = car["fitness"]
 	c.cutscene = car.get("cutscene", {})
@@ -153,6 +157,9 @@ static func from(balance: Dictionary, content: Dictionary) -> CareerConfig:
 	c.pending_events = content.get("pendingEvents", [])
 	c.coach_lines = content["coachLines"]
 	c.minigames = content.get("minigames", {})
+	for id: String in content.get("street", {}):
+		if not id.begins_with("_"):
+			c.street_maps[id] = content["street"][id]
 	for id: String in content.get("cutscenes", {}):
 		if not id.begins_with("_"):
 			c.cutscenes[id] = content["cutscenes"][id]
