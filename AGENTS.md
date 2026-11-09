@@ -34,7 +34,7 @@
 | **UI**: 모든 화면 (R1 의 게임빌 2013 형식 커리어 메뉴·동네 골목 로비 화면 포함), 디자인 토큰·테마 | `godot/scripts/screens/**`, `godot/scripts/ui/**`, `godot/scripts/batting/batting_view.gd`·`batting_hud.gd`, `docs/02-design.md`, `docs/mockups/**` |
 | **그림을 게임에 넣기**: 칸 정리·메타 만들기·도트 그리기 코드·화면 연결 | `godot/scripts/characters/**` (`*_meta.gd` 포함), `godot/art/**`, `godot/fonts/**`, `scripts/tidy_sheet.py`·`pixelize_sheet.py`·`sheets.json`·`import_cutscene_stills.py`·`make_pixel_art.py`·`make_training_art.py`·`make_minigame_art.py`·`make_cutscene_art.py`·`cutscene_grids.py`·`gemini_mark_alpha.png` |
 | 화면 확인용 스크린샷 도구 | `godot/tests/shots*.gd`·`shots*.tscn` |
-| **그림 생성**: GPT 이미지로 인게임 도트·일러스트·컷신 그림을 뽑는다 (유저와 함께). 프롬프트와 원본을 남긴다 | `docs/refs/sprites/**`, `docs/refs/cutscene/**`, `docs/refs/**` 의 새 파일 |
+| **그림 생성**: GPT 이미지로 인게임 2D SD 캐릭터(2026-11-10~, 사양 `docs/handoff/2026-11-10-sd-characters.md`)·일러스트·컷신 그림을 뽑는다 (유저와 함께). 프롬프트와 원본을 남긴다 | `docs/refs/sprites/**`, `docs/refs/cutscene/**`, `docs/refs/**` 의 새 파일 |
 | 그림·소리 출처 기록 (쓴 도구·상업 이용 여부) | `licenses/assets.md` (맨 아래에 줄 추가만) |
 | **이야기 글**: 이야기 카드·시나리오 초안 (R1 의 프로 2~8년 차 이야기 카드, 돌발 이벤트, 국가대표·FA 장면 등) | `docs/scenario/**` |
 | 뉴스·SNS·어그로 기사 문장 | `scripts/pro_feed_text.py` |
