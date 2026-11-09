@@ -82,8 +82,16 @@ $G --headless --path godot --script res://tests/calibrate_pro.gd # 프로 리그
 3. **밸런스·손맛 수치는 코드에 하드코딩하지 않는다.** 판정 폭·공 속도·확률·연출 시간은 `config/balance.json`에서 읽는다. 원본은 저장소 루트의 그 파일 하나이고, 웹 빌드 때 `godot/data/`로 복사된다.
 4. **시간은 하나의 시계로 잰다.** 타이밍 판정은 `Time.get_ticks_usec()` 기준으로, 공을 놓은 순간과 탭한 순간을 같은 시계로 잰다. 프레임 수로 시간을 세지 않는다 (프레임이 떨어져도 판정은 정확해야 한다).
 5. **디자인은 토큰으로만.** 색·간격·글자 크기·모서리·글꼴은 `godot/scripts/ui/tokens.gd`에서만 가져온다. 화면 코드에 색상값을 직접 쓰지 않는다. 세부 규칙은 `docs/02-design.md`.
-6. **그림체: 인게임 캐릭터는 2D SD, 일러스트는 애니메이션풍.** **인게임 캐릭터를 모두 2D SD 로 바꾼다 (2026-11-10 유저 결정 — 7등신 고해상도 그림을 넣어 보니 그림체가 안 어울린다)**: 타석의 타자·투수·포수, 중계·도루 화면의 수비수·주자, 로비의 내 선수까지 **한 그림체의 2D SD 캐릭터**(2~2.5등신, 밝은 색, 또렷한 윤곽 — 게임빌 프로야구 같은 캐주얼, 단 캐릭터·에셋을 베끼지 않는다)로 그린다. 도트가 아니라 **고해상도 일러스트**로 받아 줄이지 않고 반투명 테두리를 살려 부드러운 필터(`PixelArt.SMOOTH`, 밉맵)로 띄운다 — 도트로 줄였다가 화면에서 4~6배 키우면 깨진다(2026-11-10 확인). 그림은 유저가 GPT 이미지로 뽑는다 (요청 사양 `docs/handoff/2026-11-10-sd-characters.md`, 그림 생성·게임에 넣기는 ChatGPT 담당 — `AGENTS.md` §1). 선명하려면 원본 키가 화면 속 키에 가까워야 한다(아이폰 타석 타자 약 750~1,100 기기 픽셀) — 크게 보이는 캐릭터일수록 한 장에 칸을 적게 뽑는다. 격자 시트는 `scripts/grid_to_strip.py` 가 칸마다 바닥만 맞춰 띠로 만들고, `scripts/tidy_sheet.py` 가 같은 칸 크기로 자르고(칸끼리 상대 위치는 그대로 — 칸마다 따로 맞추면 발이 미끄러진다) 발 자리·이름 칸 순서·`field_height`(경기장 칸으로 잰 키)로 낸 소수 DENSITY 를 메타 `.gd` 로 만든다. 색·윤곽은 바꾸지 않는다. 같은 캐릭터는 하나의 기준 그림에서 뽑아 얼굴·옷·선 굵기를 맞추고, 상대 팀 유니폼은 팀마다 새로 뽑지 않고 게임 안에서 색만 바꾼다(우리 팀 파랑으로 뽑으면 `tidy_sheet.py` 가 파랑 계열만 빨강으로 돌린 판을 만든다). 원본과 쓴 도구는 `docs/refs/sprites/`·`licenses/assets.md` 에 남긴다. 새 SD 그림으로 다 바뀌기 전까지는 지금 그림(타자·투수 7등신 일러스트, SpriteCook·GPT 도트 수비수·주자, 코드 도트 `make_pixel_art.py` — 옛 SD 카툰은 커밋 `809d631`)이 자리를 지킨다. **경기장 배경은 아직 도트** — SD 캐릭터와 어울리는지는 그림이 들어온 뒤 본다. 도트(배경·옛 그림)는 정수 배율·nearest 필터로 띄우고 돌리지 않는다. 공·조준 표시·타격 이펙트·HUD 는 매끈하게 그대로 둔다. 대화 화면의 인물 일러스트·배경(`godot/art/portraits/`, `backgrounds/`)과 로비 일러스트는 애니메이션풍 그대로. **컷신도 도트 (2026-11-05)**: 이야기의 큰 순간은 게임 화면을 쓰지 않고 컷마다 따로 그린 판·인물 칸으로 "애니메이션 영화"처럼 보여 준다(`scripts/make_cutscene_art.py`, 정의는 `content.json` cutscenes, 대본에서 `CUTSCENE <id>`). **컷신 그림 규칙 (2026-11-05 유저 결정 — Claude 가 찍는 인물 그림이 약하다)**: 인물은 **실루엣 위주로**, 얼굴은 그리지 않는다(누구든). 얼굴 외 요소도 자세히 묘사하지 않는다 — 큰 덩어리·윤곽·빛(노을 테두리 등)으로 보여 준다. 장 수는 적어도 된다(컷마다 1~3장, 움직임은 카메라·자리 이동·히트스톱으로). 인물은 **손으로 찍은 글자 격자**(`scripts/cutscene_grids.py`, 도형 조립 금지)로, 컷마다 인물 1~2장. 1학년 EP01~08 과 사이드 스토리(하린·소율 데이트)에 컷신이 하나씩 있다(2026-11-05, 테스트가 얼굴 칸 없음·컷마다 3장 이하·에피소드마다 컷신을 지킨다). **컷신 그림을 외부에서 받는다 (2026-11-05)**: 유저가 Gemini 로 도트 장면 그림을 만들어 준다 (프롬프트 `docs/scenario/cutscene-gemini-prompts.md`, 원본·인물 기준 그림 `docs/refs/cutscene/`). `scripts/import_cutscene_stills.py` 가 생성 표시만 지워 `godot/art/cutscene_stills/` 에 **원본 해상도 그대로** 두고, 컷에 `"still"` 로 쓰면 화면 가운데 TV 틀(둘레 검정·가장자리 녹임·자막은 틀 아래)에 띄운다 — 98칸 판으로 줄이면 화질이 깨진다. 외부 그림 장면에서는 다른 인물 얼굴이 보여도 되지만 주인공 얼굴은 안 보이게 (뒷모습·모자 그늘). Gemini 상업 이용 여부는 확인 대기 (`licenses/assets.md`). 실사 얼굴·사실적(사진 같은) AI 생성 얼굴은 금지. AI로 만든 그림·소리를 넣을 때는 쓴 도구와 그 도구의 상업적 이용 허용 여부를 `licenses/assets.md`에 기록한다. 기록 없는 에셋은 넣지 않는다.
-7. **캐릭터 애니메이션은 그림 시트의 칸을 갈아 끼워 만든다.** 동작을 단계(타자: 스탠스·로드·스트라이드·랜딩·회전·컨택(높이별)·팔로스루·번트, 투수: 준비 → 다리 들기 → 내딛기 → 팔 젖히기 → 공 놓기 → 마무리)로 나눠 한 칸씩 찍고, 진행에 맞춰 바꾼다(`PixelArt.batter_cell`·`pitcher_cell`). 칸 크기·발 자리·순서는 스크립트가 메타 `.gd` 로 만들어 준다(`tidy_sheet.py`, 옛 도트는 `pixel_meta.gd`) — 손으로 고치지 않는다. AI 애니메이션은 같은 기준 그림에서 뽑아야 칸끼리 크기·얼굴이 어긋나지 않는다. 손맛은 장 수가 아니라 히트스톱·흔들림·소리에서 나온다.
+6. **그림체는 하나: 2D SD 고해상도 일러스트. 도트는 버린다 (2026-11-10 유저 결정).** 이유: AI 도구(GPT·Gemini·SpriteCook)는 진짜 도트가 아니라 도트처럼 보이는 그림을 줘서 격자로 줄이면 깨졌다. 화면을 기기 비율에 맞춰 늘리니 정수 배율도 못 지킨다. 참고 게임의 매력도 도트가 아니라 밝은 SD 캐릭터다. 그리고 도트·7등신·애니메이션풍이 섞여 그림체가 따로 놀았다.
+   - **무엇을**: 타석(타자·투수·포수)·중계·도루(수비수·주자)·로비(내 선수)의 캐릭터는 **한 그림체의 2D SD**(2~2.5등신, 밝은 색, 또렷한 윤곽)로 그린다. 경기장 배경·중계 경기장·컷신·훈련·미니게임 장면도 2D 일러스트로 바꿔 간다(순서는 캐릭터 → 경기장 → 나머지). 대화 화면 인물 일러스트·배경(`godot/art/portraits/`, `backgrounds/`)과 로비 일러스트는 애니메이션풍 일러스트 그대로 두되 SD 캐릭터와 어울리게 맞춘다. 게임빌 프로야구 같은 캐주얼이 목표지만 그 게임의 캐릭터·에셋·화면은 베끼지 않는다.
+   - **띄우는 법**: 원본을 줄이지 않고 반투명 테두리를 살려 부드러운 필터(`PixelArt.SMOOTH`, 밉맵)로 띄운다. 선명하려면 원본 키가 화면 속 키에 가까워야 한다(아이폰 타석 타자 약 750~1,100 기기 픽셀). 크게 보이는 그림일수록 한 장에 칸을 적게 뽑는다. 색·윤곽을 바꾸는 변환은 하지 않는다.
+   - **정리는 스크립트로**: 격자 시트는 `scripts/grid_to_strip.py` 가 칸마다 바닥만 맞춰 띠로 만든다. 그다음 `scripts/tidy_sheet.py` 가 같은 칸 크기로 자르고(칸끼리 상대 위치는 그대로 — 칸마다 따로 맞추면 발이 미끄러진다) 발 자리·이름 칸 순서·소수 DENSITY(`field_height` = 경기장 칸으로 잰 키)를 메타 `.gd` 로 만든다.
+   - **맞추기**: 같은 캐릭터는 하나의 기준 그림에서 뽑아 얼굴·옷·선 굵기를 맞춘다. 상대 팀 유니폼은 팀마다 새로 뽑지 않는다. 우리 팀 파랑으로 뽑으면 파랑 계열만 빨강으로 돌린 판을 만든다.
+   - **누가**: 그림은 유저가 GPT 이미지로 뽑는다. 프롬프트·게임에 넣기는 ChatGPT 담당이다(`AGENTS.md` §1, 요청 사양 `docs/handoff/2026-11-10-sd-characters.md`). **Claude 는 코드로 인물·장면을 그리지 않는다** (2026-11-05 유저: Claude 가 찍는 인물 그림이 약하다).
+   - **옛 도트는 새 그림이 생길 때까지만** 자리를 지킨다. 새 도트 그림은 더 만들지 않는다. 남은 도트: 경기장 배경(`field`·`closeup_bg`), 수비수·주자(`fielders`·`runners_ext`), 코드 도트(`make_pixel_art.py` — 포수·미트·1루 클로즈업 등), 컷신(`make_cutscene_art.py`·`cutscene_grids.py`, Gemini 도트 스틸 `godot/art/cutscene_stills/`), 훈련·미니게임(`make_training_art.py`·`make_minigame_art.py`). 바뀌기 전까지는 원래대로 nearest·정수 배율로 띄운다.
+   - **컷신**: 이야기의 큰 순간은 게임 화면을 쓰지 않고 컷마다 그린 그림으로 "애니메이션 영화"처럼 보여 준다(정의는 `content.json` cutscenes, 대본에서 `CUTSCENE <id>`, 그림 한 장 컷은 `"still"` — 원본 해상도 그대로 화면 가운데 TV 틀에 띄운다). 주인공 얼굴은 보이지 않게 한다(뒷모습·모자 그늘). 장 수는 컷마다 1~3장, 움직임은 카메라·자리 이동·히트스톱으로 낸다.
+   - 공·조준 표시·타격 이펙트·HUD 는 매끈하게 그대로 둔다. 실사 얼굴·사진 같은 AI 얼굴은 금지. AI로 만든 그림·소리를 넣을 때는 쓴 도구와 상업 이용 허용 여부를 `licenses/assets.md` 에 기록한다. 기록 없는 에셋은 넣지 않는다 (Gemini·이번 타자·투수 그림 도구는 확인 대기).
+7. **캐릭터 애니메이션은 그림 시트의 칸을 갈아 끼워 만든다.** 동작을 단계(타자: 스탠스·로드·스트라이드·랜딩·회전·컨택(높이별)·팔로스루·번트, 투수: 준비 → 다리 들기 → 내딛기 → 팔 젖히기 → 공 놓기 → 마무리)로 나눠 한 칸씩 찍고, 진행에 맞춰 바꾼다(`PixelArt.batter_cell`·`pitcher_cell`). 칸 크기·발 자리·순서는 스크립트가 메타 `.gd` 로 만들어 준다(`tidy_sheet.py`, 옛 도트는 `pixel_meta.gd`) — 손으로 고치지 않는다. AI 애니메이션은 같은 기준 그림에서 뽑아야 칸끼리 크기·얼굴이 어긋나지 않는다. **부품 조립 애니메이션**(머리·몸·팔·다리·배트를 한 번 그리고 게임 안에서 돌리고 옮김, Godot Skeleton2D)은 후보다 — 칸끼리 안 어긋나고 뽑을 그림이 줄며 스윙 속도를 수치로 조절할 수 있다. 타자 하나로 시험한 뒤 정한다. 손맛은 장 수가 아니라 히트스톱·흔들림·소리에서 나온다.
 8. **테스트가 통과해야 다음 마일스톤으로 간다** (§7).
 
 ## 5. 폴더 구조
@@ -99,7 +107,7 @@ godot/                     Godot 프로젝트
 │  ├─ pitching/            투구: 구종 데이터(pitch_catalog)·궤적(pitch_trajectory — 경과 시간만으로 위치를 내는 순수 함수) (로직)
 │  ├─ audio/               효과음 합성(44.1kHz, 경기장 반사음)·재생, 배경음악 재생(MusicPlayer: 화면별 곡·크로스페이드)
 │  ├─ ui/                  디자인 토큰(tokens) → 앱 Theme(theme_builder: 새 화면은 theme_type_variation 만 붙인다), 노치 여백(safe_area_margin)
-│  ├─ characters/          도트 그림: PixelArt(시트 그리기·칸 고르기·중계 경기장), PixelMeta(make_pixel_art.py 가 만든 칸 정보), TrainingMeta·MinigameMeta(훈련 장면·미니게임 칸 정보), BatterSprite(타자 칸 갈아 끼우기)
+│  ├─ characters/          인게임 그림 (2D SD 일러스트 + 바뀌기 전 옛 도트): PixelArt(시트 그리기·칸 고르기·중계 경기장), PixelMeta(make_pixel_art.py 가 만든 칸 정보), TrainingMeta·MinigameMeta(훈련 장면·미니게임 칸 정보), BatterSprite(타자 칸 갈아 끼우기)
 │  ├─ debug/               손맛 조절 패널(구종 고정 버튼 포함), 테스트 시작(원하는 시점까지 빨리 감기) (개발 빌드 전용)
 │  ├─ career/              커리어: 선수(능력치 다섯: 컨택·파워·선구안·주력·수비)·주간 루프·성장(고교 학년 배율 / 프로 나이 배율)·인물·라이벌·스카우트 평가·기록실·고교 경기 시뮬레이션 HsSim (로직)
 │  ├─ events/              돌발 이벤트·스토리 엔진: 조건·효과·시나리오 변수(event_book) + 대본을 한 걸음씩 읽는 대화 진행(dialogue_run — IF/ELSE 갈래·조건부 선택지·화면 표시 줄) (로직, 정의는 content.json)
@@ -117,7 +125,7 @@ godot/                     Godot 프로젝트
 │  ├─ balance_loader.gd, balance_source.gd   수치 읽기·저장 (맥은 파일, 웹은 개발 서버)
 │  ├─ settings.gd          유저 설정 (주루 설정·본 튜토리얼 팁 — 커리어 저장과 따로 user://settings.json)
 │  └─ main.gd
-├─ art/pixel/              인게임 도트 시트 (field·batter·pitcher·catcher·mitt·fielders·closeup(1루수·타자 주자·루심)·closeup_bg — make_pixel_art.py, training — make_training_art.py, minigame·minigame_bg — make_minigame_art.py, cutscene·cutscene_bg — make_cutscene_art.py). 손으로 고치지 않는다
+├─ art/pixel/              인게임 그림 시트 (고해상도 일러스트 batter_ext·pitcher_ext 는 부드럽게 — 지금은 7등신, SD 로 바뀔 자리. 나머지는 바뀌기 전 옛 도트: field·batter·pitcher·catcher·mitt·fielders·closeup(1루수·타자 주자·루심)·closeup_bg — make_pixel_art.py, training — make_training_art.py, minigame·minigame_bg — make_minigame_art.py, cutscene·cutscene_bg — make_cutscene_art.py). 손으로 고치지 않는다
 ├─ art/portraits/, backgrounds/  대화 화면 일러스트·배경 (파일 목록은 art/README.md, 없으면 자리만 보인다)
 ├─ audio/bgm/              배경음악 루프 OGG 3곡 (lobby·home 은 음악, game 은 음악 없이 관중 웅성거림) — ElevenLabs 원본을 scripts/import_audio.py 가 루프·크기 맞춰 압축 (원본은 저장소 밖)
 ├─ audio/sfx/              미리 만든 효과음 (관중 함성 cheer_small·cheer_big — scripts/make_bgm.py, 심판 콜 call_strike·call_strikeout·call_ball — ElevenLabs → scripts/import_audio.py). 없는 소리는 SoundSynth 가 실행 중에 합성
@@ -129,11 +137,12 @@ scripts/dev_server.py      개발 서버: 웹 빌드 + 원본 balance.json 실�
 scripts/build_scenario.py  시나리오 문서(docs/scenario) → content.json 이야기 이벤트·변수. 문서에 없는 엔진 정보(어느 주·경기 대본 gamePlan·연습 drill·장소)만 이 파일에 적는다
 scripts/make_bgm.py        관중 함성을 코드로 합성 (외부 라이브러리 없음. 옛 합성 곡·콜은 이름을 줘야 만든다)
 scripts/import_audio.py    ElevenLabs 원본 → 배경음악 OGG(루프 이음매·크기)·심판 콜 WAV(앞 무음 자르기). `.venv/bin/python scripts/import_audio.py ~/Desktop/audio`
-scripts/make_minigame_art.py  미니게임 도트(체력 테스트 배경·인물 칸) → godot/art/pixel/minigame*.png + minigame_meta.gd (make_pixel_art.py 의 도구를 쓴다)
+scripts/make_minigame_art.py  (옛 도트, 일러스트로 바뀔 때까지) 미니게임 도트(체력 테스트 배경·인물 칸) → godot/art/pixel/minigame*.png + minigame_meta.gd (make_pixel_art.py 의 도구를 쓴다)
 scripts/import_cutscene_stills.py  외부(Gemini) 컷신 그림 docs/refs/cutscene → godot/art/cutscene_stills (생성 표시만 지우고 원본 해상도)
-scripts/make_cutscene_art.py  컷신 도트(판·인물 칸) → godot/art/pixel/cutscene*.png + cutscene_meta.gd (make_pixel_art.py 의 도구를 쓴다)
-scripts/cutscene_grids.py  컷신 인물 실루엣 격자 (손으로 찍은 글자 판 — 고치면 make_cutscene_art.py 를 다시 실행)
-scripts/tidy_sheet.py      AI 도트 시트 정리 (같은 칸 크기·발 자리·이름 칸 순서 → png + 메타 .gd, 그림은 그대로)
+scripts/make_cutscene_art.py  (옛 도트, 일러스트로 바뀔 때까지) 컷신 도트(판·인물 칸) → godot/art/pixel/cutscene*.png + cutscene_meta.gd (make_pixel_art.py 의 도구를 쓴다)
+scripts/cutscene_grids.py  (옛 도트) 컷신 인물 실루엣 격자 (손으로 찍은 글자 판 — 고치면 make_cutscene_art.py 를 다시 실행)
+scripts/grid_to_strip.py   AI 격자 시트 → 가로 띠 (칸마다 바닥 맞춤, 원본 해상도·반투명 테두리 그대로)
+scripts/tidy_sheet.py      AI 그림 시트 정리 (같은 칸 크기·발 자리·이름 칸 순서·DENSITY → png + 메타 .gd, 그림은 그대로)
 scripts/make_pixel_art.py  옛 인게임 도트 그림 전부(관절 좌표·손으로 찍은 판·팔레트) → godot/art/pixel/ + pixel_meta.gd (pillow 필요). 그림을 고치면 다시 실행
 docs/                      기획·개발 기록
 licenses/                  글꼴 라이선스, assets.md(에셋 출처)
@@ -157,7 +166,7 @@ licenses/                  글꼴 라이선스, assets.md(에셋 출처)
 | G5 | 시즌·성장: 주간 루프, 훈련 배분, 컨디션, 능력치 성장 |
 | G6 | 돌발 이벤트·스토리: 고교 3년 챕터, 라이벌, 진로 선택 (완료·폰 확인 대기) |
 | G7 | 드래프트·프로: 지명, 2군→1군, FA, 군 입대, 은퇴 (2026-11-05: 3학년 이야기·드래프트·KBA 리그·달력과 더쇼식 일정(모든 경기 직접/시뮬레이션·날짜까지)·감독 신뢰로 퓨처스/1군·포스트시즌·시상·연봉·병역(상무·현역·특례)·국가대표(세계야구클래식·올림픽·아시안게임)·FA(메인 엔딩)·나이 곡선·은퇴(은퇴식·역대 기록)·상황 컷신·뉴스·SNS·사이드 스토리) |
-| G8 | 캐주얼 비주얼: 도트로 확정(2026-10-31) → 인게임 갈아엎기(2026-11-07, AI 고해상도 도트) → **인게임 캐릭터 전부 2D SD 고해상도 일러스트 (2026-11-10)**: 유저가 GPT 이미지로 뽑고(사양 `docs/handoff/2026-11-10-sd-characters.md`) ChatGPT 가 넣는다. 경기장 배경은 그림이 들어온 뒤 결정 |
+| G8 | 캐주얼 비주얼: 도트로 확정(2026-10-31) → AI 고해상도 도트(2026-11-07) → **도트를 버리고 2D SD 고해상도 일러스트로 (2026-11-10)**: 캐릭터 → 경기장 배경 → 컷신·훈련·미니게임 순으로 바꾼다. 유저가 GPT 이미지로 뽑고(사양 `docs/handoff/2026-11-10-sd-characters.md`) ChatGPT 가 넣는다. 부품 조립 애니메이션은 타자로 시험 후 결정 |
 | G9 | 세이브(앞당겨 완료)·밸런싱·iOS 앱·출시 준비 |
 | R1 | **루프·UI 개편 (2026-11-09 결정, 미착수)**: 모든 경기 직접(시뮬레이션 삭제)·짧은 경기, 구간 훈련(주간 스케줄 삭제), 경기 결과 성장(나이별), 수비 조작·수비 능력치 삭제, 무조건 지명, 프로 시즌 36/72/144 선택, 게임빌 2013 형식 커리어 UI + 동네 골목 로비, 프로 2~8년 차 이야기 카드·국가대표 직접 플레이·FA 협상·돌발 이벤트 추가 |
 
