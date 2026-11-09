@@ -87,7 +87,7 @@ func after_week(career: CareerState, pro: ProCareer, lines: Array) -> void:
 	# 팀 성적 반응
 	var r := 0
 	for g: Dictionary in pro.week_games:
-		r += int(g["result"])
+		r += int((g.get("team", {}) as Dictionary).get("result", 0))
 	if not pro.week_games.is_empty():
 		made.append(_sns(cfg, rng, pro, "team_win" if r > 0 else "team_loss" if r < 0 else "team_even", base))
 	_push(career, pro, made, int(cfg.pro["feedPerWeek"]))
