@@ -1,0 +1,5 @@
+# 타석 경기장 2D 배경
+
+내장 GPT 이미지 생성 도구 사용. 기존 field_bg_v2.png를 시점과 배치의 참고로 삼았다.
+
+Redraw the attached baseball game background as clean high-resolution 2D cel-painted game art matching the project's SD baseball characters. This is a geometry-locked paintover, preserve the original wide aspect ratio and exact perspective, camera and proportions. Camera immediately behind home plate at catcher height facing center field, home plate centered at bottom edge, mound small and centered about 76% down, bases and infield at their original depth, distant straight spectator stands and central blank scoreboard. Keep exact location and angle of chalk lines, infield grass and brown dirt boundaries, no invented mound or plate. Low straight horizon, sky filling upper half, clear blue daylight and small clouds. Bright pastel stadium, clean smooth forms, limited detail so players and ball read clearly, gentle atmospheric depth. Full-bleed landscape, no black bars, no players, no ball, no logos, no text, no HUD, no pixelation or photorealism.

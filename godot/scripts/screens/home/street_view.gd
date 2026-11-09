@@ -1,19 +1,21 @@
 class_name StreetView
 extends Control
 ## 로비 골목 화면 (2026-11-09 기획서 4-3장): 옆에서 본 동네를 손가락으로 좌우로 밀고, 장소를 누르면
-## 내 선수(도트)가 걸어가 문으로 들어간 뒤 entered(장소 id) 를 보낸다. 장소 배치·걸음은 로직(StreetMap · StreetWalk)이 정한다.
+## 내 선수가 걸어가 문으로 들어간 뒤 entered(장소 id) 를 보낸다. 장소 배치·걸음은 로직(StreetMap · StreetWalk)이 정한다.
 ## 골목 그림(map.art)이 있으면 그 그림을 원본 그대로 깔고, 없으면 건물을 코드로 임시로 그린다 (이름표도 임시 때만).
 ## 시간대(mood): morning 그대로 · dusk 경기 뒤 노을 막 · snow 겨울 캠프 눈 막 + 눈송이.
 ## 방향키(키보드 ←→, 화면 ‹ › 버튼 = hold_dir)로 직접 걸을 수도 있다. 문 앞(interactRange)에 서면 near_changed(장소 id) →
 ## 화면이 [들어가기]를 띄우고, ↑·Space·Enter 나 그 버튼(interact)으로 들어간다.
-## 내 선수는 체력 테스트의 달리는 도트(minigame runner)를 빌려 쓴다 — 걷는 SpriteCook 그림이 오면 바꾼다.
 
 signal entered(place_id: String)
 ## 상호작용할 수 있는 장소가 바뀌었다 ("" = 문 앞이 아니다)
 signal near_changed(place_id: String)
 
-## 빌려 쓰는 도트 칸: 서 있는 장 · 걷는 장들
-const IDLE_FRAME := 6
+## 선수 시트는 대기 1칸과 걷기 4칸이다.
+const PLAYER_ART := preload("res://art/lobby/player.png")
+const HS_FACADES := preload("res://art/lobby/hs_facades.png")
+const HS_ART_PATH := "res://art/backgrounds/street_hs.png"
+const IDLE_FRAME := 0
 const WALK_FRAMES := [1, 2, 3, 4]
 
 var map: StreetMap
@@ -58,6 +60,7 @@ func _init(p_map: StreetMap, cfg: Dictionary, spot: String) -> void:
 
 
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	resized.connect(queue_redraw)
 
 
@@ -209,8 +212,11 @@ func _draw_placeholder() -> void:
 		draw_rect(Rect2(bx, g - 120 - bh, bw - 12, bh + 120), Tokens.STREET_FAR)
 		bx += bw
 		i += 1
-	for p: Dictionary in map.places:
-		_draw_building(p)
+	if map.art == HS_ART_PATH:
+		draw_texture_rect(HS_FACADES, Rect2(0, 0, map.width, map.height), false)
+	else:
+		for p: Dictionary in map.places:
+			_draw_building(p)
 	draw_rect(Rect2(0, g, w, 70), Tokens.STREET_SIDEWALK)
 	draw_rect(Rect2(0, g + 70, w, map.height - g - 70), Tokens.STREET_ROAD)
 	var lx := 0.0
@@ -294,12 +300,8 @@ func _draw_tag(p: Dictionary, s: float) -> void:
 
 ## 내 선수: 발을 보도에 맞춰 정수 배율로. 왼쪽으로 걸으면 좌우만 뒤집는다 (돌리지 않는다)
 func _draw_player(s: float) -> void:
-	var sheet := PixelArt.texture("minigame")
-	if sheet == null:
-		return
-	var info: Array = MinigameMeta.ROWS["runner"]
-	var cell := MinigameMeta.CELL
-	var unit := maxi(1, roundi(size.y * float(_cfg["playerHeight"]) / cell.y))
+	var cell := Vector2(PLAYER_ART.get_width() / 5.0, PLAYER_ART.get_height())
+	var unit := size.y * float(_cfg["playerHeight"]) / cell.y
 	var frame := IDLE_FRAME
 	var alpha := 1.0
 	if _moving:
@@ -310,10 +312,10 @@ func _draw_player(s: float) -> void:
 			frame = WALK_FRAMES[_walk.step_frame(t, WALK_FRAMES.size())]
 		alpha = 1.0 - _walk.door_progress(t)
 	var foot := Vector2(roundf((player_x - cam) * s), roundf(map.ground_y * s + Tokens.SPACE_SM))
-	var src := Rect2(Vector2(frame * cell.x, int(info[0]) * cell.y), cell)
-	var dst := Rect2(-MinigameMeta.FOOT * unit, cell * unit)
+	var src := Rect2(Vector2(frame * cell.x, 0), cell)
+	var dst := Rect2(-Vector2(cell.x * 0.5, cell.y) * unit, cell * unit)
 	draw_set_transform(foot, 0.0, Vector2(facing, 1))
-	draw_texture_rect_region(sheet, dst, src, Color(1, 1, 1, alpha))
+	draw_texture_rect_region(PLAYER_ART, dst, src, Color(1, 1, 1, alpha))
 	draw_set_transform(Vector2.ZERO)
 
 

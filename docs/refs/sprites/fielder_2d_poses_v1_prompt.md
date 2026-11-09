@@ -1,0 +1,9 @@
+# 수비수 2D 자세 시트
+
+내장 이미지 생성 도구 사용. 기존 수비수 비율을 기준으로 9개 자세를 그렸다.
+
+Create exactly nine smooth 2D baseball infielder sprite poses in a 3-column by 3-row equal-cell transparent sprite sheet. Match ONLY the LEFT blue fielder from the reference: identical squat proportions (head and cap half standing height), tiny black eyes, dark navy outlines, cobalt blue cap and sleeves, white uniform, short limbs, brown glove on anatomical LEFT hand, right-handed thrower. Use same slightly elevated broadcast camera and sprite scale. Read left to right:
+Row 1: (1) exact ready stance of reference, feet apart, glove at waist; (2) ground-ball pickup, knees bent low, open glove just above ground between feet; (3) throwing preparation, torso coils, bare RIGHT hand with ball drawn back, glove pointing screen right.
+Row 2: (4) active overhand throw toward screen right, stride planted, bare RIGHT arm extending, glove tucked left, no detached ball; (5) first baseman receiving a throw, one foot anchored and other leg stretched toward incoming throw with LEFT glove extended horizontally chest-high, no base prop; (6) horizontal diving catch to screen right, LEFT glove fully outstretched just above ground, body extended and airborne, no effects.
+Row 3: (7) flyout catch, standing looking up, open LEFT glove directly overhead; (8) running toward camera, face and chest visible, pumping arms, glove still on left hand; (9) running away from camera, cap back and jersey back visible, same scale, glove still on left hand.
+Every sprite fully contained with generous empty gutters, even grid centers, preserve identical head size and limb lengths across all nine; keep grounded poses on consistent relative baseline, no scale-up for crouches or dives. True clean transparent alpha everywhere outside silhouettes, no ground, shadows, halos, text, lines, logos or extra objects. High-resolution smooth cel shading, no pixel art.

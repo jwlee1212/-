@@ -81,3 +81,12 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 | 파일 | 출처 | 상업 이용 |
 |---|---|---|
 | `godot/art/portraits/*.png` 17장 (인물 14명과 소율의 추가 표정 3장) | Codex GPT 이미지 생성. 하린 1번 시안을 화풍 기준으로, 교체 전 게임 일러스트를 인물 디자인 참고용으로 사용. 원본과 프롬프트는 `docs/refs/portraits/`. 게임용 PNG는 투명 배경을 유지해 크기만 줄임 | OpenAI 약관상 생성 결과물은 이용자에게 귀속되어 상업 이용 가능. 참고 이미지의 권리와 이용 조건은 별도 적용. [OpenAI 이용 약관](https://openai.com/policies/terms-of-use/) |
+## 고교 로비 2D 골목 (2026-11-10)
+
+- 원본은 `docs/refs/sprites/lobby_buildings_v1.png`와 `lobby_player_v1.png`, 생성 지시는 `lobby_2d_v1_prompt.md`에 있다. 내장 GPT 이미지 생성 도구를 사용했다. 상업 이용 약관 별도 확인 대기.
+- 게임용 `godot/art/lobby/hs_facades.png`는 일곱 출입구를 기존 골목 좌표에 맞춰 합친 그림이다. `player.png`는 대기와 걷기 칸을 같은 크기로 정리한 시트다.
+
+## SD 선수·경기장·메뉴 시안 (2026-11-10)
+
+- 이번 대화에서 생성한 `batter_sd_v1~v3_source`, `pitcher_sd_reference_v1`, `pitcher_sd_v1_source`, `fielder_runner_2d_reference_v1`, `fielder_2d_poses_v1`, `fielder_2d_run_v1`, `runner_2d_actions_v1`, `runner_2d_run_away_left_v1`, `batting_stadium_2d_v1`는 내장 GPT 이미지 생성 도구로 제작했다. 원본과 프롬프트는 `docs/refs/sprites/`에 보관한다.
+- `docs/mockups/main_menu_v1.png`와 `title_screen_v1.png`도 같은 도구로 만든 시안이다. 상업 이용 약관 별도 확인 대기.
