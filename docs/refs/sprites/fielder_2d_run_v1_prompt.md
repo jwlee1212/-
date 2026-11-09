@@ -1,0 +1,5 @@
+# 수비수 2D 달리기 시트
+
+내장 이미지 생성 도구 사용. 수비수 자세 시트의 마지막 두 칸을 참조했다.
+
+8-frame run cycle game sprite sheet, 4 equal columns x 2 equal rows. Reference last row middle and right are exact character, camera, and direction references: squat blue-cap baseball infielder, head half height, short limbs, white uniform, left hand brown glove. Same smooth cel art. Top row runs directly toward camera, bottom directly away, slightly elevated fixed broadcast camera, centered identical scale. Each row left to right: left foot forward contact, passing position over left foot with right heel raised, right foot forward contact, passing over right foot with left heel raised. Clear distinct alternating legs and counter-swinging arms, anatomically left-hand glove NEVER changes hands (viewer right in front row, viewer left in back row). Top row face and chest visible, bottom row back of cap and jersey only. In-place aligned center and consistent ground anchor, complete silhouettes and generous empty cell gutters. Pure transparent alpha, no glow, no shadow, no ground, no labels, no grid, no objects.

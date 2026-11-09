@@ -1,0 +1,5 @@
+# 수비수·주자 2D 기준 그림
+
+내장 이미지 생성 도구 사용. 기존 수비수의 대기 자세와 주자의 우상향 달리기 자세를 참고했다.
+
+Create exactly TWO game sprite reference figures, side by side in two equal cells on genuine transparent alpha. Image 1 TOP LEFT ONLY is the binding source for LEFT sprite: blue cap infielder facing screen right, same glove held ahead, exact ready stance and camera. Image 2 SECOND ROW FIRST COLUMN ONLY is the binding source for RIGHT sprite: blue helmet runner going diagonally away to upper right, exact same running pose and camera. Preserve original very compact squat chibi silhouettes precisely: head including cap/helmet is about half the full height, very short torso and legs, simple small eyes, chunky shoes. Keep same head/body ratio, limb lengths, and projected dimensions as originals. Same elevated camera angles. ONLY change rendering from pixelated into crisp smooth high-resolution 2D cel illustration with dark navy outlines, simple two-tone shading, same original cobalt blue and white uniform colors. Do not redesign, elongate, add detail or enlarge one player relative to other. Keep entire silhouettes, no labels, no ground, no gradient, no glow, no shadow, no guides.

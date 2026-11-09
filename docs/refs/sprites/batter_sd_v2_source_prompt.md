@@ -1,0 +1,7 @@
+# SD 타자 12프레임
+
+내장 이미지 생성 도구 사용. 자세와 시점은 유저 첨부 character_animation_sheet.png, 그림체는 직전 파란 SD 타자 시안을 참조했다.
+
+```text
+Make a transparent 12-frame sprite sheet in 4 equal columns by 3 equal rows, read left-to-right then top-to-bottom. REFERENCE 1 is an exact pose and camera template: reproduce each of its 12 sequential figures one-to-one, including its held finish variations, simply reflowed to 4x3. Do not invent extra stride, windup or facing. Right-handed. Crucial: body is seen in narrow nearly edge-on profile for first 3 with feet nearly overlapping in projection. The original is shot along the batter-to-pitcher depth direction. For frame 4 the jersey BACK is already visible and bat extends down-right. For frames 5–6 back visible, bat to upper-left. For frames 7–12 use original nearly straight REAR view, bat wrapped almost horizontally behind shoulders pointing screen right, lower legs and feet nearly overlapping in projection. Follow first image foot angles and body rotation exactly. No wide lateral stance or camera change. Ignore the tiny ball marks. REFERENCE 2 left blue player supplies ONLY blue and white color palette, big SD helmet/head and thick outlines, NEVER its stance/camera. Draw crisp smooth 2D cel shaded chibi. Same body scale and stance anchor in all cells. A perfectly straight rigid wooden bat with both ends collinear through hands. Complete silhouettes with transparent padding. True zero-alpha background, no ground, no glow or gray panels, no grid lines, no text.
+```

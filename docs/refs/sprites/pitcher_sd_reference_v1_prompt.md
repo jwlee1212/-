@@ -1,0 +1,6 @@
+# SD 투수 준비 자세 기준 그림
+
+내장 이미지 생성 도구 사용. 유저 첨부 투수 시트 첫 칸을 자세와 시점 기준으로 선택했다. 배경 광택이 남은 시안이다.
+
+Create ONE full-body SD baseball pitcher reference character on a clean transparent background. Reference 1 TOP LEFT FRAME is the precise camera and pose source. Reproduce that first standing set pose: torso turned three-quarter toward screen left, left shoulder nearer the viewer, head turned toward the batter/viewer slightly left, cap brim pointing left, both feet down and close together with one slightly behind, knees nearly straight, brown glove held low in front of abdomen at screen left, right throwing hand tucked into glove. Right-handed pitcher, glove on left hand. No lifted knee, no throwing motion. Match the reference camera faithfully; do not use the windup pose from reference 2.
+Reference 2 RIGHT red SD pitcher is the sole identity/style source: same youthful face, dark brown tousled hair, large head, compact 2.3-head body, red cap and undersleeves, white uniform, red socks, dark navy cleats, thick crisp navy outlines and simple cel shading. Render the exact pose of reference 1 with proportions and style of reference 2. One character, ample space above cap and below cleats, fills 85% of height. Transparent alpha background, no floor, no cast shadow, no glow, no letters, no logos. Smooth high-resolution 2D illustration.
