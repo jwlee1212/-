@@ -1,0 +1,3 @@
+# 두 AI 가 각자 브랜치에서 끝에 덧붙이는 기록 파일: 양쪽 줄을 모두 남기며 자동으로 합친다 (AGENTS.md §3)
+docs/dev-log.md merge=union
+licenses/assets.md merge=union
