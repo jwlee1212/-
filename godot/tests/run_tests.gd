@@ -1230,6 +1230,9 @@ func _rich_career(cfg: CareerConfig, e: Dictionary) -> CareerState:
 	c.player.money = 10000000
 	if e.get("partner", "") == "any":
 		c.people.partner = "manager"
+	# 지명 결과를 쓰는 카드(ep21_02 등)는 실제로는 앞 카드(ep21_01)의 draft 효과 뒤에 나온다
+	if JSON.stringify(e).contains("{draftPick}"):
+		c.run_draft()
 	return c
 
 
@@ -5350,6 +5353,8 @@ func _pro_career(cfg: CareerConfig, tier: String, name: String = "프로") -> Ca
 	career.player.grade = 3
 	career.run_draft()
 	career.path = "draft"
+	# 고교를 건너뛰고 바로 프로로 가니, 프로 첫 장면(ep23_01 after ep22_01)이 기다리는 졸업 장면을 본 것으로 둔다
+	career.book.fired["ep22_01"] = career.total_week
 	career.start_pro()
 	return career
 
