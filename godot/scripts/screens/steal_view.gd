@@ -201,12 +201,14 @@ func _draw() -> void:
 	# 다른 주자는 베이스에, 내 주자는 리드한 자리에서 (뛰면 가속해서 달린다)
 	for i in 3:
 		if _bases[i] != -1 and _bases[i] != _my_id:
-			BroadcastView._draw_person(self, cam, _phys.base_pos(i + 1), Tokens.UNIFORM_US)
+			RunnerArt.draw_runner(self, cam, _phys.base_pos(i + 1), true)
 	var me := _runner_pos(from_pos, to_pos, tau, picked)
 	var caught_gone := running and _result.kind == Steal.Kind.CAUGHT and tau > _result.defense_s + BroadcastView.RUNNER_FADE_S
 	var picked_gone := picked and _since_decide() > PICKOFF_THROW_S + BroadcastView.RUNNER_FADE_S
 	if not caught_gone and not picked_gone:
-		BroadcastView._draw_person(self, cam, me, Tokens.UNIFORM_US)
+		# 주자 전용 시트: 움직임은 중계 화면과 같게 "FIELDER_VEL_DT 초 동안 화면 픽셀"
+		var before := _runner_pos(from_pos, to_pos, maxf(tau - PixelArt.FIELDER_VEL_DT, 0.0), picked)
+		RunnerArt.draw_runner(self, cam, me, true, cam.ground(me) - cam.ground(before), tau)
 		BroadcastView.draw_marker(self, cam, me)
 
 	# 공: 투수 손 → (투구) 포수 → (송구) 베이스. 견제사는 투수 → 내 베이스

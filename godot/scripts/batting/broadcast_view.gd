@@ -229,7 +229,8 @@ static func _draw_play_runners(canvas: CanvasItem, cam: Cam, play: PlaySimulator
 		var prev: Vector2 = runner.track[maxi(idx - int(round(PixelArt.FIELDER_VEL_DT / BattedBallSim.DT)), 0)]
 		var vel := cam.ground(runner.track[idx]) - cam.ground(prev)
 		var pose := _runner_pose(cam, play, runner, t, vel)
-		_draw_person(canvas, cam, runner.track[idx], uniform, vel, t, pose[0], pose[1])
+		# 주자 전용 시트 (2026-11-10 Codex runners_ext): 방향·헤드퍼스트 슬라이딩 칸
+		RunnerArt.draw_runner(canvas, cam, runner.track[idx], uniform == Tokens.UNIFORM_US, vel, t, pose[0], pose[1], pose[2])
 		if runner.id == mark_id:
 			draw_marker(canvas, cam, runner.track[idx])
 
@@ -440,6 +441,7 @@ static func _fielder_pose(name: String, positions: Dictionary, cfg: BattedBallSi
 
 
 ## 주자: 접전 판정이 난 베이스(2루·3루·홈)에 들어가는 주자는 슬라이딩, 멈춰 있으면 베이스 위(무릎 짚기)·베이스 밖(리드 자세)
+## 돌려주는 값: [칸 이름, 바라볼 쪽, 슬라이딩 진행 0~1 (슬라이딩이 아니면 -1)]
 static func _runner_pose(cam: Cam, play: PlaySimulator.PlayResult, runner: RunnerAI, t: float, vel: Vector2) -> Array:
 	for c: Dictionary in play.calls:
 		var b: int = c.base
@@ -453,14 +455,15 @@ static func _runner_pose(cam: Cam, play: PlaySimulator.PlayResult, runner: Runne
 		var at_call: Vector2 = runner.track[clampi(int(tc / BattedBallSim.DT), 0, runner.track.size() - 1)]
 		if at_call.distance_to(bag) < SLIDE_NEAR_M:
 			var before: Vector2 = runner.track[clampi(int((tc - 0.2) / BattedBallSim.DT), 0, runner.track.size() - 1)]
-			return ["slide", signf(cam.ground(at_call).x - cam.ground(before).x)]
+			var progress := clampf((t - (tc - SLIDE_BEFORE_S)) / (SLIDE_BEFORE_S + SLIDE_AFTER_S), 0.0, 1.0)
+			return ["slide", signf(cam.ground(at_call).x - cam.ground(before).x), progress]
 	if vel.length() < 0.3:
 		var at: Vector2 = runner.track[clampi(int(t / BattedBallSim.DT), 0, runner.track.size() - 1)]
 		var near := INF
 		for b in range(1, 5):
 			near = minf(near, at.distance_to(Vector2.ZERO if b == 4 else runner.base_pos(b)))
-		return ["onbase" if near < 1.5 else "lead", 0.0]
-	return ["", 0.0]
+		return ["onbase" if near < 1.5 else "lead", 0.0, -1.0]
+	return ["", 0.0, -1.0]
 
 
 static func _draw_runner(canvas: CanvasItem, cam: Cam, cfg: BattedBallSim.Config, r: BattedBallSim.Result, t: float) -> void:
@@ -499,7 +502,7 @@ static func _draw_runner(canvas: CanvasItem, cam: Cam, cfg: BattedBallSim.Config
 	var running := t > r.runner_start and dist < limit
 	# 움직임은 다른 선수와 같게 "FIELDER_VEL_DT 초 동안 화면 픽셀"로 넘긴다
 	var step := (cam.ground(to) - cam.ground(from)).normalized() * r.runner_mps * PixelArt.FIELDER_VEL_DT * cam.scale_at(Vector3(at.x, at.y, 0.0))
-	_draw_person(canvas, cam, at, Tokens.UNIFORM_US, step if running else Vector2.ZERO, t)
+	RunnerArt.draw_runner(canvas, cam, at, true, step if running else Vector2.ZERO, t)
 
 
 ## 경기장 (도트: 칸마다 카메라를 거꾸로 계산해 칠한다, PixelArt.draw_broadcast_field)
