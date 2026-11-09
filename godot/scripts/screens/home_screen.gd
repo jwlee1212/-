@@ -1,6 +1,12 @@
 class_name HomeScreen
 extends Control
-## 커리어 허브 (이번 주). 2026-11-01 재구성 (유저가 준 메인화면 규칙을 가로 화면에 맞춰 적용):
+## 커리어 허브 (이번 주). 2026-11-09: 기본 화면 = 로비 골목 (기획서 4-3장, docs/02-design.md §5-3)
+##   로비: 옆에서 본 동네 골목(StreetView)을 좌우로 밀고, 장소를 누르면 내 선수가 걸어가 그 메뉴로 들어간다.
+##     위에 다음 경기 카드 고정([경기 시작] 등 지금 할 일 하나), 아래 바는 소식 한 줄. 볼 것이 있는 장소엔 말풍선.
+##   메뉴(장소 → 화면): 우리 집 = 선수 정보 · 은하식당 = 폰 · 용품점 = 상점 · 부실 = 팀(스카우트) ·
+##     운동장 = 훈련(주간 달력) · 본관 = 기록실 · 야구장 = 경기(다음 경기·순위). 메뉴 위 [‹ 골목]으로 돌아온다.
+##   아래 옛 설명의 탭(홈·선수·상점·더보기)은 이 메뉴들이 되었다. 홈 탭 = 훈련 메뉴.
+## 2026-11-01 재구성 (유저가 준 메인화면 규칙을 가로 화면에 맞춰 적용):
 ##   SafeAreaMargin > VBox( HomeTopBar / 가운데 페이지 / BottomNav )
 ##   위 바(읽기 전용): 학년·주차 · 지금 대회 · 지갑 · ⚙ 설정
 ##   아래 바(엄지 자리): 탭 홈 · 폰 · 선수 · 상점 · 더보기 + 오른쪽 진행 버튼 하나(화면에 하나뿐인 강조색 —
@@ -15,21 +21,19 @@ extends Control
 ## 주 시작 이야기(EventBook timing start)가 있으면 화면 가운데 겹쳐 먼저 보여 준다.
 ## 경기를 마친 주(불러온 커리어)면 남은 경기 뒤 이야기를 보여 주고 [다음 주]로 넘어간다. 그릴 때마다 저장한다
 
-const TABS := ["홈", "폰", "선수", "상점", "더보기"]
-## 더보기 안의 작은 탭
-const MORE_TABS := ["스카우트", "기록"]
+## 로비(골목)와 장소에서 들어가는 메뉴 → 메뉴 위에 쓰는 이름 (diner 는 화면 대신 폰을 연다)
+const LOBBY := "lobby"
+const MENU_TITLES := {"game": "경기", "training": "훈련", "player": "선수 정보", "records": "기록실", "team": "팀", "shop": "상점"}
 ## 내 방 그림 (없으면 우리 집 그림) — 크림색 막을 덮어 배경색처럼 은은하게. 주인공 얼굴은 보이지 않는다 (몰입, 2026-11-01)
 const ROOM_ART := "res://art/backgrounds/room.png"
 const ROOM_FALLBACK := "res://art/backgrounds/home.png"
-## 누르면 페이지가 바뀌는 대신 폰이 뜨는 탭
-const PHONE_TAB := "폰"
 ## 홈 소식 판에 보이는 최대 줄 수 (나머지는 기록 탭에)
 const INBOX_LINES := 3
 
 var _app
-var _tab := "홈"
-## 더보기에서 고른 작은 탭
-var _more := "스카우트"
+var _tab := LOBBY
+## 로비 골목
+var _street: StreetView
 var _top: HomeTopBar
 var _nav: BottomNav
 var _page_host: Control
@@ -75,24 +79,29 @@ func _ready() -> void:
 		veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_room_bg.add_child(UiKit.fill_parent(veil))
 	add_child(UiKit.fill_parent(_room_bg))
+	# 골목은 화면 전체(노치 여백 밖까지)에 깔고, 위·아래 바와 카드가 그 위에 뜬다
+	var career: CareerState = _app.career
+	var map := StreetMap.from(career.cfg.street_maps["hs"])
+	_street = StreetView.new(map, career.cfg.street, _app.lobby_spot if _app.lobby_spot != "" else map.start)
+	_street.entered.connect(_enter)
+	add_child(UiKit.fill_parent(_street))
 	var safe := SafeAreaMargin.new()
+	safe.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(UiKit.fill_parent(safe))
 	var root := VBoxContainer.new()
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_theme_constant_override("separation", Tokens.SPACE_SM)
 	safe.add_child(root)
 	_top = HomeTopBar.new()
 	_top.settings_pressed.connect(func() -> void: _app.show_settings(_app.show_home))
+	_top.phone_pressed.connect(func() -> void: open_phone())
 	root.add_child(_top)
 	_page_host = PanelContainer.new()
+	_page_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_page_host.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	_page_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(_page_host)
-	_nav = BottomNav.new(TABS)
-	_nav.tab_pressed.connect(func(t: String) -> void:
-		if t == PHONE_TAB:
-			open_phone()
-		else:
-			_show_tab(t))
+	_nav = BottomNav.new([])
 	root.add_child(_nav)
 	_rebuild()
 	_next_story()
@@ -258,13 +267,32 @@ func _hide_toast() -> void:
 
 # ---------- 탭 ----------
 
-## 탭을 고른다. 더보기 안의 작은 탭 이름(스카우트·기록)을 주면 더보기로 가서 그 탭을 연다
+## 메뉴를 연다 (LOBBY 면 골목으로 돌아간다)
 func _show_tab(t: String) -> void:
-	if t in MORE_TABS:
-		_more = t
-		t = "더보기"
+	assert(t == LOBBY or MENU_TITLES.has(t), "모르는 메뉴: " + t)
 	_tab = t
 	_rebuild()
+
+
+## 골목에서 장소에 걸어 들어갔다 → 그 메뉴 (은하식당은 폰). 다음에 로비를 열면 이 장소 앞에 서 있다
+func _enter(place_id: String) -> void:
+	_app.lobby_spot = place_id
+	var menu: String = _street.map.place(place_id)["menu"]
+	if menu == "diner":
+		open_phone()
+	else:
+		_show_tab(menu)
+
+
+## 지금 골목 (스크린샷 스크립트용)
+func street() -> StreetView:
+	return _street
+
+
+## 경기에 들어간다 (끝나고 돌아오면 야구장 앞)
+func _start_game() -> void:
+	_app.lobby_spot = "ballpark"
+	_app.show_game()
 
 
 # ---------- 페이지 ----------
@@ -273,22 +301,142 @@ func _rebuild() -> void:
 	for c in _page_host.get_children():
 		c.queue_free()
 	_close_picker()
-	_room_bg.visible = _tab == "홈"
-	match _tab:
-		"선수":
-			_page_host.add_child(_player_page())
-		"상점":
-			_page_host.add_child(_shop_page())
-		"더보기":
-			_page_host.add_child(_more_page())
-		_:
-			_page_host.add_child(_home_page())
 	var career: CareerState = _app.career
+	var lobby := _tab == LOBBY
+	_street.visible = lobby
+	_room_bg.visible = _tab == "training"
+	match _tab:
+		LOBBY:
+			_page_host.add_child(_lobby_page())
+		"game":
+			_page_host.add_child(_menu_page(_game_page()))
+		"player":
+			_page_host.add_child(_menu_page(_player_page()))
+		"shop":
+			_page_host.add_child(_menu_page(_shop_page()))
+		"team":
+			_page_host.add_child(_menu_page(_scout_page()))
+		"records":
+			_page_host.add_child(_menu_page(RecordsView.new(career, _app.batting_config.pitchers)))
+		_:
+			_page_host.add_child(_menu_page(_home_page()))
 	_top.refresh(career)
-	_nav.select(_tab)
-	_nav.set_badge(PHONE_TAB, career.phone_unread())
-	_nav.set_cta(_go_button())
+	_nav.set_info(_info_line())
+	# 로비에선 할 일 버튼이 위 고정 카드에 있으니 아래 바엔 두지 않는다
+	_nav.set_cta(null if lobby else _go_button())
+	_street.mood = "snow" if career.in_camp() else ("dusk" if career.game_done else "morning")
+	_street.alerts = _street_alerts()
 	_app.save_career()
+
+
+# ---------- 로비 골목 ----------
+
+## 로비: 골목은 뒤에 깔려 있고, 여기엔 위 고정 카드(다음 경기)만 둔다 (나머지 자리는 손가락이 골목에 닿게 비운다)
+func _lobby_page() -> Control:
+	var page := Control.new()
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var card := _lobby_card()
+	page.add_child(card)
+	# 왼쪽 위 (오른쪽 위는 새 문자 알림 띠가 지나가는 자리)
+	card.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT, Control.PRESET_MODE_MINSIZE)
+	return page
+
+
+## 위 고정 카드: 다음 경기 (또는 캠프·이번 주 끝) + 지금 할 일 버튼 하나
+func _lobby_card() -> Control:
+	var career: CareerState = _app.career
+	var card := _card()
+	card.custom_minimum_size.x = Tokens.LOBBY_CARD_WIDTH
+	var row := UiKit.hbox(Tokens.SPACE_MD)
+	card.add_child(row)
+	var col := UiKit.vbox(0)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var head := "다음 경기 · %s %s" % [career.phase_name(), career.round_text()]
+	var body := "vs %s" % career.opponent().name
+	if career.in_camp():
+		head = "겨울 캠프 %d/%d주" % [career.camp_week, int(career.cfg.camp["weeks"])]
+		body = ("연습경기 vs %s" % career.opponent().name) if career.camp_has_game() else "훈련 주"
+	if career.game_done:
+		head = "이번 주 일정 끝"
+		body = "다음 주로 넘어간다"
+	col.add_child(UiKit.kicker(head))
+	col.add_child(UiKit.label(body, Tokens.FONT_TITLE - 4, Tokens.INK, Tokens.FONT_BOLD))
+	row.add_child(col)
+	var act := _lobby_action()
+	var b := _cta(act[0], act[1])
+	b.custom_minimum_size = Vector2(Tokens.TOUCH_MIN * 3, Tokens.TOUCH_MIN)
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(b)
+	return card
+
+
+## 로비 카드 버튼: [글자, 동작]. 다음 주 → 훈련 정하기(운동장) → (캠프 훈련 주면 주 마치기) → 경기 시작
+func _lobby_action() -> Array:
+	var career: CareerState = _app.career
+	if career.game_done:
+		return ["다음 주  ›", _app.next_week]
+	if not _ran():
+		return ["훈련 정하기  ›", _show_tab.bind("training")]
+	if career.in_camp() and not career.camp_has_game():
+		return ["이번 주 마치기  ›", _finish_camp_week]
+	if career.player.is_injured():
+		return ["경기 보기  ›", _start_game]
+	return ["경기 결과  ›" if career.next_role() == "bench" else "경기 시작  ›", _start_game]
+
+
+## 볼 것이 있는 장소 위 말풍선: 훈련을 아직 안 정했으면 운동장, 경기할 차례면 야구장, 안 읽은 문자는 은하식당
+func _street_alerts() -> Dictionary:
+	var career: CareerState = _app.career
+	var a := {}
+	if not career.game_done:
+		if not _ran():
+			a["ground"] = "훈련!"
+		elif not (career.in_camp() and not career.camp_has_game()):
+			a["ballpark"] = "경기!"
+	if career.phone_unread() > 0:
+		a["diner"] = "문자 %d" % career.phone_unread()
+	return a
+
+
+## 아래 바 소식 한 줄: 리그·대회 · 몇 주차 · 맨 위 소식
+func _info_line() -> String:
+	var career: CareerState = _app.career
+	var where := "겨울 캠프 %d/%d주" % [career.camp_week, int(career.cfg.camp["weeks"])] if career.in_camp() \
+		else "%s %s · %d주차" % [career.phase_name(), career.round_text(), career.week]
+	return where + ("  ·  " + str(career.news[0]) if not career.news.is_empty() else "")
+
+
+## 메뉴 화면 틀: 위에 [‹ 골목] + 메뉴 이름, 아래 내용
+func _menu_page(body: Control) -> Control:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", Tokens.SPACE_SM)
+	var bar := UiKit.hbox(Tokens.SPACE_MD)
+	bar.add_child(_chip("‹ 골목", "SecondaryButton", _show_tab.bind(LOBBY)))
+	var t := UiKit.title(MENU_TITLES[_tab], Tokens.FONT_TITLE)
+	t.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.add_child(t)
+	col.add_child(bar)
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(body)
+	return col
+
+
+## 경기 메뉴 (야구장): 다음 경기 카드 | 순위·소식
+func _game_page() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", Tokens.SPACE_SM)
+	var m := _match_card()
+	m.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(m)
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", Tokens.SPACE_SM)
+	right.custom_minimum_size.x = Tokens.SIDE_COLUMN
+	right.add_child(_team_card())
+	var news := _inbox_card()
+	news.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(news)
+	row.add_child(right)
+	return row
 
 
 ## 내 방: 왼쪽 내 선수 카드 | 가운데 주간 달력 | 오른쪽 팀 기록·소식. 성장 글자는 달력 위로 떠오른다
@@ -931,7 +1079,7 @@ func _go_button() -> Button:
 		return _cta("건너뛰기  ›", _skip_reveal, "SecondaryButton")
 	if career.in_camp() and not career.camp_has_game():
 		return _cta("이번 주 마치기  ›", _finish_camp_week)
-	return _cta("경기 보기 (결장)  ›" if p.is_injured() else ("경기 결과 보기 (벤치)  ›" if career.next_role() == "bench" else "경기 준비  ›"), _app.show_game)
+	return _cta("경기 보기 (결장)  ›" if p.is_injured() else ("경기 결과 보기 (벤치)  ›" if career.next_role() == "bench" else "경기 준비  ›"), _start_game)
 
 
 func _cta(text: String, on_press: Callable, variation: String = "CtaButton") -> Button:
@@ -1170,28 +1318,6 @@ func _scout_page() -> Control:
 	rc.add_child(grid)
 	row.add_child(right)
 	return row
-
-
-# ---------- 더보기 탭 ----------
-
-## 위: 작은 탭(스카우트 · 기록) | 설정 · 타이틀로. 아래: 고른 작은 탭 내용
-func _more_page() -> Control:
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", Tokens.SPACE_SM)
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", Tokens.SPACE_SM)
-	for t: String in MORE_TABS:
-		bar.add_child(_chip(t, "NavButtonOn" if t == _more else "SecondaryButton", func() -> void: _show_tab(t)))
-	var gap := Control.new()
-	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.add_child(gap)
-	bar.add_child(_chip("설정", "SecondaryButton", func() -> void: _app.show_settings(_app.show_home)))
-	bar.add_child(_chip("타이틀로", "SecondaryButton", _app.show_title))
-	col.add_child(bar)
-	var body: Control = _scout_page() if _more == "스카우트" else RecordsView.new(_app.career, _app.batting_config.pitchers)
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	col.add_child(body)
-	return col
 
 
 func _chip(text: String, variation: String, on_press: Callable) -> Button:

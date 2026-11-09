@@ -193,6 +193,8 @@ func _init() -> void:
 		"test_error_rate_and_only_outs",
 		"test_bgm_tracks",
 		"test_pitch_hint",
+		"test_street_map",
+		"test_street_walk",
 	]:
 		var only := OS.get_environment("ONLY")
 		if only != "" and not test.contains(only):
@@ -6126,3 +6128,79 @@ func test_pro_retire() -> void:
 	check(lg.all_batters().size() == before, "그 자리는 신인")
 	var top := lg.all_time("hits", 3)
 	check(not top.is_empty() and top[0]["name"] == rv.name and lg.all_time_rank("hits", rv.id) == 1, "역대 안타 1위 (은퇴 선수 포함)")
+
+
+# ---------- 로비 골목 ----------
+
+## 골목 장소 배치: 실제 정의가 검사를 통과하고, 일곱 메뉴가 다 있고, 누른 자리 → 장소, 카메라가 그림 밖을 안 보인다.
+## 틀린 정의(겹침·문이 자리 밖·모르는 메뉴·시작 장소 없음)는 검사가 잡는다
+func test_street_map() -> void:
+	var content := BalanceLoader.load_config("content.json")
+	var def: Dictionary = content["street"]["hs"]
+	var errs := StreetMap.validate(def)
+	check(errs.is_empty(), "실제 골목 정의 오류: %s" % [errs])
+	var m := StreetMap.from(def)
+	var menus := {}
+	for p: Dictionary in m.places:
+		menus[p["menu"]] = true
+		check(m.place_at(p["door"]) == p["id"], "%s 문 자리를 누르면 그 장소" % p["id"])
+		check(p["door"] > 0.0 and p["door"] < m.width, "%s 문이 그림 안" % p["id"])
+	for menu: String in StreetMap.MENUS:
+		check(menus.has(menu), "골목에서 %s 메뉴로 갈 수 있다" % menu)
+	check(m.places[-1]["menu"] == "game", "야구장은 길 끝")
+	check(m.place_at(-10.0) == "" and m.place_at(m.width + 10.0) == "", "그림 밖은 빈 땅")
+	var view_w := m.height * 844.0 / 390.0
+	check(m.camera_left(0.0, view_w) == 0.0, "왼쪽 끝 카메라")
+	check(is_equal_approx(m.camera_left(m.width, view_w), m.width - view_w), "오른쪽 끝 카메라")
+	check(is_equal_approx(m.camera_left(3000.0, view_w), 3000.0 - view_w / 2.0), "가운데 카메라는 선수를 가운데")
+	check(m.camera_left(100.0, m.width * 2.0) == 0.0, "그림보다 넓은 화면")
+	check(m.door_x("없는곳") == m.door_x(m.start), "모르는 장소 → 시작 장소 문")
+	check(m.width / view_w >= 3.0, "골목은 화면 3장 이상")
+	# 틀린 정의
+	var bad: Dictionary = def.duplicate(true)
+	bad["places"][1]["x"] = float(bad["places"][0]["x"]) + 10.0
+	check(not StreetMap.validate(bad).is_empty(), "겹치는 장소를 잡는다")
+	bad = def.duplicate(true)
+	bad["places"][0]["door"] = float(bad["places"][0]["x"]) - 50.0
+	check(not StreetMap.validate(bad).is_empty(), "자리 밖 문을 잡는다")
+	bad = def.duplicate(true)
+	bad["places"][0]["menu"] = "casino"
+	check(not StreetMap.validate(bad).is_empty(), "모르는 메뉴를 잡는다")
+	bad = def.duplicate(true)
+	bad["start"] = "moon"
+	check(not StreetMap.validate(bad).is_empty(), "없는 시작 장소를 잡는다")
+	bad = def.duplicate(true)
+	bad["places"][-1]["w"] = float(bad["width"])
+	check(not StreetMap.validate(bad).is_empty(), "그림 밖 자리를 잡는다")
+
+
+## 걸음: 멀어도 maxWalkSec 안, 가까워도 minWalkSec 이상, 제자리는 걷지 않고 문만. 위치는 출발 → 도착으로 한 방향,
+## 방향·문 들어가기·걸음 장이 시간으로만 정해진다
+func test_street_walk() -> void:
+	var cfg: Dictionary = BalanceLoader.load_balance()["career"]["street"]
+	var far := StreetWalk.plan(0.0, 7000.0, cfg)
+	check(far.walk_sec <= float(cfg["maxWalkSec"]) + 1e-6, "멀어도 최대 시간 안에 도착")
+	var near := StreetWalk.plan(1000.0, 1010.0, cfg)
+	check(is_equal_approx(near.walk_sec, float(cfg["minWalkSec"])), "가까워도 최소 시간은 걷는다")
+	var still := StreetWalk.plan(500.0, 500.0, cfg)
+	check(still.walk_sec == 0.0 and still.x_at(0.0) == 500.0, "제자리면 걷지 않는다")
+	check(still.door_progress(still.door_sec) == 1.0 and still.done(still.duration()), "제자리도 문으로 들어간다")
+	check(far.x_at(0.0) == 0.0 and far.x_at(far.walk_sec) == 7000.0 and far.x_at(99.0) == 7000.0, "출발·도착 자리")
+	var last := -1.0
+	var mono := true
+	for i in 21:
+		var x := far.x_at(far.walk_sec * i / 20.0)
+		mono = mono and x >= last
+		last = x
+	check(mono, "오른쪽으로 걸을 때 x 는 줄지 않는다")
+	var back := StreetWalk.plan(5000.0, 1000.0, cfg)
+	check(back.facing() == -1 and far.facing() == 1, "걷는 방향")
+	check(back.x_at(back.walk_sec / 2.0) == 3000.0, "가운데 시각엔 가운데")
+	check(far.walking(0.0) and not far.walking(far.walk_sec), "걷는 중")
+	check(far.door_progress(far.walk_sec * 0.5) == 0.0, "걷는 동안 문은 안 열린다")
+	check(is_equal_approx(far.door_progress(far.walk_sec + far.door_sec / 2.0), 0.5), "문 들어가기 반")
+	check(not far.done(far.duration() - 0.01) and far.done(far.duration()), "끝 시각")
+	var step := float(cfg["stepSec"])
+	check(far.step_frame(0.0, 4) == 0 and far.step_frame(step * 1.01, 4) == 1 and far.step_frame(step * 4.01, 4) == 0, "걸음 장이 돈다")
+	var again := StreetWalk.plan(0.0, 7000.0, cfg)
+	check(again.x_at(0.37) == far.x_at(0.37), "같은 입력 같은 위치")

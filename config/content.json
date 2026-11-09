@@ -14491,5 +14491,80 @@
         "fame": 8
       }
     ]
+  },
+  "street": {
+    "_note": "로비 = 옆에서 본 동네 골목 (2026-11-09 기획서 4-3장). 좌표는 골목 그림(art) 픽셀 기준이라 그림이 바뀌면 숫자만 고친다 (코드는 그대로). places 는 왼쪽부터: x·w = 누르는 자리(가로 범위), door = 내 선수가 걸어가 멈추는 자리, menu = 들어가는 메뉴(game 경기 · training 훈련 · player 선수 정보 · records 기록실 · team 팀 · shop 상점 · diner 엄마·사이드 이야기), kind = 그림이 아직 없을 때 코드로 임시로 그리는 건물 모양. groundY = 내 선수 발이 닿는 보도 높이. 위·아래 바가 덮는 띠(위 약 150·아래 약 170)에는 누를 것을 두지 않는다",
+    "hs": {
+      "art": "res://art/backgrounds/street_hs.png",
+      "width": 7596,
+      "height": 1170,
+      "groundY": 900,
+      "start": "home",
+      "places": [
+        {
+          "id": "home",
+          "name": "우리 집",
+          "menu": "player",
+          "x": 150,
+          "w": 1000,
+          "door": 650,
+          "kind": "apartment"
+        },
+        {
+          "id": "diner",
+          "name": "은하식당",
+          "menu": "diner",
+          "x": 1250,
+          "w": 650,
+          "door": 1575,
+          "kind": "store"
+        },
+        {
+          "id": "shop",
+          "name": "용품점",
+          "menu": "shop",
+          "x": 2000,
+          "w": 650,
+          "door": 2325,
+          "kind": "store"
+        },
+        {
+          "id": "clubroom",
+          "name": "야구부 부실",
+          "menu": "team",
+          "x": 2850,
+          "w": 600,
+          "door": 3150,
+          "kind": "container"
+        },
+        {
+          "id": "ground",
+          "name": "서림고 운동장",
+          "menu": "training",
+          "x": 3550,
+          "w": 1300,
+          "door": 4200,
+          "kind": "field"
+        },
+        {
+          "id": "hall",
+          "name": "본관",
+          "menu": "records",
+          "x": 4950,
+          "w": 950,
+          "door": 5425,
+          "kind": "school"
+        },
+        {
+          "id": "ballpark",
+          "name": "동네 야구장",
+          "menu": "game",
+          "x": 6100,
+          "w": 1400,
+          "door": 6800,
+          "kind": "stadium"
+        }
+      ]
+    }
   }
 }

@@ -2,11 +2,13 @@ class_name BottomNav
 extends PanelContainer
 ## 홈 아래 바: 왼쪽 탭(균등 분할) + 오른쪽 진행 버튼 자리(CTA, 화면에 하나뿐인 강조색 버튼).
 ## 엄지가 닿는 아래쪽에 자주 누르는 것을 모은다. 탭을 누르면 tab_pressed(이름)
+## 탭 없이 만들면(로비 골목) 왼쪽은 소식 한 줄(set_info): 리그·대회 · 몇 번째 경기 · 소식
 
 signal tab_pressed(name: String)
 
 var _buttons := {}
 var _cta_slot: HBoxContainer
+var _info: Label
 
 
 func _init(tabs: Array) -> void:
@@ -23,6 +25,14 @@ func _init(tabs: Array) -> void:
 		b.pressed.connect(func() -> void: tab_pressed.emit(t))
 		tab_row.add_child(b)
 		_buttons[t] = b
+	if tabs.is_empty():
+		_info = Label.new()
+		_info.theme_type_variation = "BarTextSoft"
+		_info.clip_text = true
+		_info.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		_info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tab_row.add_child(_info)
 	row.add_child(tab_row)
 	_cta_slot = HBoxContainer.new()
 	_cta_slot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -38,10 +48,17 @@ func set_badge(name: String, count: int) -> void:
 	(_buttons[name] as NavButton).set_badge(count)
 
 
+func set_info(text: String) -> void:
+	if _info != null:
+		_info.text = text
+
+
 ## 진행 버튼을 갈아 끼운다 (상태마다 글자·동작이 달라서 매번 새로 만든다)
 func set_cta(button: Button) -> void:
 	for c in _cta_slot.get_children():
 		c.queue_free()
+	if button == null:
+		return
 	button.custom_minimum_size = Vector2(maxf(button.custom_minimum_size.x, Tokens.TOUCH_MIN * 5), Tokens.TOUCH_MIN)
 	_cta_slot.add_child(button)
 

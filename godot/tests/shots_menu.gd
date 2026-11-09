@@ -51,6 +51,8 @@ func _ready() -> void:
 		await _wait(0.2)
 	print("건너뛴 장면 %d개" % scenes)
 	await _frames(10)
+	_app._current._show_tab("training")  # 골목 장면은 shots_street
+	await _frames(10)
 	await _shot("menu-hub-room")
 	# 스케줄: 칸 고르기 판 → 칸 채우기 → 시작 (도장이 하나씩 찍히는 중) → 다 찍힘
 	_app._current._open_picker(0)
@@ -78,12 +80,15 @@ func _ready() -> void:
 	_app._current.training_popup().skip_all.emit()
 	await _frames(10)
 	await _shot("menu-hub-trained")
-	_app._current._show_tab("선수")
+	_app._current._show_tab("lobby")
+	await _frames(10)
+	await _shot("menu-street-ready")
+	_app._current._show_tab("game")
+	await _frames(10)
+	await _shot("menu-hub-game")
+	_app._current._show_tab("player")
 	await _frames(10)
 	await _shot("menu-hub-player")
-	_app._current._show_tab("더보기")
-	await _frames(10)
-	await _shot("menu-hub-more")
 	_app.show_title()
 	await _frames(10)
 	await _shot("menu-lobby-career")
@@ -110,13 +115,13 @@ func _ready() -> void:
 	career.player.money = 320000
 	career.people.meet("manager")
 	career.people.by_id["manager"].relation = 62
-	for tab in ["상점", "스카우트"]:
+	for tab in ["shop", "team"]:
 		_app._current._show_tab(tab)
 		await _frames(10)
-		await _shot("menu-hub-" + {"상점": "shop", "스카우트": "scout"}[tab])
+		await _shot("menu-hub-" + {"shop": "shop", "team": "scout"}[tab])
 	await _phone_shots(career)
 	# 기록 탭: 작은 탭마다
-	_app._current._show_tab("기록")
+	_app._current._show_tab("records")
 	await _frames(10)
 	var rv: RecordsView = _app._current.find_children("*", "RecordsView", true, false)[0]
 	for t: String in RecordsView.TABS:
@@ -209,7 +214,7 @@ func _ready() -> void:
 
 ## 폰: 대화방 목록 → 대화방(답장 전·후) → 단체방 → 연락처 → 인물 카드
 func _phone_shots(career: CareerState) -> void:
-	_app._current._show_tab("홈")
+	_app._current._show_tab("lobby")
 	await _frames(10)
 	await _shot("menu-hub-phone-badge")
 	# 새 문자 알림 띠 (오른쪽에서 미끄러져 들어온 뒤)
