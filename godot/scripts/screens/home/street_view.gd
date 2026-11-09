@@ -4,9 +4,13 @@ extends Control
 ## 내 선수(도트)가 걸어가 문으로 들어간 뒤 entered(장소 id) 를 보낸다. 장소 배치·걸음은 로직(StreetMap · StreetWalk)이 정한다.
 ## 골목 그림(map.art)이 있으면 그 그림을 원본 그대로 깔고, 없으면 건물을 코드로 임시로 그린다 (이름표도 임시 때만).
 ## 시간대(mood): morning 그대로 · dusk 경기 뒤 노을 막 · snow 겨울 캠프 눈 막 + 눈송이.
+## 방향키(키보드 ←→, 화면 ‹ › 버튼 = hold_dir)로 직접 걸을 수도 있다. 문 앞(interactRange)에 서면 near_changed(장소 id) →
+## 화면이 [들어가기]를 띄우고, ↑·Space·Enter 나 그 버튼(interact)으로 들어간다.
 ## 내 선수는 체력 테스트의 달리는 도트(minigame runner)를 빌려 쓴다 — 걷는 SpriteCook 그림이 오면 바꾼다.
 
 signal entered(place_id: String)
+## 상호작용할 수 있는 장소가 바뀌었다 ("" = 문 앞이 아니다)
+signal near_changed(place_id: String)
 
 ## 빌려 쓰는 도트 칸: 서 있는 장 · 걷는 장들
 const IDLE_FRAME := 6
@@ -21,6 +25,12 @@ var facing := 1
 var mood := "morning"
 ## 장소 id → 말풍선 글자 (볼 것이 있는 장소)
 var alerts: Dictionary = {}
+## 화면 버튼으로 누르고 있는 방향 (-1 · 0 · 1)
+var hold_dir := 0
+## true 를 돌려주면 키 입력을 받지 않는다 (폰·대화·팝업이 떠 있을 때)
+var blocked := Callable()
+## 지금 문 앞인 장소 ("" = 아님)
+var near := ""
 
 var _cfg: Dictionary
 var _tex: Texture2D
@@ -32,6 +42,9 @@ var _moved := false
 var _press_x := 0.0
 var _fling := 0.0
 var _placed := false
+## 방향키로 걷는 중인가, 걸은 시간 (걸음 장)
+var _moving := false
+var _move_t := 0.0
 
 
 func _init(p_map: StreetMap, cfg: Dictionary, spot: String) -> void:
@@ -73,6 +86,17 @@ func go_to(id: String) -> void:
 	_fling = 0.0
 
 
+## 문 앞이면 그 장소로 들어간다 (남은 몇 걸음을 걸어 문으로)
+func interact() -> void:
+	if near != "":
+		go_to(near)
+
+
+## 키 입력을 받을 수 있나 (골목이 보이고, 위에 아무것도 안 떠 있을 때)
+func _controls_on() -> bool:
+	return is_visible_in_tree() and not (blocked.is_valid() and blocked.call())
+
+
 ## 걷기를 끝까지 건너뛴다 (스크린샷 스크립트용)
 func finish_walk() -> void:
 	if _walk != null:
@@ -88,6 +112,24 @@ func _process(delta: float) -> void:
 	if not _placed and size.y > 0.0:
 		_placed = true
 		cam = map.camera_left(player_x, _view_w())
+	_moving = false
+	if _walk == null and _controls_on():
+		var dir := hold_dir
+		if dir == 0:
+			dir = signi(int(Input.is_action_pressed("ui_right")) - int(Input.is_action_pressed("ui_left")))
+		if dir != 0:
+			_moving = true
+			_move_t += delta
+			facing = dir
+			_fling = 0.0
+			player_x = map.step(player_x, dir, delta, float(_cfg["moveSpeed"]), float(_cfg["edgeMargin"]))
+			cam = lerpf(cam, map.camera_left(player_x, _view_w()), 1.0 - exp(-float(_cfg["followRate"]) * delta))
+		if Input.is_action_just_pressed("ui_accept") or Input.is_action_just_pressed("ui_up"):
+			interact()
+	var n := map.near_place(player_x, float(_cfg["interactRange"])) if _walk == null else ""
+	if n != near:
+		near = n
+		near_changed.emit(near)
 	if _walk != null:
 		var t := _walk_t()
 		player_x = _walk.x_at(t)
@@ -260,6 +302,8 @@ func _draw_player(s: float) -> void:
 	var unit := maxi(1, roundi(size.y * float(_cfg["playerHeight"]) / cell.y))
 	var frame := IDLE_FRAME
 	var alpha := 1.0
+	if _moving:
+		frame = WALK_FRAMES[int(_move_t / float(_cfg["stepSec"])) % WALK_FRAMES.size()]
 	if _walk != null:
 		var t := _walk_t()
 		if _walk.walking(t):

@@ -34,6 +34,8 @@ var _app
 var _tab := LOBBY
 ## 로비 골목
 var _street: StreetView
+## 문 앞에서 뜨는 [들어가기] (로비 화면에만, 없으면 null)
+var _interact: Button
 var _top: HomeTopBar
 var _nav: BottomNav
 var _page_host: Control
@@ -84,6 +86,8 @@ func _ready() -> void:
 	var map := StreetMap.from(career.cfg.street_maps["hs"])
 	_street = StreetView.new(map, career.cfg.street, _app.lobby_spot if _app.lobby_spot != "" else map.start)
 	_street.entered.connect(_enter)
+	_street.near_changed.connect(func(_id: String) -> void: _refresh_interact())
+	_street.blocked = func() -> bool: return _phone != null or _overlay != null or _picker != null or _tip != null
 	add_child(UiKit.fill_parent(_street))
 	var safe := SafeAreaMargin.new()
 	safe.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -339,7 +343,39 @@ func _lobby_page() -> Control:
 	page.add_child(card)
 	# 왼쪽 위 (오른쪽 위는 새 문자 알림 띠가 지나가는 자리)
 	card.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT, Control.PRESET_MODE_MINSIZE)
+	# 방향 버튼: 왼쪽 아래 ‹ · 오른쪽 아래 › (누르고 있는 동안 걷는다 — 폰엔 방향키가 없어서)
+	for d: int in [-1, 1]:
+		var b := _cta("‹" if d < 0 else "›", func() -> void: pass, "SecondaryButton")
+		b.add_theme_font_size_override("font_size", Tokens.FONT_HERO)
+		b.custom_minimum_size = Vector2(Tokens.TOUCH_MIN * 1.5, Tokens.TOUCH_MIN * 1.5)
+		b.button_down.connect(func() -> void: _street.hold_dir = d)
+		b.button_up.connect(func() -> void:
+			if _street.hold_dir == d:
+				_street.hold_dir = 0)
+		page.add_child(b)
+		# 글자 크기 때문에 최소 크기보다 커져도 위·안쪽으로 자라게 (아래 바 밑으로 숨지 않게)
+		b.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		b.grow_horizontal = Control.GROW_DIRECTION_END if d < 0 else Control.GROW_DIRECTION_BEGIN
+		b.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT if d < 0 else Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, Tokens.SPACE_SM)
+	# 문 앞에 서면 가운데 아래에 [들어가기]
+	_interact = _cta("", func() -> void: _street.interact(), "SecondaryButton")
+	_interact.custom_minimum_size = Vector2(Tokens.TOUCH_MIN * 4, Tokens.TOUCH_MIN)
+	page.add_child(_interact)
+	_interact.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, Tokens.SPACE_SM)
+	_interact.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_interact.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_refresh_interact()
 	return page
+
+
+## [들어가기] 글자·보이기 (문 앞 장소가 바뀔 때마다)
+func _refresh_interact() -> void:
+	if not is_instance_valid(_interact):
+		return
+	var p := _street.map.place(_street.near)
+	_interact.visible = not p.is_empty()
+	if not p.is_empty():
+		_interact.text = "▲  %s 들어가기" % p["name"]
 
 
 ## 위 고정 카드: 다음 경기 (또는 캠프·이번 주 끝) + 지금 할 일 버튼 하나

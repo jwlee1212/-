@@ -67,6 +67,23 @@ func clamp_camera(left: float, view_w: float) -> float:
 	return clampf(left, 0.0, maxf(0.0, width - view_w))
 
 
+## x 에 서 있을 때 상호작용할 수 있는 장소: 문이 reach 안에 있는 가장 가까운 장소 (없으면 "")
+func near_place(x: float, reach: float) -> String:
+	var best := ""
+	var best_d := INF
+	for p: Dictionary in places:
+		var d := absf(float(p["door"]) - x)
+		if d <= reach and d < best_d:
+			best = p["id"]
+			best_d = d
+	return best
+
+
+## 방향키 한 프레임: dir(-1 왼쪽 · 0 · 1 오른쪽)으로 speed(그림 픽셀/초) × dt 만큼, 골목 양 끝 margin 안쪽으로 자른다
+func step(x: float, dir: int, dt: float, speed: float, margin: float) -> float:
+	return clampf(x + signi(dir) * speed * maxf(dt, 0.0), margin, maxf(margin, width - margin))
+
+
 ## 정의 검사: 빠진 값, 모르는 메뉴·모양, 겹치는 자리, 그림 밖, 자리 밖의 문, 시작 장소
 static func validate(def: Dictionary) -> PackedStringArray:
 	var errs := PackedStringArray()

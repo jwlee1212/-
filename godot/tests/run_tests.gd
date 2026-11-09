@@ -6156,6 +6156,22 @@ func test_street_map() -> void:
 	check(m.camera_left(100.0, m.width * 2.0) == 0.0, "그림보다 넓은 화면")
 	check(m.door_x("없는곳") == m.door_x(m.start), "모르는 장소 → 시작 장소 문")
 	check(m.width / view_w >= 3.0, "골목은 화면 3장 이상")
+	# 방향키로 걷기 · 문 앞 상호작용
+	var cfg: Dictionary = BalanceLoader.load_balance()["career"]["street"]
+	var reach := float(cfg["interactRange"])
+	var margin := float(cfg["edgeMargin"])
+	for p: Dictionary in m.places:
+		check(m.near_place(p["door"], reach) == p["id"], "%s 문 앞에 서면 그 장소" % p["id"])
+		check(m.near_place(p["door"] + reach * 0.9, reach) == p["id"], "%s 문 옆에 서도 그 장소" % p["id"])
+		check(p["door"] >= margin and p["door"] <= m.width - margin, "%s 문에 방향키로 걸어서 닿는다" % p["id"])
+	for i in m.places.size() - 1:
+		check(float(m.places[i + 1]["door"]) - float(m.places[i]["door"]) > reach * 2.0, "이웃 문의 상호작용 거리가 안 겹친다")
+	check(m.near_place((float(m.places[0]["door"]) + float(m.places[1]["door"])) / 2.0, reach) == "", "문 사이 빈 땅에선 상호작용 없음")
+	check(is_equal_approx(m.step(1000.0, 1, 0.5, 400.0, margin), 1200.0), "오른쪽으로 속도 × 시간")
+	check(is_equal_approx(m.step(1000.0, -1, 0.5, 400.0, margin), 800.0), "왼쪽으로")
+	check(m.step(1000.0, 0, 0.5, 400.0, margin) == 1000.0, "가만히")
+	check(m.step(margin + 5.0, -1, 1.0, 400.0, margin) == margin, "왼쪽 끝에서 멈춘다")
+	check(m.step(m.width - margin - 5.0, 1, 1.0, 400.0, margin) == m.width - margin, "오른쪽 끝에서 멈춘다")
 	# 틀린 정의
 	var bad: Dictionary = def.duplicate(true)
 	bad["places"][1]["x"] = float(bad["places"][0]["x"]) + 10.0

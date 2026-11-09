@@ -1599,7 +1599,7 @@
       }
     },
     "street": {
-      "_note": "로비 골목 (scripts/lobby). 거리 단위는 골목 그림 픽셀(화면 높이 390 이면 그림 3픽셀 = 화면 1픽셀). walkSpeed: 걷는 속도(그림 픽셀/초) — 올리면 빨리 도착한다. minWalkSec·maxWalkSec: 걷는 시간의 아래·위 한계 (멀리 있어도 maxWalkSec 안에 도착 — 늘리면 '걸어간다'는 느낌이 살고 줄이면 바로 들어간다). doorSec: 문 앞에서 사라지며 들어가는 시간. stepSec: 걸음 그림 한 장 시간(줄이면 종종걸음). playerHeight: 내 선수 키 / 화면 높이(도트라 정수 배율로 반올림). tapSlopPx: 손가락이 이만큼(화면 픽셀) 넘게 움직이면 누르기 대신 밀기. flingDecay: 손을 뗀 뒤 미끄러짐이 줄어드는 빠르기(클수록 빨리 멈춘다). followRate: 걷는 동안 카메라가 선수를 따라가는 빠르기",
+      "_note": "로비 골목 (scripts/lobby). 거리 단위는 골목 그림 픽셀(화면 높이 390 이면 그림 3픽셀 = 화면 1픽셀). walkSpeed: 걷는 속도(그림 픽셀/초) — 올리면 빨리 도착한다. minWalkSec·maxWalkSec: 걷는 시간의 아래·위 한계 (멀리 있어도 maxWalkSec 안에 도착 — 늘리면 '걸어간다'는 느낌이 살고 줄이면 바로 들어간다). doorSec: 문 앞에서 사라지며 들어가는 시간. stepSec: 걸음 그림 한 장 시간(줄이면 종종걸음). playerHeight: 내 선수 키 / 화면 높이(도트라 정수 배율로 반올림). tapSlopPx: 손가락이 이만큼(화면 픽셀) 넘게 움직이면 누르기 대신 밀기. flingDecay: 손을 뗀 뒤 미끄러짐이 줄어드는 빠르기(클수록 빨리 멈춘다). followRate: 걷는 동안 카메라가 선수를 따라가는 빠르기. moveSpeed: 방향키(키보드 ←→ · 화면 ‹ › 버튼)로 걷는 속도(그림 픽셀/초) — 올리면 골목 끝까지 빨리 가고 문 앞에 서기가 어려워진다. interactRange: 문에서 이만큼(그림 픽셀) 안에 서면 [들어가기]가 뜬다 — 늘리면 대충 서도 되고, 줄이면 문 앞에 딱 서야 한다. edgeMargin: 골목 양 끝에서 더 못 가는 여백",
       "walkSpeed": 2400,
       "minWalkSec": 0.35,
       "maxWalkSec": 1.6,
@@ -1608,7 +1608,10 @@
       "playerHeight": 0.2,
       "tapSlopPx": 12,
       "flingDecay": 5.0,
-      "followRate": 8.0
+      "followRate": 8.0,
+      "moveSpeed": 1500,
+      "interactRange": 200,
+      "edgeMargin": 120
     }
   },
   "game": {
