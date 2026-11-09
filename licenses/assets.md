@@ -77,3 +77,7 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 | `godot/art/pixel/pitcher_ext.png` | `docs/refs/sprites/sd_pitcher_throw_v1_source.png` (4x4 격자) | GPT 이미지 (ChatGPT, 유저가 생성) | 위와 같음 |
 
 정리만 스크립트로 (`grid_to_strip.py` 바닥 맞춤, `tidy_sheet.py` 칸 순서) — 색·윤곽 그대로.
+## 대화창 인물 일러스트 셀 채색 (2026-11-09)
+| 파일 | 출처 | 상업 이용 |
+|---|---|---|
+| `godot/art/portraits/*.png` 17장 (인물 14명과 소율의 추가 표정 3장) | Codex GPT 이미지 생성. 하린 1번 시안을 화풍 기준으로, 교체 전 게임 일러스트를 인물 디자인 참고용으로 사용. 원본과 프롬프트는 `docs/refs/portraits/`. 게임용 PNG는 투명 배경을 유지해 크기만 줄임 | OpenAI 약관상 생성 결과물은 이용자에게 귀속되어 상업 이용 가능. 참고 이미지의 권리와 이용 조건은 별도 적용. [OpenAI 이용 약관](https://openai.com/policies/terms-of-use/) |
