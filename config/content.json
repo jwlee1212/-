@@ -353,7 +353,7 @@
       "id": "ep01_01",
       "story": true,
       "free": true,
-      "card": true,
+      "card": false,
       "grade": [
         1,
         1
@@ -364,32 +364,85 @@
       ],
       "timing": "start",
       "episode": 1,
-      "speaker": "coach",
-      "title": "서림고 야구부",
-      "place": "clubroom",
+      "speaker": "neighbor",
+      "title": "학교 가는 길",
+      "place": "street",
       "script": [
+        {
+          "do": {
+            "meet": [
+              "neighbor"
+            ]
+          }
+        },
         {
           "do": {
             "lineupSlot": 0
           }
         },
         {
-          "cutscene": "ep01_join"
+          "text": "3월 초, 아파트 단지 앞. 하린이 이어폰을 빼며 기다리고 있다."
         },
         {
-          "text": "3월, 서림고 야구부. 부원 열넷 중 1학년은 둘."
+          "speaker": "neighbor",
+          "text": "늦었어. 3분."
         },
         {
-          "speaker": "coach",
-          "text": "오 감독이다. 길게 말 안 한다. 오늘은 체력 테스트만 한다."
+          "speaker": "player",
+          "text": "엘리베이터가 13층에서 안 내려왔어."
+        },
+        {
+          "speaker": "neighbor",
+          "text": "맨날 엘리베이터 탓이야. ...너 진짜 야구부 들어가?"
+        },
+        {
+          "id": "ep01_harin_club",
+          "choices": [
+            {
+              "label": "응. 오늘 입부서 낼 거야.",
+              "key": "A",
+              "hint": "하린 호감 ++",
+              "effects": {
+                "rel": {
+                  "neighbor": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "neighbor",
+                  "text": "그래. 그럼 이제 같이 집 갈 일은 없겠네."
+                }
+              ]
+            },
+            {
+              "label": "일단 가보고.",
+              "key": "B",
+              "hint": "하린 호감 +",
+              "effects": {
+                "rel": {
+                  "neighbor": 1
+                }
+              },
+              "then": [
+                {
+                  "speaker": "neighbor",
+                  "text": "너 그 말 중학교 때도 했어. 결국 3년 했잖아."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "speaker": "neighbor",
+          "text": "난 이번 주부터 학원 저녁반이야. 열 시에 끝나."
         }
       ]
     },
     {
-      "id": "ep01_05",
+      "id": "ep01_02",
       "story": true,
       "free": true,
-      "card": true,
+      "card": false,
       "grade": [
         1,
         1
@@ -401,6 +454,122 @@
       "timing": "start",
       "after": [
         "ep01_01"
+      ],
+      "episode": 1,
+      "speaker": "buddy",
+      "title": "야구부실",
+      "place": "clubroom",
+      "script": [
+        {
+          "do": {
+            "meet": [
+              "manager"
+            ]
+          }
+        },
+        {
+          "text": "운동장 끝, 컨테이너를 고친 부실. 덩치 큰 1학년이 먼저 서 있다."
+        },
+        {
+          "speaker": "buddy",
+          "text": "어, 너도 입부? 다행이다, 나 혼자인 줄. 박준수, 포수야."
+        },
+        {
+          "speaker": "player",
+          "text": "{player}. 유격수."
+        },
+        {
+          "text": "부실 문이 벌컥 열린다."
+        },
+        {
+          "speaker": "manager",
+          "text": "1학년 맞지? 매니저 소율, 2학년. 여기 이름이랑 포지션 써."
+        },
+        {
+          "speaker": "manager",
+          "text": "박준수... 아, 동산중 포수! 도루 저지율 좋던데. 중학교 대회 영상은 웬만하면 다 받아놨거든."
+        },
+        {
+          "text": "주인공 입부서를 받은 소율의 손이 멈춘다."
+        },
+        {
+          "speaker": "manager",
+          "text": "{player}... 중3 지역 리그 11경기, 타율 2할 6푼. 근데 영상이 하나도 없어. 이런 경우 처음 봐."
+        },
+        {
+          "id": "ep01_soyul_record",
+          "choices": [
+            {
+              "label": "그럼 이제부터 찍으시면 되죠.",
+              "key": "A",
+              "hint": "소율 호감 ++",
+              "effects": {
+                "rel": {
+                  "manager": 3
+                }
+              },
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "오, 그렇지. 오늘부터 너 1호 촬영 대상이야."
+                }
+              ]
+            },
+            {
+              "label": "...그 기록, 어디서 찾으신 거예요?",
+              "key": "B",
+              "hint": "소율 호감 +",
+              "effects": {
+                "rel": {
+                  "manager": 1
+                }
+              },
+              "then": [
+                {
+                  "speaker": "manager",
+                  "text": "지역 리그 게시판. 3년 치 엑셀로 정리해놨어. 이제부턴 내가 직접 찍을 거고."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "cutscene": "ep01_join"
+        },
+        {
+          "speaker": "coach",
+          "text": "소율아, 기록."
+        },
+        {
+          "speaker": "manager",
+          "text": "스톱워치 두 개, 반응속도 측정기까지 준비됐어요."
+        },
+        {
+          "speaker": "coach",
+          "text": "측정기는 어디서 났냐."
+        },
+        {
+          "speaker": "manager",
+          "text": "제 거요. 용돈 두 달 치."
+        }
+      ]
+    },
+    {
+      "id": "ep01_05",
+      "story": true,
+      "free": true,
+      "card": false,
+      "grade": [
+        1,
+        1
+      ],
+      "week": [
+        1,
+        1
+      ],
+      "timing": "start",
+      "after": [
+        "ep01_02"
       ],
       "episode": 1,
       "speaker": "coach",
@@ -422,7 +591,7 @@
       "id": "ep01_05b",
       "story": true,
       "free": true,
-      "card": true,
+      "card": false,
       "grade": [
         1,
         1
@@ -478,6 +647,10 @@
                 {
                   "speaker": "buddy",
                   "text": "나보다는 빠르네."
+                },
+                {
+                  "speaker": "manager",
+                  "text": "준수야, 넌 꼴찌였어."
                 }
               ]
             }
@@ -498,7 +671,7 @@
       "id": "ep01_05c",
       "story": true,
       "free": true,
-      "card": true,
+      "card": false,
       "grade": [
         1,
         1
@@ -534,6 +707,10 @@
                 {
                   "speaker": "manager",
                   "text": "감독님, 이거 3학년 기록보다 많은데요."
+                },
+                {
+                  "speaker": "coach",
+                  "text": "알아."
                 }
               ]
             },
@@ -561,7 +738,7 @@
         },
         {
           "speaker": "manager",
-          "text": "마지막. 반응속도 측정기. 내 거야, 용돈 두 달 치."
+          "text": "마지막. 반응속도. 이거 제일 보고 싶었어."
         },
         {
           "do": {
@@ -574,7 +751,7 @@
       "id": "ep01_05d",
       "story": true,
       "free": true,
-      "card": true,
+      "card": false,
       "grade": [
         1,
         1
@@ -593,6 +770,13 @@
       "place": "field",
       "script": [
         {
+          "do": {
+            "meet": [
+              "manager"
+            ]
+          }
+        },
+        {
           "branch": [
             {
               "if": {
@@ -600,6 +784,9 @@
                 "eq": "high"
               },
               "then": [
+                {
+                  "text": "감독이 처음으로 팔짱을 푼다."
+                },
                 {
                   "speaker": "coach",
                   "text": "...다시 한 번 해봐."
@@ -633,6 +820,9 @@
           "text": "초기 능력치가 결정되었습니다."
         },
         {
+          "text": "해가 지는 운동장. 감독이 소율의 기록지를 넘겨본다."
+        },
+        {
           "branch": [
             {
               "if": {
@@ -642,7 +832,15 @@
               "then": [
                 {
                   "speaker": "coach",
-                  "text": "중학교 때 왜 아무도 몰랐냐. 내일 6시 반까지 나와."
+                  "text": "{player}. 중학교 때 왜 아무도 몰랐냐."
+                },
+                {
+                  "speaker": "player",
+                  "text": "...대회를 많이 못 나가서요."
+                },
+                {
+                  "speaker": "coach",
+                  "text": "그래. 내일 6시 반까지 나와."
                 }
               ]
             },
@@ -667,6 +865,18 @@
               ]
             }
           ]
+        },
+        {
+          "speaker": "manager",
+          "text": "너희 파일명 만들어놨다. {player}_1학년_3월. 졸업할 때까지 쌓을 거야."
+        },
+        {
+          "speaker": "player",
+          "text": "...3년 치요?"
+        },
+        {
+          "speaker": "manager",
+          "text": "나중에 프로 가면 내가 원본 갖고 있는 거잖아. 좀 멋있지 않아?"
         },
         {
           "do": {
@@ -11900,6 +12110,20 @@
     },
     "retire_delayed": {
       "type": "bool"
+    },
+    "ep01_harin_club": {
+      "type": "enum",
+      "values": [
+        "A",
+        "B"
+      ]
+    },
+    "ep01_soyul_record": {
+      "type": "enum",
+      "values": [
+        "A",
+        "B"
+      ]
     },
     "ep02_warmup": {
       "type": "enum",

@@ -96,7 +96,7 @@ NOTE_VARS = ("시나리오 변수 (docs/scenario 2장의 ID 그대로 — script
 
 # ---------- 장소 (SCENE → places id) ----------
 PLACES = {
-    "ep01_01": "clubroom", "ep01_02": "clubroom", "ep01_03": "clubroom", "ep01_04": "field", "ep01_05": "field",
+    "ep01_01": "street", "ep01_02": "clubroom", "ep01_03": "clubroom", "ep01_04": "field", "ep01_05": "field",
     "ep01_06": "field", "ep01_07": "bedroom",
     "ep02_01": "field", "ep02_02": "clubroom", "ep02_03": "dugout", "ep02_04": "bus", "ep02_05": "playground",
     "ep03_01": "cheongun_field", "ep03_02": "cheongun_field", "ep03_03": "dugout", "ep03_04": "cheongun_field",
@@ -360,6 +360,9 @@ DRAFT_FILED = {"var": "hs_path", "eq": "draft"}
 WHEN = {"ep07_02": FORM_CHANGE, "ep07_02b": FORM_CHANGE, "ep21_01": DRAFT_FILED, "ep21_02": DRAFT_FILED}
 # 조건(proLevel 등)이 있어 안 나올 수도 있는 장면 — 뒤 장면의 순서(after)가 이 장면을 건너뛰어 잇는다
 OPTIONAL = {"ep25_01"}
+# 스토리판 (2026-11-09 시험, 유저: "스토리가 더 재밌는데 옛날엔 너무 많고 루즈했다"): 이 접두어로 시작하는
+# 이벤트는 카드가 아니라 한 줄씩 넘기는 대화(card: false)로 보인다. 압축 규칙은 docs/scenario/story-plan.md
+STORY_PREFIXES = ("ep01_",)
 # 장면을 이어 붙인다 (False: 앞 이벤트에 이어서 한 화면으로) — 경기 장면 대화가 SCENE 경계를 넘을 때
 JOIN = {"ep01_03", "ep01_04", "ep01_06", "ep04_04", "ep04_05", "ep05_05"}
 # 이벤트 앞·뒤에 덧붙이는 노드 (엔진 효과 — 문서의 SYSTEM·modifiers 를 옮긴 것)
@@ -392,6 +395,11 @@ APPEND = {
 # 선택지에 붙는 엔진 효과 (선택 지점 id, 선택지 번호 → 효과)
 CHOICE_FX = {
     # 카드판 (2026-11-04): 고르면 반드시 무언가 바뀐다 — 문서의 힌트와 맞출 것
+    # EP01 스토리판 시험 (2026-11-09): 하린·소율 첫 만남 — 사이드 스토리 문자 호감과 같은 관계 값
+    ("ep01_harin_club", 0): {"rel": {"neighbor": 3}},
+    ("ep01_harin_club", 1): {"rel": {"neighbor": 1}},
+    ("ep01_soyul_record", 0): {"rel": {"manager": 3}},
+    ("ep01_soyul_record", 1): {"rel": {"manager": 1}},
     ("ep03_taeo_sink", 0): {"train": {"fielding": 1.5}},
     ("ep06_minjae", 1): {"condition": 3},  # 2026-11-05 전수 점검: "변화 없음"이던 선택지 (카드 규칙)
     ("ep03_taeo_sink", 1): {"condition": 5},
@@ -825,7 +833,7 @@ def finish(events):
         if hidden:
             script.insert(0, {"do": {"meet": hidden}})
         people = [s for s in sp if s not in ("player",) and not s[0] >= "가"]
-        out = {"id": eid, "story": True, "free": True, "card": True}
+        out = {"id": eid, "story": True, "free": True, "card": not eid.startswith(STORY_PREFIXES)}
         out.update(meta)
         if eid in WHEN:
             out["when"] = WHEN[eid]

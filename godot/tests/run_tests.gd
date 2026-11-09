@@ -1177,10 +1177,10 @@ func test_events_flow() -> void:
 	var career := CareerState.new(_career_cfg(), "테스트", _config)
 	var book := career.book
 	var first := _event(career.cfg, "ep01_01")
-	var second := _event(career.cfg, "ep01_05")
+	var second := _event(career.cfg, "ep01_02")
 	check(not book.eligible(career, second), "앞 장면(after)을 보기 전엔 뒤 장면이 안 나온다")
 	career.resolve_event(first, 0)
-	check(career.player.lineup_slot == 0 and first.get("card", false) and career.people.is_met("coach"), "입부하면 벤치, 1학년 이야기는 카드")
+	check(career.player.lineup_slot == 0 and not first.get("card", true) and career.people.is_met("neighbor"), "입부하면 벤치, EP01 은 스토리판(한 줄씩 넘기는 대화, 2026-11-09 시험)")
 	check(book.eligible(career, second), "앞 장면을 보면 뒤 장면이 열린다")
 	check(not book.eligible(career, first), "한 번 나온 이벤트는 다시 안 나온다")
 	career.week = 2
@@ -1488,7 +1488,7 @@ func test_story_three_years() -> void:
 	var titles := {}
 	for entry: Dictionary in career.book.log:
 		titles[entry.title] = true
-	for t in ["서림고 야구부", "체력 테스트", "대수비", "마지막 타석", "배팅 케이지", "서림고 vs 서호대 (연습경기)", "겨울 과제", "후배", "주장", "진로"]:
+	for t in ["학교 가는 길", "야구부실", "체력 테스트", "대수비", "마지막 타석", "배팅 케이지", "서림고 vs 서호대 (연습경기)", "겨울 과제", "후배", "주장", "진로"]:
 		check(titles.has(t), "고교 3년 이야기에 '%s' 가 나온다" % t)
 	check(career.path == "draft", "진로가 정해진다 (%s)" % career.path)
 	check(career.player.grade == 3 and career.history.size() == 2, "3학년까지, 지난 시즌 기록 2개")
@@ -1876,7 +1876,7 @@ func test_first_day() -> void:
 		check(pending.size() == 1, "한 번에 하나씩 뜬다 (%s)" % [pending.map(func(e: Dictionary) -> String: return e.id)])
 		order.append(pending[0].id)
 		career.resolve_event(pending[0], 0)
-	check(order == ["ep01_01", "ep01_05", "ep01_05b", "ep01_05c", "ep01_05d", "ep02_01", "ep02_01b", "ep02_02"], "첫 주 순서: %s" % [order])
+	check(order == ["ep01_01", "ep01_02", "ep01_05", "ep01_05b", "ep01_05c", "ep01_05d", "ep02_01", "ep02_01b", "ep02_02"], "첫 주 순서: %s" % [order])
 	var v := career.player.vars
 	check(career.fitness.size() == 3 and career.pending_minigame == "", "체력 테스트 세 종목은 화면 없이 autoGrade 로 끝난다")
 	check(v["test_speed_grade"] == "mid" and v["test_squat_grade"] == "mid" and v["test_reaction_grade"] == "mid" and v["test_overall_grade"] == "mid", "autoGrade B → mid: %s" % [v])
@@ -1895,7 +1895,7 @@ func test_first_day() -> void:
 	check(career.book.log.any(func(x: Dictionary) -> bool: return x.title == "펑고 수비 연습"), "펑고 연습 기록")
 	# 종목 하나씩: 50m 뒤에는 50m 등급만
 	var b := CareerState.new(cfg, "테스트", _config)
-	for k in 2:
+	for k in 3:  # 등굣길 · 부실 · 50m (EP01 스토리판)
 		b.resolve_event(b.events("start")[0], 2)
 	check(b.fitness.keys() == ["run"] and b.player.vars["test_speed_grade"] == "mid" and EventBook.var_of(b, "test_overall_grade") == "", "50m 만 끝났다")
 	var loaded := _reload(b)
@@ -1913,6 +1913,10 @@ func test_story_cards() -> void:
 	var story: Array = cfg.events.filter(func(e: Dictionary) -> bool: return str(e.id).begins_with("ep0"))
 	var longest := 0
 	for e: Dictionary in story:
+		# EP01 은 스토리판 시험 (2026-11-09) — 한 줄씩 넘기는 대화, 장면당 대사 약 10줄
+		if str(e.id).begins_with("ep01_"):
+			check(not e.get("card", true), "%s 는 스토리판" % e.id)
+			continue
 		check(e.get("card", false), "%s 는 카드" % e.id)
 		var found := {"choices": [], "lines": []}
 		EventBook._collect(EventBook.script_of(e), found)
