@@ -55,3 +55,8 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 | 효과음 (타격음·미트·바람·함성) | `godot/scripts/audio/sound_synth.gd` 가 실행 중에 코드로 합성 (파일 없음, 녹음·AI 생성 아님) | 가능 (자체 제작) |
 | 관중 함성 `godot/audio/sfx/cheer_small.wav` `cheer_big.wav` | `scripts/make_bgm.py` 가 목소리 수십 개(톱니파 + 모음 공명 필터)·휘파람·박수를 코드로 합성 (녹음·AI 생성 아님) | 가능 (자체 제작) |
 | (옛, 2026-11-07 에 아래 ElevenLabs 콜로 바뀜) 심판 콜 `godot/audio/sfx/call_strike.wav` `call_strikeout.wav` | `scripts/make_bgm.py` 가 포먼트 합성(성대 펄스 + 공명 4개를 시간에 따라 옮김)으로 만든 목소리 (녹음·TTS·AI 생성 아님) | 가능 (자체 제작) |
+
+## 대화창 인물 일러스트 셀 채색 (2026-11-09)
+| 파일 | 출처 | 상업 이용 |
+|---|---|---|
+| `godot/art/portraits/*.png` 17장 (인물 14명과 소율의 추가 표정 3장) | Codex GPT 이미지 생성. 하린 1번 시안을 화풍 기준으로, 교체 전 게임 일러스트를 인물 디자인 참고용으로 사용. 원본과 프롬프트는 `docs/refs/portraits/`. 게임용 PNG는 투명 배경을 유지해 크기만 줄임 | OpenAI 약관상 생성 결과물은 이용자에게 귀속되어 상업 이용 가능. 참고 이미지의 권리와 이용 조건은 별도 적용. [OpenAI 이용 약관](https://openai.com/policies/terms-of-use/) |

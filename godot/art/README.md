@@ -12,19 +12,23 @@
 
 | 파일 | 인물 (docs/worldview.md) | 그림 |
 |---|---|---|
-| `neighbor.png` | 하린 (소꿉친구, 미대 입시생) | 있음 (2026-11-02) |
-| `mom.png` | 엄마 (은하식당) | 있음 (2026-11-02) |
-| `coach.png` | 오 감독 | 있음 (2026-11-02) |
-| `buddy.png` | 박준수 (포수, 입부 동기) | 있음 (2026-11-02) |
-| `senior.png` | 한도윤 (3학년 주장) | 있음 (2026-11-02) |
-| `minjae.png` | 정민재 (2학년 유격수 → 2루수) | 있음 (2026-11-02) |
-| `scout.png` | 나성만 (태성 썬더스 스카우트 팀장) | 있음 (2026-11-02) |
-| `seongho.png` | 김성호 (3학년 외야수) | 있음 (2026-11-02) |
-| `jaehyuk.png` | 윤재혁 (2학년 투수, 주장) | 있음 (2026-11-02) |
-| `manager.png` (+ `_happy` · `_pout` · `_surprised`) | 소율 (2학년 매니저) | 옛 캐릭터 그림 — 교체 대상 |
-| `rival.png` | 강태오 (청운고) | 옛 캐릭터 그림 — 교체 대상 |
-| `batting_coach.png` · `junior.png` · `reporter.png` | 2·3학년 옛 이야기 인물 | 옛 그림 |
+| `neighbor.png` | 하린 (소꿉친구, 미대 입시생) | 셀 채색 |
+| `mom.png` | 엄마 (은하식당) | 셀 채색 |
+| `coach.png` | 오 감독 | 셀 채색 |
+| `buddy.png` | 박준수 (포수, 입부 동기) | 셀 채색 |
+| `senior.png` | 한도윤 (3학년 주장) | 셀 채색 |
+| `minjae.png` | 정민재 (2학년 유격수 → 2루수) | 셀 채색 |
+| `scout.png` | 나성만 (태성 썬더스 스카우트 팀장) | 셀 채색 |
+| `seongho.png` | 김성호 (3학년 외야수) | 셀 채색 |
+| `jaehyuk.png` | 윤재혁 (2학년 투수, 주장) | 셀 채색 |
+| `manager.png` (+ `_happy` · `_pout` · `_surprised`) | 소율 (2학년 매니저) | 셀 채색, 표정 포함 4장 |
+| `rival.png` | 강태오 (청운고) | 셀 채색 |
+| `batting_coach.png` | 타격 코치 | 셀 채색 |
+| `junior.png` | 내야수 후배 | 셀 채색 |
+| `reporter.png` | 서지안 (방송부) | 셀 채색 |
 | `agent.png` · `butcher.png` · `college_coach.png` · `local_reporter.png` | 2·3학년 조연 | 없음 |
+
+하린 1번 시안을 기준으로 통일한 원본과 프롬프트는 [인물 일러스트 참고 자료](../../docs/refs/portraits/README.md)에 있다.
 
 ## 배경 `backgrounds/<id>.png`
 
