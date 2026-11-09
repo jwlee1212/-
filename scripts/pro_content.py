@@ -356,7 +356,7 @@ MESSAGES = [
         proYear=[1, 30], requires=["discharged"]),
     msg("m_pro_mom_fa", "mom", ["계약 기사 봤다", "어디서 뛰든 은하식당 벽엔 네 유니폼 걸려 있을 거야"],
         [rep("엄마 가게 넓히자", {"rel": {"mom": 6}, "money": -30000000}, ["…이번 한 번만 받는다"]), rep("고마워", {"rel": {"mom": 3}}, ["밥 먹으러 와"])],
-        proYear=[1, 30], requires=["fa_signed"]),
+        proYear=[1, 30], requires=["fa_signed"], minMoney=30000000),
     # ---- 프로: 연인 (고교에서 이어진 사람) ----
     msg("m_pro_harin_debut", "neighbor", ["데뷔 축하해", "TV로 봤어. 유니폼이 좀 커 보이더라 ㅋㅋ"],
         [rep("금방 맞게 된다", {"rel": {"neighbor": 3}, "condition": 3}, ["그럼 그 유니폼 그려 줄게"]), rep("직관 와", {"rel": {"neighbor": 4}}, ["주말에 갈게. 3루 쪽"])],
@@ -389,7 +389,7 @@ MESSAGES = [
     msg("m_pro_chae_dinner", "chae", ["오빠 이번 주 홈경기 끝나고 시간 돼요?", "청담에 새로 생긴 오마카세. 예약은 제가 할게요", "계산은 오빠가 ✌"],
         [rep("좋아", {"money": -800000, "rel": {"chae": 8}, "flag": "chae_dinner"}, ["사진 잘 나왔다. 올려도 돼요?"]),
          rep("시즌 중이라 어려워", {"rel": {"chae": -4}, "condition": 2}, ["프로는 다 바쁘구나~"])],
-        proYear=[1, 4], requires=["chae_contact"], forbids=["chae_dinner", "chae_end"], partner="none"),
+        proYear=[1, 4], requires=["chae_contact"], forbids=["chae_dinner", "chae_end"], partner="none", minMoney=800000),
     msg("m_pro_chae_post", "chae", ["오빠랑 찍은 사진 스토리에 올렸어요", "얼굴은 가렸는데 팬들은 다 알아보네 ㅋㅋ"],
         [rep("내려 줘", {"rel": {"chae": -4}, "reputation": 2, "flag": "chae_boundary"}, ["…알겠어요. 생각보다 깐깐하네"]),
          rep("괜찮아", {"rel": {"chae": 5}, "fame": 3, "reputation": -2, "proSns": "chae_post"}, ["역시 ㅎㅎ 좋아요 벌써 2만"])],
@@ -415,12 +415,25 @@ MESSAGES = [
 ]
 
 
+# ---------- 늘린 틀 (같은 문구를 덜 보게 · 어그로 기사) ----------
+exec(open(Path(__file__).resolve().parent / "pro_feed_text.py", encoding="utf-8").read())
+for _k, _v in NEWS_MORE.items():
+    NEWS.setdefault(_k, [])
+    NEWS[_k] += [x for x in _v if x not in NEWS[_k]]
+for _k, _v in SNS_MORE.items():
+    SNS["posts"].setdefault(_k, [])
+    SNS["posts"][_k] += [x for x in _v if x not in SNS["posts"][_k]]
+for _k, _v in COMMENTS_MORE.items():
+    SNS["comments"].setdefault(_k, [])
+    SNS["comments"][_k] += [x for x in _v if x not in SNS["comments"][_k]]
+
+
 def main():
     c = json.loads(CONTENT.read_text(encoding="utf-8"))
     for t in c["proTeams"]:
         t.update(TEAMS[t["name"]])
     c["pro"] = {"_note": "프로 편 (scripts/pro_content.py 가 쓴다). media 매체, statNames 부문 이름, news·sns 문장 틀 (ProFeed), milestones = 상황 컷신 (Milestones — 그림이 없으면 컷신 자리 카드)",
-                "ending": ENDING, "retireText": RETIRE_TEXT, "media": MEDIA, "statNames": STAT_NAMES, "news": NEWS, "sns": SNS, "milestones": MILESTONES}
+                "ending": ENDING, "retireText": RETIRE_TEXT, "gossip": GOSSIP, "media": MEDIA, "statNames": STAT_NAMES, "news": NEWS, "sns": SNS, "milestones": MILESTONES}
     c["people"]["chae"] = CHAE
     for k, v in PLACES.items():
         c["places"][k] = v

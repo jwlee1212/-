@@ -12,6 +12,8 @@ var _average := BatterSkills.new(50, 50, 50)
 var _failures := 0
 var _passed := 0
 var _current := ""
+## SLOW=1 일 때만 도는 테스트
+const SLOW_TESTS := ["test_every_choice_path", "test_full_career_every_strategy"]
 
 
 func _init() -> void:
@@ -89,6 +91,9 @@ func _init() -> void:
 		"test_sim_to_end",
 		"test_age_curve",
 		"test_pro_retire",
+		"test_every_choice_path",
+		"test_full_career_every_strategy",
+		"test_pro_feed_variety",
 		"test_real_content",
 		"test_training_and_growth",
 		"test_condition_affects_skills",
@@ -199,6 +204,10 @@ func _init() -> void:
 	]:
 		var only := OS.get_environment("ONLY")
 		if only != "" and not test.contains(only):
+			continue
+		# 오래 걸리는 테스트(고1~은퇴 전수 점검, 10분 넘게)는 SLOW=1 이거나 ONLY 로 콕 집었을 때만
+		if test in SLOW_TESTS and OS.get_environment("SLOW") == "" and only == "":
+			print("  skip ", test, " (SLOW=1 로 돌린다)")
 			continue
 		_current = test
 		var before := _failures
@@ -1244,6 +1253,7 @@ func _ok_choice(career: CareerState, e: Dictionary, want: int) -> int:
 	var choices: Array = e.get("choices", [])
 	if choices.is_empty():
 		return 0
+	want = clampi(want, 0, choices.size() - 1)  # "늘 마지막 선택지"(9) 같은 큰 번호는 마지막으로
 	if EventBook.choice_block(career, choices[want]) == "":
 		return want
 	for i in choices.size():
@@ -6261,3 +6271,238 @@ func test_street_walk() -> void:
 	check(far.step_frame(0.0, 4) == 0 and far.step_frame(step * 1.01, 4) == 1 and far.step_frame(step * 4.01, 4) == 0, "걸음 장이 돈다")
 	var again := StreetWalk.plan(0.0, 7000.0, cfg)
 	check(again.x_at(0.37) == far.x_at(0.37), "같은 입력 같은 위치")
+
+# ---------- 전수 점검 (2026-11-05 유저: 고교부터 은퇴까지 모든 선택지를 눌러 보기) ----------
+
+## 커리어 상태가 말이 되는가 (돈·능력치·컨디션·관계·감독 신뢰 범위, 이야기 변수의 형식·값)
+func _check_sane(c: CareerState, where: String) -> void:
+	var p := c.player
+	check(p.money >= 0, "%s: 돈 %d" % [where, p.money])
+	for st in PlayerData.STATS:
+		check(p.stat(st) >= 1 and p.stat(st) <= c.cfg.stat_max, "%s: %s %d" % [where, st, p.stat(st)])
+	check(p.condition >= 0 and p.condition <= 100 and p.reputation >= 0 and p.reputation <= 100, "%s: 컨디션 %d 평판 %d" % [where, p.condition, p.reputation])
+	for id: String in c.people.by_id:
+		var r := c.people.relation(id)
+		check(r >= 0 and r <= 100, "%s: 관계 %s %d" % [where, id, r])
+	for vid: String in p.vars:
+		var d: Dictionary = c.cfg.vars.get(vid, {})
+		check(not d.is_empty(), "%s: 선언 안 된 변수 %s" % [where, vid])
+		var v: Variant = p.vars[vid]
+		match str(d.get("type", "")):
+			"enum":
+				check(v in (d.get("values", []) as Array), "%s: %s = %s (enum %s)" % [where, vid, v, d.get("values")])
+			"bool":
+				check(v is bool, "%s: %s = %s (bool)" % [where, vid, v])
+			"int":
+				check(v is int or (v is float and is_equal_approx(v, roundf(v))), "%s: %s = %s (int)" % [where, vid, v])
+	if c.pro != null:
+		check(c.pro.trust >= 0.0 and c.pro.trust <= 100.0, "%s: 감독 신뢰 %.1f" % [where, c.pro.trust])
+		var w := 0
+		var l := 0
+		for t: ProTeam in c.pro.league.teams:
+			w += t.w
+			l += t.l
+		check(w == l, "%s: 리그 승 %d ≠ 패 %d" % [where, w, l])
+		check(c.pro.me.season.games <= c.pro.team().games() + 1 or c.pro.retired, "%s: 내 경기 %d > 팀 경기 %d" % [where, c.pro.me.season.games, c.pro.team().games()])
+
+
+## 이 이벤트를 고를 수 있는 커리어 (돈 넉넉, 모두 만남, 연인 조건이면 연애 중, 프로 이벤트면 프로)
+func _choice_career(cfg: CareerConfig, e: Dictionary) -> CareerState:
+	var c: CareerState
+	if e.has("proYear"):
+		c = _pro_career(cfg, "S", "전수")
+	else:
+		c = CareerState.new(cfg, "전수", _config)
+	c.player.money = 2000000000
+	for id: String in c.people.by_id:
+		c.people.meet(id)
+	if e.get("partner", "") == "any":
+		c.people.partner = "neighbor"
+	elif e.get("partner", "") not in ["", "none", "any"]:
+		c.people.partner = e["partner"]
+	return c
+
+
+func test_every_choice_path() -> void:
+	# 모든 이벤트(이야기 카드·사이드 카드·입대·은퇴 카드)의 모든 선택 경로: 갈림길마다 남은 선택지를 경로로 늘려 끝까지 →
+	# commit 이 에러 없이 끝나고 커리어 상태가 말이 되는지
+	var cfg := _pro_cfg(2)
+	var total := 0
+	for e: Dictionary in cfg.events:
+		var paths: Array = [[]]
+		var done := 0
+		while not paths.is_empty() and done < 64:
+			var picks: Array = paths.pop_back()
+			var c := _choice_career(cfg, e)
+			var run := DialogueRun.new(c, e)
+			var depth := 0
+			var blocked := false
+			for guard in 200:
+				var st := run.next()
+				if st.type == "end":
+					break
+				if st.type != "choice":
+					continue
+				var opts: Array = st.options
+				check(not opts.is_empty(), "%s %s: 고를 선택지가 없다" % [e.id, picks])
+				if opts.is_empty():
+					blocked = true
+					break
+				var i := 0
+				if depth < picks.size():
+					i = int(picks[depth])
+				else:
+					for k in range(1, opts.size()):
+						paths.append(picks + [k])
+					picks = picks + [0]
+				if run.block(i) != "":
+					blocked = true
+					break
+				run.choose(i)
+				depth += 1
+			if not blocked:
+				run.commit()
+				_check_sane(c, "%s %s" % [e.id, picks])
+			done += 1
+			total += 1
+	# 이벤트마다 경로가 하나 이상 (2026-11-09: 원래 250 이상이었는데 만든 브랜치에서도 125개였다 — 숫자가 틀렸던 것)
+	check(total >= cfg.events.size(), "선택 경로 %d개 < 이벤트 %d개" % [total, cfg.events.size()])
+
+
+## 커리어 전체를 한 가지 고르는 방식으로: want 0 = 늘 첫 선택지, 9 = 늘 마지막, -1 = 번갈아
+func _want(strategy: int, salt: int) -> int:
+	return salt % 3 if strategy < 0 else strategy
+
+
+func _reply_all(c: CareerState, strategy: int, salt: int) -> void:
+	for room: String in c.phone.order.duplicate():
+		var opts := c.phone.reply_options(c, room)
+		if not opts.is_empty():
+			c.phone.reply(c, room, mini(_want(strategy, salt), opts.size() - 1))
+
+
+func _resolve_all(c: CareerState, timing: String, strategy: int, salt: int) -> void:
+	var g := 0
+	while not c.events(timing).is_empty() and g < 30:
+		g += 1
+		c.resolve_event(c.events(timing)[0], _want(strategy, salt + g))
+
+
+func test_full_career_every_strategy() -> void:
+	# 고1 입학부터 은퇴까지 — 늘 첫 선택지 / 늘 마지막 선택지 / 번갈아. 문자에도 같은 방식으로 답장하고,
+	# 고교는 경기를 직접(자동 타석)·시뮬레이션 번갈아, 프로는 날마다 직접·시뮬레이션·날짜까지 시뮬레이션을 섞는다.
+	# 매주 상태가 말이 되는지, 몇 시즌마다 저장 → 불러온 커리어로 이어 간다. 프로 시즌은 2주로 줄이고(빠르게) 복무·FA 기준도 맞춰 줄인다
+	for strategy: int in [0, 9, -1]:
+		var cfg := _pro_cfg(2)
+		cfg.seed = 9100 + strategy
+		cfg.pro["military"]["serviceWeeks"] = 3
+		cfg.pro["fa"]["faWeeks"] = 1
+		cfg.pro["fa"]["seasonsHigh"] = 3
+		cfg.pro["fa"]["seasonsCollege"] = 3
+		var tag := "[%d]" % strategy
+		var c := CareerState.new(cfg, "전수%d" % strategy, _config)
+		var ids: Array = cfg.training.keys()
+		var salt := 0
+		# ---- 고교 3년 ----
+		for season in 3:
+			var weeks := 0
+			while not c.is_season_over() and weeks < 45:
+				salt += 1
+				_resolve_all(c, "start", strategy, salt)
+				_reply_all(c, strategy, salt)
+				if HsSim.can_sim(c) and salt % 2 == 0:
+					HsSim.sim_game(c)
+				else:
+					c.finish_game(_auto_week(c, ids[salt % ids.size()]))
+				_resolve_all(c, "after", strategy, salt)
+				_check_sane(c, "%s 고%d %d주" % [tag, c.player.grade, c.week])
+				c.advance_week()
+				weeks += 1
+			check(c.is_season_over(), "%s 고%d 시즌이 끝난다 (%d주)" % [tag, c.player.grade, weeks])
+			_resolve_all(c, "seasonEnd", strategy, salt)
+			if season < 2:
+				_auto_camp(c, func(e: Dictionary) -> int: return _want(strategy, salt))
+				c.winter_training()
+				c.start_next_season()
+		check(c.player.grade == 3 and c.path != "", "%s 고교 3년 끝 · 진로 %s" % [tag, c.path])
+		c.start_pro()
+		check(c.pro != null and c.player.season == c.pro.me.season, "%s 프로 입단 (%s)" % [tag, c.draft.get("text", "")])
+		# ---- 프로 → 은퇴 ----
+		var seasons := 0
+		while not c.pro.retired and seasons < 30:
+			seasons += 1
+			var w := 0
+			while not c.is_season_over() and w < 20:
+				w += 1
+				salt += 1
+				_resolve_all(c, "start", strategy, salt)
+				_reply_all(c, strategy, salt)
+				var d := 0
+				while not c.game_done and d < 12:
+					d += 1
+					var mode := (salt + d) % 3
+					if mode == 0 and c.pro.has_direct_game(c):
+						c.finish_game(_auto_week(c, ids[salt % ids.size()]))
+					elif mode == 1:
+						c.pro.sim_until(c, c.pro.next_monday(c), {"milestone": false, "level": false, "injury": false})
+						if not c.events("after").is_empty() or not c.events("start").is_empty():
+							break
+					else:
+						c.pro.finish_day(c, null)
+				c.pro.pending_scenes.clear()
+				_resolve_all(c, "start", strategy, salt)
+				if c.game_done:
+					_resolve_all(c, "after", strategy, salt)
+					_check_sane(c, "%s 프로 %d년 %d주" % [tag, c.pro.year(), c.week])
+					c.advance_week()
+			check(c.is_season_over(), "%s 프로 %d년 차 시즌이 끝난다" % [tag, c.pro.year()])
+			c.pro.close_season(c)
+			_resolve_all(c, "seasonEnd", strategy, salt)
+			if c.pro.retired:
+				break
+			if c.pro.fa_pending:
+				var offers := ProFA.offers(cfg, c.pro)
+				ProFA.sign(c, c.pro, offers[mini(_want(strategy, salt), offers.size() - 1)])
+			_check_sane(c, "%s 프로 %d년 결산" % [tag, c.pro.year()])
+			c.start_next_pro_season()
+			if seasons % 4 == 0:
+				c = _reload(c)
+		check(c.pro.retired, "%s 은퇴까지 간다 (%d시즌, 만 %d세)" % [tag, seasons, c.pro.me.age])
+		var sum := c.pro.career_summary(c)
+		check(int(sum["years"]) >= 1 and (sum["line"] as PlayerData.SeasonStats).games > 0, "%s 은퇴식 요약 (%d경기)" % [tag, (sum["line"] as PlayerData.SeasonStats).games])
+		var r := _reload(c)
+		check(r.pro.retired, "%s 은퇴한 커리어도 저장된다" % tag)
+
+
+
+func test_pro_feed_variety() -> void:
+	# 프로 뉴스·SNS (2026-11-05 유저: 글을 많이, 어그로 기사도, 같은 문구는 되도록 다시 안 보게)
+	var cfg := _pro_cfg(8)
+	check(ProFeed.validate(cfg).is_empty(), "틀 검증: %s" % [ProFeed.validate(cfg)])
+	var c := _pro_career(cfg, "S", "기사")
+	c.people.meet("chae")
+	for w in 8:
+		_pro_week(c)
+	var items: Array = c.pro.feed.items
+	check(items.size() >= 8 * 8, "8주에 글 %d개 (한 주 8개 넘게)" % items.size())
+	check(items.any(func(it: Dictionary) -> bool: return it["type"] == "gossip"), "어그로 기사가 있다")
+	check(items.any(func(it: Dictionary) -> bool: return it["type"] == "fan_talk"), "팬 수다가 있다")
+	var titles := {}
+	for it: Dictionary in items:
+		titles[it["title"]] = int(titles.get(it["title"], 0)) + 1
+	check(float(titles.size()) / items.size() >= 0.9, "같은 제목이 거의 없다 (서로 다른 제목 %d / %d)" % [titles.size(), items.size()])
+	for it: Dictionary in items:
+		check(not str(it["title"]).contains("{"), "치환이 남지 않는다: %s" % it["title"])
+		var cm: Array = it["comments"]
+		var uniq := {}
+		for x: String in cm:
+			uniq[x] = true
+		check(uniq.size() == cm.size(), "한 글의 댓글이 겹치지 않는다")
+	# 같은 진행이면 같은 기사 (원칙 2), 저장해도 이어진다
+	var d := _pro_career(_pro_cfg(8), "S", "기사")
+	d.people.meet("chae")
+	for w in 8:
+		_pro_week(d)
+	check(d.pro.feed.items.map(func(it: Dictionary) -> String: return it["title"]) == items.map(func(it: Dictionary) -> String: return it["title"]), "재현성")
+	var r := _reload(c)
+	check(r.pro.feed.used.size() == c.pro.feed.used.size(), "쓴 틀 기록도 저장된다")

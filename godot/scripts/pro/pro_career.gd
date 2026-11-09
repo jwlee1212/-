@@ -210,11 +210,13 @@ func is_off_day(career: CareerState) -> bool:
 	return phase != PHASE_DONE and not career.game_done and day == 0 and career.week_training == ""
 
 
-## 다음 주 월요일 (이번 주 경기를 다 한 뒤 — 시뮬레이션이 다음 주로 넘어가도 되는지 본다)
+## 다음 주 월요일. 이번 주 경기를 다 했으면 리그 주차가 이미 넘어가 있어 지금 주의 월요일, 아직이면 그다음 주의 월요일
+## (2026-11-05 전수 점검: 주 중간에는 이번 주 월요일을 돌려줘서 [다음 주 월요일까지]가 하루도 안 갔다)
 func next_monday(career: CareerState) -> int:
 	if phase == PHASE_DONE:
 		return 1 << 30
-	return GameCalendar.pro_monday(career.cfg, cal_year(), cal_week(career.cfg))
+	var wk := cal_week(career.cfg) + (0 if career.game_done else 1)
+	return GameCalendar.pro_monday(career.cfg, cal_year(), wk)
 
 
 ## 오늘 내 경기 {"day": 날짜, "kind", "opp": ProTeam | null, "home", "playable": 직접 할 수 있나, "text"}.

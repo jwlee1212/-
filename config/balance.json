@@ -428,7 +428,7 @@
       ]
     },
     "pro": {
-      "_note": "프로 편 (KBA, docs/worldview.md 5장). 한 시즌 weeks 주 × gamesPerWeek 경기(3연전 seriesPerWeek 개) = 144경기. 구단 전력 = teamStrength[세계관 강·중·약] ± strengthJitter, 선수 능력치 = 전력 ± game.roster.ratingSd. 퓨처스는 전력 − futuresGap. 나이 곡선 ageCurve (성장 배율·한 해 변화) ± growthJitter, retireAge 에 은퇴하고 rookieAge 신인(전력 − rookieGap)이 들어온다. 드래프트: 유망주 랭킹 → tierByRank 등급 → tiers(구단·순번·계약금, worldview 5-3). 1군·퓨처스 오르내림은 감독 신뢰(trust). 연봉: 시즌 기여도(ProPlayer.value) 구간별 인상률 raiseByValue × (1군 타석 / fullPa), 상마다 awardBonus. 포스트시즌: 4위가 1승 안고 시작하는 와일드카드 → 준PO(5전 3선승) → PO → 한국시리즈(7전 4선승)",
+      "_note": "프로 편 (KBA, docs/worldview.md 5장). 한 시즌 weeks 주 × gamesPerWeek 경기(3연전 seriesPerWeek 개) = 144경기. 구단 전력 = teamStrength[세계관 강·중·약] ± strengthJitter, 선수 능력치 = 전력 ± game.roster.ratingSd. 퓨처스는 전력 − futuresGap. 나이 곡선 ageCurve (성장 배율·한 해 변화) ± growthJitter, retireAge 에 은퇴하고 rookieAge 신인(전력 − rookieGap)이 들어온다. 드래프트: 유망주 랭킹 → tierByRank 등급 → tiers(구단·순번·계약금, worldview 5-3). 1군·퓨처스 오르내림은 감독 신뢰(trust). 연봉: 시즌 기여도(ProPlayer.value) 구간별 인상률 raiseByValue × (1군 타석 / fullPa), 상마다 awardBonus. 포스트시즌: 4위가 1승 안고 시작하는 와일드카드 → 준PO(5전 3선승) → PO → 한국시리즈(7전 4선승) 뉴스·SNS: 한 주에 feedPerWeek 개까지 (팬 수다 fanTalkPerWeek 개, 어그로 기사 하나 + gossipSecondChance 확률로 하나 더), 최근 feedKeep 개를 남긴다. 문장 틀은 안 쓴 것·오래된 것부터 고른다",
       "weeks": 24,
       "gamesPerWeek": 6,
       "seriesPerWeek": 2,
@@ -473,8 +473,8 @@
       "qualifyPaPerGame": 3.1,
       "qualifyIpPerGame": 1.0,
       "famePerAward": 10,
-      "feedPerWeek": 6,
-      "feedKeep": 80,
+      "feedPerWeek": 14,
+      "feedKeep": 200,
       "snsComments": 3,
       "snsLikesBase": 40,
       "snsLikesPerFame": 60,
@@ -867,7 +867,9 @@
         "releaseValue": 0.5,
         "releaseSeasons": 2,
         "rivalAge": 39
-      }
+      },
+      "fanTalkPerWeek": 2,
+      "gossipSecondChance": 0.5
     },
     "status": "draft",
     "_note": "커리어 수치 (G5). 능력치 0~99, 컨디션 0~100, 스카우트 관심도 0~100. 한 시즌 = 주말리그 전반기 → 전국대회 → 주말리그 후반기 → 전국대회 (대회 이름·학교는 content.json)",
