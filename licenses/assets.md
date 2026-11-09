@@ -68,3 +68,12 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 | `godot/art/pixel/pitcher_ext.png` | `docs/refs/sprites/ingame_pitcher_source.png` (유저 제공 `ingame_pitcher.png`, 4x4 격자) | **확인 필요** | 확인 필요 |
 
 정리만 스크립트로 했다 (`scripts/grid_to_strip.py` 바닥 맞춤, `scripts/tidy_sheet.py` 칸 순서) — 색·윤곽은 그대로.
+
+## SD 타자·투수 (2026-11-10)
+
+| 파일 | 원본 | 도구 | 상업 이용 |
+|---|---|---|---|
+| `godot/art/pixel/batter_ext.png` | `docs/refs/sprites/sd_batter_swing_v1_source.png` (4x3 격자), 기준 그림 `sd_batter_ref_v1.png` | GPT 이미지 (ChatGPT, 유저가 생성) | OpenAI 약관상 생성물 권리는 사용자에게 — 출시 전 최신 약관 다시 확인 |
+| `godot/art/pixel/pitcher_ext.png` | `docs/refs/sprites/sd_pitcher_throw_v1_source.png` (4x4 격자) | GPT 이미지 (ChatGPT, 유저가 생성) | 위와 같음 |
+
+정리만 스크립트로 (`grid_to_strip.py` 바닥 맞춤, `tidy_sheet.py` 칸 순서) — 색·윤곽 그대로.

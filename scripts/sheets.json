@@ -1,8 +1,8 @@
 {
   "_doc": "scripts/tidy_sheet.py 의 시트 정의. map = 게임 이름 칸 → 원본 칸 번호(0부터). down = 정수 줄임(도트 원본은 1), resample = nearest(도트) | box(칠한 그림 시험)",
   "batter": {
-    "_note": "타자 풀스윙 v2 (2026-11-10 유저 제공 ingame_hitter.png — 4x3 격자 칠한 그림, 원본 docs/refs/sprites/ingame_hitter_source.png). scripts/grid_to_strip.py 가 칸마다 바닥을 맞추고 원본 해상도 그대로(고해상도 일러스트, 2026-11-10 유저 결정) 띠를 만든다. 칸 순서는 v1 과 같다: 0 준비 1 로드 2 내딛기 3 컨택 4·5 팔로스루 6~11 마무리. 번트 칸은 아직 없어 임시로 준비 칸. CONTACT = 컨택 칸(원본 3)의 배트 스위트 스폿(나무색 칸에서 끝 10~22% 자리). field_height 93 = 경기장 도트 칸으로 잰 키(옛 도트 그림과 같은 화면 크기) → DENSITY = 그림 키 / 93. 게임은 부드러운 필터로 띄운다(PixelArt.SMOOTH)",
-    "src": "docs/refs/sprites/batter_swing_v2_sheet.png",
+    "_note": "SD 타자 풀스윙 v1 (2026-11-10 유저가 GPT 이미지로 뽑음 — 4x3 격자, 원본 docs/refs/sprites/sd_batter_swing_v1_source.png, 기준 그림 sd_batter_ref_v1.png). scripts/grid_to_strip.py 가 칸마다 바닥을 맞춰 원본 해상도 그대로(고해상도 일러스트) 띠를 만든다. 칸 순서: 0 준비 1 숨쉬기 2 로드 3 컨택 4·5 팔로스루 6~11 마무리(거의 같음). 번트 칸은 아직 없어 임시로 준비 칸. CONTACT = 컨택 칸(원본 3)의 배트 스위트 스폿(나무색 칸에서 끝 10~22% 자리). field_height 93 = 배트 끝까지 잰 키를 경기장 도트 칸으로 (옛 그림과 같은 화면 크기) → DENSITY = 그림 키 / 93. 게임은 부드러운 필터로 띄운다(PixelArt.SMOOTH)",
+    "src": "docs/refs/sprites/sd_batter_swing_v1_sheet.png",
     "frames": 12,
     "down": 1,
     "drop_small": 80,
@@ -35,15 +35,15 @@
     },
     "points": {
       "CONTACT": [
-        296,
-        151
+        249,
+        239
       ]
     },
     "field_height": 93
   },
   "pitcher": {
-    "_note": "투수 투구 v4 (2026-11-10 유저 제공 ingame_pitcher.png — 4x4 격자 칠한 그림, 원본 docs/refs/sprites/ingame_pitcher_source.png). scripts/grid_to_strip.py 가 칸마다 바닥을 맞추고 원본 해상도 그대로(고해상도 일러스트) 띠를 만든다. 원본 0·1 세트 2~4 다리 들기 5·6 내딛기 7·8 팔 젖히기 9 공 놓기(팔 앞으로) 10~15 마무리. 이름 칸 = 옛 PixelMeta 투수 칸 번호(0~14): c10 이 공 놓는 순간 칸이라 원본 9. RELEASE = 원본 9 칸의 앞으로 뻗은 손. field_height 30 = 경기장 도트 칸으로 잰 키(옛 도트 그림과 같은 화면 크기) → DENSITY = 그림 키 / 30. 게임은 부드러운 필터로 띄운다(PixelArt.SMOOTH)",
-    "src": "docs/refs/sprites/pitcher_throw_v4_sheet.png",
+    "_note": "SD 투수 투구 v1 (2026-11-10 유저가 GPT 이미지로 뽑음 — 4x4 격자, 원본 docs/refs/sprites/sd_pitcher_throw_v1_source.png). scripts/grid_to_strip.py 가 칸마다 바닥을 맞춰 원본 해상도 그대로 띠를 만든다. 원본 0·1 세트 2~4 다리 들기 5·6 내딛기 7·8 팔 젖히기 9 공 놓기(팔 앞으로) 10~15 마무리. 이름 칸 = 옛 PixelMeta 투수 칸 번호(0~14): c10 이 공 놓는 순간 칸이라 원본 9. RELEASE = 원본 9 칸의 앞으로 뻗은 주먹. 상대 팀이라 빨강 유니폼 그대로. field_height 30 = 경기장 도트 칸으로 잰 키 → DENSITY = 그림 키 / 30. 부드러운 필터(PixelArt.SMOOTH)",
+    "src": "docs/refs/sprites/sd_pitcher_throw_v1_sheet.png",
     "frames": 16,
     "down": 1,
     "resample": "nearest",
@@ -55,8 +55,8 @@
     "class": "PitcherExtMeta",
     "points": {
       "RELEASE": [
-        79,
-        90
+        72,
+        86
       ]
     },
     "map": {
