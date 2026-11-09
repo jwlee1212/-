@@ -12,10 +12,22 @@ const PITCHER_SCALE := 2.0 / 3.0
 static var _textures := {}
 
 
+## 고해상도 일러스트 시트 (2026-11-10 유저 결정): 원본 해상도 그대로 받아 부드러운 필터로 띄운다.
+## 도트(nearest)로 띄우면 칠한 그림을 화면에서 몇 배로 키울 때 계단·깨짐이 생긴다. 경기장 배경·수비수는 도트 그대로
+const SMOOTH := ["batter_ext", "pitcher_ext"]
+
+
 static func texture(name: String) -> Texture2D:
 	if not _textures.has(name):
 		var path := DIR + name + ".png"
-		_textures[name] = load(path) if ResourceLoader.exists(path) else null
+		var tex: Texture2D = load(path) if ResourceLoader.exists(path) else null
+		if tex != null and name in SMOOTH:
+			# 그리는 노드의 필터(도트 화면은 nearest)와 상관없이 이 그림만 부드럽게
+			var smooth := CanvasTexture.new()
+			smooth.diffuse_texture = tex
+			smooth.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			tex = smooth
+		_textures[name] = tex
 	return _textures[name]
 
 

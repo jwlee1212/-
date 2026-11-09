@@ -54,6 +54,14 @@ def drop_small(alpha, min_px):
     return out
 
 
+def density_of(d, cell_h):
+    """field_height(경기장 도트 칸으로 잰 사람 키)가 있으면 그림 키 / field_height (고해상도 일러스트 — 원본 해상도 그대로라
+    그림마다 촘촘함이 다르다, 2026-11-10). 없으면 density (정수, 옛 도트)."""
+    if "field_height" in d:
+        return f"{(cell_h - 2) / float(d['field_height']):.4f}"
+    return str(int(d.get("density", 1)))
+
+
 def tidy(name, d):
     src = Image.open(os.path.join(ROOT, d["src"])).convert("RGBA")
     n = d["frames"]
@@ -109,8 +117,8 @@ def tidy(name, d):
         f"const CELL := Vector2({cw}, {ch})\n"
         f"const FEET := Vector2({feet[0]}, {feet[1]})\n"
         f"const FRAMES := {{{order}}}\n"
-        f"## 경기장 도트 1칸에 이 그림 몇 칸이 들어가나 (2 = 경기장보다 두 배 촘촘한 고해상도 도트 → 화면 배율은 PixelArt.unit 의 1/2)\n"
-        f"const DENSITY := {int(d.get('density', 1))}\n"
+        f"## 경기장 도트 1칸에 이 그림 몇 칸이 들어가나 (2 = 경기장보다 두 배 촘촘한 그림 → 화면 배율은 PixelArt.unit 의 1/2)\n"
+        f"const DENSITY := {density_of(d, ch)}\n"
     )
     # 원본 칸 좌표로 적은 점(공 놓는 손 등) → 발 자리 기준 칸 좌표 (줄인 뒤)
     for key, (px_, py_) in d.get("points", {}).items():

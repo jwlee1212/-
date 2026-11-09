@@ -6,12 +6,13 @@ extends Node2D
 
 ## SpriteCook 타자 시트(art/pixel/batter_ext.png, scripts/tidy_sheet.py batter)가 있으면 그것을 쓴다 (2026-11-07 인게임 갈아엎기).
 ## 칸 순서는 같고 칸 크기·발 자리·촘촘함(DENSITY)만 BatterExtMeta 에서 읽는다. 지우면 코드로 찍은 타자로 돌아간다.
+## 2026-11-10: 고해상도 일러스트 — 시트는 PixelArt.texture 가 부드러운 필터로 감싸 준다 (DENSITY 는 소수)
 
 var _sprite: Sprite2D
 var _shown := -1
 var _cell: Vector2
 ## 경기장 도트 1칸에 들어가는 이 그림의 칸 수. 화면 배율 = PixelArt.unit / density (BattingView)
-var density := 1
+var density := 1.0
 
 
 func _init() -> void:

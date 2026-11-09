@@ -59,3 +59,12 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 ## 주자 전용 방향·헤드퍼스트 시트 (2026-11-10)
 - 원본 `docs/refs/sprites/runners_directions_headfirst_v1.png`, 생성 지시 `runners_directions_headfirst_v1_prompt.md`. 내장 GPT 이미지 생성 도구 사용. 기존 프로젝트 SD 주자 그림을 참고했다.
 - 게임용 `godot/art/pixel/runners_ext*.png`는 `scripts/tidy_sheet.py runners`로 칸 정리·축소·팀 색 변환. 상업 이용 약관의 별도 확인은 대기 상태.
+
+## 인게임 타자·투수 고해상도 일러스트 (2026-11-10)
+
+| 파일 | 원본 | 도구 | 상업 이용 |
+|---|---|---|---|
+| `godot/art/pixel/batter_ext.png` | `docs/refs/sprites/ingame_hitter_source.png` (유저 제공 `ingame_hitter.png`, 4x3 격자) | **확인 필요** (유저가 만든 AI 그림 — 쓴 도구를 유저에게 물어 적을 것) | 확인 필요 |
+| `godot/art/pixel/pitcher_ext.png` | `docs/refs/sprites/ingame_pitcher_source.png` (유저 제공 `ingame_pitcher.png`, 4x4 격자) | **확인 필요** | 확인 필요 |
+
+정리만 스크립트로 했다 (`scripts/grid_to_strip.py` 바닥 맞춤, `scripts/tidy_sheet.py` 칸 순서) — 색·윤곽은 그대로.
