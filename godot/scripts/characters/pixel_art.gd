@@ -13,8 +13,40 @@ static var _textures := {}
 
 
 ## 고해상도 일러스트 시트 (2026-11-10 유저 결정): 원본 해상도 그대로 받아 부드러운 필터로 띄운다.
-## 도트(nearest)로 띄우면 칠한 그림을 화면에서 몇 배로 키울 때 계단·깨짐이 생긴다. 경기장 배경·수비수는 도트 그대로
+## 고해상도 그림은 축소·확대할 때 부드러운 필터를 쓴다.
 const SMOOTH := ["batter_ext", "pitcher_ext"]
+
+
+const ILLUSTRATED_DIR := "res://art/illustrated/"
+const ILLUSTRATED_CELL := Vector2(512, 512)
+const ILLUSTRATED_FEET := Vector2(256, 504)
+const ILLUSTRATED_HEIGHT := 320.0
+const FIELDER_ILLUSTRATED := {
+	"ready": 0, "grounder": 1, "throw_ready": 2, "throw": 3,
+	"first_base_catch": 4, "dive": 5, "fly": 6,
+}
+
+
+static func illustrated_texture(name: String) -> Texture2D:
+	var path := ILLUSTRATED_DIR + name + ".png"
+	if not _textures.has(path):
+		var smooth := CanvasTexture.new()
+		smooth.diffuse_texture = load(path)
+		smooth.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		_textures[path] = smooth
+	return _textures[path]
+
+
+## 칸마다 바닥을 맞춘 시트에서 기존 화면 키에 맞춰 그린다.
+static func draw_illustrated(canvas: CanvasItem, name: String, frame: int, feet: Vector2, height: float, us: bool, flip: bool = false) -> void:
+	var tex := illustrated_texture(name + ("" if us else "_them"))
+	var scale := height / ILLUSTRATED_HEIGHT
+	var dst := Rect2(feet - ILLUSTRATED_FEET * scale, ILLUSTRATED_CELL * scale)
+	if flip:
+		dst.position.x = feet.x + ILLUSTRATED_FEET.x * scale
+		dst.size.x = -dst.size.x
+	var src := Rect2(Vector2(frame % 4, floori(frame / 4.0)) * ILLUSTRATED_CELL, ILLUSTRATED_CELL)
+	canvas.draw_texture_rect_region(tex, dst, src)
 
 
 static func texture(name: String) -> Texture2D:
@@ -51,10 +83,7 @@ static func snap(p: Vector2, view_size: Vector2) -> Vector2:
 
 static func draw_field(canvas: CanvasItem, view_size: Vector2) -> void:
 	var u := unit(view_size)
-	# SpriteCook 배경(field_ext, scripts/tidy_sheet.py field)이 있으면 그것을 쓴다 — 옛 판과 같은 크기·같은 구도로 맞춰 둔다 (2026-11-07)
-	var tex := texture("field_ext")
-	if tex == null:
-		tex = texture("field")
+	var tex := illustrated_texture("stadium")
 	canvas.draw_texture_rect(tex, Rect2(origin(view_size), PixelMeta.FIELD_SIZE * u), false)
 
 
@@ -346,7 +375,10 @@ static func draw_fielder_screen(canvas: CanvasItem, feet: Vector2, us: bool, px:
 				break
 		feet = feet.round()
 		canvas.draw_rect(Rect2(feet + Vector2(-0.3, -0.06) * tall / k, Vector2(0.6, 0.12) * tall / k), Tokens.SHADOW)
-		_blit_fielder(canvas, feet, us, FieldersExtMeta.FRAMES.get(pose, 0), k, 1.0, false)
+		if FIELDER_ILLUSTRATED.has(pose):
+			draw_illustrated(canvas, "fielder", FIELDER_ILLUSTRATED[pose], feet, tall / k, us)
+		else:
+			_blit_fielder(canvas, feet, us, FieldersExtMeta.FRAMES.get(pose, 0), k, 1.0, false)
 		return
 	var tex := texture("fielders")
 	if tex == null:
@@ -399,16 +431,17 @@ static func _draw_fielder_ext(canvas: CanvasItem, cam: BroadcastView.Cam, at: Ve
 	var f := FieldersExtMeta.FRAMES
 	var frame: int = f["ready"]
 	var flip := false
+	var run_frame := -1
 	# 화면 픽셀 변화 → 실제 속도 (그 자리에서 1m 가 몇 px 인지로 나눈다)
 	var px_per_m := maxf(cam.scale_at(Vector3(at.x, at.y, 0.0)), 0.01)
 	var speed := vel.length() / FIELDER_VEL_DT / px_per_m
-	if pose != "" and f.has(pose):
-		frame = f[pose]
+	if pose != "" and (f.has(pose) or FIELDER_ILLUSTRATED.has(pose)):
+		frame = f.get(pose, f["ready"])
 		flip = face < 0.0
 	elif speed > 0.5:
 		var step := int(floor(t * speed / FIELDER_STRIDE_M))
 		if absf(vel.y) > absf(vel.x) * 2.0:
-			frame = ([f["away1"], f["away2"]] if vel.y < 0.0 else [f["toward1"], f["toward2"]])[step % 2]
+			run_frame = (4 if vel.y < 0.0 else 0) + step % 4
 		elif speed < FIELDER_JOG_MPS:
 			frame = [f["jog"], f["run_r2"]][step % 2]
 			flip = vel.x < 0.0
@@ -417,4 +450,9 @@ static func _draw_fielder_ext(canvas: CanvasItem, cam: BroadcastView.Cam, at: Ve
 			flip = vel.x < 0.0
 	var tall := full / k * draw_scale
 	canvas.draw_rect(Rect2(feet + Vector2(-0.3, -0.06) * tall, Vector2(0.6, 0.12) * tall), Tokens.SHADOW)
-	_blit_fielder(canvas, feet, us, frame, k, draw_scale, flip)
+	if run_frame >= 0:
+		draw_illustrated(canvas, "fielder_run", run_frame, feet, tall, us)
+	elif FIELDER_ILLUSTRATED.has(pose) or frame == f["ready"]:
+		draw_illustrated(canvas, "fielder", FIELDER_ILLUSTRATED.get(pose, 0), feet, tall, us, flip)
+	else:
+		_blit_fielder(canvas, feet, us, frame, k, draw_scale, flip)

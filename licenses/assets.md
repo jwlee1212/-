@@ -90,3 +90,7 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 
 - 이번 대화에서 생성한 `batter_sd_v1~v3_source`, `pitcher_sd_reference_v1`, `pitcher_sd_v1_source`, `fielder_runner_2d_reference_v1`, `fielder_2d_poses_v1`, `fielder_2d_run_v1`, `runner_2d_actions_v1`, `runner_2d_run_away_left_v1`, `batting_stadium_2d_v1`는 내장 GPT 이미지 생성 도구로 제작했다. 원본과 프롬프트는 `docs/refs/sprites/`에 보관한다.
 - `docs/mockups/main_menu_v1.png`와 `title_screen_v1.png`도 같은 도구로 만든 시안이다. 상업 이용 약관 별도 확인 대기.
+
+## 경기 2D 일러스트 적용 (2026-11-10)
+
+- `godot/art/illustrated/`의 수비수, 주자, 타석 배경은 위 GPT 이미지 시안을 게임 좌표에 맞춘 것이다. `docs/refs/sprites/pack_field_art.py`로 칸과 배경을 정리하고, 상대 팀 유니폼은 기존 파랑 계열 색 변환을 적용했다. 상업 이용 약관 별도 확인 대기.

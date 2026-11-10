@@ -16,6 +16,14 @@ static func frame_for(velocity: Vector2, phase: int, slide_progress: float = -1.
 
 
 static func draw_frame(canvas: CanvasItem, feet: Vector2, height: float, frame: int, us: bool = true, flip: bool = false) -> void:
+	# 새 그림이 있는 대각선 두 방향과 헤드퍼스트 슬라이딩을 먼저 쓴다.
+	if frame >= 4 and frame < 12:
+		var art_frame := frame if frame < 8 else frame + 4
+		PixelArt.draw_illustrated(canvas, "runner", art_frame, feet.round(), height, us, flip)
+		return
+	if frame >= 20 and frame < 24:
+		PixelArt.draw_illustrated(canvas, "runner", frame - 20, feet.round(), height, us, flip)
+		return
 	# 원본의 서 있는 키 약 184px를 기준으로 기존 중계 선수 크기를 따른다.
 	var variant := 8 if height <= 23.0 else (4 if height <= 46.0 else 1)
 	var tex := PixelArt.texture("runners_ext" + ("" if us else "_them") + ("" if variant == 1 else "_s%d" % variant))
