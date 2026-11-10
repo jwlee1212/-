@@ -102,3 +102,7 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 - `docs/refs/sprites/broadcast_stadium_2d_v2.png`는 내장 GPT 이미지 생성 도구로 만든 카메라 이동용 중계 배경이다. 프롬프트는 `broadcast_stadium_2d_v2_prompt.md`에 있다. 상업 이용 약관 별도 확인 대기.
 
 - `docs/refs/sprites/batting_impact_2d_v1.png`는 내장 GPT 이미지 생성 도구로 만든 빗맞음·정타·홈런 이펙트다. 같은 이름의 `_prompt.md`에 프롬프트를 보관했다. 상업 이용 약관 별도 확인 대기.
+
+## SD 타자 풀스윙 v3 (2026-11-10)
+
+- `docs/refs/sprites/sd_batter_swing_v3_source.png` (4×3 격자, 유저가 GPT 이미지로 생성) → `godot/art/pixel/batter_ext.png`. 상업 이용 약관 별도 확인 대기.
