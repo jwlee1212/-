@@ -55,16 +55,18 @@ func _ready() -> void:
 	row.add_child(_side)
 	var body := PanelContainer.new()
 	var s := StyleBoxFlat.new()
-	s.bg_color = Tokens.PHONE_SCREEN
+	s.bg_color = Tokens.PHONE_APP_BG
 	s.border_color = Tokens.PHONE_BODY
 	s.set_border_width_all(Tokens.PHONE_BEZEL)
 	s.set_corner_radius_all(Tokens.RADIUS_PHONE)
-	s.set_content_margin_all(Tokens.PHONE_BEZEL + Tokens.SPACE_SM)
+	s.set_content_margin_all(Tokens.PHONE_APP_INSET)
+	s.shadow_color = Tokens.SHADOW
+	s.shadow_size = Tokens.SPACE_SM
 	s.anti_aliasing = true
 	body.add_theme_stylebox_override("panel", s)
-	body.custom_minimum_size.x = Tokens.PHONE_WIDTH
+	body.custom_minimum_size.x = Tokens.PHONE_APP_WIDTH
 	row.add_child(body)
-	_screen = UiKit.vbox(Tokens.SPACE_XS)
+	_screen = UiKit.vbox(Tokens.SPACE_SM)
 	body.add_child(_screen)
 	_rebuild()
 
@@ -114,8 +116,10 @@ func reply(index: int) -> void:
 
 func _rebuild() -> void:
 	for c in _screen.get_children():
+		_screen.remove_child(c)
 		c.queue_free()
 	for c in _side.get_children():
+		_side.remove_child(c)
 		c.queue_free()
 	_scroll = null
 	_screen.add_child(_status_bar())
@@ -131,52 +135,78 @@ func _rebuild() -> void:
 		_build_person()
 	else:
 		_build_contacts()
-	_screen.add_child(UiKit.divider())
 	_screen.add_child(_nav())
 
 
-## 맨 위: 학년·주차 | 닫기
+## 헤더와 하단 탭은 모든 폰 화면에서 같은 높이와 여백을 쓴다.
 func _status_bar() -> Control:
-	var bar := UiKit.hbox()
+	var panel := _panel(Tokens.NAVY, Tokens.RADIUS_BUBBLE, Tokens.SPACE_SM, 0)
+	var bar := UiKit.hbox(Tokens.SPACE_SM)
+	bar.custom_minimum_size.y = Tokens.PHONE_STATUS_HEIGHT
+	panel.add_child(bar)
+	var title := UiKit.label("내 휴대폰", Tokens.FONT_BODY, Tokens.SURFACE, Tokens.FONT_BOLD)
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	bar.add_child(title)
 	var when := "%d학년 겨울 캠프 %d주" % [_career.player.grade, _career.camp_week] if _career.in_camp() else "%d학년 · %d주차" % [_career.player.grade, _career.week]
-	var l := UiKit.label(when, Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD)
-	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.add_child(l)
-	bar.add_child(_text_button("닫기", func() -> void: closed.emit(), Tokens.INK_SOFT))
-	return bar
+	var label := UiKit.label(when, Tokens.FONT_CAPTION, Tokens.HUD_TEXT_SOFT)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	bar.add_child(label)
+	var close_button := _text_button("닫기", func() -> void: closed.emit(), Tokens.SURFACE)
+	close_button.custom_minimum_size.x = Tokens.PHONE_HEADER_BUTTON
+	bar.add_child(close_button)
+	return panel
 
 
-## 맨 아래: 메시지 · 연락처 (안 읽은 문자 수 / 관계 문구가 바뀐 사람 수)
 func _nav() -> Control:
-	var bar := UiKit.hbox(0)
+	var panel := _panel(Tokens.PHONE_TAB_RAIL, Tokens.RADIUS_BUBBLE, Tokens.SPACE_XS, Tokens.SPACE_XS)
+	var bar := UiKit.hbox(Tokens.SPACE_XS)
+	panel.add_child(bar)
 	for item: Array in [[TAB_MESSAGES, _career.phone.total_unread()], [TAB_NEWS, _career.feed.unread_count()], [TAB_CONTACTS, _career.phone.relation_changes(_career)]]:
 		var tab: String = item[0]
-		var text := tab if int(item[1]) == 0 else "%s  %d" % [tab, item[1]]
-		var b := _text_button(text, func() -> void: show_tab(tab), Tokens.PRIMARY if tab == _tab else (Tokens.BADGE if int(item[1]) > 0 else Tokens.INK_SOFT), Tokens.FONT_BODY)
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		bar.add_child(b)
-	return bar
+		var count := int(item[1])
+		var text := tab if count == 0 else "%s  %d" % [tab, count]
+		var selected := tab == _tab
+		var ink := Tokens.SURFACE if selected else (Tokens.PHONE_ACCENT_INK if count > 0 else Tokens.NAVY)
+		var button := _text_button(text, func() -> void: show_tab(tab), ink, Tokens.FONT_BODY)
+		button.custom_minimum_size.y = Tokens.PHONE_TAB_HEIGHT
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.size_flags_stretch_ratio = 1.0
+		button.flat = false
+		button.add_theme_stylebox_override("normal", _style(Tokens.PHONE_BLUE if selected else Tokens.PHONE_TAB_RAIL, Tokens.SPACE_SM))
+		button.add_theme_stylebox_override("hover", _style(Tokens.PHONE_BLUE if selected else Tokens.SURFACE, Tokens.SPACE_SM))
+		button.add_theme_stylebox_override("pressed", _style(Tokens.PHONE_BLUE if selected else Tokens.SURFACE, Tokens.SPACE_SM))
+		bar.add_child(button)
+	return panel
 
 
-## 목록 화면 머리: 제목 (+ 뒤로)
-func _header(title: String, back: Callable = Callable()) -> Control:
+func _header(title: String, back: Callable = Callable(), avatar: bool = false) -> Control:
 	var bar := UiKit.hbox(Tokens.SPACE_SM)
+	bar.custom_minimum_size.y = Tokens.PHONE_HEADER_HEIGHT
 	if back.is_valid():
-		bar.add_child(_text_button("‹ 뒤로", back, Tokens.PRIMARY))
-	var t := UiKit.title(title, Tokens.FONT_BODY)
-	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	t.clip_text = true
-	bar.add_child(t)
+		var button := _text_button("‹ 목록", back, Tokens.PHONE_BLUE)
+		button.custom_minimum_size.x = Tokens.PHONE_HEADER_BUTTON
+		bar.add_child(button)
+	if avatar:
+		bar.add_child(_avatar(title, false))
+	var label := UiKit.title(title, Tokens.FONT_TITLE)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	bar.add_child(label)
 	return bar
-
 
 func _list() -> VBoxContainer:
 	var scroll := ScrollContainer.new()
+	scroll.follow_focus = true
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var col := UiKit.vbox(Tokens.SPACE_XS)
-	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(col)
+	var col := UiKit.vbox(Tokens.SPACE_SM)
+	var inset := UiKit.margin(col, 0)
+	inset.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inset.add_theme_constant_override("margin_right", Tokens.SPACE_XS)
+	scroll.add_child(inset)
 	_screen.add_child(scroll)
 	_scroll = scroll
 	return col
@@ -280,21 +310,24 @@ func _build_rooms() -> void:
 		col.add_child(_note("아직 받은 문자가 없다."))
 	for room: String in phone.order:
 		var all: Array = phone.lines(room)
+		if all.is_empty():
+			continue
 		var last: Dictionary = all[-1]
 		var n := int(phone.unread.get(room, 0))
 		var waiting := phone.open_message(room) != ""
 		var top := UiKit.hbox(Tokens.SPACE_XS)
-		var name := UiKit.title(Phone.room_name(_career, room), Tokens.FONT_BODY)
+		var room_name := Phone.room_name(_career, room)
+		var name := UiKit.title(room_name, Tokens.FONT_BODY)
 		name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name.clip_text = true
 		top.add_child(name)
 		if n > 0:
 			top.add_child(_badge(str(n)))
 		elif waiting:
-			top.add_child(UiKit.label("답장 대기", Tokens.FONT_CAPTION, Tokens.ACCENT, Tokens.FONT_BOLD))
+			top.add_child(UiKit.label("답장 대기", Tokens.FONT_CAPTION, Tokens.PHONE_ACCENT_INK, Tokens.FONT_BOLD))
 		var preview := UiKit.label(("나: " if last["from"] == Phone.ME else "") + last["text"], Tokens.FONT_CAPTION, Tokens.INK if n > 0 else Tokens.INK_SOFT)
-		preview.clip_text = true
-		col.add_child(_row([top, preview], func() -> void: open_room(room)))
+		preview.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		col.add_child(_row([top, preview], func() -> void: open_room(room), _avatar(room_name, n > 0)))
 
 
 func _build_room() -> void:
@@ -303,7 +336,7 @@ func _build_room() -> void:
 	phone.mark_read(_room)
 	if had_unread:
 		changed.emit()
-	_screen.add_child(_header(Phone.room_name(_career, _room), func() -> void: show_tab(TAB_MESSAGES)))
+	_screen.add_child(_header(Phone.room_name(_career, _room), func() -> void: show_tab(TAB_MESSAGES), true))
 	var group := Phone.is_group(_career, _room)
 	if not group:
 		_show_side(_room)
@@ -331,14 +364,19 @@ func _build_room() -> void:
 	_reveal = 0
 	var options := phone.reply_options(_career, _room)
 	if not options.is_empty():
-		_screen.add_child(UiKit.divider())
+		# 답장도 같은 스크롤에 두어 긴 선택지가 대화 영역을 가리지 않게 한다.
+		var reply_panel := _panel(Tokens.PHONE_TAB_RAIL, Tokens.RADIUS_BUBBLE, Tokens.SPACE_SM, Tokens.SPACE_SM)
+		var choices := UiKit.vbox(Tokens.SPACE_XS)
+		reply_panel.add_child(choices)
 		var left := phone.weeks_left(_career, _room)
-		_screen.add_child(UiKit.label("답장 · %s (안 해도 된다)" % ("이번 주까지" if left <= 1 else "%d주 남음" % left), Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD))
+		choices.add_child(UiKit.label("답장 · %s (안 해도 된다)" % ("이번 주까지" if left <= 1 else "%d주 남음" % left), Tokens.FONT_CAPTION, Tokens.NAVY_SOFT, Tokens.FONT_BOLD))
 		for i in options.size():
-			var b := UiKit.button(options[i], func() -> void: reply(i), Tokens.PRIMARY, Tokens.FONT_CAPTION)
-			b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			_screen.add_child(b)
+			var button := UiKit.button("%02d   %s" % [i + 1, options[i]], func() -> void: reply(i), Tokens.PHONE_BLUE, Tokens.FONT_CAPTION)
+			button.custom_minimum_size.y = Tokens.PHONE_CHOICE_HEIGHT
+			button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			choices.add_child(button)
+		col.add_child(reply_panel)
 	_scroll_to_end.call_deferred()
 
 
@@ -357,19 +395,22 @@ func _bubble(text: String, mine: bool, name: String) -> Control:
 
 ## 말풍선 하나 (대화 화면의 이야기 속 문자도 같은 모양으로 쓴다)
 static func bubble(text: String, mine: bool, name: String) -> Control:
-	var col := UiKit.vbox(2)
+	var col := UiKit.vbox(Tokens.SPACE_XS)
 	if name != "":
 		col.add_child(UiKit.label(name, Tokens.FONT_CAPTION, Tokens.INK_SOFT, Tokens.FONT_BOLD))
 	var row := UiKit.hbox(0)
 	row.alignment = BoxContainer.ALIGNMENT_END if mine else BoxContainer.ALIGNMENT_BEGIN
 	var panel := PanelContainer.new()
 	var s := StyleBoxFlat.new()
-	s.bg_color = Tokens.BUBBLE_ME if mine else Tokens.BUBBLE_THEM
+	s.bg_color = Tokens.PHONE_BLUE if mine else Tokens.BUBBLE_THEM
 	s.set_corner_radius_all(Tokens.RADIUS_BUBBLE)
-	s.content_margin_left = Tokens.SPACE_SM + 2
-	s.content_margin_right = Tokens.SPACE_SM + 2
-	s.content_margin_top = Tokens.SPACE_XS + 1
-	s.content_margin_bottom = Tokens.SPACE_XS + 1
+	s.set_border_width_all(Tokens.PHONE_CARD_BORDER)
+	s.border_color = Tokens.PHONE_BLUE if mine else Tokens.PHONE_CARD_EDGE
+	s.set_content_margin_all(Tokens.SPACE_SM)
+	if mine:
+		s.corner_radius_bottom_right = Tokens.SPACE_XS
+	else:
+		s.corner_radius_bottom_left = Tokens.SPACE_XS
 	s.anti_aliasing = true
 	panel.add_theme_stylebox_override("panel", s)
 	var l := UiKit.label(text, Tokens.FONT_CAPTION + 1, Tokens.BUBBLE_ME_TEXT if mine else Tokens.INK)
@@ -508,25 +549,59 @@ func _show_side(person_id: String) -> void:
 
 # ---------- 부품 ----------
 
-## 눌리는 목록 한 칸 (흰 카드 위에 투명 버튼을 겹친다)
-func _row(children: Array, on_press: Callable) -> Control:
-	var card := UiKit.card(Tokens.SURFACE)
-	var s := card.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
-	s.set_corner_radius_all(Tokens.RADIUS_BUBBLE)
-	s.set_content_margin_all(Tokens.SPACE_SM)
-	card.add_theme_stylebox_override("panel", s)
-	var col := UiKit.vbox(2)
+func _style(color: Color, radius: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = color
+	style.set_corner_radius_all(radius)
+	return style
+
+
+func _panel(color: Color, radius: int, pad_x: int, pad_y: int) -> PanelContainer:
+	var panel := PanelContainer.new()
+	var style := _style(color, radius)
+	style.set_content_margin_all(pad_y)
+	style.content_margin_left = pad_x
+	style.content_margin_right = pad_x
+	panel.add_theme_stylebox_override("panel", style)
+	return panel
+
+
+func _avatar(name: String, unread: bool) -> Control:
+	var avatar := _panel(Tokens.PHONE_BLUE if unread else Tokens.PHONE_TAB_RAIL, Tokens.RADIUS_BUBBLE, 0, 0)
+	avatar.custom_minimum_size = Vector2.ONE * Tokens.PHONE_AVATAR_SIZE
+	avatar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var initial := UiKit.title(name.left(1), Tokens.FONT_BODY, Tokens.SURFACE if unread else Tokens.PHONE_BLUE)
+	initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	avatar.add_child(initial)
+	return avatar
+
+
+## 뉴스·연락처·대화 목록은 같은 카드 여백을 쓰고, 대화 목록만 첫 글자 아이콘을 붙인다.
+func _row(children: Array, on_press: Callable, leading: Control = null) -> Control:
+	var card := _panel(Tokens.SURFACE, Tokens.RADIUS_BUBBLE, 0, 0)
+	var style := card.get_theme_stylebox("panel") as StyleBoxFlat
+	style.set_border_width_all(Tokens.PHONE_CARD_BORDER)
+	style.border_color = Tokens.PHONE_CARD_EDGE
+	var row := UiKit.hbox(Tokens.SPACE_SM)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if leading != null:
+		row.add_child(leading)
+	var col := UiKit.vbox(Tokens.SPACE_XS)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for c: Control in children:
-		col.add_child(c)
-	card.add_child(col)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for child: Control in children:
+		col.add_child(child)
+	row.add_child(col)
+	var inset := UiKit.margin(row, Tokens.SPACE_SM)
+	inset.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(inset)
 	var hit := Button.new()
 	hit.flat = true
-	hit.focus_mode = Control.FOCUS_NONE
 	hit.pressed.connect(on_press)
 	card.add_child(hit)
 	return card
-
 
 ## 가운데 작은 안내 글 (답장할 때를 놓쳤다 · 변화 설명 · 빈 목록)
 func _note(text: String) -> Label:
@@ -541,8 +616,8 @@ func _badge(text: String) -> Control:
 	var s := StyleBoxFlat.new()
 	s.bg_color = Tokens.BADGE
 	s.set_corner_radius_all(Tokens.RADIUS_BUBBLE)
-	s.content_margin_left = Tokens.SPACE_SM - 2
-	s.content_margin_right = Tokens.SPACE_SM - 2
+	s.content_margin_left = Tokens.SPACE_SM
+	s.content_margin_right = Tokens.SPACE_SM
 	p.add_theme_stylebox_override("panel", s)
 	p.add_child(UiKit.label(text, Tokens.FONT_CAPTION, Tokens.SURFACE, Tokens.FONT_BOLD))
 	return p
