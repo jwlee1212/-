@@ -1,0 +1,5 @@
+# 타석 시점 경기장 배경
+
+내장 GPT 이미지 생성 도구 사용. 기존 타석 화면 캡처의 시점과 배치를 참조했다.
+
+Create a clean high resolution 2D background plate for this landscape baseball game batting screenshot, 2.16:1 like 844 by 390. Geometry-locked paintover, delete every player, ball, HUD, strike zone and text. Maintain home plate x50%, y93%; pitcher's mound x50%, y57%; scoreboard centered around x50%, y27%, dark blank interior; low flat stands across width; white chalk lines meeting behind home plate. Catcher-height camera. One pitcher mound ONLY with ONE slim rectangular white rubber. The only pentagonal white shape is home plate. Second base is a tiny flat square behind the mound, no second dirt circle. Two subtle batter boxes. Bright clear summer daylight, saturated emerald mowing stripes, sandy orange infield, navy scoreboard, cobalt bleachers, blue sky, small flags and clean subdued spectators. Smooth flat cel-painted SD game art with readable geometry, foreground surfaces kept quiet. No character, overlay, text, real logos, shadows suggesting players, or watermarks.

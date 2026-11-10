@@ -1,0 +1,5 @@
+# 타격 이펙트 3종
+
+내장 GPT 이미지 생성 도구 사용.
+
+Create 3 sharply cut 2D baseball impact sprites on absolutely transparent alpha, single horizontal row with huge gutters. 3:1 landscape, exactly three equal square cells. Cell centers x=1/6,1/2,5/6 and y=1/2. Absolutely every ray and particle must fit within an imaginary centered circle of diameter NO MORE THAN 65% OF ITS CELL WIDTH; the empty margin is essential. Never overlap cells or touch any image edge. Left: weak hit small cream and pale blue deflected slash with 3 small separated shards, core at center. Middle: clean hit crisp cream-white core, lemon yellow jagged 8-point star, orange accent rays. Right: home run, bigger multi-layer golden orange explosion with white center, long spear rays and two thin broken shockwave arcs, sparse gold diamonds, much richer silhouette than middle. Use ONLY flat filled shapes with sharp clean edges and one or two layers of solid color. No glow, gradients, blur, drop shadows, translucent haze, text, cell borders, backgrounds, ball or bat. No noisy pixels around edges. This is a polished graphic effect pack for a colorful SD sports videogame.
