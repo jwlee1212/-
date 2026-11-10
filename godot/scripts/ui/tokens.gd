@@ -192,3 +192,24 @@ static func spaced(font: Font, px: int) -> FontVariation:
 	v.spacing_glyph = px
 	return v
 
+
+## 시작 메뉴. 4px 단위로 메뉴 판, 행 안쪽 여백, 개발 버튼 열 너비를 맞춘다.
+const START_MENU_SIZE := Vector2(440, 380)
+const START_MENU_PAD := 12
+const START_MENU_ROW_RADIUS := 8
+const START_MENU_DEV_SIZE := Vector2(128, 36)
+const START_MENU_CAPTION_HEIGHT := 16
+const START_MENU_LOGO_HEIGHT := 40
+const START_MENU_LOGO_FONT := 32
+const START_MENU_BORDER := 1
+const START_MENU_FOCUS_BORDER := 2
+const START_MENU_ACCENT := Color("c64a12")
+const START_MENU_PRACTICE := Color("1b56d4")
+const START_MENU_DISABLED := Color("e2e8f2")
+const START_MENU_DISABLED_INK := Color("52617a")
+const START_MENU_CLEAR := Color(0, 0, 0, 0)
+const START_MENU_ICON_SIZE := Vector2(24, 24)
+const START_MENU_RULE_SIZE := Vector2(32, 2)
+const START_MENU_TRACKING := 2
+const START_MENU_BUTTON_DEPTH := 4
+const START_MENU_PANEL_SHADOW := Color(NAVY, 0.2)
