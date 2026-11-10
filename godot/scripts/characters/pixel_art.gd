@@ -81,6 +81,10 @@ static func snap(p: Vector2, view_size: Vector2) -> Vector2:
 	return o + ((p - o) / u).round() * u
 
 
+## 일러스트 경기장(scripts/pack_stadium_art.py)의 전광판 판 — 옛 도트 판보다 6칸 위에 있다. 크기·글자 칸은 PixelMeta.BOARD_LED 와 같다
+const BOARD_LED_ILLUSTRATED := Rect2(135, 21, 71, 21)
+
+
 static func draw_field(canvas: CanvasItem, view_size: Vector2) -> void:
 	var u := unit(view_size)
 	var tex := illustrated_texture("stadium")
@@ -100,7 +104,7 @@ const LED_FONT := {
 ## board: rows [[팀색, 이닝별 점수 Array, 합계 문자열, 공격 중], [...]] (원정 먼저), first 맨 왼쪽 이닝 번호, balls·strikes·outs
 static func draw_scoreboard(canvas: CanvasItem, view_size: Vector2, board: Dictionary) -> void:
 	var u := unit(view_size)
-	var led := PixelMeta.BOARD_LED
+	var led := BOARD_LED_ILLUSTRATED
 	var o := origin(view_size) + led.position * u
 	var dot := func(x: int, y: int, col: Color) -> void:
 		canvas.draw_rect(Rect2(o + Vector2(x, y) * u, Vector2(u, u)), col)
@@ -203,7 +207,6 @@ static func batter_cell(load: float, stride: float, swing: float, bunt: bool, he
 
 ## 수비 화면 경기장 (카메라·화면 크기마다 한 번 만들어 둔다)
 static var _field_cache := {}
-static var _broadcast_art: Image
 const BROADCAST_ART := preload("res://art/illustrated/stadium_broadcast.png")
 ## 탑뷰 원본의 홈·1/3루·2루 및 가운데 담장 좌표.
 const ART_HOME := Vector2(921, 798)
@@ -213,22 +216,79 @@ const ART_FENCE_Y := 46.0
 const ART_MOUND_Y := 580.0
 const ART_FOUL_POLE := Vector2(1704, 212)
 const MOUND_METERS := 18.4
+## 일러스트 메시의 땅 격자: 간격(m)·가로(x) 범위·세로(y, 홈 뒤 → 외야 너머) 범위
+const BROADCAST_GRID_M := 2.0
+const BROADCAST_GRID_X := Vector2(-170.0, 170.0)
+const BROADCAST_GRID_Y := Vector2(-12.0, 180.0)
 
 
-## 탑뷰 배경의 각 픽셀을 기존 중계 카메라에 투영하고, 원본 범위 밖은 기존 배경으로 채운다.
+## 중계 경기장: 옛 도트 판(관중석·담장·땅 색)을 먼저 깔고, 그 위에 탑뷰 일러스트를 땅 격자 메시로 덮는다.
+## 일러스트는 픽셀을 하나씩 베끼지 않고 GPU 가 원본에서 바로 읽게 한다 (부드러운 필터·밉맵) — 확대해도, 폰 레티나에서도 선명하다.
+## 땅 격자의 각 점을 카메라로 화면에 투영하고 _broadcast_art_point 로 원본 자리(UV)를 정한다
 static func draw_broadcast_field(canvas: CanvasItem, cam: BroadcastView.Cam, cfg: BattedBallSim.Config) -> void:
 	# 칸 크기는 확대(ZOOM)와 상관없이 보이는 창 기준 — 확대해도 도트가 굵어지지 않는다
-	var u := unit(cam.rect.size / BroadcastView.ZOOM) * 0.5
-	# 카메라가 옮겨 가도(pan) 다시 칠하지 않게 판 위치와 상관없는 값으로 열쇠를 만든다
+	var u := unit(cam.rect.size / BroadcastView.ZOOM)
+	# 카메라가 옮겨 가도(pan) 다시 만들지 않게 판 위치와 상관없는 값으로 열쇠를 만든다
 	var key := "%s|%s|%s|%s|%s|%s|%s" % [cam.rect.size, cam.focal, (cam.center - cam.rect.position).snapped(Vector2.ONE * 0.001), cfg.center_fence, cfg.line_fence, cfg.fence_height, cfg.base_distance]
 	if not _field_cache.has(key):
 		_field_cache.clear()
-		var smooth := CanvasTexture.new()
-		smooth.diffuse_texture = ImageTexture.create_from_image(_broadcast_field_image(cam, cfg, u))
-		smooth.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-		_field_cache[key] = smooth
-	var tex: Texture2D = _field_cache[key]
+		_field_cache[key] = [ImageTexture.create_from_image(_broadcast_field_image(cam, cfg, u)), _broadcast_art_mesh(cam, cfg)]
+	var cached: Array = _field_cache[key]
+	var tex: Texture2D = cached[0]
 	canvas.draw_texture_rect(tex, Rect2(cam.rect.position, tex.get_size() * u), false)
+	canvas.draw_mesh(cached[1], _broadcast_art_texture(), Transform2D(0.0, cam.rect.position))
+
+
+## 탑뷰 일러스트 (부드러운 필터 + 밉맵: 멀리 있는 외야·관중석이 지글거리지 않게)
+static func _broadcast_art_texture() -> Texture2D:
+	var path := "broadcast_art"
+	if not _textures.has(path):
+		var smooth := CanvasTexture.new()
+		smooth.diffuse_texture = BROADCAST_ART
+		smooth.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		_textures[path] = smooth
+	return _textures[path]
+
+
+## 땅 격자 (BROADCAST_GRID_M 간격) → 화면 좌표(판 왼쪽 위 기준)·원본 UV 삼각형 메시.
+## 원본 밖으로 완전히 나간 칸은 빼서 아래 도트 판이 보이게 한다 (걸친 칸은 UV 를 가장자리에 붙인다)
+static func _broadcast_art_mesh(cam: BroadcastView.Cam, cfg: BattedBallSim.Config) -> ArrayMesh:
+	var d := cfg.base_distance / sqrt(2.0)
+	var art_size := Vector2(BROADCAST_ART.get_size())
+	var xs := BROADCAST_GRID_X
+	var ys := BROADCAST_GRID_Y
+	var nx := int((xs.y - xs.x) / BROADCAST_GRID_M) + 1
+	var ny := int((ys.y - ys.x) / BROADCAST_GRID_M) + 1
+	var verts := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	var inside := PackedByteArray()
+	verts.resize(nx * ny)
+	uvs.resize(nx * ny)
+	inside.resize(nx * ny)
+	for j in ny:
+		for i in nx:
+			var p := Vector2(xs.x + i * BROADCAST_GRID_M, ys.x + j * BROADCAST_GRID_M)
+			var uv := _broadcast_art_point(p, d, cfg) / art_size
+			var k := j * nx + i
+			verts[k] = cam.ground(p) - cam.rect.position
+			inside[k] = 1 if uv.x >= 0.0 and uv.x <= 1.0 and uv.y >= 0.0 and uv.y <= 1.0 else 0
+			uvs[k] = uv.clamp(Vector2.ZERO, Vector2.ONE)
+	var idx := PackedInt32Array()
+	for j in ny - 1:
+		for i in nx - 1:
+			var a := j * nx + i
+			var q := [a, a + 1, a + nx + 1, a + nx]
+			if inside[q[0]] + inside[q[1]] + inside[q[2]] + inside[q[3]] == 0:
+				continue
+			idx.append_array([q[0], q[1], q[2], q[0], q[2], q[3]])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = idx
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
 
 
 static func _broadcast_field_image(cam: BroadcastView.Cam, cfg: BattedBallSim.Config, u: float) -> Image:
@@ -260,9 +320,6 @@ static func _broadcast_field_image(cam: BroadcastView.Cam, cfg: BattedBallSim.Co
 		prev_b = b
 		prev_t = t
 	var d := cfg.base_distance / sqrt(2.0)
-	if _broadcast_art == null:
-		_broadcast_art = BROADCAST_ART.get_image()
-	var art_bounds := Rect2i(Vector2i.ZERO, _broadcast_art.get_size())
 	var grass := Tokens.GRASS
 	var grass2 := Tokens.GRASS_LIGHT
 	var foul := Tokens.FOUL_GRASS
@@ -272,17 +329,12 @@ static func _broadcast_field_image(cam: BroadcastView.Cam, cfg: BattedBallSim.Co
 		for x in w:
 			var col: Color
 			var sy := float(y) + 0.5
-			var p := _ground_at(cam, cam.rect.position + Vector2(x + 0.5, sy) * u)
-			if p != Vector2.INF:
-				var uv := Vector2i(_broadcast_art_point(p, d, cfg))
-				if art_bounds.has_point(uv):
-					img.set_pixel(x, y, _broadcast_art.get_pixelv(uv))
-					continue
 			if top[x] >= 0.0 and sy < top[x]:
 				col = _stands_color(x, y, top[x])
 			elif base[x] >= 0.0 and sy < base[x]:
 				col = Tokens.WALL if sy > top[x] + 1.0 else Tokens.WARN  # 담장 꼭대기 노란 선
 			else:
+				var p := _ground_at(cam, cam.rect.position + Vector2(x + 0.5, sy) * u)
 				if p == Vector2.INF:
 					col = _stands_color(x, y, 0.0)
 				else:
