@@ -16,8 +16,7 @@ func _ready() -> void:
 	_app.show_tips = false  # 튜토리얼 팁 카드가 흐름을 막지 않게
 	SaveGame.delete(_app.save_path)
 	add_child(_app)
-	await _frames(10)
-	await _shot("menu-lobby-new")
+	await _title_shot("menu-lobby-new")
 	_app.start_career("김도윤")
 	await _frames(10)
 	var view: DialogueView = _app._current.story_view()
@@ -90,8 +89,7 @@ func _ready() -> void:
 	await _frames(10)
 	await _shot("menu-hub-player")
 	_app.show_title()
-	await _frames(10)
-	await _shot("menu-lobby-career")
+	await _title_shot("menu-lobby-career")
 	_app.show_home()
 	await _frames(10)
 	check_trained()
@@ -330,6 +328,14 @@ func _wait(sec: float) -> void:
 func _frames(n: int) -> void:
 	for i in n:
 		await get_tree().process_frame
+
+
+## 마지막 메뉴 버튼까지 나타난 상태로 찍는다.
+func _title_shot(name: String) -> void:
+	await get_tree().process_frame
+	var pres: Presentation = _app.presentation
+	await _wait((pres.lobby_menu_slide_ms + 4.0 * pres.lobby_menu_stagger_ms) / 1000.0)
+	await _shot(name)
 
 
 func _shot(name: String) -> void:

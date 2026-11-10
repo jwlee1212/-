@@ -106,3 +106,6 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 ## SD 타자 풀스윙 v3 (2026-11-10)
 
 - `docs/refs/sprites/sd_batter_swing_v3_source.png` (4×3 격자, 유저가 GPT 이미지로 생성) → `godot/art/pixel/batter_ext.png`. 상업 이용 약관 별도 확인 대기.
+## 시작 메뉴 학교 운동장 (2026-11-10)
+
+- `godot/art/backgrounds/start_menu.png` 원본과 생성 프롬프트는 `docs/mockups/main_menu_background_v1.png`, `docs/mockups/main_menu_background_v1_prompt.md`에 있다. 내장 GPT 이미지 생성 도구 사용. 상업 이용 약관 별도 확인 대기.

@@ -1,17 +1,17 @@
 class_name TitleScreen
 extends Control
-## 로비: 화면 전체에 일러스트(art/backgrounds/lobby.png, 없으면 학교 운동장 임시 그림), 오른쪽 판에 로고(가제) + 번호 메뉴
-## (이어하기 · 새 커리어 · 타격 연습 · 기록실 · 설정) + 내 선수 요약.
-## 메뉴 구성은 유저가 준 시안(2026-10-07)을 따르고, 2026-10-21 에 도형 실루엣 대신 일러스트를 깔았다 (유저 결정).
-## 판은 오른쪽에서 미끄러져 들어오고 메뉴 줄은 하나씩 나타난다.
+## 게임을 열면 보이는 시작 메뉴. 메뉴 판과 개발용 버튼은 같은 4px 그리드를 쓴다.
 
-## 로비 일러스트. 없으면 FALLBACK 을 쓴다
-const ART := "res://art/backgrounds/lobby.png"
+const ART := "res://art/backgrounds/start_menu.png"
 const FALLBACK := "res://art/backgrounds/field.png"
-## 오른쪽 판이 시작하는 가로 자리 (화면 너비 비율) — 일러스트 왼쪽 60% 가량이 보인다
-const PANEL_LEFT := 0.57
-## 판 왼쪽 모서리를 비스듬히 자르는 폭 (위쪽이 이만큼 오른쪽으로 들어간다)
-const PANEL_SLANT := 36.0
+const MENU_ICONS := [
+	preload("res://art/ui/start_menu/continue.svg"),
+	preload("res://art/ui/start_menu/career.svg"),
+	preload("res://art/ui/start_menu/bat.svg"),
+	preload("res://art/ui/start_menu/records.svg"),
+	preload("res://art/ui/start_menu/settings.svg"),
+]
+const BASEBALL := preload("res://art/ui/start_menu/baseball.svg")
 
 var _app
 
@@ -23,8 +23,73 @@ func _init(app) -> void:
 func _ready() -> void:
 	var title: Dictionary = _app.career_config.game_title
 	var career: CareerState = _app.career
-	var pres: Presentation = _app.presentation
+	_add_art()
 
+	var panel := PanelContainer.new()
+	var panel_style := _box(Tokens.LOBBY_PANEL, Tokens.SURFACE, Tokens.RADIUS_PANEL)
+	panel_style.shadow_color = Tokens.START_MENU_PANEL_SHADOW
+	panel_style.shadow_size = Tokens.SPACE_SM
+	panel_style.shadow_offset.y = Tokens.SPACE_XS
+	panel.add_theme_stylebox_override("panel", panel_style)
+	var layout := UiKit.hbox(Tokens.SPACE_MD)
+	layout.add_child(UiKit.spacer())
+	panel.custom_minimum_size = Tokens.START_MENU_SIZE
+	panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	layout.add_child(panel)
+	var inset := UiKit.margin(layout, Tokens.SPACE_SM)
+	inset.add_theme_constant_override("margin_top", Tokens.SPACE_XS)
+	inset.add_theme_constant_override("margin_bottom", Tokens.SPACE_XS)
+	add_child(UiKit.fill_parent(inset))
+
+	var col := UiKit.vbox(Tokens.SPACE_XS)
+	panel.add_child(UiKit.margin(col, Tokens.START_MENU_PAD))
+	col.add_child(_heading(title))
+
+	var resume := "저장된 커리어 없음"
+	if career != null:
+		resume = ("[테스트] " if _app.test_mode else "") + SaveGame.summary(career)
+	elif _app.save_error != "":
+		resume = "불러오지 못함: " + _app.save_error
+
+	var items := [
+		["이어하기", _app.continue_career if career != null else Callable(), resume],
+		["새 커리어", _app.show_create, ""],
+		["타격 연습", _app.show_practice, ""],
+		["기록실", _app.show_records if career != null else Callable(), "커리어를 시작하면 열려요" if career == null else ""],
+		["설정", _app.show_settings, ""],
+	]
+	# 꽉 찬 색은 지금 누를 첫 항목 하나만 (커리어가 있으면 이어하기, 없으면 새 커리어). 나머지는 흰 줄
+	var highlighted := 0 if career != null else 1
+	var rows: Array[Button] = []
+	for i in items.size():
+		var item: Array = items[i]
+		var color := Tokens.START_MENU_ACCENT if i == highlighted else Tokens.SURFACE
+		var row := _menu_item(i + 1, item[0], item[1], item[2], color)
+		col.add_child(row)
+		rows.append(row)
+
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(spacer)
+	var foot := UiKit.hbox(Tokens.SPACE_SM)
+	col.add_child(foot)
+	foot.add_child(UiKit.label(title["version"], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
+	foot.add_child(UiKit.spacer())
+	if career != null:
+		var p := career.player
+		var who := UiKit.label("%s · %s %d학년" % [p.name, career.my_school.name, p.grade], Tokens.FONT_CAPTION, Tokens.INK, Tokens.FONT_BOLD)
+		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		who.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		who.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		foot.add_child(who)
+
+	if OS.is_debug_build():
+		_add_dev_buttons()
+	_fade_rows(rows, _app.presentation)
+
+
+func _add_art() -> void:
 	var path := ART if ResourceLoader.exists(ART) else FALLBACK
 	if ResourceLoader.exists(path):
 		var art := TextureRect.new()
@@ -34,141 +99,142 @@ func _ready() -> void:
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(UiKit.fill_parent(art))
 
-	# 오른쪽 판 (비스듬한 왼쪽 모서리)
-	var panel := Control.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(panel)
-	panel.anchor_left = PANEL_LEFT
-	panel.anchor_right = 1.0
-	panel.anchor_bottom = 1.0
-	panel.draw.connect(func() -> void:
-		var r := panel.size
-		panel.draw_colored_polygon(PackedVector2Array([Vector2(PANEL_SLANT, 0), Vector2(r.x, 0), r, Vector2(0, r.y)]), Tokens.LOBBY_PANEL))
 
+func _heading(title: Dictionary) -> Control:
 	var col := UiKit.vbox(0)
-	var pad := UiKit.margin(col, Tokens.SPACE_LG)
-	pad.add_theme_constant_override("margin_left", int(PANEL_SLANT) + Tokens.SPACE_MD)
-	panel.add_child(UiKit.fill_parent(pad))
-	var fade_in: Array[Control] = []
+	var kicker := UiKit.label(title["kicker"], Tokens.FONT_CAPTION, Tokens.NAVY_SOFT, Tokens.FONT_BOLD)
+	var english := UiKit.label(title["en"], Tokens.FONT_CAPTION, Tokens.START_MENU_BRAND, Tokens.spaced(Tokens.FONT_BOLD, Tokens.START_MENU_TRACKING))
+	for label: Label in [kicker, english]:
+		label.custom_minimum_size.y = Tokens.START_MENU_CAPTION_HEIGHT
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(kicker)
 
-	col.add_child(UiKit.kicker(title["kicker"], Tokens.ACCENT))
-	var logo := Shapes.SlantText.new(title["ko"], Tokens.FONT_DISPLAY)
-	logo.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	col.add_child(logo)
-	col.add_child(UiKit.kicker(title["en"], Tokens.INK_SOFT, Tokens.FONT_BODY, Tokens.TRACKING_WIDE))
-	var gap := Control.new()
-	gap.custom_minimum_size.y = Tokens.SPACE_SM
-	col.add_child(gap)
-
-	var resume := "저장된 커리어 없음"
-	if career != null:
-		resume = ("[테스트] " if _app.test_mode else "") + SaveGame.summary(career)
-	elif _app.save_error != "":
-		resume = "불러오지 못함: " + _app.save_error
-	var items := [
-		["이어하기", _app.continue_career if career != null else Callable(), resume],
-		["새 커리어", _app.show_create, ""],
-		["타격 연습", _app.show_practice, ""],
-		["기록실", _app.show_records if career != null else Callable(), "커리어를 시작하면 열려요"],
-		["설정", _app.show_settings, ""],
-	]
-	# 강조는 할 수 있는 첫 항목 (커리어가 있으면 이어하기, 없으면 새 커리어)
-	var highlighted := 0 if career != null else 1
-	for i in items.size():
-		var it: Array = items[i]
-		var item := _menu_item(i + 1, it[0], it[1], it[2], i == highlighted)
-		col.add_child(item)
-		fade_in.append(item)
-	col.add_child(UiKit.spacer())
-	# 아래: 내 선수 (커리어가 있을 때) · 버전
-	var foot := UiKit.hbox(Tokens.SPACE_SM)
-	col.add_child(foot)
-	foot.add_child(UiKit.label(title["version"], Tokens.FONT_CAPTION, Tokens.INK_SOFT))
-	foot.add_child(UiKit.spacer())
-	if career != null:
-		var p := career.player
-		var who := UiKit.label("%s · %s %d학년" % [p.name, career.my_school.name, p.grade], Tokens.FONT_CAPTION, Tokens.INK, Tokens.FONT_BOLD)
-		who.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		foot.add_child(who)
-
-	# 개발 빌드: 원하는 시점부터 시작하는 테스트 (진짜 저장은 건드리지 않는다) — 왼쪽 위 일러스트 위
-	if OS.is_debug_build():
-		var dev := UiKit.vbox(Tokens.SPACE_XS)
-		add_child(dev)
-		dev.position = Vector2(Tokens.SPACE_SM, Tokens.SPACE_SM)
-		for b: Array in [["테스트 시작 ›", _app.show_jump, Tokens.INK_SOFT], ["주루 연습 ›", _app.show_run_practice, Tokens.INK_SOFT], ["체력 테스트 ›", _app.show_fitness_practice, Tokens.INK_SOFT], ["수비 연습 ›", _app.show_field_practice, Tokens.INK_SOFT]] \
-				+ ([["테스트 끝내기 (내 저장으로)", _app.end_test, Tokens.BAD]] if _app.test_mode else []):
-			var button := UiKit.button(b[0], b[1], b[2], Tokens.FONT_CAPTION)
-			button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-			dev.add_child(button)
-
-	_slide_in(panel, fade_in, pres)
+	var mark := UiKit.hbox(Tokens.SPACE_XS)
+	mark.alignment = BoxContainer.ALIGNMENT_CENTER
+	mark.custom_minimum_size.y = Tokens.START_MENU_LOGO_HEIGHT
+	var logo := Shapes.SlantText.new(title["ko"], Tokens.START_MENU_LOGO_FONT, Tokens.NAVY)
+	mark.add_child(logo)
+	var ball := _icon(BASEBALL, Tokens.START_MENU_BRAND)
+	mark.add_child(ball)
+	col.add_child(mark)
+	var signoff := UiKit.hbox(Tokens.SPACE_SM)
+	signoff.alignment = BoxContainer.ALIGNMENT_CENTER
+	signoff.add_child(_logo_rule())
+	signoff.add_child(english)
+	signoff.add_child(_logo_rule())
+	col.add_child(signoff)
+	return col
 
 
-## 판은 오른쪽 밖에서 미끄러져 들어오고(빠르게 출발해 천천히 멈춤), 메뉴 줄은 위에서부터 하나씩 나타난다
-func _slide_in(panel: Control, rows: Array[Control], pres: Presentation) -> void:
-	var away := get_viewport_rect().size.x * (1.0 - PANEL_LEFT)
-	panel.offset_left = away
-	panel.offset_right = away
-	var slide := pres.lobby_menu_slide_ms / 1000.0
-	var tween := create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(panel, "offset_left", 0.0, slide)
-	tween.tween_property(panel, "offset_right", 0.0, slide)
+func _logo_rule() -> ColorRect:
+	var rule := ColorRect.new()
+	rule.color = Tokens.START_MENU_BRAND
+	rule.custom_minimum_size = Tokens.START_MENU_RULE_SIZE
+	rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return rule
+
+
+func _icon(texture: Texture2D, ink: Color) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.texture = texture
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.custom_minimum_size = Tokens.START_MENU_ICON_SIZE
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.self_modulate = ink
+	return icon
+
+
+## 번호, 아이콘, 이름, 상태, 화살표는 버튼 종류와 상관없이 같은 열을 사용한다.
+func _menu_item(n: int, label: String, on_press: Callable, caption: String, color: Color) -> Button:
+	var enabled := on_press.is_valid()
+	var solid := color != Tokens.SURFACE and enabled
+	var ink := Tokens.SURFACE if solid else (Tokens.NAVY if enabled else Tokens.START_MENU_DISABLED_INK)
+	var bg := color if enabled else Tokens.START_MENU_DISABLED
+	var edge := Tokens.NAVY if enabled and not solid else bg
+	var button := Button.new()
+	button.disabled = not enabled
+	button.accessibility_name = label
+	button.tooltip_text = caption
+	button.custom_minimum_size.y = Tokens.TOUCH_MIN
+	var normal := _box(bg, edge, Tokens.START_MENU_ROW_RADIUS)
+	if solid:
+		normal.border_color = bg.darkened(0.25)
+		normal.border_width_bottom = Tokens.START_MENU_BUTTON_DEPTH
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("disabled", normal)
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = bg.lightened(0.08)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", _box(bg.darkened(0.14), edge, Tokens.START_MENU_ROW_RADIUS))
+	var focus := _box(Tokens.START_MENU_CLEAR, Tokens.NAVY, Tokens.START_MENU_ROW_RADIUS)
+	focus.set_border_width_all(Tokens.START_MENU_FOCUS_BORDER)
+	button.add_theme_stylebox_override("focus", focus)
+	if enabled:
+		button.pressed.connect(on_press)
+
+	var line := UiKit.hbox(Tokens.SPACE_SM)
+	var number := UiKit.label("%02d" % n, Tokens.FONT_BODY, ink, Tokens.FONT_BOLD)
+	number.custom_minimum_size.x = Tokens.SPACE_XL
+	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.add_child(number)
+	line.add_child(_icon(MENU_ICONS[n - 1], ink))
+	line.add_child(UiKit.label(label, Tokens.FONT_TITLE, ink, Tokens.FONT_BOLD))
+	var state := UiKit.label(caption, Tokens.FONT_CAPTION, ink)
+	state.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	state.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	state.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.add_child(state)
+	var arrow := UiKit.label("›" if enabled else "", Tokens.FONT_TITLE, ink, Tokens.FONT_BOLD)
+	arrow.custom_minimum_size.x = Tokens.SPACE_MD
+	arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.add_child(arrow)
+	for part: Control in line.get_children():
+		if part is Label:
+			part.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var pad := UiKit.margin(line, 0)
+	pad.add_theme_constant_override("margin_left", Tokens.SPACE_SM)
+	pad.add_theme_constant_override("margin_right", Tokens.SPACE_SM)
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(UiKit.fill_parent(pad))
+	return button
+
+
+func _add_dev_buttons() -> void:
+	var dev := UiKit.vbox(Tokens.SPACE_XS)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", Tokens.SPACE_XS)
+	grid.add_theme_constant_override("v_separation", Tokens.SPACE_XS)
+	dev.add_child(grid)
+	for item: Array in [["테스트 시작 ›", _app.show_jump], ["주루 연습 ›", _app.show_run_practice], ["체력 테스트 ›", _app.show_fitness_practice], ["수비 연습 ›", _app.show_field_practice]]:
+		var button := UiKit.button(item[0], item[1], Tokens.NAVY, Tokens.FONT_CAPTION)
+		button.custom_minimum_size = Tokens.START_MENU_DEV_SIZE
+		grid.add_child(button)
+	if _app.test_mode:
+		dev.add_child(UiKit.button("테스트 끝내기 (내 저장으로)", _app.end_test, Tokens.BAD, Tokens.FONT_CAPTION))
+	# 왼쪽 위 하늘·나무 자리에 둔다 (아래에 두면 캐릭터 발치와 손맛 버튼을 가린다)
+	add_child(dev)
+	dev.position = Vector2(Tokens.SPACE_SM, Tokens.SPACE_SM)
+
+
+func _fade_rows(rows: Array[Button], pres: Presentation) -> void:
+	var duration := pres.lobby_menu_slide_ms / 1000.0
+	var tween := create_tween().set_parallel()
 	for i in rows.size():
 		rows[i].modulate.a = 0.0
-		tween.tween_property(rows[i], "modulate:a", 1.0, slide * 0.6).set_delay(slide * 0.5 + i * pres.lobby_menu_stagger_ms / 1000.0)
+		tween.tween_property(rows[i], "modulate:a", 1.0, duration).set_delay(i * pres.lobby_menu_stagger_ms / 1000.0)
 
 
-## 메뉴 한 줄: "01  이어하기". 강조된 항목은 비스듬한 막대 위에 흰 글자 + 아래 한 줄 설명.
-## on_press 가 비어 있으면 아직 없는 기능 (흐리게, 이름 옆에 "준비 중")
-func _menu_item(n: int, text: String, on_press: Callable, caption: String, highlighted: bool) -> Control:
-	var enabled := on_press.is_valid()
-	var ink := Tokens.SURFACE if highlighted else (Tokens.INK if enabled else Color(Tokens.INK_SOFT, 0.6))
-	var line := UiKit.hbox(Tokens.SPACE_SM)
-	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var num := UiKit.label("%02d" % n, Tokens.FONT_CAPTION, ink, Tokens.FONT_BOLD)
-	num.custom_minimum_size.x = 22
-	line.add_child(num)
-	line.add_child(UiKit.label(text, Tokens.FONT_TITLE if highlighted else Tokens.FONT_BODY + 3, ink, Tokens.FONT_BOLD if highlighted else Tokens.FONT_REGULAR))
-	if not enabled and caption != "":
-		line.add_child(UiKit.label(caption, Tokens.FONT_CAPTION, Color(Tokens.INK_SOFT, 0.6)))
-	var pad := UiKit.margin(line, 0)
-	pad.add_theme_constant_override("margin_left", Tokens.SPACE_MD)
-
-	var col := UiKit.vbox(0)
-	if highlighted:
-		# 막대와 글자를 겹친다 (PanelContainer 는 자식을 모두 같은 칸에 겹쳐 놓는다)
-		var stack := _overlay()
-		stack.custom_minimum_size = Vector2(280, 34)
-		stack.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		stack.add_child(Shapes.SlantBar.new())
-		stack.add_child(pad)
-		col.add_child(stack)
-		if caption != "":
-			var cap := UiKit.margin(UiKit.label(caption, Tokens.FONT_CAPTION, Tokens.INK_SOFT), 0)
-			cap.add_theme_constant_override("margin_left", Tokens.SPACE_MD + 30)
-			cap.add_theme_constant_override("margin_top", 2)
-			cap.add_theme_constant_override("margin_bottom", Tokens.SPACE_XS)
-			col.add_child(cap)
-	else:
-		pad.add_theme_constant_override("margin_top", 3)
-		pad.add_theme_constant_override("margin_bottom", 3)
-		col.add_child(pad)
-	if not enabled:
-		return col
-	# 줄 전체를 누르는 투명 버튼을 겹친다
-	var item := _overlay()
-	item.add_child(col)
-	var hit := Button.new()
-	hit.flat = true
-	hit.focus_mode = Control.FOCUS_NONE
-	hit.pressed.connect(on_press)
-	item.add_child(hit)
-	return item
-
-
-## 자식들을 같은 칸에 겹쳐 놓는 투명 상자
-func _overlay() -> PanelContainer:
-	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-	return p
+func _box(color: Color, border: Color, radius: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = color
+	style.border_color = border
+	style.set_border_width_all(Tokens.START_MENU_BORDER)
+	style.set_corner_radius_all(radius)
+	style.set_content_margin_all(0)
+	return style
