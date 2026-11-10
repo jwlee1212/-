@@ -194,17 +194,19 @@ static func spaced(font: Font, px: int) -> FontVariation:
 
 
 ## 시작 메뉴. 4px 단위로 메뉴 판, 행 안쪽 여백, 개발 버튼 열 너비를 맞춘다.
-const START_MENU_SIZE := Vector2(440, 380)
+## 판 너비는 화면(844)의 절반 아래로 — 왼쪽 일러스트(선수)가 넉넉히 보이게
+const START_MENU_SIZE := Vector2(392, 380)
 const START_MENU_PAD := 12
 const START_MENU_ROW_RADIUS := 8
-const START_MENU_DEV_SIZE := Vector2(128, 36)
+const START_MENU_DEV_SIZE := Vector2(112, 32)
 const START_MENU_CAPTION_HEIGHT := 16
 const START_MENU_LOGO_HEIGHT := 40
 const START_MENU_LOGO_FONT := 32
 const START_MENU_BORDER := 1
 const START_MENU_FOCUS_BORDER := 2
 const START_MENU_ACCENT := Color("c64a12")
-const START_MENU_PRACTICE := Color("1b56d4")
+## 로고의 공·줄·영문 이름 색 (메뉴 버튼에는 쓰지 않는다 — 꽉 찬 버튼은 ACCENT 하나만)
+const START_MENU_BRAND := Color("1b56d4")
 const START_MENU_DISABLED := Color("e2e8f2")
 const START_MENU_DISABLED_INK := Color("52617a")
 const START_MENU_CLEAR := Color(0, 0, 0, 0)

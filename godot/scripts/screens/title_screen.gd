@@ -58,11 +58,12 @@ func _ready() -> void:
 		["기록실", _app.show_records if career != null else Callable(), "커리어를 시작하면 열려요" if career == null else ""],
 		["설정", _app.show_settings, ""],
 	]
+	# 꽉 찬 색은 지금 누를 첫 항목 하나만 (커리어가 있으면 이어하기, 없으면 새 커리어). 나머지는 흰 줄
 	var highlighted := 0 if career != null else 1
 	var rows: Array[Button] = []
 	for i in items.size():
 		var item: Array = items[i]
-		var color := Tokens.START_MENU_ACCENT if i == highlighted else (Tokens.START_MENU_PRACTICE if i == 2 else Tokens.SURFACE)
+		var color := Tokens.START_MENU_ACCENT if i == highlighted else Tokens.SURFACE
 		var row := _menu_item(i + 1, item[0], item[1], item[2], color)
 		col.add_child(row)
 		rows.append(row)
@@ -102,7 +103,7 @@ func _add_art() -> void:
 func _heading(title: Dictionary) -> Control:
 	var col := UiKit.vbox(0)
 	var kicker := UiKit.label(title["kicker"], Tokens.FONT_CAPTION, Tokens.NAVY_SOFT, Tokens.FONT_BOLD)
-	var english := UiKit.label(title["en"], Tokens.FONT_CAPTION, Tokens.START_MENU_PRACTICE, Tokens.spaced(Tokens.FONT_BOLD, Tokens.START_MENU_TRACKING))
+	var english := UiKit.label(title["en"], Tokens.FONT_CAPTION, Tokens.START_MENU_BRAND, Tokens.spaced(Tokens.FONT_BOLD, Tokens.START_MENU_TRACKING))
 	for label: Label in [kicker, english]:
 		label.custom_minimum_size.y = Tokens.START_MENU_CAPTION_HEIGHT
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -114,7 +115,7 @@ func _heading(title: Dictionary) -> Control:
 	mark.custom_minimum_size.y = Tokens.START_MENU_LOGO_HEIGHT
 	var logo := Shapes.SlantText.new(title["ko"], Tokens.START_MENU_LOGO_FONT, Tokens.NAVY)
 	mark.add_child(logo)
-	var ball := _icon(BASEBALL, Tokens.START_MENU_PRACTICE)
+	var ball := _icon(BASEBALL, Tokens.START_MENU_BRAND)
 	mark.add_child(ball)
 	col.add_child(mark)
 	var signoff := UiKit.hbox(Tokens.SPACE_SM)
@@ -128,7 +129,7 @@ func _heading(title: Dictionary) -> Control:
 
 func _logo_rule() -> ColorRect:
 	var rule := ColorRect.new()
-	rule.color = Tokens.START_MENU_PRACTICE
+	rule.color = Tokens.START_MENU_BRAND
 	rule.custom_minimum_size = Tokens.START_MENU_RULE_SIZE
 	rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -216,18 +217,9 @@ func _add_dev_buttons() -> void:
 		grid.add_child(button)
 	if _app.test_mode:
 		dev.add_child(UiKit.button("테스트 끝내기 (내 저장으로)", _app.end_test, Tokens.BAD, Tokens.FONT_CAPTION))
-	var bottom := VBoxContainer.new()
-	var space := Control.new()
-	space.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	space.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	bottom.add_child(space)
-	dev.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	bottom.add_child(dev)
-	var inset := UiKit.margin(bottom, Tokens.SPACE_SM)
-	inset.add_theme_constant_override("margin_bottom", Tokens.SPACE_XL)
-	inset.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(UiKit.fill_parent(inset))
+	# 왼쪽 위 하늘·나무 자리에 둔다 (아래에 두면 캐릭터 발치와 손맛 버튼을 가린다)
+	add_child(dev)
+	dev.position = Vector2(Tokens.SPACE_SM, Tokens.SPACE_SM)
 
 
 func _fade_rows(rows: Array[Button], pres: Presentation) -> void:
