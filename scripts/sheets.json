@@ -1,8 +1,8 @@
 {
   "_doc": "scripts/tidy_sheet.py 의 시트 정의. map = 게임 이름 칸 → 원본 칸 번호(0부터). down = 정수 줄임(도트 원본은 1), resample = nearest(도트) | box(칠한 그림 시험)",
   "batter": {
-    "_note": "SD 타자 풀스윙 v1 (2026-11-10 유저가 GPT 이미지로 뽑음 — 4x3 격자, 원본 docs/refs/sprites/sd_batter_swing_v1_source.png, 기준 그림 sd_batter_ref_v1.png). scripts/grid_to_strip.py 가 칸마다 바닥을 맞춰 원본 해상도 그대로(고해상도 일러스트) 띠를 만든다. 칸 순서: 0 준비 1 숨쉬기 2 로드 3 컨택 4·5 팔로스루 6~11 마무리(거의 같음). 번트 칸은 아직 없어 임시로 준비 칸. CONTACT = 컨택 칸(원본 3)의 배트 스위트 스폿(나무색 칸에서 끝 10~22% 자리). field_height 93 = 배트 끝까지 잰 키를 경기장 도트 칸으로 (옛 그림과 같은 화면 크기) → DENSITY = 그림 키 / 93. 게임은 부드러운 필터로 띄운다(PixelArt.SMOOTH)",
-    "src": "docs/refs/sprites/sd_batter_swing_v1_sheet.png",
+    "_note": "SD 타자 풀스윙 v3 (2026-11-10 유저가 GPT 이미지로 뽑음 — 4x3 격자, 원본 docs/refs/sprites/sd_batter_swing_v3_source.png). scripts/grid_to_strip.py 가 칸마다 바닥을 맞춰 원본 해상도 그대로 띠를 만든다. 칸 순서: 0 준비 1 로드 2 다리 들기 3 내딛기 4 랜딩 5 회전 6 컨택 7 뻗기 8·9 팔로스루 10·11 마무리. 번트 칸은 아직 없어 임시로 준비 칸. CONTACT = 컨택 칸(원본 6)의 배트 스위트 스폿(끝에서 16% 자리, 칸 안 좌표). field_height 93 = 칸 상자 키를 경기장 도트 칸으로 (v1 과 같은 화면 크기) → DENSITY = 그림 키 / 93. 게임은 부드러운 필터로 띄운다(PixelArt.SMOOTH). 옛 v1 원본은 sd_batter_swing_v1_*",
+    "src": "docs/refs/sprites/sd_batter_swing_v3_sheet.png",
     "frames": 12,
     "down": 1,
     "drop_small": 80,
@@ -17,26 +17,26 @@
       "load_a": 1,
       "load": 1,
       "stride_up": 2,
-      "stride": 2,
-      "landing": 2,
-      "rotate1": 2,
-      "rotate2": 3,
-      "contact_high": 3,
-      "contact_mid": 3,
-      "contact_low": 3,
-      "extend": 4,
-      "follow1": 4,
-      "follow2": 5,
-      "follow3": 6,
-      "finish": 7,
+      "stride": 3,
+      "landing": 4,
+      "rotate1": 4,
+      "rotate2": 5,
+      "contact_high": 6,
+      "contact_mid": 6,
+      "contact_low": 6,
+      "extend": 7,
+      "follow1": 8,
+      "follow2": 9,
+      "follow3": 10,
+      "finish": 11,
       "bunt": 0,
-      "recover": 9,
+      "recover": 11,
       "settle": 0
     },
     "points": {
       "CONTACT": [
-        249,
-        239
+        296,
+        205
       ]
     },
     "field_height": 93

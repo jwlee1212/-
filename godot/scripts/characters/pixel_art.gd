@@ -13,8 +13,40 @@ static var _textures := {}
 
 
 ## 고해상도 일러스트 시트 (2026-11-10 유저 결정): 원본 해상도 그대로 받아 부드러운 필터로 띄운다.
-## 도트(nearest)로 띄우면 칠한 그림을 화면에서 몇 배로 키울 때 계단·깨짐이 생긴다. 경기장 배경·수비수는 도트 그대로
+## 고해상도 그림은 축소·확대할 때 부드러운 필터를 쓴다.
 const SMOOTH := ["batter_ext", "pitcher_ext"]
+
+
+const ILLUSTRATED_DIR := "res://art/illustrated/"
+const ILLUSTRATED_CELL := Vector2(512, 512)
+const ILLUSTRATED_FEET := Vector2(256, 504)
+const ILLUSTRATED_HEIGHT := 320.0
+const FIELDER_ILLUSTRATED := {
+	"ready": 0, "grounder": 1, "throw_ready": 2, "throw": 3,
+	"first_base_catch": 4, "dive": 5, "fly": 6,
+}
+
+
+static func illustrated_texture(name: String) -> Texture2D:
+	var path := ILLUSTRATED_DIR + name + ".png"
+	if not _textures.has(path):
+		var smooth := CanvasTexture.new()
+		smooth.diffuse_texture = load(path)
+		smooth.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		_textures[path] = smooth
+	return _textures[path]
+
+
+## 칸마다 바닥을 맞춘 시트에서 기존 화면 키에 맞춰 그린다.
+static func draw_illustrated(canvas: CanvasItem, name: String, frame: int, feet: Vector2, height: float, us: bool, flip: bool = false) -> void:
+	var tex := illustrated_texture(name + ("" if us else "_them"))
+	var scale := height / ILLUSTRATED_HEIGHT
+	var dst := Rect2(feet - ILLUSTRATED_FEET * scale, ILLUSTRATED_CELL * scale)
+	if flip:
+		dst.position.x = feet.x + ILLUSTRATED_FEET.x * scale
+		dst.size.x = -dst.size.x
+	var src := Rect2(Vector2(frame % 4, floori(frame / 4.0)) * ILLUSTRATED_CELL, ILLUSTRATED_CELL)
+	canvas.draw_texture_rect_region(tex, dst, src)
 
 
 static func texture(name: String) -> Texture2D:
@@ -49,12 +81,13 @@ static func snap(p: Vector2, view_size: Vector2) -> Vector2:
 	return o + ((p - o) / u).round() * u
 
 
+## 일러스트 경기장(scripts/pack_stadium_art.py)의 전광판 판 — 옛 도트 판보다 6칸 위에 있다. 크기·글자 칸은 PixelMeta.BOARD_LED 와 같다
+const BOARD_LED_ILLUSTRATED := Rect2(135, 21, 71, 21)
+
+
 static func draw_field(canvas: CanvasItem, view_size: Vector2) -> void:
 	var u := unit(view_size)
-	# SpriteCook 배경(field_ext, scripts/tidy_sheet.py field)이 있으면 그것을 쓴다 — 옛 판과 같은 크기·같은 구도로 맞춰 둔다 (2026-11-07)
-	var tex := texture("field_ext")
-	if tex == null:
-		tex = texture("field")
+	var tex := illustrated_texture("stadium")
 	canvas.draw_texture_rect(tex, Rect2(origin(view_size), PixelMeta.FIELD_SIZE * u), false)
 
 
@@ -71,7 +104,7 @@ const LED_FONT := {
 ## board: rows [[팀색, 이닝별 점수 Array, 합계 문자열, 공격 중], [...]] (원정 먼저), first 맨 왼쪽 이닝 번호, balls·strikes·outs
 static func draw_scoreboard(canvas: CanvasItem, view_size: Vector2, board: Dictionary) -> void:
 	var u := unit(view_size)
-	var led := PixelMeta.BOARD_LED
+	var led := BOARD_LED_ILLUSTRATED
 	var o := origin(view_size) + led.position * u
 	var dot := func(x: int, y: int, col: Color) -> void:
 		canvas.draw_rect(Rect2(o + Vector2(x, y) * u, Vector2(u, u)), col)
@@ -174,20 +207,88 @@ static func batter_cell(load: float, stride: float, swing: float, bunt: bool, he
 
 ## 수비 화면 경기장 (카메라·화면 크기마다 한 번 만들어 둔다)
 static var _field_cache := {}
+const BROADCAST_ART := preload("res://art/illustrated/stadium_broadcast.png")
+## 탑뷰 원본의 홈·1/3루·2루 및 가운데 담장 좌표.
+const ART_HOME := Vector2(921, 798)
+const ART_FIRST := Vector2(1206, 591)
+const ART_SECOND_Y := 388.0
+const ART_FENCE_Y := 46.0
+const ART_MOUND_Y := 580.0
+const ART_FOUL_POLE := Vector2(1704, 212)
+const MOUND_METERS := 18.4
+## 일러스트 메시의 땅 격자: 간격(m)·가로(x) 범위·세로(y, 홈 뒤 → 외야 너머) 범위
+const BROADCAST_GRID_M := 2.0
+const BROADCAST_GRID_X := Vector2(-170.0, 170.0)
+const BROADCAST_GRID_Y := Vector2(-12.0, 180.0)
 
 
-## 수비 화면 경기장을 도트로: 화면 한 칸(그림 1픽셀)마다 그 자리가 땅의 어디인지 카메라를 거꾸로 계산해 색을 정한다
-## (잔디 줄무늬·내야 흙·파울 라인·베이스·담장·관중석). 그래서 원근이 BroadcastView 의 계산과 똑같이 맞는다
+## 중계 경기장: 옛 도트 판(관중석·담장·땅 색)을 먼저 깔고, 그 위에 탑뷰 일러스트를 땅 격자 메시로 덮는다.
+## 일러스트는 픽셀을 하나씩 베끼지 않고 GPU 가 원본에서 바로 읽게 한다 (부드러운 필터·밉맵) — 확대해도, 폰 레티나에서도 선명하다.
+## 땅 격자의 각 점을 카메라로 화면에 투영하고 _broadcast_art_point 로 원본 자리(UV)를 정한다
 static func draw_broadcast_field(canvas: CanvasItem, cam: BroadcastView.Cam, cfg: BattedBallSim.Config) -> void:
 	# 칸 크기는 확대(ZOOM)와 상관없이 보이는 창 기준 — 확대해도 도트가 굵어지지 않는다
 	var u := unit(cam.rect.size / BroadcastView.ZOOM)
-	# 카메라가 옮겨 가도(pan) 다시 칠하지 않게 판 위치와 상관없는 값으로 열쇠를 만든다
-	var key := "%s|%s|%s|%s|%s" % [cam.rect.size, cam.focal, cam.center - cam.rect.position, cfg.center_fence, cfg.line_fence]
+	# 카메라가 옮겨 가도(pan) 다시 만들지 않게 판 위치와 상관없는 값으로 열쇠를 만든다
+	var key := "%s|%s|%s|%s|%s|%s|%s" % [cam.rect.size, cam.focal, (cam.center - cam.rect.position).snapped(Vector2.ONE * 0.001), cfg.center_fence, cfg.line_fence, cfg.fence_height, cfg.base_distance]
 	if not _field_cache.has(key):
 		_field_cache.clear()
-		_field_cache[key] = ImageTexture.create_from_image(_broadcast_field_image(cam, cfg, u))
-	var tex: Texture2D = _field_cache[key]
+		_field_cache[key] = [ImageTexture.create_from_image(_broadcast_field_image(cam, cfg, u)), _broadcast_art_mesh(cam, cfg)]
+	var cached: Array = _field_cache[key]
+	var tex: Texture2D = cached[0]
 	canvas.draw_texture_rect(tex, Rect2(cam.rect.position, tex.get_size() * u), false)
+	canvas.draw_mesh(cached[1], _broadcast_art_texture(), Transform2D(0.0, cam.rect.position))
+
+
+## 탑뷰 일러스트 (부드러운 필터 + 밉맵: 멀리 있는 외야·관중석이 지글거리지 않게)
+static func _broadcast_art_texture() -> Texture2D:
+	var path := "broadcast_art"
+	if not _textures.has(path):
+		var smooth := CanvasTexture.new()
+		smooth.diffuse_texture = BROADCAST_ART
+		smooth.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		_textures[path] = smooth
+	return _textures[path]
+
+
+## 땅 격자 (BROADCAST_GRID_M 간격) → 화면 좌표(판 왼쪽 위 기준)·원본 UV 삼각형 메시.
+## 원본 밖으로 완전히 나간 칸은 빼서 아래 도트 판이 보이게 한다 (걸친 칸은 UV 를 가장자리에 붙인다)
+static func _broadcast_art_mesh(cam: BroadcastView.Cam, cfg: BattedBallSim.Config) -> ArrayMesh:
+	var d := cfg.base_distance / sqrt(2.0)
+	var art_size := Vector2(BROADCAST_ART.get_size())
+	var xs := BROADCAST_GRID_X
+	var ys := BROADCAST_GRID_Y
+	var nx := int((xs.y - xs.x) / BROADCAST_GRID_M) + 1
+	var ny := int((ys.y - ys.x) / BROADCAST_GRID_M) + 1
+	var verts := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	var inside := PackedByteArray()
+	verts.resize(nx * ny)
+	uvs.resize(nx * ny)
+	inside.resize(nx * ny)
+	for j in ny:
+		for i in nx:
+			var p := Vector2(xs.x + i * BROADCAST_GRID_M, ys.x + j * BROADCAST_GRID_M)
+			var uv := _broadcast_art_point(p, d, cfg) / art_size
+			var k := j * nx + i
+			verts[k] = cam.ground(p) - cam.rect.position
+			inside[k] = 1 if uv.x >= 0.0 and uv.x <= 1.0 and uv.y >= 0.0 and uv.y <= 1.0 else 0
+			uvs[k] = uv.clamp(Vector2.ZERO, Vector2.ONE)
+	var idx := PackedInt32Array()
+	for j in ny - 1:
+		for i in nx - 1:
+			var a := j * nx + i
+			var q := [a, a + 1, a + nx + 1, a + nx]
+			if inside[q[0]] + inside[q[1]] + inside[q[2]] + inside[q[3]] == 0:
+				continue
+			idx.append_array([q[0], q[1], q[2], q[0], q[2], q[3]])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = idx
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
 
 
 static func _broadcast_field_image(cam: BroadcastView.Cam, cfg: BattedBallSim.Config, u: float) -> Image:
@@ -240,6 +341,34 @@ static func _broadcast_field_image(cam: BroadcastView.Cam, cfg: BattedBallSim.Co
 					col = _ground_color(p, cfg, d, grass, grass2, foul, dirt, dirt2, u / maxf(cam.scale_at(Vector3(p.x, p.y, 0.0)), 0.01))
 			img.set_pixel(x, y, col)
 	return img
+
+
+## 홈과 세 베이스를 고정하고, 외야 구간은 가운데 담장에 맞춰 펼친다.
+static func _broadcast_art_point(p: Vector2, d: float, cfg: BattedBallSim.Config) -> Vector2:
+	var y: float
+	if p.y <= d:
+		y = remap(p.y, 0.0, d, ART_HOME.y, ART_FIRST.y)
+	elif p.y <= d * 2.0:
+		y = remap(p.y, d, d * 2.0, ART_FIRST.y, ART_SECOND_Y)
+	else:
+		var span := maxf(cfg.center_fence - d * 2.0, 1.0)
+		var k := clampf((p.y - d * 2.0) / span, 0.0, 1.0)
+		var start_slope := maxf((ART_SECOND_Y - ART_FIRST.y) / d, (ART_FENCE_Y - ART_SECOND_Y) / span * 2.5)
+		var end_slope := (ART_FENCE_Y - ART_SECOND_Y) / span * 0.5
+		y = lerpf(ART_SECOND_Y, ART_FENCE_Y, smoothstep(0.0, 1.0, k))
+		y += span * k * (1.0 - k) * (start_slope * (1.0 - k) - end_slope * k)
+		y += maxf(p.y - cfg.center_fence, 0.0) * end_slope
+	# 마운드는 베이스 좌표를 건드리지 않도록 가운데 좁은 구역에서만 맞춘다.
+	var mound_weight := maxf(0.0, 1.0 - absf(p.x) / (d * 0.6)) * maxf(0.0, 1.0 - absf(p.y - MOUND_METERS) / (d * 0.65))
+	var mound_y := remap(MOUND_METERS, 0.0, d, ART_HOME.y, ART_FIRST.y)
+	y += (ART_MOUND_Y - mound_y) * mound_weight
+	var base_scale := (ART_FIRST.x - ART_HOME.x) / d
+	# 투영해도 파울선이 1·3루를 지나 외야까지 같은 방향으로 이어진다.
+	var x_scale := base_scale
+	if p.y > d:
+		var line_x := remap(y, ART_FIRST.y, ART_FOUL_POLE.y, ART_FIRST.x, ART_FOUL_POLE.x)
+		x_scale = (line_x - ART_HOME.x) / p.y
+	return Vector2(ART_HOME.x + p.x * x_scale, y)
 
 
 ## 화면 점 → 땅 위 점 (야구장 좌표). 지평선 위면 INF
@@ -346,7 +475,10 @@ static func draw_fielder_screen(canvas: CanvasItem, feet: Vector2, us: bool, px:
 				break
 		feet = feet.round()
 		canvas.draw_rect(Rect2(feet + Vector2(-0.3, -0.06) * tall / k, Vector2(0.6, 0.12) * tall / k), Tokens.SHADOW)
-		_blit_fielder(canvas, feet, us, FieldersExtMeta.FRAMES.get(pose, 0), k, 1.0, false)
+		if pose == "ready":
+			draw_illustrated(canvas, "fielder_batting", 0, feet, tall / k, us)
+		else:
+			_blit_fielder(canvas, feet, us, FieldersExtMeta.FRAMES.get(pose, 0), k, 1.0, false)
 		return
 	var tex := texture("fielders")
 	if tex == null:
@@ -399,16 +531,17 @@ static func _draw_fielder_ext(canvas: CanvasItem, cam: BroadcastView.Cam, at: Ve
 	var f := FieldersExtMeta.FRAMES
 	var frame: int = f["ready"]
 	var flip := false
+	var run_frame := -1
 	# 화면 픽셀 변화 → 실제 속도 (그 자리에서 1m 가 몇 px 인지로 나눈다)
 	var px_per_m := maxf(cam.scale_at(Vector3(at.x, at.y, 0.0)), 0.01)
 	var speed := vel.length() / FIELDER_VEL_DT / px_per_m
-	if pose != "" and f.has(pose):
-		frame = f[pose]
+	if pose != "" and (f.has(pose) or FIELDER_ILLUSTRATED.has(pose)):
+		frame = f.get(pose, f["ready"])
 		flip = face < 0.0
 	elif speed > 0.5:
 		var step := int(floor(t * speed / FIELDER_STRIDE_M))
 		if absf(vel.y) > absf(vel.x) * 2.0:
-			frame = ([f["away1"], f["away2"]] if vel.y < 0.0 else [f["toward1"], f["toward2"]])[step % 2]
+			run_frame = (4 if vel.y < 0.0 else 0) + step % 4
 		elif speed < FIELDER_JOG_MPS:
 			frame = [f["jog"], f["run_r2"]][step % 2]
 			flip = vel.x < 0.0
@@ -417,4 +550,9 @@ static func _draw_fielder_ext(canvas: CanvasItem, cam: BroadcastView.Cam, at: Ve
 			flip = vel.x < 0.0
 	var tall := full / k * draw_scale
 	canvas.draw_rect(Rect2(feet + Vector2(-0.3, -0.06) * tall, Vector2(0.6, 0.12) * tall), Tokens.SHADOW)
-	_blit_fielder(canvas, feet, us, frame, k, draw_scale, flip)
+	if run_frame >= 0:
+		draw_illustrated(canvas, "fielder_run", run_frame, feet, tall, us)
+	elif FIELDER_ILLUSTRATED.has(pose) or frame == f["ready"]:
+		draw_illustrated(canvas, "fielder", FIELDER_ILLUSTRATED.get(pose, 0), feet, tall, us, flip)
+	else:
+		_blit_fielder(canvas, feet, us, frame, k, draw_scale, flip)
