@@ -73,7 +73,7 @@ $G --headless --path godot --script res://tests/calibrate_pro.gd # 프로 리그
 5. **손맛과 관련된 건 폰에서 확인받는다.** 맥 스크린샷으로 확인할 수 있는 건 그림까지다. 타이밍·소리·프레임은 유저가 아이폰에서 직접 해 봐야 판단된다.
 6. 코드 주석과 문서는 **한국어**, 식별자(클래스·함수·변수명)는 영어.
 7. **손맛 조정 시간을 아끼는 쪽으로 만든다.** 이 프로젝트의 병목은 코드가 아니라 유저가 폰으로 쳐보며 수치를 맞추는 시간이다. 손맛 수치는 다시 빌드하지 않고 바꿀 수 있어야 하며(§4-3), 개발 빌드에는 판정 폭·공 속도·히트스톱 길이를 화면에서 바로 조절하는 디버그 패널을 둔다. 수치를 바꿔 달라는 요청이 오면 어떤 체감 차이가 날지 함께 설명한다.
-8. **ChatGPT 와 협업한다 (2026-11-09).** 일은 파일 단위로 나누고 각자 브랜치에서 한다 — 규칙 원본은 `AGENTS.md`, 요약은 §9. main 에 바로 커밋하지 않는다.
+8. **ChatGPT 와 협업한다 (2026-11-09, 11-10 개정: Codex 는 이미지 생성만).** 각자 브랜치에서 한다 — 규칙 원본은 `AGENTS.md`, 요약은 §9. main 에 바로 커밋하지 않는다.
 
 ## 4. 불변 원칙 (어기면 안 됨)
 
@@ -87,7 +87,7 @@ $G --headless --path godot --script res://tests/calibrate_pro.gd # 프로 리그
    - **띄우는 법**: 원본을 줄이지 않고 반투명 테두리를 살려 부드러운 필터(`PixelArt.SMOOTH`, 밉맵)로 띄운다. 선명하려면 원본 키가 화면 속 키에 가까워야 한다(아이폰 타석 타자 약 750~1,100 기기 픽셀). 크게 보이는 그림일수록 한 장에 칸을 적게 뽑는다. 색·윤곽을 바꾸는 변환은 하지 않는다.
    - **정리는 스크립트로**: 격자 시트는 `scripts/grid_to_strip.py` 가 칸마다 바닥만 맞춰 띠로 만든다. 그다음 `scripts/tidy_sheet.py` 가 같은 칸 크기로 자르고(칸끼리 상대 위치는 그대로 — 칸마다 따로 맞추면 발이 미끄러진다) 발 자리·이름 칸 순서·소수 DENSITY(`field_height` = 경기장 칸으로 잰 키)를 메타 `.gd` 로 만든다.
    - **맞추기**: 같은 캐릭터는 하나의 기준 그림에서 뽑아 얼굴·옷·선 굵기를 맞춘다. 상대 팀 유니폼은 팀마다 새로 뽑지 않는다. 우리 팀 파랑으로 뽑으면 파랑 계열만 빨강으로 돌린 판을 만든다.
-   - **누가**: 그림은 유저가 GPT 이미지로 뽑는다. 프롬프트·게임에 넣기는 ChatGPT 담당이다(`AGENTS.md` §1, 요청 사양 `docs/handoff/2026-11-10-sd-characters.md`). **Claude 는 코드로 인물·장면을 그리지 않는다** (2026-11-05 유저: Claude 가 찍는 인물 그림이 약하다).
+   - **누가**: 그림은 유저가 GPT 이미지로 뽑는다. Codex 는 그림을 만들어 `docs/refs/` 에 넣기만 하고, 게임에 넣기는 Claude 가 한다(`AGENTS.md` §1, 요청 사양 `docs/handoff/2026-11-10-sd-characters.md`). **Claude 는 코드로 인물·장면을 그리지 않는다** (2026-11-05 유저: Claude 가 찍는 인물 그림이 약하다).
    - **옛 도트는 새 그림이 생길 때까지만** 자리를 지킨다. 새 도트 그림은 더 만들지 않는다. 남은 도트: 경기장 배경(`field`·`closeup_bg`), 수비수·주자(`fielders`·`runners_ext`), 코드 도트(`make_pixel_art.py` — 포수·미트·1루 클로즈업 등), 컷신(`make_cutscene_art.py`·`cutscene_grids.py`, Gemini 도트 스틸 `godot/art/cutscene_stills/`), 훈련·미니게임(`make_training_art.py`·`make_minigame_art.py`). 바뀌기 전까지는 원래대로 nearest·정수 배율로 띄운다.
    - **컷신**: 이야기의 큰 순간은 게임 화면을 쓰지 않고 컷마다 그린 그림으로 "애니메이션 영화"처럼 보여 준다(정의는 `content.json` cutscenes, 대본에서 `CUTSCENE <id>`, 그림 한 장 컷은 `"still"` — 원본 해상도 그대로 화면 가운데 TV 틀에 띄운다). 주인공 얼굴은 보이지 않게 한다(뒷모습·모자 그늘). 장 수는 컷마다 1~3장, 움직임은 카메라·자리 이동·히트스톱으로 낸다.
    - 공·조준 표시·타격 이펙트·HUD 는 매끈하게 그대로 둔다. 실사 얼굴·사진 같은 AI 얼굴은 금지. AI로 만든 그림·소리를 넣을 때는 쓴 도구와 상업 이용 허용 여부를 `licenses/assets.md` 에 기록한다. 기록 없는 에셋은 넣지 않는다 (Gemini·이번 타자·투수 그림 도구는 확인 대기).
@@ -186,7 +186,7 @@ licenses/                  글꼴 라이선스, assets.md(에셋 출처)
 
 | 파일 | 내용 |
 |---|---|
-| `AGENTS.md` | Claude·ChatGPT 업무 분담·브랜치 규칙·충돌 잘 나는 파일 규칙 (ChatGPT 가 읽는 파일) |
+| `AGENTS.md` | Claude·Codex 업무 분담(Codex 는 이미지 생성만)·브랜치 규칙 (Codex 가 읽는 파일) |
 | 기획서 (Claude Docs) | https://claude.ai/artifact/J8wUF5TtrtKjBDegxA3JfT — 전체 기획 정리 + 결정 사항 + 루프·UI 개편안(4-1·4-3장)·와이어프레임·화면 그림 목록. 결정은 저장소 문서에도 옮긴다 |
 | `docs/00-concept.md` | 컨셉: 커리어 흐름, 경기 조작, 경기 밖 루프, 돌발 이벤트, 스토리 (§0 = 2026-11-09 개편 결정) |
 | `docs/01-dev-plan.md` | 마일스톤 상세 |
@@ -201,15 +201,13 @@ licenses/                  글꼴 라이선스, assets.md(에셋 출처)
 | `docs/scenario/` | 시나리오 원본 (`scenario_y1_ep01-08.md` = 1학년 EP01~08, `scenario_y2_ep09-13.md` = 2학년 EP09~13, `scenario_y3_ep14-22.md` = 2학년 끝·3학년·드래프트, `scenario_pro_ep23-26.md` = 프로 입단~1군 데뷔 — 그 뒤는 상황 컷신). 대사는 여기서만 고친다 → `python3 scripts/build_scenario.py` 가 `content.json` 이벤트로 만든다. 컷신 자리 목록 `pro-cutscene-list.md` |
 ## 9. ChatGPT 와 협업 (요약 — 원본은 `AGENTS.md`)
 
-| | Claude | ChatGPT |
-|---|---|---|
-| 맡는 일 | **게임 로직**(`RefCounted` 폴더들)·소리·개발 패널·`main.gd`·`project.godot`, 헤드리스 테스트, 밸런스, 콘텐츠 생성(`content.json`), 기획·규칙 문서, dev-log, **main 합치기** | **UI**(`screens/`·`ui/`·`batting_view`·`batting_hud`·`02-design.md`), **그림을 게임에 넣기**(`characters/`·`godot/art/`·`tidy_sheet.py`·`make_*_art.py`), 스크린샷 도구(`shots*`), 그림 생성·프롬프트(`docs/refs/`), 이야기 카드 초안(`docs/scenario/`), 뉴스 문장(`pro_feed_text.py`), 세계관, 에셋 출처, Claude PR 리뷰 |
-| 브랜치 | `claude/<작업>` | `codex/<작업>` (또는 `gpt/`) |
+**2026-11-10 개정: Codex 는 이미지 생성만 한다.** 테스트를 돌리지 않고 코드·설정·문서를 고치지 않는다. 그림을 만들어 폴더에 넣고, 인게임 화면 캡처(`shots*.tscn`)만 남긴다. 그 밖의 일(로직·UI·그림을 게임에 붙이기·테스트·이야기·문서·main 합치기)은 전부 Claude.
 
-- **나누는 선 = §4-1 로직/화면 분리** (2026-11-09 유저: 그림 넣기·UI 는 ChatGPT). 화면에 새 값·동작이 필요하면 ChatGPT 가 `docs/handoff/` 메모 → Claude 가 로직에 만든다. 둘 다 필요한 일(R1)은 Claude 가 로직 API 먼저 → ChatGPT 가 화면. 내 로직 API 변경으로 화면이 깨지면 그 PR 에서 호출부만 최소로 고친다
+| | Claude | Codex |
+|---|---|---|
+| 맡는 일 | 나머지 전부. Codex 그림은 `docs/handoff/` 메모를 보고 칸 정리·`godot/art/` 로 옮기기·화면 연결 | 그림 생성 → 원본·프롬프트를 `docs/refs/sprites`·`cutscene`·`portraits`, `docs/mockups/` 에 새 파일로. `licenses/assets.md` 끝 줄 추가. 확인용 캡처는 `docs/refs/screens/`. 끝나면 `docs/handoff/<날짜>-gpt-<주제>.md` |
+| 브랜치 | `claude/<작업>` | `codex/<작업>` (자기 worktree 에서, 유저 메인 폴더에서 브랜치 바꾸지 않음) |
 
 - 작업은 항상 최신 `origin/main` 에서 새 브랜치로. main 직접 커밋·강제 푸시 금지
-- **상대 영역 파일은 고치지 않는다.** 필요하면 유저에게 묻거나 PR 설명·`docs/handoff/` 새 메모로 넘긴다
-- `content.json` 은 ChatGPT 가 커밋하지 않는다 → Claude 가 합칠 때 원본에서 다시 생성
+- Codex 브랜치를 합칠 때는 그림·프롬프트·캡처·메모·`assets.md` 끝 줄 말고 다른 파일이 바뀌었는지 확인한다
 - `docs/dev-log.md`·`licenses/assets.md` 는 맨 끝에 덧붙이기만 (`.gitattributes` 의 `merge=union`)
-- 합치기 전 최신 main 을 브랜치에 먼저 합쳐 충돌을 브랜치에서 풀고 테스트 통과 확인 → 유저가 시키면 Claude 가 main 에 합친다
