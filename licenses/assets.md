@@ -113,3 +113,15 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 - `docs/mockups/batting_perspective_v1.png` (2026-11-11, 1816×866): 내장 GPT 이미지 생성 도구. 유저 첨부 게임 화면의 시점·크기 비율 및 기존 SD 캐릭터 화풍 참고. 실제 로고·인명·UI 제외. 상업 이용 약관 별도 확인 대기. 프롬프트: `docs/mockups/batting_perspective_v1_prompt.md`.
 
 - `docs/mockups/batting_ground_v1.png` → `godot/art/illustrated/stadium_evening_v1.png` (2026-11-11, 1816×866): 내장 GPT 이미지 생성. 승인된 타석 시안에서 선수·배트·선수 그림자를 제거한 배경. 상업 이용 약관 별도 확인 대기. 프롬프트: `docs/mockups/batting_ground_v1_prompt.md`.
+
+- `docs/refs/sprites/batter_taller_pair01_v2.png` (2026-11-12): 내장 GPT 이미지 생성. 기존 게임 타자 시트 참고, 긴 체형의 두 프레임 원본. 상업 이용 약관 별도 확인 대기. 프롬프트: 같은 이름의 _prompt.md.
+
+- `docs/refs/sprites/batter_taller_pair02_v2.png` (2026-11-12): 내장 GPT 이미지 생성. 기존 게임 타자 시트 참고, 긴 체형의 두 프레임 원본. 상업 이용 약관 별도 확인 대기. 프롬프트: 같은 이름의 _prompt.md.
+
+- `docs/refs/sprites/batter_taller_pair03_v2.png` (2026-11-12): 내장 GPT 이미지 생성. 기존 게임 타자 시트 참고, 긴 체형의 두 프레임 원본. 상업 이용 약관 별도 확인 대기. 프롬프트: 같은 이름의 _prompt.md.
+
+- `docs/refs/sprites/batter_taller_pair04_v2.png` (2026-11-12): 내장 GPT 이미지 생성. 기존 게임 타자 시트 참고, 긴 체형의 두 프레임 원본. 상업 이용 약관 별도 확인 대기. 프롬프트: 같은 이름의 _prompt.md.
+
+- `docs/refs/sprites/batter_taller_pair05_v2.png` (2026-11-12): 내장 GPT 이미지 생성. 기존 게임 타자 시트 참고, 긴 체형의 두 프레임 원본. 상업 이용 약관 별도 확인 대기. 프롬프트: 같은 이름의 _prompt.md.
+
+- `docs/refs/sprites/batter_taller_pair06_v2.png` (2026-11-12): 내장 GPT 이미지 생성. 기존 게임 타자 시트 참고, 긴 체형의 두 프레임 원본. 상업 이용 약관 별도 확인 대기. 프롬프트: 같은 이름의 _prompt.md.
