@@ -17,7 +17,7 @@ const MITT_RING_MS := 140.0
 
 ## 장면 배치 (화면 비율). 지평선(외야 담장), 마운드, 존 가운데, 타자 머리
 const HORIZON_Y := 0.46
-const MOUND_Y := 0.56
+const MOUND_Y := 0.525
 const ZONE_Y := 0.70
 const ZONE_HALF_W := 0.045
 const ZONE_HALF_H := 0.095
@@ -347,9 +347,9 @@ func _draw_zone() -> void:
 
 
 ## 타석 화면의 야구장 원근 (도트 배경과 맞춘 값): 홈에서 투수 쪽으로 d m 인 점은 화면 높이 HORIZON_Y + FIELD_A / (d + FIELD_C),
-## 옆으로 x m 는 FIELD_F × x / (d + FIELD_C) px. 홈(0.95)·마운드(MOUND_Y)·지평선(HORIZON_Y)과 파울 라인이 배경 그림과 맞게 정했다
-const FIELD_A := 2.31
-const FIELD_C := 4.72
+## 옆으로 x m 는 FIELD_F × x / (d + FIELD_C) px. 새 배경의 홈(0.895)·마운드(MOUND_Y)·지평선(HORIZON_Y)에 맞춘다
+const FIELD_A := 1.41
+const FIELD_C := 3.24
 const FIELD_F := 427.0
 
 

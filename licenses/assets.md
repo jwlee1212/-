@@ -109,3 +109,7 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 ## 시작 메뉴 학교 운동장 (2026-11-10)
 
 - `godot/art/backgrounds/start_menu.png` 원본과 생성 프롬프트는 `docs/mockups/main_menu_background_v1.png`, `docs/mockups/main_menu_background_v1_prompt.md`에 있다. 내장 GPT 이미지 생성 도구 사용. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/batting_perspective_v1.png` (2026-11-11, 1816×866): 내장 GPT 이미지 생성 도구. 유저 첨부 게임 화면의 시점·크기 비율 및 기존 SD 캐릭터 화풍 참고. 실제 로고·인명·UI 제외. 상업 이용 약관 별도 확인 대기. 프롬프트: `docs/mockups/batting_perspective_v1_prompt.md`.
+
+- `docs/mockups/batting_ground_v1.png` → `godot/art/illustrated/stadium_evening_v1.png` (2026-11-11, 1816×866): 내장 GPT 이미지 생성. 승인된 타석 시안에서 선수·배트·선수 그림자를 제거한 배경. 상업 이용 약관 별도 확인 대기. 프롬프트: `docs/mockups/batting_ground_v1_prompt.md`.
