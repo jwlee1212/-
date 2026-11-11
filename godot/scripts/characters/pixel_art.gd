@@ -523,6 +523,8 @@ const FIELDER_JOG_MPS := 3.0
 const FIELDER_SD := 3.6
 const FIELDER_VEL_DT := 0.06
 const FIELDER_STRIDE_M := 0.8
+## 옛 도트 수비수 판을 일러스트 수비수 키에 맞추는 배율 (일러스트 313/320 × 0.8 ÷ 도트 40/48)
+const FIELDER_DOT_MATCH := 0.94
 
 static func _draw_fielder_ext(canvas: CanvasItem, cam: BroadcastView.Cam, at: Vector2, us: bool, vel: Vector2, t: float, pose: String = "", face: float = 0.0) -> void:
 	var feet := cam.ground(at).round()
@@ -563,4 +565,6 @@ static func _draw_fielder_ext(canvas: CanvasItem, cam: BroadcastView.Cam, at: Ve
 	elif FIELDER_ILLUSTRATED.has(pose) or frame == f["ready"]:
 		draw_illustrated(canvas, "fielder", FIELDER_ILLUSTRATED.get(pose, 0), feet, tall, us, flip)
 	else:
-		_blit_fielder(canvas, feet, us, frame, k, draw_scale, flip)
+		# 옛 도트 판(옆으로 달리기·조깅 등)은 일러스트 판보다 사람이 약 6% 커서(그림 키 40/48 대 313/320),
+		# 일러스트 포구 자세로 바뀌는 순간 몸이 툭 줄어 보였다 → 일러스트 키에 맞춰 줄인다 (2026-11-12)
+		_blit_fielder(canvas, feet, us, frame, k, draw_scale * FIELDER_DOT_MATCH, flip)

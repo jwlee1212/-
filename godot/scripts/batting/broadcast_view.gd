@@ -382,7 +382,10 @@ static func _draw_person(canvas: CanvasItem, cam: Cam, at: Vector2, uniform: Col
 ## 상황 동작 (2026-11-07 유저: 슬라이딩·송구 같은 동작이 상황에 안 맞는다) — 판정에 쓴 시각 그대로 고른다.
 ## 수비수: 공을 잡는 순간 뜬공(글러브 위)·땅볼(글러브 아래)·낮은 공 잡기(다이빙), 송구를 놓는 순간 던지기.
 ## 돌려주는 값: [칸 이름 ("" = 움직임으로), 바라볼 쪽 (-1 왼쪽)]
-const CATCH_POSE_BEFORE_S := 0.25
+## 땅볼·뜬공 포구 자세는 공이 닿기 바로 전에 (2026-11-12 유저: 달리다 포구 그림으로 바뀌는 순간 순간이동처럼 보인다 —
+## 0.25초 전부터 바꾸면 아직 달리는 중이라 웅크린 채 남은 거리를 미끄러져 갔다). 다이빙은 날아가는 동작이라 일찍 시작한다
+const CATCH_POSE_BEFORE_S := 0.08
+const DIVE_POSE_BEFORE_S := 0.25
 const CATCH_POSE_AFTER_S := 0.35
 const THROW_POSE_BEFORE_S := 0.3
 const THROW_POSE_AFTER_S := 0.15
@@ -432,7 +435,8 @@ static func _fielder_pose(name: String, positions: Dictionary, cfg: BattedBallSi
 		var ta := r.fielder_arrive
 		var dove := _dives(r)
 		var after := DIVE_POSE_AFTER_S if dove else CATCH_POSE_AFTER_S
-		if t >= ta - CATCH_POSE_BEFORE_S and t <= ta + after:
+		var before := DIVE_POSE_BEFORE_S if dove else CATCH_POSE_BEFORE_S
+		if t >= ta - before and t <= ta + after:
 			var face := signf(cam.ground(r.fielder_to).x - cam.ground(r.fielder_from).x)
 			if dove:
 				return ["dive", face]
