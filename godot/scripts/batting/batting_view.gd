@@ -495,6 +495,8 @@ func _draw_launched_ball(canvas: CanvasItem, from: Vector2, to: Vector2, t: floa
 ## elapsed_ms 는 맞은 뒤 지난 시간. 모양은 조각 번호로 정해져서 매번 같다
 func _draw_burst(canvas: CanvasItem, center: Vector2, elapsed_ms: float, quality: SwingJudge.Quality, home_run: bool = false) -> void:
 	var pres := session.presentation
+	if not pres.hit_burst:
+		return
 	var t := elapsed_ms / (pres.burst_home_run_ms if home_run else pres.burst_ms)
 	if t >= 1.0 or t < 0.0 or quality == SwingJudge.Quality.MISS:
 		return

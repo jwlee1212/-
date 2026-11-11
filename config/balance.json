@@ -300,6 +300,8 @@
       "flashMs": 140,
       "burstMs": 320,
       "burstHomeRunMs": 420,
+      "_hitBurst": "타격 이펙트(맞은 자리에서 터지는 만화식 별·충격파 고리·불티) 켜기/끄기. 2026-11-12 유저: 꺼 본다. 꺼도 화면 섬광(flashMs)·흔들림·히트스톱·소리는 그대로",
+      "hitBurst": false,
       "shakeMs": 280,
       "shakeSolidPx": 25.5,
       "shakeWeakPx": 7.3,

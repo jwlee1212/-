@@ -17,6 +17,8 @@ var movement_scale := Vector2.ONE
 var trail_dots: int
 var flash_ms: float
 var burst_ms: float
+## 타격 이펙트(맞은 자리의 만화식 별) 켜기 — balance.json hitBurst
+var hit_burst := true
 var burst_home_run_ms: float
 var shake_ms: float
 var shake_solid_px: float
@@ -107,6 +109,7 @@ static func from_balance(balance: Dictionary) -> Presentation:
 	p.lobby_menu_stagger_ms = BattingConfig.num(s, "lobby.menuStaggerMs")
 	p.stride_land_at = BattingConfig.num(s, "strideLandAt")
 	p.batter_art_scale = BattingConfig.num(s, "batterArtScale")
+	p.hit_burst = bool(s.get("hitBurst", true))
 	p.ball_cell_px = BattingConfig.num(s, "ballCellPx")
 	p.ball_min_radius_px = BattingConfig.num(s, "ballMinRadiusPx")
 	p.batter_recover_ms = BattingConfig.num(s, "batterRecoverMs")
