@@ -34,7 +34,8 @@ static func draw_frame(canvas: CanvasItem, feet: Vector2, height: float, frame: 
 	var scale := height / (184.0 / variant)
 	var rect := Rect2(feet.round() - anchor * scale, cell * scale)
 	if flip:
-		rect.position.x = feet.round().x + anchor.x * scale
+		# Godot 는 너비가 음수면 그림만 뒤집고 칸은 position 에서 오른쪽으로 그린다 → position 은 뒤집힌 칸의 왼쪽 끝 (2026-11-12: 오른쪽 끝을 넘겨 뒤집힌 그림이 한 칸 너비만큼 오른쪽으로 밀렸다)
+		rect.position.x = feet.round().x - (cell.x - anchor.x) * scale
 		rect.size.x = -rect.size.x
 	canvas.draw_texture_rect_region(tex, rect, Rect2(Vector2(clampi(frame, 0, 23) * cell.x, 0), cell))
 

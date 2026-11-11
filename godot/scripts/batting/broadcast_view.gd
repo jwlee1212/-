@@ -76,6 +76,22 @@ class Cam:
 ## t: 공의 시각 (초, 실제 시간). us_fielding: 수비하는 쪽이 우리 팀인가 (유니폼 색)
 ## play: 주자 플레이 결과 (있으면 모든 주자·송구·판정을 그 기록대로 그린다. 없으면 타자 주자만 옛 방식으로)
 ## mark_id: 머리 위에 표시할 주자의 타순 번호 (내 선수, -1 = 없음)
+## 확인용 (balance.json presentation.debugTargetRing): 공을 잡으러 가는 수비수 발 밑에 링 + 계산상 발 자리 점.
+## 그림이 링 가운데에 서 있는지 보며 그림 기준점과 실제 자리의 차이를 찾는다 (2026-11-12)
+static var target_ring := false
+
+
+## 발 자리에 바닥에 누운 타원 링 (그 자리 원근 크기 — 반지름 1.2m, 최소 12px)
+static func _draw_target_ring(canvas: CanvasItem, cam: Cam, at: Vector2) -> void:
+	var c := cam.ground(at)
+	var rx := maxf(cam.scale_at(Vector3(at.x, at.y, 0.0)) * 1.2, 12.0)
+	var pts := PackedVector2Array()
+	for i in 33:
+		var a := TAU * i / 32.0
+		pts.append(c + Vector2(cos(a) * rx, sin(a) * rx * 0.4))
+	canvas.draw_polyline(pts, Tokens.WARN, 2.0, true)
+
+
 static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: BattedBallSim.Result, t: float, bunt: bool,
 		us_fielding: bool = false, play: PlaySimulator.PlayResult = null, mark_id: int = -1) -> void:
 	var cam := Cam.new(Rect2(rect.position, rect.size * ZOOM), cfg.center_fence, cfg.line_fence, cfg.fence_height)
@@ -101,7 +117,13 @@ static func draw(canvas: CanvasItem, rect: Rect2, cfg: BattedBallSim.Config, r: 
 		# 조금 전 자리와 비교해 움직이는 중인지 (도트 선수가 달리는 칸을 쓴다)
 		var vel := cam.ground(at) - cam.ground(_fielder_at(name, positions, cfg, r, play, cover, t - PixelArt.FIELDER_VEL_DT))
 		var pose := _fielder_pose(name, positions, cfg, r, play, cover, t, cam)
+		var ring := target_ring and name == r.fielder
+		if ring:
+			_draw_target_ring(canvas, cam, at)
 		_draw_person(canvas, cam, at, uniform, vel, t, pose[0], pose[1])
+		if ring:
+			# 계산상 발 자리(그림이 서야 할 점)를 그림 위에 작은 점으로
+			canvas.draw_circle(cam.ground(at), 3.0, Tokens.BAD)
 
 	# 주자: 플레이 기록이 있으면 모든 주자를 궤적대로, 없으면 타자 주자만 계산에 쓴 속도로
 	if play != null:

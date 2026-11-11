@@ -302,6 +302,8 @@
       "burstHomeRunMs": 420,
       "_hitBurst": "타격 이펙트(맞은 자리에서 터지는 만화식 별·충격파 고리·불티) 켜기/끄기. 2026-11-12 유저: 꺼 본다. 꺼도 화면 섬광(flashMs)·흔들림·히트스톱·소리는 그대로",
       "hitBurst": false,
+      "_debugTargetRing": "확인용: 중계 화면에서 공을 잡으러 가는 수비수 발 밑에 노란 링, 계산상 발 자리에 빨간 점. 그림이 링 가운데 서 있는지로 그림 기준점 차이를 본다 (2026-11-12). 다 보면 false",
+      "debugTargetRing": true,
       "shakeMs": 280,
       "shakeSolidPx": 25.5,
       "shakeWeakPx": 7.3,

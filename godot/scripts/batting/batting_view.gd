@@ -65,6 +65,8 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _process(_delta: float) -> void:
+	if session != null:
+		BroadcastView.target_ring = session.presentation.debug_target_ring
 	_batter.visible = session != null and _broadcast_ball() == null
 	if _batter.visible:
 		_layout()

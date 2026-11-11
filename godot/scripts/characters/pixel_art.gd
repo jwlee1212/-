@@ -43,7 +43,8 @@ static func draw_illustrated(canvas: CanvasItem, name: String, frame: int, feet:
 	var scale := height / ILLUSTRATED_HEIGHT
 	var dst := Rect2(feet - ILLUSTRATED_FEET * scale, ILLUSTRATED_CELL * scale)
 	if flip:
-		dst.position.x = feet.x + ILLUSTRATED_FEET.x * scale
+		# Godot 는 너비가 음수면 그림만 뒤집고 칸은 position 에서 오른쪽으로 그린다 → position 은 뒤집힌 칸의 왼쪽 끝 (2026-11-12: 오른쪽 끝을 넘겨 뒤집힌 그림이 한 칸 너비만큼 오른쪽으로 밀렸다)
+		dst.position.x = feet.x - (ILLUSTRATED_CELL.x - ILLUSTRATED_FEET.x) * scale
 		dst.size.x = -dst.size.x
 	var src := Rect2(Vector2(frame % 4, floori(frame / 4.0)) * ILLUSTRATED_CELL, ILLUSTRATED_CELL)
 	canvas.draw_texture_rect_region(tex, dst, src)
@@ -466,7 +467,8 @@ static func draw_fielder(canvas: CanvasItem, cam: BroadcastView.Cam, at: Vector2
 	# 그림자 → 사람 (왼쪽으로 달리면 좌우를 뒤집는다)
 	canvas.draw_rect(Rect2(feet + Vector2(-2, 0) * u, Vector2(4, 1) * u), Tokens.SHADOW)
 	if vel.x < -0.05:
-		canvas.draw_texture_rect_region(tex, Rect2(r.position + Vector2(r.size.x, 0), Vector2(-r.size.x, r.size.y)), region)
+		# Godot 는 너비가 음수면 그림만 뒤집고 칸은 position 에서 오른쪽으로 그린다 → position 은 뒤집힌 칸의 왼쪽 끝 (2026-11-12: 오른쪽 끝을 넘겨 뒤집힌 그림이 한 칸 너비만큼 오른쪽으로 밀렸다)
+		canvas.draw_texture_rect_region(tex, Rect2(Vector2(feet.x - (cell.x - PixelMeta.FIELDER_FEET.x) * u, r.position.y), Vector2(-r.size.x, r.size.y)), region)
 	else:
 		canvas.draw_texture_rect_region(tex, r, region)
 
@@ -509,7 +511,8 @@ static func _blit_fielder(canvas: CanvasItem, feet: Vector2, us: bool, frame: in
 	var region := Rect2(Vector2(frame * cell.x, 0), cell)
 	var r := Rect2(feet - foot * scale, cell * scale)
 	if flip:
-		r = Rect2(Vector2(feet.x + (foot.x - cell.x) * scale + cell.x * scale, r.position.y), Vector2(-cell.x * scale, r.size.y))
+		# Godot 는 너비가 음수면 그림만 뒤집고 칸은 position 에서 오른쪽으로 그린다 → position 은 뒤집힌 칸의 왼쪽 끝 (2026-11-12: 오른쪽 끝을 넘겨 뒤집힌 그림이 한 칸 너비만큼 오른쪽으로 밀렸다)
+		r = Rect2(Vector2(feet.x - (cell.x - foot.x) * scale, r.position.y), Vector2(-cell.x * scale, r.size.y))
 	canvas.draw_texture_rect_region(tex, r, region)
 
 
