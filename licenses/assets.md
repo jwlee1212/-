@@ -90,3 +90,7 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 
 - 이번 대화에서 생성한 `batter_sd_v1~v3_source`, `pitcher_sd_reference_v1`, `pitcher_sd_v1_source`, `fielder_runner_2d_reference_v1`, `fielder_2d_poses_v1`, `fielder_2d_run_v1`, `runner_2d_actions_v1`, `runner_2d_run_away_left_v1`, `batting_stadium_2d_v1`는 내장 GPT 이미지 생성 도구로 제작했다. 원본과 프롬프트는 `docs/refs/sprites/`에 보관한다.
 - `docs/mockups/main_menu_v1.png`와 `title_screen_v1.png`도 같은 도구로 만든 시안이다. 상업 이용 약관 별도 확인 대기.
+
+- `docs/refs/sprites/batter_video_swing_v1.png` (2026-11-10): 내장 GPT 이미지 생성 도구(image_gen)로 제작한 12프레임 SD 타자 스윙. 사용자 첨부 `화면 기록 2026-11-10 오후 2.58.12.mov`는 자세·카메라만, `sd_pitcher_throw_v1_source.png`는 화풍 기준으로 사용. 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용: OpenAI 및 참고 이미지 이용 조건 별도 확인 대기. 실존 구단 로고·선수명·등번호 미사용.
+
+- `docs/refs/sprites/batter_video_swing_hd_pair1_v1.png` ~ `batter_video_swing_hd_pair6_v1.png` (2026-11-11): 내장 GPT 이미지 생성(image_gen)으로 기존 `batter_video_swing_v1.png`의 12동작을 두 칸씩 고해상도 재생성. 각 원본 1536×1024 RGBA, 프롬프트는 각각 `_prompt.md`. 상업 이용: OpenAI 및 기준 이미지의 이용 조건 별도 확인 대기. 실제 구단 로고·선수명·등번호 미사용.

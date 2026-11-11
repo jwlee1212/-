@@ -63,10 +63,30 @@ def density_of(d, cell_h):
 
 
 def tidy(name, d):
-    src = Image.open(os.path.join(ROOT, d["src"])).convert("RGBA")
     n = d["frames"]
-    fw = src.width // n
-    frames = [np.array(src.crop((i * fw, 0, (i + 1) * fw, src.height))) for i in range(n)]
+    if "sources" in d:
+        frames = []
+        for path in d["sources"]:
+            src = Image.open(os.path.join(ROOT, path)).convert("RGBA")
+            fw = src.width // 2
+            frames.extend(np.array(src.crop((i * fw, 0, (i + 1) * fw, src.height))) for i in range(2))
+        assert len(frames) == n
+        # 생성기의 거의 투명한 배경 잡점만 제외하고 발끝을 같은 지면에 맞춘다.
+        for f in frames:
+            f[f[:, :, 3] < 24] = 0
+        bottoms = [int(np.nonzero((f[:, :, 3] >= 128).any(1))[0].max()) for f in frames]
+        baseline = max(bottoms)
+        aligned = []
+        for f, bottom in zip(frames, bottoms):
+            shift = baseline - bottom
+            canvas = np.zeros_like(f)
+            canvas[shift:] = f[:f.shape[0] - shift]
+            aligned.append(canvas)
+        frames = aligned
+    else:
+        src = Image.open(os.path.join(ROOT, d["src"])).convert("RGBA")
+        fw = src.width // n
+        frames = [np.array(src.crop((i * fw, 0, (i + 1) * fw, src.height))) for i in range(n)]
     if d.get("drop_small"):
         for f in frames:
             keep = drop_small(f[:, :, 3] > 0, d["drop_small"])
@@ -102,11 +122,13 @@ def tidy(name, d):
     feet = (int(round((bx.min() + bx.max()) / 2)), bottom + 1)
     # 이름 칸 순서로 늘어놓기
     names = list(d["map"].keys())
-    sheet = np.zeros((ch, cw * len(names), 4), np.uint8)
+    cols = int(d.get("output_cols", len(names)))
+    sheet = np.zeros((ch * ((len(names) + cols - 1) // cols), cw * cols, 4), np.uint8)
     for j, nm in enumerate(names):
         i = d["map"][nm]
         assert 0 <= i < n, f"{name}.{nm}: 원본 칸 {i} 없음 (0~{n - 1})"
-        sheet[:, j * cw:(j + 1) * cw] = cells[i]
+        row, col = divmod(j, cols)
+        sheet[row * ch:(row + 1) * ch, col * cw:(col + 1) * cw] = cells[i]
     out_png = os.path.join(ROOT, d["png"])
     Image.fromarray(sheet).save(out_png)
     order = ", ".join(f'"{nm}": {j}' for j, nm in enumerate(names))
@@ -115,6 +137,7 @@ def tidy(name, d):
         f"## scripts/tidy_sheet.py {name} 가 만든다 (정의 scripts/sheets.json). 손으로 고치지 않는다.\n"
         f"## {d['png']} 의 칸 정보. 원본: {d['src']} (SpriteCook {d.get('asset_id', '?')})\n"
         f"const CELL := Vector2({cw}, {ch})\n"
+        f"const COLUMNS := {cols}\n"
         f"const FEET := Vector2({feet[0]}, {feet[1]})\n"
         f"const FRAMES := {{{order}}}\n"
         f"## 경기장 도트 1칸에 이 그림 몇 칸이 들어가나 (2 = 경기장보다 두 배 촘촘한 그림 → 화면 배율은 PixelArt.unit 의 1/2)\n"
@@ -138,8 +161,8 @@ def tidy(name, d):
             if 0 <= x < bg.width:
                 px[x, min(feet[1], ch - 1)] = (255, 0, 0, 255)
     os.makedirs(os.path.join(ROOT, "godot", "build"), exist_ok=True)
-    bg.resize((bg.width * 3, bg.height * 3), Image.NEAREST).save(
-        os.path.join(ROOT, "godot", "build", f"{name}_preview.png"))
+    bg.thumbnail((4096, 2048))
+    bg.save(os.path.join(ROOT, "godot", "build", f"{name}_preview.png"))
     print(f"{name}: {len(names)}칸 {cw}x{ch} 발 {feet} → {d['png']}")
 
 

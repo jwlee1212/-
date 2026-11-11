@@ -11,6 +11,7 @@ extends Node2D
 var _sprite: Sprite2D
 var _shown := -1
 var _cell: Vector2
+var _columns := 20
 ## 경기장 도트 1칸에 들어가는 이 그림의 칸 수. 화면 배율 = PixelArt.unit / density (BattingView)
 var density := 1.0
 
@@ -24,6 +25,7 @@ func _init() -> void:
 	if ext != null:
 		_sprite.texture = ext
 		_cell = BatterExtMeta.CELL
+		_columns = BatterExtMeta.COLUMNS
 		_sprite.offset = -BatterExtMeta.FEET
 		density = BatterExtMeta.DENSITY
 	else:
@@ -39,4 +41,4 @@ func show_frame(index: int) -> void:
 	if index == _shown:
 		return
 	_shown = index
-	_sprite.region_rect = Rect2(Vector2(index * _cell.x, 0), _cell)
+	_sprite.region_rect = Rect2(Vector2((index % _columns) * _cell.x, (index / _columns) * _cell.y), _cell)

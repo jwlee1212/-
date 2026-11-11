@@ -243,7 +243,10 @@ func _draw_pitcher() -> void:
 ## 타자 그림 배율: 옛 코드 도트는 경기장과 같은 배율, SpriteCook 타자는 촘촘함(density)으로 나눈 뒤 batterArtScale 을 곱한다
 func _batter_scale() -> float:
 	if _batter.density > 1:
-		return PixelArt.unit(size) / _batter.density * session.presentation.batter_art_scale
+		var requested := PixelArt.unit(size) / _batter.density * session.presentation.batter_art_scale
+		# 컨택점을 존에 맞춰도 고해상도 타자의 발이 화면 아래로 잘리지 않게 한다.
+		var ground_room := size.y * (BATTER_FEET_Y - ZONE_Y)
+		return minf(requested, ground_room / maxf(-BatterExtMeta.CONTACT.y, 1.0))
 	return PixelArt.unit(size)
 
 
