@@ -1,0 +1,20 @@
+# 고교 커리어 동네 골목 홈 시안 v1
+
+- 도구: 내장 GPT 이미지 생성
+- 그림체·주인공 기준: docs/mockups/career_name_screen_v2.png
+- 구조 기준: docs/02-design.md §5-3 및 home/street_view.gd
+- 좌우 스크롤 골목 중 한 화면을 표현. 수치·목표·경기 표기는 시안용 예시.
+
+Use case: ui-mockup
+Create ONE polished actual HOME SCREEN concept for the HIGH SCHOOL CAREER mode of Korean baseball game FIRST PICK. Landscape 2.16:1, equivalent to 844x390 logical mobile screen. NOT a menu list, NOT a world map, NOT an aerial city, NOT a title screen. This is a walkable SIDE-ON neighborhood street, one camera viewport into a longer horizontally scrolling world.
+REFERENCE image supplies ONLY canonical player identity and DRAWING STYLE, not UI layout. Use exactly that boy's short black hair, navy cap, off-white baseball uniform, navy undershirt/socks and worn ivory sneakers. Character stays recognizable, about 23% total screen height standing on sidewalk near center. Hand-inked navy contours, flat matte cel color with one shadow tone, restrained subtle paper texture, warm ivory, dusty blue, ochre and muted sage. No polished shiny anime rendering or photorealism.
+SCENE: charming humble Korean residential street in Suwon, front elevation at pedestrian eye-level, almost orthographic side-scroller. Buildings are normal human scale compared to the boy, not toy buildings on a map. Continuous pavement runs left to right. Visible from left to right: partial edge of modest apartment entrance at far left, cozy small one-story local diner with real physical awning sign "은하식당", next a small baseball equipment shop with physical sign "용품점", then school gate "서림고" with low clubhouse and chain-link practice ground glimpsed behind fence at right. Keep it a tight intimate neighborhood with 3 main destinations per viewport, not a whole city squished into one screen. A simple bench, flowerpots and parked bicycle provide spare environmental detail, calm light morning. Minimal background skyline, no crowds, no cars blocking doors. Player near equipment shop with bat at side. Doors must be visually obvious tap targets.
+UI overlays crisp readable Korean with safe margins:
+TOP slim ivory full-width status bar ~9% height: left "1학년 · 봄", center small wallet icon and "30,000원", right phone icon "폰" with small orange unread badge "2", then navy gear. Flat ink lines, no currency premium gems.
+Immediately under bar: thin cream objective strip left aligned "구간 목표  |  첫 안타 기록하기".
+Upper-left over spare sky/building roof area a COMPACT ivory next-match card, NOT covering store signs: small "다음 경기", main navy text "서림고 vs 동인고", one burnt-orange action "경기 시작 →". Make primary action big enough to tap. Card occupies at most 32% width and 18% height, modest border, no bevel or large shadow.
+Building functions shown with three tiny restrained ivory door-adjacent UI labels, all distinct: at diner door "이야기", at equipment shop door "상점", at school gate two adjacent small labels "훈련" and "팀". These are understated functional labels, NOT enormous floating place-name banners.
+Bottom just ABOVE footer, left and right small outlined large-touch chevron buttons "‹" and "›" for walking/scrolling. Center bottom small outlined button "용품점 들어가기". Do not overlap player feet.
+BOTTOM slim ivory footer ~7% height: left "주말리그 전반기 · 1번째 경기", right subtle "좌우로 밀어 이동". Keep footer readable.
+At far left street edge a small discreet signpost "우리 집 ←"; far right "야구장 →" indicating offscreen destinations. School main building/records and clubhouse/team live beyond gate; do not add more UI panels to depict them.
+Important: coherent natural SIDE-VIEW scene plus lightweight cream/navy UI, large actual playable area ~65% height, warm illustrative atmosphere. NOT isometric, NOT top down, NOT dashboard grid, NO bottom menu tabs, NO stats bars, NO daily reward/event/red-dot clutter, NO huge player portrait, NO title logo occupying screen, NO game-start splash button, NO real brand logos, no invented NPC dialogue, no watermark or device frame. Exact requested labels rendered accurately. Preserve the restrained handmade visual style of the reference while making architecture clear and navigable.

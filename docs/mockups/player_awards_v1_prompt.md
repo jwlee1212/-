@@ -1,0 +1,9 @@
+# 선수 정보 — 수상·기념 시안 v1
+
+- 도구: 내장 GPT 이미지 생성
+- 기준: docs/mockups/player_info_v1.png
+- 수치·등급·장비와 성장 내역은 시각 검토용 예시. 실제 구현 또는 밸런스 확정이 아님.
+
+Use case: ui-mockup. Generate ONE full-screen landscape mobile game UI mockup (2.16:1). The supplied image is the approved PLAYER INFORMATION UI. Preserve its visual system and layout precisely: thin navy ink lines, warm cream paper, matte muted colors, burnt-orange selected accent, readable Korean typography, restrained handmade 2D game illustration. Same canonical boy, black hair/navy cap/off-white uniform/navy undershirt and socks, warm ivory sneakers, same face and body ratio. No 3D or glossy anime. No device frame, no watermark or real logos.
+KEEP upper bar: left "골목으로" with arrow, center "선수 정보", right "1학년 · 봄". KEEP four-tab strip exact "능력치", "장비", "성장 기록", "수상·기념". Keep left 35% player's full-body relaxed standing pose in same quiet bedroom, label "내 선수", subtitle "서림고 · 1학년". Right 60% changes to the requested content below. Do not cram tiny text; use large legible type, clear hierarchy, minimal table rows and generous spacing. All content within mobile safe margins. This is a UI concept with example values, not a new game rule. No currencies, premium gems, stat upgrades by spending points, invented skill trees, or action unrelated to this page.
+Select "수상·기념" tab. Heading "수상·기념". Below two compact subsection chips "기념 순간" selected navy and "수상 기록" outlined. Main view is an inviting EARLY-CAREER EMPTY STATE: small hand-inked unbranded scrapbook on right content center, an empty photo corner and a simple outlined baseball. Text centered "아직 기록된 기념 순간이 없어요". Small helper "첫 경기부터 하나씩 쌓아 가요". Under thin separator a second quieter section "수상 기록", text "아직 받은 상이 없어요". Avoid invented earned trophies or fabricated story achievements. Do not add a collection of locked badges, unknown silhouettes or a fixed checklist of required achievements. Main character remains visible on left.

@@ -1,0 +1,9 @@
+# 선수 정보 — 성장 기록 시안 v1
+
+- 도구: 내장 GPT 이미지 생성
+- 기준: docs/mockups/player_info_v1.png
+- 수치·등급·장비와 성장 내역은 시각 검토용 예시. 실제 구현 또는 밸런스 확정이 아님.
+
+Use case: ui-mockup. Generate ONE full-screen landscape mobile game UI mockup (2.16:1). The supplied image is the approved PLAYER INFORMATION UI. Preserve its visual system and layout precisely: thin navy ink lines, warm cream paper, matte muted colors, burnt-orange selected accent, readable Korean typography, restrained handmade 2D game illustration. Same canonical boy, black hair/navy cap/off-white uniform/navy undershirt and socks, warm ivory sneakers, same face and body ratio. No 3D or glossy anime. No device frame, no watermark or real logos.
+KEEP upper bar: left "골목으로" with arrow, center "선수 정보", right "1학년 · 봄". KEEP four-tab strip exact "능력치", "장비", "성장 기록", "수상·기념". Keep left 35% player's full-body relaxed standing pose in same quiet bedroom, label "내 선수", subtitle "서림고 · 1학년". Right 60% changes to the requested content below. Do not cram tiny text; use large legible type, clear hierarchy, minimal table rows and generous spacing. All content within mobile safe margins. This is a UI concept with example values, not a new game rule. No currencies, premium gems, stat upgrades by spending points, invented skill trees, or action unrelated to this page.
+Select "성장 기록" tab. Heading "성장 기록". Secondary two simple filter chips "이번 구간" selected navy, "전체". Show a compact readable growth comparison table with columns "능력치", "구간 시작", "현재", "변화". Four rows "컨택 | 40 | 42 | +2", "파워 | 38 | 38 | —", "선구안 | 50 | 51 | +1", "주력 | 55 | 56 | +1"; orange positive changes. Below thin separator and section "최근 성장". Three simple text ledger entries with small outline icons: "타격 훈련  ·  컨택 +1", "경기 후 성장  ·  컨택 +1, 선구안 +1", "주루 훈련  ·  주력 +1". Bottom small line "성장 단계  |  성장기". No new currency, no invented experience graph or level.
