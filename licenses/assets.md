@@ -155,3 +155,11 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 - `docs/mockups/phone_news_list_v1.png` (2026-11-14): 내장 GPT 이미지 생성 도구로 제작한 폰 뉴스 탭 목록 UI 시안. 기준 `docs/mockups/phone_messages_v1.png`(기존 인물 일러스트 참조 포함). 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
 
 - `docs/mockups/phone_news_article_v1.png` (2026-11-14): 내장 GPT 이미지 생성 도구로 제작한 폰 뉴스 기사 상세 UI 시안. 기준 `docs/mockups/phone_messages_v1.png`(기존 인물 일러스트 참조 포함). 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/street_hs_long_v1.png` (2026-11-14): 내장 GPT 이미지 생성 도구로 제작한 고교 골목길 연속 배경 파노라마 시안. 기준 `docs/mockups/career_street_home_v1.png`. 프롬프트는 `docs/mockups/street_hs_long_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/game_batting_ui_v1.png` (2026-11-15): 내장 GPT 이미지 생성 도구로 제작한 경기 타석 UI 시안. 캐릭터 기준 `docs/refs/sprites/main_player_tpose_v2.png`, 그림체·색감 기준 `docs/mockups/training_ui_v1.png`. 프롬프트는 `docs/mockups/game_batting_ui_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/game_result_ui_v1.png` (2026-11-15): 내장 GPT 이미지 생성 도구로 제작한 경기 결과 UI 시안. 기준 `docs/mockups/game_batting_ui_v1.png` 및 `docs/refs/sprites/main_player_tpose_v2.png`. 프롬프트는 `docs/mockups/game_result_ui_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/batting_field_background_v1.png` (2026-11-15): 내장 GPT 이미지 생성 편집 도구로 경기 타석 시안에서 UI·선수·공을 제거하고 가려진 경기장 배경을 복원. 기준 `docs/mockups/game_batting_ui_v1.png`와 동일한 사용자 첨부 원본. 프롬프트는 `docs/mockups/batting_field_background_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
