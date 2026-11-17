@@ -109,3 +109,21 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 ## 시작 메뉴 학교 운동장 (2026-11-10)
 
 - `godot/art/backgrounds/start_menu.png` 원본과 생성 프롬프트는 `docs/mockups/main_menu_background_v1.png`, `docs/mockups/main_menu_background_v1_prompt.md`에 있다. 내장 GPT 이미지 생성 도구 사용. 상업 이용 약관 별도 확인 대기.
+
+- 2026-11-15: `docs/refs/sprites/pitcher_ink_throw_v1.png` — 유저 제공 캐릭터·투구 동작 참조, 내장 GPT image_gen으로 생성한 16칸 투구 일러스트. 프롬프트: `docs/refs/sprites/pitcher_ink_throw_v1_prompt.md`. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기.
+
+- 2026-11-15: `docs/refs/sprites/pitcher_ink_throw_v2.png` — 유저 제공 캐릭터·투구 동작 참조, 내장 GPT image_gen으로 생성한 16칸 투구 일러스트. 프롬프트: `docs/refs/sprites/pitcher_ink_throw_v2_prompt.md`. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기.
+
+- 2026-11-15: `docs/refs/sprites/batter_ink_swing_v1.png` — 유저 제공 캐릭터 그림체와 `character_animation_sheet.png` 동작을 참조해 내장 GPT image_gen으로 생성한 12칸 타격 일러스트. 프롬프트: `docs/refs/sprites/batter_ink_swing_v1_prompt.md`. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기.
+
+- 2026-11-15: `docs/refs/sprites/batter_ink_swing_pair01_v2.png` — 유저 첨부 타격 시트를 참조하여 내장 GPT image_gen으로 생성한 2컷 타격 일러스트. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기. Prompt: `docs/refs/sprites/batter_ink_swing_pair01_v2_prompt.md`.
+
+- 2026-11-15: `docs/refs/sprites/batter_ink_swing_pair02_v2.png` — 유저 첨부 타격 시트를 참조하여 내장 GPT image_gen으로 생성한 2컷 타격 일러스트. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기. Prompt: `docs/refs/sprites/batter_ink_swing_pair02_v2_prompt.md`.
+
+- 2026-11-15: `docs/refs/sprites/batter_ink_swing_pair03_v2.png` — 유저 첨부 타격 시트를 참조하여 내장 GPT image_gen으로 생성한 2컷 타격 일러스트. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기. Prompt: `docs/refs/sprites/batter_ink_swing_pair03_v2_prompt.md`.
+
+- 2026-11-15: `docs/refs/sprites/batter_ink_swing_pair04_v2.png` — 유저 첨부 타격 시트를 참조하여 내장 GPT image_gen으로 생성한 2컷 타격 일러스트. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기. Prompt: `docs/refs/sprites/batter_ink_swing_pair04_v2_prompt.md`.
+
+- 2026-11-15: `docs/refs/sprites/batter_ink_swing_pair05_v2.png` — 유저 첨부 타격 시트를 참조하여 내장 GPT image_gen으로 생성한 2컷 타격 일러스트. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기. Prompt: `docs/refs/sprites/batter_ink_swing_pair05_v2_prompt.md`.
+
+- 2026-11-15: `docs/refs/sprites/batter_ink_swing_pair06_v2.png` — 유저 첨부 타격 시트를 참조하여 내장 GPT image_gen으로 생성한 2컷 타격 일러스트. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기. Prompt: `docs/refs/sprites/batter_ink_swing_pair06_v2_prompt.md`.
