@@ -81,21 +81,21 @@ static func snap(p: Vector2, view_size: Vector2) -> Vector2:
 	return o + ((p - o) / u).round() * u
 
 
-## 전광판 글자는 기존 71×21 칸을 새 배경의 빈 판 안에 맞춘다.
+## 일러스트 경기장(scripts/pack_stadium_art.py)의 전광판 판 — 옛 도트 판보다 6칸 위에 있다. 크기·글자 칸은 PixelMeta.BOARD_LED 와 같다
 const BOARD_LED_ILLUSTRATED := Rect2(135, 21, 71, 21)
 
 
-## 원본 비율을 유지하고 화면을 덮는다. 넓은 화면에서는 위아래만 조금 잘린다.
-static func batting_field_rect(view_size: Vector2) -> Rect2:
-	var tex := illustrated_texture("stadium_evening_v1")
-	var scale := maxf(view_size.x / tex.get_width(), view_size.y / tex.get_height())
-	var drawn_size := tex.get_size() * scale
-	return Rect2((view_size - drawn_size) * 0.5, drawn_size)
-
-
 static func draw_field(canvas: CanvasItem, view_size: Vector2) -> void:
-	var tex := illustrated_texture("stadium_evening_v1")
+	var tex := illustrated_texture("stadium_ink")
 	canvas.draw_texture_rect(tex, batting_field_rect(view_size), false)
+
+
+## 새 경기장 원본의 비율을 유지한다. 투수판은 화면 높이 56%에 맞춘다.
+static func batting_field_rect(view_size: Vector2) -> Rect2:
+	var tex := illustrated_texture("stadium_ink")
+	var scale := maxf(view_size.x / tex.get_width(), view_size.y / tex.get_height())
+	var drawn := tex.get_size() * scale
+	return Rect2(Vector2((view_size.x - drawn.x) * 0.5, view_size.y * 0.56 - drawn.y * 0.582), drawn)
 
 
 ## 전광판 글자 (3×5, 위 줄부터 — 1 이 켜진 LED)
@@ -112,8 +112,8 @@ const LED_FONT := {
 static func draw_scoreboard(canvas: CanvasItem, view_size: Vector2, board: Dictionary) -> void:
 	var led := BOARD_LED_ILLUSTRATED
 	var field := batting_field_rect(view_size)
-	var o := field.position + field.size * Vector2(0.425, 0.215)
-	var u := field.size * Vector2(0.15, 0.125) / led.size
+	var o := field.position + field.size * Vector2(0.368, 0.218)
+	var u := field.size * Vector2(0.264, 0.148) / led.size
 	var dot := func(x: int, y: int, col: Color) -> void:
 		canvas.draw_rect(Rect2(o + Vector2(x, y) * u, u), col)
 	var text := func(x: int, y: int, s: String, col: Color) -> void:
