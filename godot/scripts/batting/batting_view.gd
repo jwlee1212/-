@@ -25,7 +25,7 @@ const ZONE_HALF_H := 0.095
 const MIN_DESCENT := 0.03
 ## 타자: 두 발 사이의 가로 자리, 발바닥 높이 — 화면 비율. 바꾸면 make_pixel_art.py 의 LAYOUT 도 같이 바꾼다
 const BATTER_X := 0.34
-const BATTER_FEET_Y := 0.97
+const BATTER_FEET_Y := 0.94
 
 var session: BattingSession
 ## 경기 중이면 경기 (전광판 줄 점수에 쓴다). 연습이면 null
@@ -242,8 +242,13 @@ func _draw_pitcher() -> void:
 
 ## 타자 그림 배율: 옛 코드 도트는 경기장과 같은 배율, SpriteCook 타자는 촘촘함(density)으로 나눈 뒤 batterArtScale 을 곱한다
 func _batter_scale() -> float:
-	if _batter.density > 1:
-		return PixelArt.unit(size) / _batter.density * session.presentation.batter_art_scale
+	var density := _batter.density if is_instance_valid(_batter) else BatterExtMeta.DENSITY
+	if density > 1:
+		var native_scale := PixelArt.unit(size) / density
+		# 화면에 들어가는 기본 크기를 구한 다음 사용자가 고른 배율을 적용한다.
+		var below_contact := -BatterExtMeta.CONTACT.y + maxf(0.0, BatterExtMeta.CELL.y - BatterExtMeta.FEET.y)
+		var fitted := size.y * (0.97 - ZONE_Y) / maxf(below_contact, 1.0)
+		return minf(native_scale, fitted) * session.presentation.batter_art_scale
 	return PixelArt.unit(size)
 
 

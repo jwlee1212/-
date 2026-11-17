@@ -127,3 +127,7 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 - 2026-11-15: `docs/refs/sprites/batter_ink_swing_pair05_v2.png` — 유저 첨부 타격 시트를 참조하여 내장 GPT image_gen으로 생성한 2컷 타격 일러스트. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기. Prompt: `docs/refs/sprites/batter_ink_swing_pair05_v2_prompt.md`.
 
 - 2026-11-15: `docs/refs/sprites/batter_ink_swing_pair06_v2.png` — 유저 첨부 타격 시트를 참조하여 내장 GPT image_gen으로 생성한 2컷 타격 일러스트. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기. Prompt: `docs/refs/sprites/batter_ink_swing_pair06_v2_prompt.md`.
+
+- 2026-11-15: `docs/mockups/stadium_ink_batting_v1.png` — 기존 타석 배경 구도와 유저 제공 캐릭터 그림체를 참조해 내장 GPT image_gen으로 생성한 경기장 배경. 프롬프트: `docs/mockups/stadium_ink_batting_v1_prompt.md`. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기.
+
+- 2026-11-17 타석 적용 파생본: `godot/art/pixel/batter_ext.png`는 `docs/refs/sprites/batter_ink_swing_pair01~06_v2.png`, `godot/art/pixel/pitcher_ext.png`는 `docs/refs/sprites/pitcher_ink_throw_v2.png`, `godot/art/illustrated/stadium_ink.png`는 `docs/mockups/stadium_ink_batting_v1.png`에서 파생. 도구: 내장 GPT image_gen 원본 + Pillow/NumPy의 자르기·정렬. 상업 이용은 원본의 확인 대기 상태를 승계. 재생성: `scripts/pack_batting_ink_art.py`.

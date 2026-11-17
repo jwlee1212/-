@@ -1,11 +1,11 @@
 {
   "_doc": "scripts/tidy_sheet.py 의 시트 정의. map = 게임 이름 칸 → 원본 칸 번호(0부터). down = 정수 줄임(도트 원본은 1), resample = nearest(도트) | box(칠한 그림 시험)",
   "batter": {
-    "_note": "SD 타자 풀스윙 v3 (2026-11-10 유저가 GPT 이미지로 뽑음 — 4x3 격자, 원본 docs/refs/sprites/sd_batter_swing_v3_source.png). scripts/grid_to_strip.py 가 칸마다 바닥을 맞춰 원본 해상도 그대로 띠를 만든다. 칸 순서: 0 준비 1 로드 2 다리 들기 3 내딛기 4 랜딩 5 회전 6 컨택 7 뻗기 8·9 팔로스루 10·11 마무리. 번트 칸은 아직 없어 임시로 준비 칸. CONTACT = 컨택 칸(원본 6)의 배트 스위트 스폿(끝에서 16% 자리, 칸 안 좌표). field_height 93 = 칸 상자 키를 경기장 도트 칸으로 (v1 과 같은 화면 크기) → DENSITY = 그림 키 / 93. 게임은 부드러운 필터로 띄운다(PixelArt.SMOOTH). 옛 v1 원본은 sd_batter_swing_v1_*",
-    "src": "docs/refs/sprites/sd_batter_swing_v3_sheet.png",
+    "_note": "2026-11-15 머리 방향 수정 타자 2컷 원본 6장. 지지발 좌표를 공통 기준으로 맞추고 5열 아틀라스에 원본 해상도로 보관.",
+    "src": "docs/refs/sprites/batter_ink_swing_pair01_v2.png",
     "frames": 12,
     "down": 1,
-    "drop_small": 80,
+    "drop_small": 0,
     "foot_rows": 10,
     "anchor_frame": 0,
     "png": "godot/art/pixel/batter_ext.png",
@@ -17,37 +17,99 @@
       "load_a": 1,
       "load": 1,
       "stride_up": 2,
-      "stride": 3,
-      "landing": 4,
-      "rotate1": 4,
-      "rotate2": 5,
-      "contact_high": 6,
-      "contact_mid": 6,
-      "contact_low": 6,
-      "extend": 7,
-      "follow1": 8,
-      "follow2": 9,
-      "follow3": 10,
+      "stride": 2,
+      "landing": 2,
+      "rotate1": 2,
+      "rotate2": 3,
+      "contact_high": 3,
+      "contact_mid": 3,
+      "contact_low": 3,
+      "extend": 4,
+      "follow1": 5,
+      "follow2": 6,
+      "follow3": 8,
       "finish": 11,
       "bunt": 0,
-      "recover": 11,
+      "recover": 10,
       "settle": 0
     },
     "points": {
       "CONTACT": [
-        296,
-        205
+        718,
+        427
       ]
     },
-    "field_height": 93
+    "field_height": 93,
+    "sources": [
+      "docs/refs/sprites/batter_ink_swing_pair01_v2.png",
+      "docs/refs/sprites/batter_ink_swing_pair02_v2.png",
+      "docs/refs/sprites/batter_ink_swing_pair03_v2.png",
+      "docs/refs/sprites/batter_ink_swing_pair04_v2.png",
+      "docs/refs/sprites/batter_ink_swing_pair05_v2.png",
+      "docs/refs/sprites/batter_ink_swing_pair06_v2.png"
+    ],
+    "output_cols": 5,
+    "alignment_anchors": [
+      [
+        415,
+        805
+      ],
+      [
+        415,
+        805
+      ],
+      [
+        415,
+        805
+      ],
+      [
+        415,
+        805
+      ],
+      [
+        510,
+        825
+      ],
+      [
+        510,
+        825
+      ],
+      [
+        455,
+        815
+      ],
+      [
+        455,
+        815
+      ],
+      [
+        440,
+        815
+      ],
+      [
+        440,
+        815
+      ],
+      [
+        435,
+        815
+      ],
+      [
+        435,
+        815
+      ]
+    ],
+    "point_frames": {
+      "CONTACT": 3
+    }
   },
   "pitcher": {
-    "_note": "SD 투수 투구 v1 (2026-11-10 유저가 GPT 이미지로 뽑음 — 4x4 격자, 원본 docs/refs/sprites/sd_pitcher_throw_v1_source.png). scripts/grid_to_strip.py 가 칸마다 바닥을 맞춰 원본 해상도 그대로 띠를 만든다. 원본 0·1 세트 2~4 다리 들기 5·6 내딛기 7·8 팔 젖히기 9 공 놓기(팔 앞으로) 10~15 마무리. 이름 칸 = 옛 PixelMeta 투수 칸 번호(0~14): c10 이 공 놓는 순간 칸이라 원본 9. RELEASE = 원본 9 칸의 앞으로 뻗은 주먹. 상대 팀이라 빨강 유니폼 그대로. field_height 30 = 경기장 도트 칸으로 잰 키 → DENSITY = 그림 키 / 30. 부드러운 필터(PixelArt.SMOOTH)",
-    "src": "docs/refs/sprites/sd_pitcher_throw_v1_sheet.png",
+    "_note": "2026-11-15 정면 시선·무표정 투수 v2. 4×4 원본을 16칸 띠로 정리. 공 놓기 원본9, 왼손 글러브·오른손 투구.",
+    "src": "godot/build/pitcher_ink_strip.png",
     "frames": 16,
     "down": 1,
     "resample": "nearest",
-    "drop_small": 60,
+    "drop_small": 250,
     "foot_rows": 4,
     "anchor_frame": 0,
     "png": "godot/art/pixel/pitcher_ext.png",
@@ -55,8 +117,8 @@
     "class": "PitcherExtMeta",
     "points": {
       "RELEASE": [
-        72,
-        86
+        74,
+        68
       ]
     },
     "map": {

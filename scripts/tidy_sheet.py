@@ -63,10 +63,40 @@ def density_of(d, cell_h):
 
 
 def tidy(name, d):
-    src = Image.open(os.path.join(ROOT, d["src"])).convert("RGBA")
     n = d["frames"]
-    fw = src.width // n
-    frames = [np.array(src.crop((i * fw, 0, (i + 1) * fw, src.height))) for i in range(n)]
+    if "sources" in d:
+        frames = []
+        for path in d["sources"]:
+            src = Image.open(os.path.join(ROOT, path)).convert("RGBA")
+            fw = src.width // 2
+            frames.extend(np.array(src.crop((i * fw, 0, (i + 1) * fw, src.height))) for i in range(2))
+        assert len(frames) == n
+        # 생성기의 거의 투명한 배경 잡점만 제외하고 발끝을 같은 지면에 맞춘다.
+        for f in frames:
+            f[f[:, :, 3] < 24] = 0
+        bottoms = [int(np.nonzero((f[:, :, 3] >= 128).any(1))[0].max()) for f in frames]
+        baseline = max(bottoms)
+        anchors = d.get("alignment_anchors")
+        if anchors:
+            assert len(anchors) == n
+            target_x = max(p[0] for p in anchors)
+            target_y = max(p[1] for p in anchors)
+            shifts = [(target_x - x, target_y - y) for x, y in anchors]
+        else:
+            shifts = [(0, baseline - bottom) for bottom in bottoms]
+        # 지지발 정렬 후에도 배트·발끝을 자르지 않도록 공통 판을 넓힌다.
+        fw = frames[0].shape[1] + max(x for x, _ in shifts)
+        frame_height = frames[0].shape[0] + max(y for _, y in shifts)
+        aligned = []
+        for f, (dx, dy) in zip(frames, shifts):
+            canvas = np.zeros((frame_height, fw, 4), np.uint8)
+            canvas[dy:dy + f.shape[0], dx:dx + f.shape[1]] = f
+            aligned.append(canvas)
+        frames = aligned
+    else:
+        src = Image.open(os.path.join(ROOT, d["src"])).convert("RGBA")
+        fw = src.width // n
+        frames = [np.array(src.crop((i * fw, 0, (i + 1) * fw, src.height))) for i in range(n)]
     if d.get("drop_small"):
         for f in frames:
             keep = drop_small(f[:, :, 3] > 0, d["drop_small"])
@@ -77,7 +107,7 @@ def tidy(name, d):
         union |= f[:, :, 3] > 0
     ys, xs = np.nonzero(union)
     x0, x1 = max(xs.min() - 1, 0), min(xs.max() + 2, fw)
-    y0, y1 = max(ys.min() - 1, 0), min(ys.max() + 2, src.height)
+    y0, y1 = max(ys.min() - 1, 0), min(ys.max() + 2, frames[0].shape[0])
     down = int(d.get("down", 1))
     # 줄인 뒤에도 칸이 정수 크기가 되게 상자를 down 의 배수로 넓힌다
     x1 = x0 + -(-(x1 - x0) // down) * down
@@ -100,13 +130,17 @@ def tidy(name, d):
     band = ref[max(bottom - d.get("foot_rows", 3) + 1, 0):bottom + 1]
     bx = np.nonzero(band.any(0))[0]
     feet = (int(round((bx.min() + bx.max()) / 2)), bottom + 1)
+    if d.get("alignment_anchors"):
+        feet = ((target_x - x0) // down, (target_y - y0) // down)
     # 이름 칸 순서로 늘어놓기
     names = list(d["map"].keys())
-    sheet = np.zeros((ch, cw * len(names), 4), np.uint8)
+    cols = int(d.get("output_cols", len(names)))
+    sheet = np.zeros((ch * ((len(names) + cols - 1) // cols), cw * cols, 4), np.uint8)
     for j, nm in enumerate(names):
         i = d["map"][nm]
         assert 0 <= i < n, f"{name}.{nm}: 원본 칸 {i} 없음 (0~{n - 1})"
-        sheet[:, j * cw:(j + 1) * cw] = cells[i]
+        row, col = divmod(j, cols)
+        sheet[row * ch:(row + 1) * ch, col * cw:(col + 1) * cw] = cells[i]
     out_png = os.path.join(ROOT, d["png"])
     Image.fromarray(sheet).save(out_png)
     order = ", ".join(f'"{nm}": {j}' for j, nm in enumerate(names))
@@ -115,6 +149,7 @@ def tidy(name, d):
         f"## scripts/tidy_sheet.py {name} 가 만든다 (정의 scripts/sheets.json). 손으로 고치지 않는다.\n"
         f"## {d['png']} 의 칸 정보. 원본: {d['src']} (SpriteCook {d.get('asset_id', '?')})\n"
         f"const CELL := Vector2({cw}, {ch})\n"
+        f"const COLUMNS := {cols}\n"
         f"const FEET := Vector2({feet[0]}, {feet[1]})\n"
         f"const FRAMES := {{{order}}}\n"
         f"## 경기장 도트 1칸에 이 그림 몇 칸이 들어가나 (2 = 경기장보다 두 배 촘촘한 그림 → 화면 배율은 PixelArt.unit 의 1/2)\n"
@@ -122,6 +157,9 @@ def tidy(name, d):
     )
     # 원본 칸 좌표로 적은 점(공 놓는 손 등) → 발 자리 기준 칸 좌표 (줄인 뒤)
     for key, (px_, py_) in d.get("points", {}).items():
+        if "sources" in d:
+            dx, dy = shifts[d.get("point_frames", {}).get(key, 0)]
+            px_, py_ = px_ + dx, py_ + dy
         meta += f"const {key} := Vector2({(px_ - x0) / down - feet[0]:g}, {(py_ - y0) / down - feet[1]:g})\n"
     with open(os.path.join(ROOT, d["meta"]), "w", encoding="utf-8") as f:
         f.write(meta)
@@ -138,8 +176,8 @@ def tidy(name, d):
             if 0 <= x < bg.width:
                 px[x, min(feet[1], ch - 1)] = (255, 0, 0, 255)
     os.makedirs(os.path.join(ROOT, "godot", "build"), exist_ok=True)
-    bg.resize((bg.width * 3, bg.height * 3), Image.NEAREST).save(
-        os.path.join(ROOT, "godot", "build", f"{name}_preview.png"))
+    bg.thumbnail((4096, 2048))
+    bg.save(os.path.join(ROOT, "godot", "build", f"{name}_preview.png"))
     print(f"{name}: {len(names)}칸 {cw}x{ch} 발 {feet} → {d['png']}")
 
 
