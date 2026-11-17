@@ -215,3 +215,19 @@ const START_MENU_RULE_SIZE := Vector2(32, 2)
 const START_MENU_TRACKING := 2
 const START_MENU_BUTTON_DEPTH := 4
 const START_MENU_PANEL_SHADOW := Color(NAVY, 0.2)
+
+## 휴대폰 UI. 목록, 탭, 채팅은 4px 단위의 공통 간격을 쓴다.
+const PHONE_APP_WIDTH := 384
+const PHONE_APP_INSET := 12
+const PHONE_STATUS_HEIGHT := 32
+const PHONE_HEADER_HEIGHT := 36
+const PHONE_HEADER_BUTTON := 48
+const PHONE_TAB_HEIGHT := 36
+const PHONE_CHOICE_HEIGHT := 36
+const PHONE_AVATAR_SIZE := 36
+const PHONE_CARD_BORDER := 1
+const PHONE_APP_BG := Color("f3f6fc")
+const PHONE_TAB_RAIL := Color("e3ebf9")
+const PHONE_CARD_EDGE := Color("dce5f3")
+const PHONE_BLUE := Color("1b56d4")
+const PHONE_ACCENT_INK := Color("a9441c")

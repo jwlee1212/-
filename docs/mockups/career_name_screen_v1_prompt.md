@@ -1,0 +1,12 @@
+# 선수 커리어 이름 입력 화면 시안 v1
+
+- 도구: 내장 GPT 이미지 생성
+- 기준: `create_screen.gd`의 이름 입력·추천 이름 4개·뒤로·입학하기 기능, CLAUDE.md의 가로 844×390 및 2D SD 규칙
+- 목적: UI 교체 검토용 이미지. 게임 적용은 Claude 담당.
+
+Use case: ui-mockup
+Create ONE polished actual-screen replacement UI mockup for the NAME ENTRY first screen of a Korean casual mobile baseball player career game, FIRST PICK. Landscape aspect ratio 2.16:1, target 2532x1170. No device frame, no surrounding presentation, no annotations.
+Design: sunny warm cream and navy interface, royal blue supporting accents and ONE vivid orange primary action. Beautiful professional game UI with confident hierarchy, generous spacing, crisp readable Korean typography, subtle rounded panels, restrained depth, original art direction, not a generic website.
+Layout: 5% safe margins. Slim top navigation with small outlined back arrow and "뒤로" left, small "퍼스트픽" right. Left 43%: rich hand-painted smooth 2D school baseball ground at spring morning, chain link fence, humble clubhouse, blue sky. ONE charming 2.5-head-tall SD teenage male baseball player with oversized head, crisp dark blue outlines and clean cel shading, blue unbranded cap, ivory uniform with blue sleeves, simple blue socks, carrying bat casually at side, friendly determined expression. Full body visible, about 65% screen height. No photoreal faces, no pixel art, no real logos or resemblance to real players. Use original fictional school.
+Right 50%: broad warm ivory panel blending into background. Small blue eyebrow "새 커리어". Large bold navy title "선수 이름을 정해 주세요". Short secondary line "서림고 야구부에서 시작하는 나의 커리어". Then label "선수 이름", large white active input outlined in blue with text "이름을 입력하세요" in muted ink, pencil icon far right. Tiny helper "최대 6자". Below: compact section label "추천 이름" and FOUR neatly aligned outlined name chips, display exactly "최시우", "한건우", "송이안", "정지환", matching the existing generated name recommendations. Under this small muted school tag "서림고 · 1학년". Near panel bottom a very wide orange button with white bold "입학하기" and white right arrow. Buttons must be visibly large enough for fingers at 844x390 logical resolution; avoid tiny decorative text.
+UI should feel inviting, sporty and tactile. Background behind input is quiet and light. No currencies, stats, position selector, appearance customization, step indicators or invented story copy. This is a fresh-career state. Absolutely no existing-brand logos, watermark, photographic people, clutter, heavy gradients or glossy gold fantasy frames. Render all specified Korean text accurately.

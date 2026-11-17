@@ -86,9 +86,16 @@ const BOARD_LED_ILLUSTRATED := Rect2(135, 21, 71, 21)
 
 
 static func draw_field(canvas: CanvasItem, view_size: Vector2) -> void:
-	var u := unit(view_size)
-	var tex := illustrated_texture("stadium")
-	canvas.draw_texture_rect(tex, Rect2(origin(view_size), PixelMeta.FIELD_SIZE * u), false)
+	var tex := illustrated_texture("stadium_ink")
+	canvas.draw_texture_rect(tex, batting_field_rect(view_size), false)
+
+
+## 새 경기장 원본의 비율을 유지한다. 투수판은 화면 높이 56%에 맞춘다.
+static func batting_field_rect(view_size: Vector2) -> Rect2:
+	var tex := illustrated_texture("stadium_ink")
+	var scale := maxf(view_size.x / tex.get_width(), view_size.y / tex.get_height())
+	var drawn := tex.get_size() * scale
+	return Rect2(Vector2((view_size.x - drawn.x) * 0.5, view_size.y * 0.56 - drawn.y * 0.582), drawn)
 
 
 ## 전광판 글자 (3×5, 위 줄부터 — 1 이 켜진 LED)
@@ -103,11 +110,12 @@ const LED_FONT := {
 ## 경기장 전광판에 줄 점수·볼카운트를 도트로 찍는다 (배경 그림의 LED 판 위, 같은 칸 격자).
 ## board: rows [[팀색, 이닝별 점수 Array, 합계 문자열, 공격 중], [...]] (원정 먼저), first 맨 왼쪽 이닝 번호, balls·strikes·outs
 static func draw_scoreboard(canvas: CanvasItem, view_size: Vector2, board: Dictionary) -> void:
-	var u := unit(view_size)
 	var led := BOARD_LED_ILLUSTRATED
-	var o := origin(view_size) + led.position * u
+	var field := batting_field_rect(view_size)
+	var o := field.position + field.size * Vector2(0.368, 0.218)
+	var u := field.size * Vector2(0.264, 0.148) / led.size
 	var dot := func(x: int, y: int, col: Color) -> void:
-		canvas.draw_rect(Rect2(o + Vector2(x, y) * u, Vector2(u, u)), col)
+		canvas.draw_rect(Rect2(o + Vector2(x, y) * u, u), col)
 	var text := func(x: int, y: int, s: String, col: Color) -> void:
 		for i in s.length():
 			var g: String = LED_FONT.get(s[i], "")
