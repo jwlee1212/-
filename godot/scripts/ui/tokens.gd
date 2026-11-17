@@ -193,7 +193,6 @@ static func spaced(font: Font, px: int) -> FontVariation:
 	return v
 
 
-<<<<<<< HEAD
 ## 시작 메뉴. 4px 단위로 메뉴 판, 행 안쪽 여백, 개발 버튼 열 너비를 맞춘다.
 ## 판 너비는 화면(844)의 절반 아래로 — 왼쪽 일러스트(선수)가 넉넉히 보이게
 const START_MENU_SIZE := Vector2(392, 380)
@@ -216,7 +215,6 @@ const START_MENU_RULE_SIZE := Vector2(32, 2)
 const START_MENU_TRACKING := 2
 const START_MENU_BUTTON_DEPTH := 4
 const START_MENU_PANEL_SHADOW := Color(NAVY, 0.2)
-=======
 
 ## 휴대폰 UI. 목록, 탭, 채팅은 4px 단위의 공통 간격을 쓴다.
 const PHONE_APP_WIDTH := 384
@@ -233,4 +231,3 @@ const PHONE_TAB_RAIL := Color("e3ebf9")
 const PHONE_CARD_EDGE := Color("dce5f3")
 const PHONE_BLUE := Color("1b56d4")
 const PHONE_ACCENT_INK := Color("a9441c")
->>>>>>> codex/phone-ui
