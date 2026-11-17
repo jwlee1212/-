@@ -1,0 +1,13 @@
+# 소율 펜선·평면 채색 스타일 시안 v1
+
+도구: 내장 GPT 이미지 생성, 투명 배경.
+기준 1: docs/mockups/career_name_screen_v2.png — 새 메인 캐릭터의 그림체.
+기준 2: docs/refs/portraits/originals/manager.png — 기존 소율의 외형·복장·소품.
+
+Use case: style-transfer
+Create ONE dialogue portrait illustration of SOYUL, a fictional Korean teenage school baseball team manager, using TWO references with distinct roles.
+REFERENCE 1 (career_name_screen_v2.png): PRIMARY DRAWING STYLE. Match the main player's hand-inked navy contour lines, modest stylized features, flat matte color blocks, restrained single shadow tone, subtle pencil/ink texture, warm ivory/navy/dusty blue palette. This should look drawn by the SAME artist as that game character. Avoid the usual polished shiny anime finish, airbrushing, detailed hair highlights or glossy eyes. A few deliberate sketch accents rather than noisy texture everywhere.
+REFERENCE 2 (manager.png): CHARACTER IDENTITY AND COSTUME ONLY. Preserve Soyul's recognizable messy black high ponytail with flyaways, side-swept fringe and long side locks, dark lively eyes, energetic cheeky toothy grin, navy school cardigan with pushed-up sleeves over light ivory shirt, thin simple necklace, and dusty-blue scorebook hugged across her chest. Do not borrow reference 2's shiny layered anime rendering.
+Composition: single character, portrait 3:4, dialogue sprite from top of hair down to hips, both elbows, hands and whole scorebook fully in frame, 8% top margin and generous clear space around silhouette. Three-quarter pose looking toward viewer, shoulders relaxed, mischievous confident smile, same approachable teenage identity. Slightly simplified and larger-headed stylization consistent with reference 1's character family, but use natural expressive half-body dialogue illustration proportions, NOT a tiny full-body super-deformed mascot. Reference 1's simple facial line language translated to a girl, retain distinct Soyul identity.
+Clean organic ink linework with understated hand-made variation, broad flat navy clothing shapes with only one blue-gray shadow tone, warm neutral flat skin, simple mostly solid black hair with very few muted navy shape accents, no volumetric glossy highlights. Cute, sporty, lively, tasteful designed game portrait.
+TRUE TRANSPARENT background, no colored background, no checkerboard painted into art, no border, no vignette, no scenery, no UI, no nameplate, no text, no watermarks or logos. No photorealism, no actual person's likeness. The character is a fully clothed school student. Keep reference ponytail and book as clear identifying silhouettes. This is a style trial for bringing the dialogue portraits into the newly approved game's visual direction.

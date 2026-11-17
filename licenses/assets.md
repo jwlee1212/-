@@ -127,3 +127,56 @@ AI 생성 에셋: 위 인물 일러스트 15장(옛 그림 중 덮어쓴 5장 �
 - 2026-11-15: `docs/refs/sprites/batter_ink_swing_pair05_v2.png` — 유저 첨부 타격 시트를 참조하여 내장 GPT image_gen으로 생성한 2컷 타격 일러스트. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기. Prompt: `docs/refs/sprites/batter_ink_swing_pair05_v2_prompt.md`.
 
 - 2026-11-15: `docs/refs/sprites/batter_ink_swing_pair06_v2.png` — 유저 첨부 타격 시트를 참조하여 내장 GPT image_gen으로 생성한 2컷 타격 일러스트. 상업 이용: 도구 약관 및 참조 이미지 권리 별도 확인 대기. Prompt: `docs/refs/sprites/batter_ink_swing_pair06_v2_prompt.md`.
+- docs/mockups/career_name_screen_v1.png (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 이름 입력 UI 검토 시안. 프롬프트는 같은 이름의 _prompt.md. 상업 이용 약관 별도 확인 대기.
+
+- docs/mockups/career_name_screen_v2.png (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 이름 입력 UI 수정 시안. 추천 이름 삭제 및 그림 표현 단순화. 프롬프트는 같은 이름의 _prompt.md. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/title_screen_v2.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 타이틀 시안. 메인 캐릭터 기준 `docs/mockups/career_name_screen_v2.png` 참조. 프롬프트는 `docs/mockups/title_screen_v2_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/main_menu_v2.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 메인 메뉴 시안. `docs/mockups/title_screen_v2.png`의 메인 캐릭터와 그림체 참조. 프롬프트는 `docs/mockups/main_menu_v2_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/refs/portraits/soyul_ink_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 소율 대화 일러스트 스타일 시안. `docs/mockups/career_name_screen_v2.png`(그림체)와 `docs/refs/portraits/originals/manager.png`(인물 외형) 참조. 프롬프트는 `docs/refs/portraits/soyul_ink_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/career_street_home_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 고교 커리어 동네 골목 홈 UI 시안. `docs/mockups/career_name_screen_v2.png`의 메인 캐릭터·그림체 참조. 프롬프트는 `docs/mockups/career_street_home_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- docs/refs/sprites/main_player_tpose_v1.png 및 main_player_tpose_v2.png (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 메인 캐릭터 정면 T자 포즈. 기준 docs/mockups/career_name_screen_v2.png. 각 생성·수정 프롬프트는 같은 이름의 _prompt.md. 상업 이용 약관 별도 확인 대기.
+
+- `docs/refs/sprites/main_player_walk_right_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 메인 캐릭터 골목용 오른쪽 걷기 8프레임 시트. 기준 `docs/refs/sprites/main_player_tpose_v2.png`. 프롬프트는 `docs/refs/sprites/main_player_walk_right_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/player_info_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 선수 정보 능력치 탭 UI 시안. `docs/refs/sprites/main_player_tpose_v2.png`의 캐릭터·그림체 참조. 프롬프트는 `docs/mockups/player_info_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/player_equipment_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 선수 정보 장비 UI 시안. 기준 `docs/mockups/player_info_v1.png`. 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/player_growth_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 선수 정보 성장 기록 UI 시안. 기준 `docs/mockups/player_info_v1.png`. 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/player_awards_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 선수 정보 수상·기념 UI 시안. 기준 `docs/mockups/player_info_v1.png`. 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/player_stat_contact_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 선수 정보 컨택 상세 UI 시안. 기준 `docs/mockups/player_info_v1.png`. 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/player_stat_power_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 선수 정보 파워 상세 UI 시안. 기준 `docs/mockups/player_info_v1.png`. 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/player_stat_eye_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 선수 정보 선구안 상세 UI 시안. 기준 `docs/mockups/player_info_v1.png`. 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/player_stat_speed_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 선수 정보 주력 상세 UI 시안. 기준 `docs/mockups/player_info_v1.png`. 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/training_ui_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 구간 훈련 방향 선택 UI 시안. `docs/mockups/player_info_v1.png`의 메인 캐릭터·그림체·UI 참조. 프롬프트는 `docs/mockups/training_ui_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/training_lesson_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 훈련 개인 레슨 UI 시안. 기준 `docs/mockups/training_ui_v1.png`. 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/training_care_v1.png` (2026-11-12): 내장 GPT 이미지 생성 도구로 제작한 훈련 관리 UI 시안. 기준 `docs/mockups/training_ui_v1.png`. 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/phone_messages_v1.png` (2026-11-14): 내장 GPT 이미지 생성 도구로 제작한 폰 메시지 목록 UI 시안. 기존 인물 일러스트 `docs/refs/portraits/originals/manager.png`, `neighbor.png`, `buddy.png`, `mom.png`를 프로필·인물 참조로, `docs/mockups/career_street_home_v1.png`를 UI·배경 참조로 사용. 프롬프트는 `docs/mockups/phone_messages_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/phone_chat_soyul_v1.png` (2026-11-14): 내장 GPT 이미지 생성 도구로 제작한 폰 소율 채팅방 UI 시안. 기준 `docs/mockups/phone_messages_v1.png`(기존 인물 일러스트 참조 포함). 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/phone_news_list_v1.png` (2026-11-14): 내장 GPT 이미지 생성 도구로 제작한 폰 뉴스 탭 목록 UI 시안. 기준 `docs/mockups/phone_messages_v1.png`(기존 인물 일러스트 참조 포함). 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/phone_news_article_v1.png` (2026-11-14): 내장 GPT 이미지 생성 도구로 제작한 폰 뉴스 기사 상세 UI 시안. 기준 `docs/mockups/phone_messages_v1.png`(기존 인물 일러스트 참조 포함). 프롬프트는 같은 이름의 `_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/street_hs_long_v1.png` (2026-11-14): 내장 GPT 이미지 생성 도구로 제작한 고교 골목길 연속 배경 파노라마 시안. 기준 `docs/mockups/career_street_home_v1.png`. 프롬프트는 `docs/mockups/street_hs_long_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/game_batting_ui_v1.png` (2026-11-15): 내장 GPT 이미지 생성 도구로 제작한 경기 타석 UI 시안. 캐릭터 기준 `docs/refs/sprites/main_player_tpose_v2.png`, 그림체·색감 기준 `docs/mockups/training_ui_v1.png`. 프롬프트는 `docs/mockups/game_batting_ui_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/game_result_ui_v1.png` (2026-11-15): 내장 GPT 이미지 생성 도구로 제작한 경기 결과 UI 시안. 기준 `docs/mockups/game_batting_ui_v1.png` 및 `docs/refs/sprites/main_player_tpose_v2.png`. 프롬프트는 `docs/mockups/game_result_ui_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
+
+- `docs/mockups/batting_field_background_v1.png` (2026-11-15): 내장 GPT 이미지 생성 편집 도구로 경기 타석 시안에서 UI·선수·공을 제거하고 가려진 경기장 배경을 복원. 기준 `docs/mockups/game_batting_ui_v1.png`와 동일한 사용자 첨부 원본. 프롬프트는 `docs/mockups/batting_field_background_v1_prompt.md`. 상업 이용 약관 별도 확인 대기.
